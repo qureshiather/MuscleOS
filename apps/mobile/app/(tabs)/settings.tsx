@@ -4,11 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
 import { exportAndShareData } from '@/storage/exportData';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export default function SettingsScreen() {
-  const { colors } = useTheme();
+  const { colors, setTheme } = useTheme();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
+  const isDark = colors.background === '#0a0a0b';
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const setWeightUnit = useSettingsStore((s) => s.setWeightUnit);
 
   async function handleExport() {
     setExporting(true);
@@ -29,6 +33,40 @@ export default function SettingsScreen() {
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Account, export & subscription
         </Text>
+      </View>
+      <View style={[styles.row, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.rowText, { color: colors.text }]}>Appearance</Text>
+        <View style={styles.themeRow}>
+          <Pressable
+            style={[styles.themeBtn, isDark && { backgroundColor: colors.primary }]}
+            onPress={() => setTheme(true)}
+          >
+            <Text style={[styles.themeBtnText, { color: isDark ? '#fff' : colors.textSecondary }]}>Dark</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.themeBtn, !isDark && { backgroundColor: colors.primary }]}
+            onPress={() => setTheme(false)}
+          >
+            <Text style={[styles.themeBtnText, { color: !isDark ? '#fff' : colors.textSecondary }]}>Light</Text>
+          </Pressable>
+        </View>
+      </View>
+      <View style={[styles.row, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.rowText, { color: colors.text }]}>Weight unit</Text>
+        <View style={styles.themeRow}>
+          <Pressable
+            style={[styles.themeBtn, weightUnit === 'kg' && { backgroundColor: colors.primary }]}
+            onPress={() => setWeightUnit('kg')}
+          >
+            <Text style={[styles.themeBtnText, { color: weightUnit === 'kg' ? '#fff' : colors.textSecondary }]}>KG</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.themeBtn, weightUnit === 'lb' && { backgroundColor: colors.primary }]}
+            onPress={() => setWeightUnit('lb')}
+          >
+            <Text style={[styles.themeBtnText, { color: weightUnit === 'lb' ? '#fff' : colors.textSecondary }]}>Pounds</Text>
+          </Pressable>
+        </View>
       </View>
       <Pressable
         style={({ pressed }) => [
@@ -83,4 +121,12 @@ const styles = StyleSheet.create({
   },
   rowText: { fontSize: 16, fontWeight: '500' },
   rowHint: { fontSize: 13 },
+  themeRow: { flexDirection: 'row', gap: 8 },
+  themeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+  },
+  themeBtnText: { fontSize: 14, fontWeight: '600' },
 });

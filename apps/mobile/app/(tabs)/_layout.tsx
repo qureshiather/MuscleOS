@@ -1,22 +1,27 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
+
+const TAB_BAR_HEIGHT = 56;
 
 export default function TabsLayout() {
   const { colors } = useTheme();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
-      }}
-    >
+    <View style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+          },
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -62,6 +67,10 @@ export default function TabsLayout() {
           ),
         }}
       />
-    </Tabs>
+      </Tabs>
+      <View style={{ position: 'absolute', bottom: TAB_BAR_HEIGHT, left: 0, right: 0 }}>
+        <ResumeWorkoutPill />
+      </View>
+    </View>
   );
 }

@@ -46,3 +46,38 @@ export function computeBMR(weightKg: number, heightCm: number, age: number, sex:
   }
   return 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
 }
+
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+export type MacroGoal = 'maintain' | 'lose' | 'gain';
+
+const ACTIVITY_MULT: Record<ActivityLevel, number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+  very_active: 1.9,
+};
+
+/** TDEE from BMR and activity */
+export function computeTDEE(bmrKcal: number, activity: ActivityLevel): number {
+  return Math.round(bmrKcal * ACTIVITY_MULT[activity]);
+}
+
+/** Suggested macro targets from TDEE, goal, and weight. You can adjust after. */
+export function computeMacros(
+  tdeeKcal: number,
+  goal: MacroGoal,
+  weightKg: number
+): { caloriesKcal: number; proteinG: number; carbsG: number; fatG: number } {
+  const calorieDelta = goal === 'lose' ? -500 : goal === 'gain' ? 300 : 0;
+  const caloriesKcal = Math.round(tdeeKcal + calorieDelta);
+  const proteinG = Math.round(goal === 'gain' ? weightKg * 2.2 : weightKg * 1.6);
+  const fatG = Math.round((caloriesKcal * 0.25) / 9);
+  const carbsG = Math.round((caloriesKcal - proteinG * 4 - fatG * 9) / 4);
+  return {
+    caloriesKcal: Math.max(1200, caloriesKcal),
+    proteinG: Math.max(50, proteinG),
+    carbsG: Math.max(0, carbsG),
+    fatG: Math.max(20, fatG),
+  };
+}

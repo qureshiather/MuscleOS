@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const colors = {
+const THEME_KEY = 'muscleos_theme';
+
+const darkColors = {
   background: '#0a0a0b',
   surface: '#141416',
   surfaceElevated: '#1c1c1f',
@@ -17,19 +20,55 @@ export const colors = {
   muscleRecovering: '#f59e0b',
 } as const;
 
+const lightColors = {
+  background: '#f8fafc',
+  surface: '#ffffff',
+  surfaceElevated: '#f1f5f9',
+  border: '#e2e8f0',
+  text: '#0f172a',
+  textSecondary: '#475569',
+  textMuted: '#94a3b8',
+  primary: '#16a34a',
+  primaryDim: '#15803d',
+  accent: '#2563eb',
+  danger: '#dc2626',
+  warning: '#d97706',
+  muscleHighlight: '#ea580c',
+  muscleRecovering: '#d97706',
+} as const;
+
+export const colors = darkColors;
+export type ThemeColors = typeof darkColors;
+
 type ThemeContextValue = {
-  colors: typeof colors;
+  colors: typeof darkColors | typeof lightColors;
   isDark: boolean;
+  setTheme: (dark: boolean) => Promise<void>;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark] = useState(true);
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_KEY).then((v) => {
+      if (v === 'light') setIsDark(false);
+      else if (v === 'dark') setIsDark(true);
+    });
+  }, []);
+
+  const setTheme = async (dark: boolean) => {
+    setIsDark(dark);
+    await AsyncStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+  };
+
+  const themeColors = isDark ? darkColors : lightColors;
   const value = useMemo(
-    () => ({ colors, isDark }),
+    () => ({ colors: themeColors, isDark, setTheme }),
     [isDark]
   );
+
   return (
     <ThemeContext.Provider value={value}>
       {children}
