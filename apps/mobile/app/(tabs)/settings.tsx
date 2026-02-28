@@ -137,16 +137,26 @@ export default function SettingsScreen() {
               <Text style={[styles.unitLabel, { color: colors.textMuted }]}>Gender</Text>
               <View style={[styles.themeRow, { marginBottom: 12 }]}>
                 <Pressable
-                  style={[styles.themeBtn, (sexSelection ?? profile.sex) === 'male' && { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.themeBtn,
+                    (sexSelection ?? profile.sex) === 'male'
+                      ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                      : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+                  ]}
                   onPress={() => setSexSelection('male')}
                 >
-                  <Text style={[styles.themeBtnText, { color: (sexSelection ?? profile.sex) === 'male' ? '#fff' : colors.textSecondary }]}>Male</Text>
+                  <Text style={[styles.themeBtnText, { color: (sexSelection ?? profile.sex) === 'male' ? '#fff' : colors.text }]}>Male</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.themeBtn, (sexSelection ?? profile.sex) === 'female' && { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.themeBtn,
+                    (sexSelection ?? profile.sex) === 'female'
+                      ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                      : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+                  ]}
                   onPress={() => setSexSelection('female')}
                 >
-                  <Text style={[styles.themeBtnText, { color: (sexSelection ?? profile.sex) === 'female' ? '#fff' : colors.textSecondary }]}>Female</Text>
+                  <Text style={[styles.themeBtnText, { color: (sexSelection ?? profile.sex) === 'female' ? '#fff' : colors.text }]}>Female</Text>
                 </Pressable>
               </View>
               <View style={styles.inputRow}>
@@ -200,16 +210,26 @@ export default function SettingsScreen() {
           </Text>
           <View style={styles.themeRow}>
             <Pressable
-              style={[styles.themeBtn, unitSystem === 'metric' && { backgroundColor: colors.primary }]}
+              style={[
+                styles.themeBtn,
+                unitSystem === 'metric'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
               onPress={() => setUnitSystem('metric')}
             >
-              <Text style={[styles.themeBtnText, { color: unitSystem === 'metric' ? '#fff' : colors.textSecondary }]}>Metric</Text>
+              <Text style={[styles.themeBtnText, { color: unitSystem === 'metric' ? '#fff' : colors.text }]}>Metric</Text>
             </Pressable>
             <Pressable
-              style={[styles.themeBtn, unitSystem === 'imperial' && { backgroundColor: colors.primary }]}
+              style={[
+                styles.themeBtn,
+                unitSystem === 'imperial'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
               onPress={() => setUnitSystem('imperial')}
             >
-              <Text style={[styles.themeBtnText, { color: unitSystem === 'imperial' ? '#fff' : colors.textSecondary }]}>Imperial</Text>
+              <Text style={[styles.themeBtnText, { color: unitSystem === 'imperial' ? '#fff' : colors.text }]}>Imperial</Text>
             </Pressable>
           </View>
         </View>
@@ -218,16 +238,26 @@ export default function SettingsScreen() {
           <Text style={[styles.rowText, { color: colors.text }]}>Appearance</Text>
           <View style={styles.themeRow}>
             <Pressable
-              style={[styles.themeBtn, isDark && { backgroundColor: colors.primary }]}
+              style={[
+                styles.themeBtn,
+                isDark
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
               onPress={() => setTheme(true)}
             >
-              <Text style={[styles.themeBtnText, { color: isDark ? '#fff' : colors.textSecondary }]}>Dark</Text>
+              <Text style={[styles.themeBtnText, { color: isDark ? '#fff' : colors.text }]}>Dark</Text>
             </Pressable>
             <Pressable
-              style={[styles.themeBtn, !isDark && { backgroundColor: colors.primary }]}
+              style={[
+                styles.themeBtn,
+                !isDark
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
               onPress={() => setTheme(false)}
             >
-              <Text style={[styles.themeBtnText, { color: !isDark ? '#fff' : colors.textSecondary }]}>Light</Text>
+              <Text style={[styles.themeBtnText, { color: !isDark ? '#fff' : colors.text }]}>Light</Text>
             </Pressable>
           </View>
         </View>
@@ -367,7 +397,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: 'transparent',
+    minWidth: 76,
+    alignItems: 'center' as const,
   },
   themeBtnText: { fontSize: 14, fontWeight: '600' },
 });
