@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRecoveryStore } from '@/store/recoveryStore';
-import { useHealthStore } from '@/store/healthStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
@@ -16,8 +16,8 @@ export default function RecoveryScreen() {
   const load = useRecoveryStore((s) => s.load);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
   const isLoading = useRecoveryStore((s) => s.isLoading);
-  const metabolism = useHealthStore((s) => s.metabolism);
-  const diagramVariant = metabolism?.sex === 'female' ? 'female' : 'male';
+  const profile = useSettingsStore((s) => s.profile);
+  const diagramVariant = profile?.sex === 'female' ? 'female' : 'male';
 
   useFocusEffect(
     useCallback(() => {
