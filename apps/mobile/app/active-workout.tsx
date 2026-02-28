@@ -7,6 +7,7 @@ import {
   Pressable,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
@@ -17,6 +18,7 @@ import { getExercise } from '@/data/exercises';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
+import { Ionicons } from '@expo/vector-icons';
 
 const DEFAULT_REST_SECONDS = 90;
 
@@ -40,13 +42,17 @@ export default function ActiveWorkoutScreen() {
   const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
+  const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
   const [restSecondsLeft, setRestSecondsLeft] = useState<number | null>(null);
+  const [restTotalSeconds, setRestTotalSeconds] = useState(DEFAULT_REST_SECONDS);
   const [restAfter, setRestAfter] = useState<{ exIdx: number; setIdx: number } | null>(null);
+  const [restDurationsBetweenSets, setRestDurationsBetweenSets] = useState<Record<string, number>>({});
+  const [showRestPicker, setShowRestPicker] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
@@ -92,9 +98,46 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [restSecondsLeft]);
 
-  function startRest(exIdx: number, setIdx: number) {
+  // When timer expires (restSecondsLeft becomes null), save full duration and clear restAfter
+  useEffect(() => {
+    if (restSecondsLeft !== null || restAfter === null) return;
+    setRestDurationsBetweenSets((prev) => ({
+      ...prev,
+      [`${restAfter.exIdx}-${restAfter.setIdx}`]: restTotalSeconds,
+    }));
+    setRestAfter(null);
+  }, [restSecondsLeft, restAfter, restTotalSeconds]);
+
+  function startRest(exIdx: number, setIdx: number, totalSeconds = DEFAULT_REST_SECONDS) {
     setRestAfter({ exIdx, setIdx });
-    setRestSecondsLeft(DEFAULT_REST_SECONDS);
+    setRestTotalSeconds(totalSeconds);
+    setRestSecondsLeft(totalSeconds);
+  }
+
+  function startManualRest(seconds: number) {
+    setShowRestPicker(false);
+    setRestAfter(null);
+    setRestTotalSeconds(seconds);
+    setRestSecondsLeft(seconds);
+  }
+
+  function skipRest() {
+    if (restAfter !== null && restTotalSeconds > 0 && restSecondsLeft !== null) {
+      const taken = restTotalSeconds - restSecondsLeft;
+      if (taken > 0) {
+        setRestDurationsBetweenSets((prev) => ({
+          ...prev,
+          [`${restAfter.exIdx}-${restAfter.setIdx}`]: taken,
+        }));
+      }
+    }
+    setRestSecondsLeft(null);
+    setRestAfter(null);
+  }
+
+  function add30SecondsRest() {
+    setRestTotalSeconds((t) => t + 30);
+    setRestSecondsLeft((s) => (s === null ? null : s + 30));
   }
 
   async function handleFinish() {
@@ -124,11 +167,47 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header: Back | Time (center) | Finish */}
+      {/* Header: Back + (Rest timer | Timer icon) | Time (center) | Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerLeft}>
-          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
-        </Pressable>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+          </Pressable>
+          {restSecondsLeft !== null && restSecondsLeft > 0 ? (
+            <View style={[styles.headerRestContainer, { backgroundColor: colors.surfaceElevated }]}>
+              <View style={styles.headerRestTop}>
+                <Text style={[styles.headerRestTime, { color: colors.accent }]}>
+                  {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+                </Text>
+                <Pressable onPress={add30SecondsRest} hitSlop={6}>
+                  <Text style={[styles.headerRestCtrl, { color: colors.primary }]}>+30s</Text>
+                </Pressable>
+                <Pressable onPress={skipRest} hitSlop={6}>
+                  <Text style={[styles.headerRestCtrl, { color: colors.textMuted }]}>Skip</Text>
+                </Pressable>
+              </View>
+              <View style={[styles.headerRestBarBg, { backgroundColor: colors.background }]}>
+                <View
+                  style={[
+                    styles.headerRestBarFill,
+                    {
+                      width: `${restTotalSeconds > 0 ? ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100 : 0}%`,
+                      backgroundColor: colors.accent,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setShowRestPicker(true)}
+              hitSlop={8}
+              style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
+            >
+              <Ionicons name="timer-outline" size={20} color={colors.accent} />
+            </Pressable>
+          )}
+        </View>
         <View style={styles.headerCenter}>
           <Text style={[styles.elapsed, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
         </View>
@@ -174,11 +253,6 @@ export default function ActiveWorkoutScreen() {
               </View>
 
               {se.sets.map((set, setIdx) => {
-                const isResting =
-                  restAfter?.exIdx === exIdx &&
-                  restAfter?.setIdx === setIdx &&
-                  restSecondsLeft !== null &&
-                  restSecondsLeft > 0;
                 const isKgFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'kg';
                 const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
                 const prev = previousMap[se.exerciseId];
@@ -253,8 +327,12 @@ export default function ActiveWorkoutScreen() {
                             : { backgroundColor: colors.surfaceElevated },
                         ]}
                         onPress={() => {
-                          completeSet(exIdx, setIdx);
-                          if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
+                          if (set.completed) {
+                            uncompleteSet(exIdx, setIdx);
+                          } else {
+                            completeSet(exIdx, setIdx);
+                            if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
+                          }
                         }}
                       >
                         <Text style={[styles.doneBtnText, { color: set.completed ? '#fff' : colors.textSecondary }]}>
@@ -262,23 +340,15 @@ export default function ActiveWorkoutScreen() {
                         </Text>
                       </Pressable>
                     </View>
-                    {isResting && (
-                      <View style={[styles.restBar, { backgroundColor: colors.surfaceElevated }]}>
-                        <View
-                          style={[
-                            styles.restBarFill,
-                            {
-                              width: `${((DEFAULT_REST_SECONDS - restSecondsLeft) / DEFAULT_REST_SECONDS) * 100}%`,
-                              backgroundColor: colors.accent,
-                            },
-                          ]}
-                        />
-                        <Text style={[styles.restTimerInline, { color: colors.accent }]}>
-                          {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+                    {/* Rest between sets: show after every set except the last */}
+                    {setIdx < se.sets.length - 1 && (
+                      <View style={styles.restBetweenRow}>
+                        <Ionicons name="timer-outline" size={12} color={colors.textMuted} />
+                        <Text style={[styles.restBetweenText, { color: colors.textMuted }]}>
+                          Rest {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
+                            ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
+                            : '—'}
                         </Text>
-                        <Pressable onPress={() => setRestSecondsLeft(0)} style={styles.skipRestInline}>
-                          <Text style={[styles.skipRestText, { color: colors.textMuted }]}>Skip</Text>
-                        </Pressable>
                       </View>
                     )}
                   </View>
@@ -315,6 +385,30 @@ export default function ActiveWorkoutScreen() {
           <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>Cancel workout</Text>
         </Pressable>
       </ScrollView>
+
+      <Modal visible={showRestPicker} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowRestPicker(false)}>
+          <View style={[styles.restPickerCard, { backgroundColor: colors.surface }]} onStartShouldSetResponder={() => true}>
+            <Text style={[styles.restPickerTitle, { color: colors.text }]}>Start rest timer</Text>
+            <View style={styles.restPickerOptions}>
+              {[60, 120, 180].map((sec) => (
+                <Pressable
+                  key={sec}
+                  style={[styles.restPickerOption, { backgroundColor: colors.surfaceElevated }]}
+                  onPress={() => startManualRest(sec)}
+                >
+                  <Text style={[styles.restPickerOptionText, { color: colors.accent }]}>
+                    {sec === 60 ? '1 min' : sec === 120 ? '2 min' : '3 min'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => setShowRestPicker(false)} style={styles.restPickerCancel}>
+              <Text style={[styles.restPickerCancelText, { color: colors.textMuted }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -329,7 +423,25 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  headerLeft: { minWidth: 56 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 56 },
+  headerTimerBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  headerRestContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    minWidth: 100,
+  },
+  headerRestTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerRestTime: { fontSize: 13, fontWeight: '700' },
+  headerRestCtrl: { fontSize: 11, fontWeight: '600' },
+  headerRestBarBg: {
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 4,
+    width: '100%',
+  },
+  headerRestBarFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   headerCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 56 },
   backText: { fontSize: 16 },
@@ -381,19 +493,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   doneBtnText: { fontSize: 16 },
-  restBar: {
+  restBetweenRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 40,
-    borderRadius: 8,
-    overflow: 'hidden',
+    gap: 6,
     marginBottom: 8,
-    paddingHorizontal: 12,
+    paddingLeft: 36,
   },
-  restBarFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
-  restTimerInline: { fontSize: 18, fontWeight: '700', zIndex: 1 },
-  skipRestInline: { marginLeft: 'auto', zIndex: 1, padding: 8 },
-  skipRestText: { fontSize: 14 },
+  restBetweenText: { fontSize: 12 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  restPickerCard: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 16,
+    padding: 24,
+  },
+  restPickerTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
+  restPickerOptions: { gap: 10, marginBottom: 16 },
+  restPickerOption: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  restPickerOptionText: { fontSize: 16, fontWeight: '600' },
+  restPickerCancel: { alignItems: 'center', padding: 8 },
+  restPickerCancelText: { fontSize: 15 },
   finishBtn: {
     padding: 18,
     borderRadius: 14,

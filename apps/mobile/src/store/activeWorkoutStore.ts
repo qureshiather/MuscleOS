@@ -17,6 +17,7 @@ export interface ActiveWorkoutState {
   startWorkout: (templateId: string, dayId: string, dayName: string, exerciseIds: string[]) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
+  uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
   finishWorkout: () => Promise<void>;
   discardWorkout: () => void;
 }
@@ -71,6 +72,19 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const sets = [...ex.sets];
     if (!sets[setIndex]) return;
     sets[setIndex] = { ...sets[setIndex], completed: true };
+    exercises[exerciseIndex] = { ...ex, sets };
+    set({ session: { ...session, exercises } });
+  },
+
+  uncompleteSet: (exerciseIndex, setIndex) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex) return;
+    const sets = [...ex.sets];
+    if (!sets[setIndex]) return;
+    sets[setIndex] = { ...sets[setIndex], completed: false };
     exercises[exerciseIndex] = { ...ex, sets };
     set({ session: { ...session, exercises } });
   },
