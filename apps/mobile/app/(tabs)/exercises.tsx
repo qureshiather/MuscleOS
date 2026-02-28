@@ -11,14 +11,53 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
-import { EXERCISES, getExercise } from '@/data/exercises';
+import { EXERCISES } from '@/data/exercises';
 import { MUSCLE_GROUPS } from '@muscleos/types';
-import type { Exercise } from '@muscleos/types';
+import type { Exercise, MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+
+/** Equipment type filter: Cable, Machine, or Free Weight (barbell, dumbbell, etc.). */
+const EQUIPMENT_TYPE = {
+  cable: ['cable'] as const,
+  machine: ['machine'] as const,
+  free_weight: ['barbell', 'dumbbell', 'kettlebell', 'ez_bar', 'bodyweight', 'band'] as const,
+} as const;
+type EquipmentTypeKey = keyof typeof EQUIPMENT_TYPE;
+
+/** Large muscle groups for filtering: small muscle IDs in each. */
+const LARGE_MUSCLE_GROUPS: Record<string, MuscleId[]> = {
+  legs: ['quads', 'hamstrings', 'glutes', 'calves'],
+  back: ['lats', 'traps', 'lower_back', 'rhomboids'],
+  chest: ['chest'],
+  shoulders: ['front_delts', 'side_delts', 'rear_delts'],
+};
+
+const LARGE_GROUP_LABELS: Record<string, string> = {
+  legs: 'Legs',
+  back: 'Back',
+  chest: 'Chest',
+  shoulders: 'Shoulders',
+};
+
+function exerciseMatchesType(e: Exercise, typeKey: EquipmentTypeKey | null): boolean {
+  if (!typeKey) return true;
+  const equipmentList = EQUIPMENT_TYPE[typeKey];
+  return e.equipment.some((eq) => (equipmentList as readonly string[]).includes(eq));
+}
+
+function exerciseMatchesMuscleFilter(e: Exercise, muscleFilter: string | null): boolean {
+  if (!muscleFilter) return true;
+  const largeIds = LARGE_MUSCLE_GROUPS[muscleFilter];
+  if (largeIds) {
+    return e.muscles.some((m) => largeIds.includes(m));
+  }
+  return e.muscles.includes(muscleFilter as MuscleId);
+}
 
 export default function ExercisesScreen() {
   const { colors } = useTheme();
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<EquipmentTypeKey | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
 
@@ -33,11 +72,10 @@ export default function ExercisesScreen() {
           e.equipment.some((eq) => eq.toLowerCase().includes(q))
       );
     }
-    if (muscleFilter) {
-      list = list.filter((e) => e.muscles.includes(muscleFilter as any));
-    }
+    list = list.filter((e) => exerciseMatchesType(e, typeFilter));
+    list = list.filter((e) => exerciseMatchesMuscleFilter(e, muscleFilter));
     return list;
-  }, [search, muscleFilter]);
+  }, [search, typeFilter, muscleFilter]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -63,7 +101,56 @@ export default function ExercisesScreen() {
       />
       <View style={styles.filterSection}>
         <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
-          Muscle group
+          Type
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chipsContent}
+        >
+          <Pressable
+            style={[
+              styles.chip,
+              { backgroundColor: typeFilter === null ? colors.primary : colors.surface },
+            ]}
+            onPress={() => setTypeFilter(null)}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                { color: typeFilter === null ? '#fff' : colors.textSecondary },
+              ]}
+              numberOfLines={1}
+            >
+              All
+            </Text>
+          </Pressable>
+          {(['cable', 'machine', 'free_weight'] as const).map((key) => (
+            <Pressable
+              key={key}
+              style={[
+                styles.chip,
+                { backgroundColor: typeFilter === key ? colors.primary : colors.surface },
+              ]}
+              onPress={() => setTypeFilter(typeFilter === key ? null : key)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: typeFilter === key ? '#fff' : colors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {key === 'free_weight' ? 'Free Weight' : key.charAt(0).toUpperCase() + key.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+      <View style={styles.filterSection}>
+        <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+          Muscle
         </Text>
         <ScrollView
           horizontal
@@ -88,6 +175,26 @@ export default function ExercisesScreen() {
               All
             </Text>
           </Pressable>
+          {Object.keys(LARGE_MUSCLE_GROUPS).map((key) => (
+            <Pressable
+              key={key}
+              style={[
+                styles.chip,
+                { backgroundColor: muscleFilter === key ? colors.primary : colors.surface },
+              ]}
+              onPress={() => setMuscleFilter(muscleFilter === key ? null : key)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: muscleFilter === key ? '#fff' : colors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {LARGE_GROUP_LABELS[key]}
+              </Text>
+            </Pressable>
+          ))}
           {Object.values(MUSCLE_GROUPS).map((m) => (
             <Pressable
               key={m.id}
