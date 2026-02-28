@@ -72,9 +72,17 @@ export default function WorkoutPreviewScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
         </Pressable>
-        <View style={styles.titleBlock}>
-          <Text style={[styles.dayName, { color: colors.text }]}>{dayName}</Text>
-          <Text style={[styles.templateName, { color: colors.textSecondary }]}>{templateName}</Text>
+        <View style={styles.headerTitleRow}>
+          <View style={styles.titleBlock}>
+            <Text style={[styles.dayName, { color: colors.text }]}>{dayName}</Text>
+            <Text style={[styles.templateName, { color: colors.textSecondary }]}>{templateName}</Text>
+          </View>
+          <Pressable
+            style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
+            onPress={handleStart}
+          >
+            <Text style={styles.headerStartBtnText}>Start</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -139,9 +147,24 @@ export default function WorkoutPreviewScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
   backText: { fontSize: 16, marginBottom: 8 },
-  titleBlock: {},
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  titleBlock: { flex: 1, minWidth: 0 },
+  headerStartBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  headerStartBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   dayName: { fontSize: 24, fontWeight: '700' },
   templateName: { fontSize: 15, marginTop: 2 },
   scroll: { flex: 1 },
