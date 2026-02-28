@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
@@ -12,27 +12,34 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const isDark = colors.background === '#0a0a0b';
+  const unitSystem = useSettingsStore((s) => s.unitSystem);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
-  const setWeightUnit = useSettingsStore((s) => s.setWeightUnit);
-  const setHeightUnit = useSettingsStore((s) => s.setHeightUnit);
+  const setUnitSystem = useSettingsStore((s) => s.setUnitSystem);
   const setProfile = useSettingsStore((s) => s.setProfile);
 
   const [heightInput, setHeightInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
   const [ageInput, setAgeInput] = useState('');
+  /** Skip the next height/weight blur saves so we don't overwrite with wrong unit when user toggles units */
+  const skipNextProfileSaveCount = useRef(0);
 
   useEffect(() => {
-    if (profile.heightCm != null) setHeightInput(String(cmToDisplay(profile.heightCm, heightUnit)));
+    const { profile: p, weightUnit: wu, heightUnit: hu } = useSettingsStore.getState();
+    if (p.heightCm != null) setHeightInput(String(cmToDisplay(p.heightCm, hu)));
     else setHeightInput('');
-    if (profile.weightKg != null) setWeightInput(String(kgToDisplay(profile.weightKg, weightUnit)));
+    if (p.weightKg != null) setWeightInput(String(kgToDisplay(p.weightKg, wu)));
     else setWeightInput('');
-    if (profile.age != null) setAgeInput(String(profile.age));
+    if (p.age != null) setAgeInput(String(p.age));
     else setAgeInput('');
   }, [profile.heightCm, profile.weightKg, profile.age, heightUnit, weightUnit]);
 
   function saveHeight() {
+    if (skipNextProfileSaveCount.current > 0) {
+      skipNextProfileSaveCount.current -= 1;
+      return;
+    }
     const v = parseFloat(heightInput);
     if (!Number.isNaN(v) && v > 0) {
       setProfile({ ...profile, heightCm: displayToCm(v, heightUnit) });
@@ -42,6 +49,10 @@ export default function SettingsScreen() {
     }
   }
   function saveWeight() {
+    if (skipNextProfileSaveCount.current > 0) {
+      skipNextProfileSaveCount.current -= 1;
+      return;
+    }
     const v = parseFloat(weightInput);
     if (!Number.isNaN(v) && v > 0) {
       setProfile({ ...profile, weightKg: displayToKg(v, weightUnit) });
@@ -121,35 +132,27 @@ export default function SettingsScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Units</Text>
-          <Text style={[styles.sectionHint, { color: colors.textMuted }]}>Used for height & weight everywhere</Text>
-          <Text style={[styles.unitLabel, { color: colors.textSecondary }]}>Height</Text>
+          <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+            Metric: cm & kg · Imperial: in & lb (used everywhere)
+          </Text>
           <View style={styles.themeRow}>
             <Pressable
-              style={[styles.themeBtn, heightUnit === 'cm' && { backgroundColor: colors.primary }]}
-              onPress={() => setHeightUnit('cm')}
+              style={[styles.themeBtn, unitSystem === 'metric' && { backgroundColor: colors.primary }]}
+              onPress={() => {
+                skipNextProfileSaveCount.current = 2;
+                setUnitSystem('metric');
+              }}
             >
-              <Text style={[styles.themeBtnText, { color: heightUnit === 'cm' ? '#fff' : colors.textSecondary }]}>CM</Text>
+              <Text style={[styles.themeBtnText, { color: unitSystem === 'metric' ? '#fff' : colors.textSecondary }]}>Metric</Text>
             </Pressable>
             <Pressable
-              style={[styles.themeBtn, heightUnit === 'in' && { backgroundColor: colors.primary }]}
-              onPress={() => setHeightUnit('in')}
+              style={[styles.themeBtn, unitSystem === 'imperial' && { backgroundColor: colors.primary }]}
+              onPress={() => {
+                skipNextProfileSaveCount.current = 2;
+                setUnitSystem('imperial');
+              }}
             >
-              <Text style={[styles.themeBtnText, { color: heightUnit === 'in' ? '#fff' : colors.textSecondary }]}>Inches</Text>
-            </Pressable>
-          </View>
-          <Text style={[styles.unitLabel, { color: colors.textSecondary }]}>Weight</Text>
-          <View style={styles.themeRow}>
-            <Pressable
-              style={[styles.themeBtn, weightUnit === 'kg' && { backgroundColor: colors.primary }]}
-              onPress={() => setWeightUnit('kg')}
-            >
-              <Text style={[styles.themeBtnText, { color: weightUnit === 'kg' ? '#fff' : colors.textSecondary }]}>KG</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.themeBtn, weightUnit === 'lb' && { backgroundColor: colors.primary }]}
-              onPress={() => setWeightUnit('lb')}
-            >
-              <Text style={[styles.themeBtnText, { color: weightUnit === 'lb' ? '#fff' : colors.textSecondary }]}>Pounds</Text>
+              <Text style={[styles.themeBtnText, { color: unitSystem === 'imperial' ? '#fff' : colors.textSecondary }]}>Imperial</Text>
             </Pressable>
           </View>
         </View>

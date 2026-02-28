@@ -2,9 +2,12 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
 
-const WEIGHT_UNIT_KEY = 'muscleos_weight_unit';
-const HEIGHT_UNIT_KEY = 'muscleos_height_unit';
+const UNIT_SYSTEM_KEY = 'muscleos_unit_system';
 const PROFILE_KEY = 'muscleos_profile';
+const WEIGHT_UNIT_KEY_LEGACY = 'muscleos_weight_unit';
+const HEIGHT_UNIT_KEY_LEGACY = 'muscleos_height_unit';
+
+export type UnitSystem = 'metric' | 'imperial';
 
 export interface UserAppProfile {
   heightCm?: number;
@@ -14,17 +17,27 @@ export interface UserAppProfile {
 }
 
 export interface SettingsState {
+  unitSystem: UnitSystem;
+  /** Derived: metric = kg, imperial = lb */
   weightUnit: WeightUnit;
+  /** Derived: metric = cm, imperial = in */
   heightUnit: HeightUnit;
   profile: UserAppProfile;
   isLoading: boolean;
   load: () => Promise<void>;
-  setWeightUnit: (unit: WeightUnit) => Promise<void>;
-  setHeightUnit: (unit: HeightUnit) => Promise<void>;
+  setUnitSystem: (system: UnitSystem) => Promise<void>;
   setProfile: (profile: UserAppProfile) => Promise<void>;
 }
 
+function unitSystemToWeight(s: UnitSystem): WeightUnit {
+  return s === 'imperial' ? 'lb' : 'kg';
+}
+function unitSystemToHeight(s: UnitSystem): HeightUnit {
+  return s === 'imperial' ? 'in' : 'cm';
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
+  unitSystem: 'metric',
   weightUnit: 'kg',
   heightUnit: 'cm',
   profile: {},
@@ -32,11 +45,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   load: async () => {
     try {
-      const [weightStored, heightStored, profileRaw] = await Promise.all([
-        AsyncStorage.getItem(WEIGHT_UNIT_KEY),
-        AsyncStorage.getItem(HEIGHT_UNIT_KEY),
+      const [systemStored, profileRaw, legacyWeight, legacyHeight] = await Promise.all([
+        AsyncStorage.getItem(UNIT_SYSTEM_KEY),
         AsyncStorage.getItem(PROFILE_KEY),
+        AsyncStorage.getItem(WEIGHT_UNIT_KEY_LEGACY),
+        AsyncStorage.getItem(HEIGHT_UNIT_KEY_LEGACY),
       ]);
+      let unitSystem: UnitSystem = systemStored === 'imperial' ? 'imperial' : 'metric';
+      if (!systemStored && (legacyWeight === 'lb' || legacyHeight === 'in')) {
+        unitSystem = 'imperial';
+        await AsyncStorage.setItem(UNIT_SYSTEM_KEY, 'imperial');
+      }
       let profile: UserAppProfile = {};
       if (profileRaw) {
         try {
@@ -46,8 +65,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }
       }
       set({
-        weightUnit: weightStored === 'lb' ? 'lb' : 'kg',
-        heightUnit: heightStored === 'in' ? 'in' : 'cm',
+        unitSystem,
+        weightUnit: unitSystemToWeight(unitSystem),
+        heightUnit: unitSystemToHeight(unitSystem),
         profile,
         isLoading: false,
       });
@@ -56,14 +76,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  setWeightUnit: async (unit) => {
-    set({ weightUnit: unit });
-    await AsyncStorage.setItem(WEIGHT_UNIT_KEY, unit);
-  },
-
-  setHeightUnit: async (unit) => {
-    set({ heightUnit: unit });
-    await AsyncStorage.setItem(HEIGHT_UNIT_KEY, unit);
+  setUnitSystem: async (unitSystem) => {
+    set({
+      unitSystem,
+      weightUnit: unitSystemToWeight(unitSystem),
+      heightUnit: unitSystemToHeight(unitSystem),
+    });
+    await AsyncStorage.setItem(UNIT_SYSTEM_KEY, unitSystem);
   },
 
   setProfile: async (profile) => {
