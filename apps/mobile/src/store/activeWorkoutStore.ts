@@ -12,9 +12,11 @@ import { DEFAULT_RECOVERY_HOURS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercise } from '@/data/exercises';
 
+const DEFAULT_SETS_PER_EXERCISE = 3;
+
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
-  startWorkout: (templateId: string, dayId: string, dayName: string, exerciseIds: string[]) => void;
+  startWorkout: (templateId: string, dayId: string, dayName: string, exerciseIds: string[], defaultSets?: number) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
@@ -28,8 +30,11 @@ function createEmptySession(
   templateId: string,
   dayId: string,
   dayName: string,
-  exerciseIds: string[]
+  exerciseIds: string[],
+  defaultSets?: number
 ): WorkoutSession {
+  const numSets = defaultSets ?? DEFAULT_SETS_PER_EXERCISE;
+  const sets = Array.from({ length: numSets }, () => ({ completed: false }));
   return {
     id: 'session_' + Date.now(),
     templateId,
@@ -38,7 +43,7 @@ function createEmptySession(
     startedAt: new Date().toISOString(),
     exercises: exerciseIds.map((exerciseId) => ({
       exerciseId,
-      sets: [{ completed: false }, { completed: false }, { completed: false }],
+      sets: [...sets],
     })),
   };
 }
@@ -46,9 +51,9 @@ function createEmptySession(
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
 
-  startWorkout: (templateId, dayId, dayName, exerciseIds) => {
+  startWorkout: (templateId, dayId, dayName, exerciseIds, defaultSets) => {
     set({
-      session: createEmptySession(templateId, dayId, dayName, exerciseIds),
+      session: createEmptySession(templateId, dayId, dayName, exerciseIds, defaultSets),
     });
   },
 

@@ -12,6 +12,8 @@ export interface WorkoutDay {
   id: string;
   name: string;
   exerciseIds: string[];
+  /** Default number of sets per exercise for this day. Omit or undefined = app default (3). */
+  defaultSets?: number;
 }
 
 export interface PlannedWorkout {

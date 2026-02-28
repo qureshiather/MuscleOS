@@ -63,11 +63,13 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
         id: 'sl-a',
         name: 'Workout A',
         exerciseIds: ['squat', 'bench-press', 'barbell-row'],
+        defaultSets: 5,
       },
       {
         id: 'sl-b',
         name: 'Workout B',
         exerciseIds: ['squat', 'overhead-press', 'deadlift'],
+        defaultSets: 5,
       },
     ],
   },

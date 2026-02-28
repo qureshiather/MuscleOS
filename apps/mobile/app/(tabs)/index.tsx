@@ -29,6 +29,7 @@ export default function WorkoutsScreen() {
         dayId: day.id,
         dayName: day.name,
         exerciseIds: day.exerciseIds.join(','),
+        ...(day.defaultSets != null && { defaultSets: String(day.defaultSets) }),
       },
     });
   }

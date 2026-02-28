@@ -39,6 +39,7 @@ export default function ActiveWorkoutScreen() {
     dayId?: string;
     dayName?: string;
     exerciseIds?: string;
+    defaultSets?: string;
   }>();
   const session = useActiveWorkoutStore((s) => s.session);
   const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
@@ -69,9 +70,12 @@ export default function ActiveWorkoutScreen() {
   useEffect(() => {
     if (params.templateId && params.dayId && params.dayName && params.exerciseIds && !session) {
       const ids = params.exerciseIds.split(',').filter(Boolean);
-      startWorkout(params.templateId, params.dayId, params.dayName, ids);
+      const defaultSets =
+        params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
+      const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
+      startWorkout(params.templateId, params.dayId, params.dayName, ids, sets);
     }
-  }, [params.templateId, params.dayId, params.dayName, params.exerciseIds, session, startWorkout]);
+  }, [params.templateId, params.dayId, params.dayName, params.exerciseIds, params.defaultSets, session, startWorkout]);
 
   useEffect(() => {
     if (!session) return;

@@ -19,6 +19,7 @@ export default function WorkoutPreviewScreen() {
     dayId?: string;
     dayName?: string;
     exerciseIds?: string;
+    defaultSets?: string;
   }>();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
@@ -28,6 +29,8 @@ export default function WorkoutPreviewScreen() {
   const dayId = params.dayId ?? '';
   const dayName = params.dayName ?? '';
   const exerciseIds = (params.exerciseIds ?? '').split(',').filter(Boolean);
+  const defaultSets = params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
+  const defaultSetsValid = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0;
 
   const template = allTemplates().find((t) => t.id === templateId);
   const templateName = template?.name ?? 'Workout';
@@ -51,6 +54,7 @@ export default function WorkoutPreviewScreen() {
         dayId,
         dayName,
         exerciseIds: exerciseIds.join(','),
+        ...(defaultSetsValid && { defaultSets: params.defaultSets! }),
       },
     });
   }
