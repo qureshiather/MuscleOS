@@ -4,6 +4,8 @@
     "slug": "muscleos",
     "version": "1.0.0",
     "platforms": ["ios", "android"],
+    "ios": { "bundleIdentifier": "com.muscleos.app" },
+    "android": { "package": "com.muscleos.app" },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "muscleos",
