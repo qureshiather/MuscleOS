@@ -8,8 +8,10 @@ import {
   Pressable,
   Modal,
   ScrollView,
+  LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { EXERCISES } from '@/data/exercises';
 import { MUSCLE_GROUPS } from '@muscleos/types';
@@ -60,6 +62,16 @@ export default function ExercisesScreen() {
   const [typeFilter, setTypeFilter] = useState<EquipmentTypeKey | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  const toggleFilters = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setFiltersExpanded((v) => !v);
+  };
+
+  const typeLabel = typeFilter === null ? 'All' : typeFilter === 'free_weight' ? 'Free Weight' : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1);
+  const muscleLabel = muscleFilter === null ? 'All' : LARGE_GROUP_LABELS[muscleFilter] ?? MUSCLE_GROUPS[muscleFilter as MuscleId]?.name ?? muscleFilter;
+  const filterSummary = `${typeLabel} · ${muscleLabel}`;
 
   const filtered = useMemo(() => {
     let list = EXERCISES;
@@ -99,123 +111,151 @@ export default function ExercisesScreen() {
         value={search}
         onChangeText={setSearch}
       />
-      <View style={styles.filterSection}>
-        <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
-          Type
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScroll}
-          contentContainerStyle={styles.chipsContent}
+      <View style={styles.filterWrapper}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.filterToggleRow,
+            {
+              backgroundColor: colors.surface,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+          onPress={toggleFilters}
         >
-          <Pressable
-            style={[
-              styles.chip,
-              { backgroundColor: typeFilter === null ? colors.primary : colors.surface },
-            ]}
-            onPress={() => setTypeFilter(null)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: typeFilter === null ? '#fff' : colors.textSecondary },
-              ]}
-              numberOfLines={1}
-            >
-              All
+          <Text style={[styles.filterToggleTitle, { color: colors.text }]}>Filters</Text>
+          {!filtersExpanded && (
+            <Text style={[styles.filterSummaryInline, { color: colors.textMuted }]} numberOfLines={1}>
+              {filterSummary}
             </Text>
-          </Pressable>
-          {(['cable', 'machine', 'free_weight'] as const).map((key) => (
-            <Pressable
-              key={key}
-              style={[
-                styles.chip,
-                { backgroundColor: typeFilter === key ? colors.primary : colors.surface },
-              ]}
-              onPress={() => setTypeFilter(typeFilter === key ? null : key)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  { color: typeFilter === key ? '#fff' : colors.textSecondary },
-                ]}
-                numberOfLines={1}
-              >
-                {key === 'free_weight' ? 'Free Weight' : key.charAt(0).toUpperCase() + key.slice(1)}
+          )}
+          <Ionicons
+            name={filtersExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={colors.textMuted}
+          />
+        </Pressable>
+        {filtersExpanded && (
+          <View style={styles.filterExpandedContent}>
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+                Type
               </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-      <View style={styles.filterSection}>
-        <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
-          Muscle
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScroll}
-          contentContainerStyle={styles.chipsContent}
-        >
-          <Pressable
-            style={[
-              styles.chip,
-              { backgroundColor: muscleFilter === null ? colors.primary : colors.surface },
-            ]}
-            onPress={() => setMuscleFilter(null)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: muscleFilter === null ? '#fff' : colors.textSecondary },
-              ]}
-              numberOfLines={1}
-            >
-              All
-            </Text>
-          </Pressable>
-          {Object.keys(LARGE_MUSCLE_GROUPS).map((key) => (
-            <Pressable
-              key={key}
-              style={[
-                styles.chip,
-                { backgroundColor: muscleFilter === key ? colors.primary : colors.surface },
-              ]}
-              onPress={() => setMuscleFilter(muscleFilter === key ? null : key)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  { color: muscleFilter === key ? '#fff' : colors.textSecondary },
-                ]}
-                numberOfLines={1}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+                contentContainerStyle={styles.chipsContent}
               >
-                {LARGE_GROUP_LABELS[key]}
+                <Pressable
+                  style={[
+                    styles.chip,
+                    { backgroundColor: typeFilter === null ? colors.primary : colors.surface },
+                  ]}
+                  onPress={() => setTypeFilter(null)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: typeFilter === null ? '#fff' : colors.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    All
+                  </Text>
+                </Pressable>
+                {(['cable', 'machine', 'free_weight'] as const).map((key) => (
+                  <Pressable
+                    key={key}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: typeFilter === key ? colors.primary : colors.surface },
+                    ]}
+                    onPress={() => setTypeFilter(typeFilter === key ? null : key)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: typeFilter === key ? '#fff' : colors.textSecondary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {key === 'free_weight' ? 'Free Weight' : key.charAt(0).toUpperCase() + key.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+                Muscle
               </Text>
-            </Pressable>
-          ))}
-          {Object.values(MUSCLE_GROUPS).map((m) => (
-            <Pressable
-              key={m.id}
-              style={[
-                styles.chip,
-                { backgroundColor: muscleFilter === m.id ? colors.primary : colors.surface },
-              ]}
-              onPress={() => setMuscleFilter(muscleFilter === m.id ? null : m.id)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  { color: muscleFilter === m.id ? '#fff' : colors.textSecondary },
-                ]}
-                numberOfLines={1}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+                contentContainerStyle={styles.chipsContent}
               >
-                {m.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+                <Pressable
+                  style={[
+                    styles.chip,
+                    { backgroundColor: muscleFilter === null ? colors.primary : colors.surface },
+                  ]}
+                  onPress={() => setMuscleFilter(null)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: muscleFilter === null ? '#fff' : colors.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    All
+                  </Text>
+                </Pressable>
+                {Object.keys(LARGE_MUSCLE_GROUPS).map((key) => (
+                  <Pressable
+                    key={key}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: muscleFilter === key ? colors.primary : colors.surface },
+                    ]}
+                    onPress={() => setMuscleFilter(muscleFilter === key ? null : key)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: muscleFilter === key ? '#fff' : colors.textSecondary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {LARGE_GROUP_LABELS[key]}
+                    </Text>
+                  </Pressable>
+                ))}
+                {Object.values(MUSCLE_GROUPS).map((m) => (
+                  <Pressable
+                    key={m.id}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: muscleFilter === m.id ? colors.primary : colors.surface },
+                    ]}
+                    onPress={() => setMuscleFilter(muscleFilter === m.id ? null : m.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: muscleFilter === m.id ? '#fff' : colors.textSecondary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {m.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        )}
       </View>
       <View style={styles.listHeader}>
         <Text style={[styles.listCount, { color: colors.textSecondary }]}>
@@ -302,6 +342,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 16,
   },
+  filterWrapper: { marginHorizontal: 20, marginBottom: 16 },
+  filterToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 10,
+  },
+  filterToggleTitle: { fontSize: 16, fontWeight: '600' },
+  filterSummaryInline: { fontSize: 14, flex: 1, textAlign: 'right' },
+  filterExpandedContent: { paddingTop: 16 },
   filterSection: { marginBottom: 20 },
   filterLabel: {
     fontSize: 12,
