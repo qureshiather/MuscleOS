@@ -5,15 +5,18 @@ import { useTheme } from '@/theme/ThemeContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { getExercise } from '@/data/exercises';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { formatWeight } from '@/utils/weightUnits';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const activeSession = useActiveWorkoutStore((s) => s.session);
   const params = useLocalSearchParams<{
     templateId?: string;
     dayId?: string;
@@ -46,7 +49,15 @@ export default function WorkoutPreviewScreen() {
     getExercisePrevious().then(setPreviousMap);
   }, []);
 
+  // Only one workout at a time: if they landed here with an active session, send them back to it
+  useEffect(() => {
+    if (activeSession) {
+      router.replace('/active-workout');
+    }
+  }, [activeSession, router]);
+
   function handleStart() {
+    if (activeSession) return; // Guard: only one workout at a time
     router.replace({
       pathname: '/active-workout',
       params: {

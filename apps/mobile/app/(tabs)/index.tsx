@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import type { WorkoutTemplate, WorkoutDay } from '@muscleos/types';
 
 export default function WorkoutsScreen() {
@@ -14,6 +15,7 @@ export default function WorkoutsScreen() {
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const isLoading = useTemplatesStore((s) => s.isLoading);
   const isPro = useSubscriptionStore((s) => s.isPro)();
+  const activeSession = useActiveWorkoutStore((s) => s.session);
 
   useEffect(() => {
     loadTemplates();
@@ -22,6 +24,17 @@ export default function WorkoutsScreen() {
   const templates = allTemplates();
 
   function handleStartDay(template: WorkoutTemplate, day: WorkoutDay) {
+    if (activeSession) {
+      Alert.alert(
+        'Workout in progress',
+        'Finish or cancel your current workout before starting another.',
+        [
+          { text: 'Resume workout', onPress: () => router.push('/active-workout') },
+          { text: 'OK', style: 'cancel' },
+        ]
+      );
+      return;
+    }
     router.push({
       pathname: '/workout-preview',
       params: {

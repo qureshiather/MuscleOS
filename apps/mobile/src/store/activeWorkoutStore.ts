@@ -52,6 +52,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
 
   startWorkout: (templateId, dayId, dayName, exerciseIds, defaultSets) => {
+    if (get().session) return; // Only one workout at a time
     set({
       session: createEmptySession(templateId, dayId, dayName, exerciseIds, defaultSets),
     });
