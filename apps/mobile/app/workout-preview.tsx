@@ -7,8 +7,10 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getExercise } from '@/data/exercises';
 import { MUSCLE_GROUPS } from '@muscleos/types';
+import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { formatWeight } from '@/utils/weightUnits';
+import { MuscleDiagram } from '@/components/MuscleDiagram';
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -29,6 +31,14 @@ export default function WorkoutPreviewScreen() {
 
   const template = allTemplates().find((t) => t.id === templateId);
   const templateName = template?.name ?? 'Workout';
+
+  const workoutMuscleIds: MuscleId[] = Array.from(
+    new Set(
+      exerciseIds.flatMap((id) => getExercise(id)?.muscles ?? [])
+    )
+  );
+  const workoutMuscleNames = workoutMuscleIds.map((id) => MUSCLE_GROUPS[id].name).join(', ');
+
   useEffect(() => {
     getExercisePrevious().then(setPreviousMap);
   }, []);
@@ -73,6 +83,16 @@ export default function WorkoutPreviewScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {workoutMuscleIds.length > 0 && (
+          <View style={[styles.musclesSection, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Muscles used</Text>
+            <MuscleDiagram muscleIds={workoutMuscleIds} size={0.85} />
+            <Text style={[styles.muscleNames, { color: colors.textSecondary }]}>
+              {workoutMuscleNames}
+            </Text>
+          </View>
+        )}
+
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
           {exerciseIds.length} exercises · tap Start when ready
         </Text>
@@ -127,6 +147,13 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
   sectionLabel: { fontSize: 13, marginBottom: 12 },
+  musclesSection: {
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  muscleNames: { fontSize: 13, marginTop: 8, textAlign: 'center' },
   exerciseCard: {
     padding: 16,
     borderRadius: 14,
