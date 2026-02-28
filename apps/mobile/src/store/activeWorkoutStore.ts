@@ -18,6 +18,8 @@ export interface ActiveWorkoutState {
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
+  addSet: (exerciseIndex: number) => void;
+  addExercise: (exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
   discardWorkout: () => void;
 }
@@ -89,6 +91,34 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     set({ session: { ...session, exercises } });
   },
 
+  addSet: (exerciseIndex) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex) return;
+    exercises[exerciseIndex] = {
+      ...ex,
+      sets: [...ex.sets, { completed: false }],
+    };
+    set({ session: { ...session, exercises } });
+  },
+
+  addExercise: (exerciseId) => {
+    const { session } = get();
+    if (!session) return;
+    const newEx: SessionExercise = {
+      exerciseId,
+      sets: [{ completed: false }, { completed: false }, { completed: false }],
+    };
+    set({
+      session: {
+        ...session,
+        exercises: [...session.exercises, newEx],
+      },
+    });
+  },
+
   finishWorkout: async () => {
     const { session } = get();
     if (!session) return;
@@ -114,9 +144,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     }
     await setExercisePrevious(prev);
 
-    // Update recovery: collect all muscles from exercises and add recovery window
+    // Update recovery: only muscles from exercises that had at least one completed set
     const muscleIds = new Set<MuscleId>();
-    for (const se of session.exercises) {
+    for (const se of completed.exercises) {
+      const hasCompletedSet = se.sets.some((s) => s.completed);
+      if (!hasCompletedSet) continue;
       const ex = getExercise(se.exerciseId);
       if (ex) ex.muscles.forEach((m) => muscleIds.add(m));
     }

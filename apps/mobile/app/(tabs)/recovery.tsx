@@ -27,6 +27,12 @@ export default function RecoveryScreen() {
 
   const active = activeRecovery();
   const muscleIds = [...new Set(active.map((r) => r.muscleId))];
+  const latestTrainedAt = active.length > 0
+    ? active.reduce((max, r) => (r.trainedAt > max ? r.trainedAt : max), active[0].trainedAt)
+    : null;
+  const justTrainedMuscleIds = latestTrainedAt
+    ? [...new Set(active.filter((r) => r.trainedAt === latestTrainedAt).map((r) => r.muscleId))]
+    : [];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -54,7 +60,28 @@ export default function RecoveryScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.diagramWrap}>
-            <MuscleDiagram muscleIds={muscleIds} variant={diagramVariant} showLabels size={0.85} />
+            <MuscleDiagram
+              muscleIds={muscleIds}
+              recoveringMuscleIds={muscleIds}
+              justTrainedMuscleIds={justTrainedMuscleIds}
+              variant={diagramVariant}
+              showLabels
+              size={0.85}
+            />
+            <View style={styles.legend}>
+              <View style={styles.legendRow}>
+                <View style={[styles.legendDot, { backgroundColor: '#dc2626' }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Just trained</Text>
+              </View>
+              <View style={styles.legendRow}>
+                <View style={[styles.legendDot, { backgroundColor: '#ea580c' }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>In recovery</Text>
+              </View>
+              <View style={styles.legendRow}>
+                <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Ready to train</Text>
+              </View>
+            </View>
           </View>
           <View style={[styles.listCard, { backgroundColor: colors.surface }]}>
             <Text style={[styles.listTitle, { color: colors.text }]}>In recovery</Text>
@@ -85,6 +112,10 @@ const styles = StyleSheet.create({
   readyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   scroll: { padding: 20, paddingBottom: 40 },
   diagramWrap: { alignItems: 'center', marginBottom: 24 },
+  legend: { flexDirection: 'row', gap: 20, marginTop: 12, justifyContent: 'center' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 6 },
+  legendText: { fontSize: 13 },
   listCard: { padding: 16, borderRadius: 16 },
   listTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   listRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },

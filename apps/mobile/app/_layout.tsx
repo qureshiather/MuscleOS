@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -9,7 +11,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 function ThemedStack() {
   const { colors, isDark } = useTheme();
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -18,7 +20,7 @@ function ThemedStack() {
           animation: 'slide_from_right',
         }}
       />
-    </>
+    </View>
   );
 }
 
@@ -33,8 +35,10 @@ export default function RootLayout() {
   }, [loadProfile, loadSubscription, loadSettings]);
 
   return (
-    <ThemeProvider>
-      <ThemedStack />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ThemedStack />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

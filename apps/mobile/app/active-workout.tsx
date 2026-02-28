@@ -8,13 +8,15 @@ import {
   TextInput,
   Alert,
   Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { getExercise } from '@/data/exercises';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { getExercise, EXERCISES } from '@/data/exercises';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
@@ -43,8 +45,11 @@ export default function ActiveWorkoutScreen() {
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
   const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
+  const addSet = useActiveWorkoutStore((s) => s.addSet);
+  const addExercise = useActiveWorkoutStore((s) => s.addExercise);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
+  const isPro = useSubscriptionStore((s) => s.isPro)();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
@@ -57,6 +62,9 @@ export default function ActiveWorkoutScreen() {
   const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
+  const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
+  const [addExerciseSearch, setAddExerciseSearch] = useState('');
+  const [showFinishSummary, setShowFinishSummary] = useState(false);
 
   useEffect(() => {
     if (params.templateId && params.dayId && params.dayName && params.exerciseIds && !session) {
@@ -141,6 +149,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   async function handleFinish() {
+    setShowFinishSummary(false);
     await finishWorkout();
     router.replace('/(tabs)');
   }
@@ -163,7 +172,13 @@ export default function ActiveWorkoutScreen() {
     );
   }
 
-  const allDone = session.exercises.every((ex) => ex.sets.every((s) => s.completed));
+  const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
+  const completedSetsByExercise = session.exercises.map((se) => ({
+    name: getExercise(se.exerciseId)?.name ?? se.exerciseId,
+    completed: se.sets.filter((s) => s.completed).length,
+    total: se.sets.length,
+    sets: se.sets.filter((s) => s.completed),
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -213,11 +228,11 @@ export default function ActiveWorkoutScreen() {
         </View>
         <View style={styles.headerRight}>
           <Pressable
-            onPress={handleFinish}
-            disabled={!allDone}
-            style={[styles.finishHeaderBtn, !allDone && styles.finishHeaderBtnDisabled]}
+            onPress={() => setShowFinishSummary(true)}
+            disabled={!hasAtLeastOneSet}
+            style={[styles.finishHeaderBtn, !hasAtLeastOneSet && styles.finishHeaderBtnDisabled]}
           >
-            <Text style={[styles.finishHeaderText, { color: allDone ? colors.accent : colors.textMuted }]}>
+            <Text style={[styles.finishHeaderText, { color: hasAtLeastOneSet ? colors.accent : colors.textMuted }]}>
               FINISH
             </Text>
           </Pressable>
@@ -262,7 +277,18 @@ export default function ActiveWorkoutScreen() {
 
                 return (
                   <View key={setIdx}>
-                    <View style={styles.setRow}>
+                    <View
+                      style={[
+                        styles.setRow,
+                        set.completed && {
+                          backgroundColor: 'rgba(34, 197, 94, 0.22)',
+                          borderRadius: 10,
+                          marginHorizontal: -4,
+                          paddingHorizontal: 4,
+                          marginBottom: 4,
+                        },
+                      ]}
+                    >
                       <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
                         {setIdx + 1}
                       </Text>
@@ -323,7 +349,7 @@ export default function ActiveWorkoutScreen() {
                         style={[
                           styles.doneBtn,
                           set.completed
-                            ? { backgroundColor: colors.primary }
+                            ? { backgroundColor: '#22c55e' }
                             : { backgroundColor: colors.surfaceElevated },
                         ]}
                         onPress={() => {
@@ -358,17 +384,34 @@ export default function ActiveWorkoutScreen() {
               {isBarbell && editingWeightExIdx === exIdx && (
                 <PlateCalculator totalKg={currentWeightKg || 20} unit={weightUnit} />
               )}
+
+              <Pressable
+                style={[styles.addSetBtn, { borderColor: colors.border }]}
+                onPress={() => addSet(exIdx)}
+              >
+                <Ionicons name="add" size={18} color={colors.accent} />
+                <Text style={[styles.addSetBtnText, { color: colors.accent }]}>Add set</Text>
+              </Pressable>
             </View>
           );
         })}
 
         <Pressable
-          style={[styles.finishBtn, { backgroundColor: colors.primary }]}
-          onPress={handleFinish}
-          disabled={!allDone}
+          style={[
+            styles.addExerciseBtn,
+            { backgroundColor: isPro ? colors.primary : colors.surfaceElevated, borderColor: colors.border },
+          ]}
+          onPress={() => {
+            if (isPro) {
+              setShowAddExerciseModal(true);
+            } else {
+              router.push('/subscription');
+            }
+          }}
         >
-          <Text style={styles.finishBtnText}>
-            {allDone ? 'Finish workout' : 'Complete all sets to finish'}
+          <Ionicons name="add-circle-outline" size={22} color={isPro ? '#fff' : colors.textSecondary} />
+          <Text style={[styles.addExerciseBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}>
+            {isPro ? 'Add Exercise' : 'Pro: Add Exercise'}
           </Text>
         </Pressable>
 
@@ -419,6 +462,107 @@ export default function ActiveWorkoutScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      <Modal visible={showFinishSummary} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowFinishSummary(false)}>
+          <View
+            style={[styles.summaryCard, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.summaryTitle, { color: colors.text }]}>Workout summary</Text>
+            {session?.dayName && (
+              <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{session.dayName}</Text>
+            )}
+            <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Duration</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
+            </View>
+            <View style={styles.summaryExercises}>
+              <Text style={[styles.summarySectionLabel, { color: colors.textMuted }]}>Exercises</Text>
+              {completedSetsByExercise
+                .filter((ex) => ex.completed > 0)
+                .map((item, idx) => (
+                  <View key={idx} style={[styles.summaryExerciseRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.summaryExerciseName, { color: colors.text }]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.summaryExerciseSets, { color: colors.textSecondary }]}>
+                      {item.completed} set{item.completed !== 1 ? 's' : ''}
+                      {item.sets.some((s) => s.weightKg != null || s.reps != null)
+                        ? ` · ${item.sets
+                            .map((s) => {
+                              const w = s.weightKg != null && s.weightKg > 0 ? kgToDisplay(s.weightKg, weightUnit) : '';
+                              const r = s.reps != null ? `${s.reps} reps` : '';
+                              return w && r ? `${w} × ${r}` : w || r || '—';
+                            })
+                            .join(', ')}`
+                        : ''}
+                    </Text>
+                  </View>
+                ))}
+            </View>
+            <View style={styles.summaryActions}>
+              <Pressable
+                style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                onPress={handleFinish}
+              >
+                <Text style={styles.summarySaveBtnText}>Save workout</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowFinishSummary(false)} style={styles.summaryCancelBtn}>
+                <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showAddExerciseModal} animationType="slide" transparent>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAddExerciseModal(false)}>
+          <View
+            style={[styles.addExerciseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.addExerciseModalHeader}>
+              <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
+              <Pressable onPress={() => setShowAddExerciseModal(false)}>
+                <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              style={[
+                styles.addExerciseSearch,
+                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="Search exercises..."
+              placeholderTextColor={colors.textMuted}
+              value={addExerciseSearch}
+              onChangeText={setAddExerciseSearch}
+            />
+            <FlatList
+              data={EXERCISES.filter(
+                (e) =>
+                  !addExerciseSearch.trim() ||
+                  e.name.toLowerCase().includes(addExerciseSearch.trim().toLowerCase())
+              )}
+              keyExtractor={(item) => item.id}
+              style={styles.addExerciseList}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    addExercise(item.id);
+                    setShowAddExerciseModal(false);
+                    setAddExerciseSearch('');
+                  }}
+                >
+                  <Text style={[styles.addExerciseRowText, { color: colors.text }]}>{item.name}</Text>
+                  <Ionicons name="add" size={20} color={colors.accent} />
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -430,7 +574,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 56 },
@@ -460,17 +604,17 @@ const styles = StyleSheet.create({
   finishHeaderBtnDisabled: { opacity: 0.7 },
   finishHeaderText: { fontSize: 16, fontWeight: '600' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 48 },
+  scrollContent: { paddingHorizontal: 8, paddingVertical: 10, paddingBottom: 36 },
   exerciseCard: {
-    padding: 16,
+    padding: 10,
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  exerciseName: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  exerciseName: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     gap: 8,
   },
   th: { fontSize: 12, fontWeight: '600' },
@@ -478,26 +622,26 @@ const styles = StyleSheet.create({
   thPrev: { width: 48 },
   thKg: { flex: 1, minWidth: 56 },
   thReps: { flex: 1, minWidth: 56 },
-  thDone: { width: 40 },
+  thDone: { width: 36 },
   setLabel: { width: 28, fontSize: 14 },
   prevCell: { width: 48, fontSize: 13 },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   setInput: {
     flex: 1,
     minWidth: 56,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 8,
+    padding: 6,
     fontSize: 14,
   },
   doneBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -507,7 +651,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
     paddingLeft: 36,
   },
   restBetweenText: { fontSize: 12 },
@@ -534,15 +678,107 @@ const styles = StyleSheet.create({
   restPickerOptionText: { fontSize: 16, fontWeight: '600' },
   restPickerCancel: { alignItems: 'center', padding: 8 },
   restPickerCancelText: { fontSize: 15 },
-  finishBtn: {
-    padding: 18,
-    borderRadius: 14,
-    marginTop: 8,
+  addSetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginTop: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 10,
   },
-  finishBtnText: { color: '#fff', fontSize: 17, fontWeight: '600', textAlign: 'center' },
+  addSetBtnText: { fontSize: 14, fontWeight: '600' },
+  addExerciseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 6,
+    borderWidth: 1,
+  },
+  addExerciseBtnText: { fontSize: 17, fontWeight: '600' },
+  addExerciseModalContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '80%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+  },
+  addExerciseModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  addExerciseModalTitle: { fontSize: 20, fontWeight: '700' },
+  addExerciseModalClose: { fontSize: 16, fontWeight: '600' },
+  addExerciseSearch: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 16,
+  },
+  addExerciseList: { maxHeight: 360 },
+  addExerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  addExerciseRowText: { fontSize: 16, fontWeight: '500' },
+  summaryCard: {
+    marginHorizontal: 24,
+    borderRadius: 20,
+    padding: 24,
+    maxWidth: 400,
+    alignSelf: 'center',
+  },
+  summaryTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
+  summaryDay: { fontSize: 15, marginBottom: 16, textAlign: 'center' },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  summaryLabel: { fontSize: 15 },
+  summaryValue: { fontSize: 15, fontWeight: '600' },
+  summaryExercises: { marginTop: 8, marginBottom: 20 },
+  summarySectionLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
+  summaryExerciseRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  summaryExerciseName: { fontSize: 16, fontWeight: '600' },
+  summaryExerciseSets: { fontSize: 14, marginTop: 2 },
+  summaryActions: { gap: 10 },
+  summarySaveBtn: {
+    padding: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  summarySaveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  summaryCancelBtn: { paddingVertical: 12, alignItems: 'center' },
+  summaryCancelText: { fontSize: 16 },
   cancelWorkoutBtn: {
-    paddingVertical: 18,
-    marginTop: 8,
+    paddingVertical: 14,
+    marginTop: 6,
     alignItems: 'center',
   },
   cancelWorkoutText: { fontSize: 15 },

@@ -14,7 +14,7 @@ export default function TabsLayout() {
   const tabBarBottomOffset = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Tabs
         screenOptions={{
           headerShown: false,
