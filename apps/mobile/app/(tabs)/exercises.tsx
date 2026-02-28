@@ -61,48 +61,60 @@ export default function ExercisesScreen() {
         value={search}
         onChangeText={setSearch}
       />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chips}
-        contentContainerStyle={styles.chipsContent}
-      >
-        <Pressable
-          style={[
-            styles.chip,
-            { backgroundColor: muscleFilter === null ? colors.primary : colors.surface },
-          ]}
-          onPress={() => setMuscleFilter(null)}
+      <View style={styles.filterSection}>
+        <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+          Muscle group
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chipsContent}
         >
-          <Text
-            style={[
-              styles.chipText,
-              { color: muscleFilter === null ? '#fff' : colors.textSecondary },
-            ]}
-          >
-            All
-          </Text>
-        </Pressable>
-        {Object.values(MUSCLE_GROUPS).map((m) => (
           <Pressable
-            key={m.id}
             style={[
               styles.chip,
-              { backgroundColor: muscleFilter === m.id ? colors.primary : colors.surface },
+              { backgroundColor: muscleFilter === null ? colors.primary : colors.surface },
             ]}
-            onPress={() => setMuscleFilter(muscleFilter === m.id ? null : m.id)}
+            onPress={() => setMuscleFilter(null)}
           >
             <Text
               style={[
                 styles.chipText,
-                { color: muscleFilter === m.id ? '#fff' : colors.textSecondary },
+                { color: muscleFilter === null ? '#fff' : colors.textSecondary },
               ]}
+              numberOfLines={1}
             >
-              {m.name}
+              All
             </Text>
           </Pressable>
-        ))}
-      </ScrollView>
+          {Object.values(MUSCLE_GROUPS).map((m) => (
+            <Pressable
+              key={m.id}
+              style={[
+                styles.chip,
+                { backgroundColor: muscleFilter === m.id ? colors.primary : colors.surface },
+              ]}
+              onPress={() => setMuscleFilter(muscleFilter === m.id ? null : m.id)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: muscleFilter === m.id ? '#fff' : colors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {m.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+      <View style={styles.listHeader}>
+        <Text style={[styles.listCount, { color: colors.textSecondary }]}>
+          {filtered.length} {filtered.length === 1 ? 'exercise' : 'exercises'}
+        </Text>
+      </View>
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -171,37 +183,49 @@ export default function ExercisesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
+  title: { fontSize: 26, fontWeight: '700' },
+  subtitle: { fontSize: 14, marginTop: 4 },
   search: {
     marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 12,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     fontSize: 16,
   },
-  chips: { minHeight: 56, marginBottom: 16 },
+  filterSection: { marginBottom: 20 },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    paddingHorizontal: 20,
+  },
+  chipsScroll: { flexGrow: 0 },
   chipsContent: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
     paddingRight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   chip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 22,
+    flexShrink: 0,
   },
-  chipText: { fontSize: 14, fontWeight: '500' },
-  listContent: { padding: 20, paddingBottom: 40 },
+  chipText: { fontSize: 15, fontWeight: '500' },
+  listHeader: { paddingHorizontal: 20, marginBottom: 8 },
+  listCount: { fontSize: 13 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
   card: {
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 12,
   },
   cardTitle: { fontSize: 17, fontWeight: '600' },
   cardMeta: { fontSize: 13, marginTop: 4 },
