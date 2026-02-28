@@ -378,7 +378,17 @@ export default function ActiveWorkoutScreen() {
             Alert.alert(
               'Cancel workout',
               'This workout will not be saved. Are you sure?',
-              [{ text: 'Keep', style: 'cancel' }, { text: 'Cancel workout', style: 'destructive', onPress: handleCancel }]
+              [
+                { text: 'Keep', style: 'cancel' },
+                {
+                  text: 'Cancel workout',
+                  style: 'destructive',
+                  onPress: () => {
+                    useActiveWorkoutStore.getState().discardWorkout();
+                    router.replace('/(tabs)');
+                  },
+                },
+              ]
             );
           }}
         >

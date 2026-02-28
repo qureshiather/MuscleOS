@@ -16,7 +16,6 @@ export function ResumeWorkoutPill() {
   const { colors } = useTheme();
   const router = useRouter();
   const session = useActiveWorkoutStore((s) => s.session);
-  const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
   const [elapsedMs, setElapsedMs] = useState(0);
 
   useEffect(() => {
@@ -35,7 +34,8 @@ export function ResumeWorkoutPill() {
   }
 
   function handleCancel() {
-    discardWorkout();
+    // Call store directly so cancel always clears session (e.g. from pill X or after alert)
+    useActiveWorkoutStore.getState().discardWorkout();
   }
 
   return (
