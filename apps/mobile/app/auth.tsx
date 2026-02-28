@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTheme } from '@/theme/ThemeContext';
@@ -28,6 +28,9 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <View style={styles.logoContainer}>
+        <Image source={require('../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+      </View>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Sign in</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -84,6 +87,8 @@ export default function AuthScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
+  logoContainer: { alignItems: 'center', marginBottom: 24 },
+  logo: { width: 88, height: 88 },
   header: { marginBottom: 32 },
   title: { fontSize: 28, fontWeight: '700' },
   subtitle: { fontSize: 15, marginTop: 8 },
