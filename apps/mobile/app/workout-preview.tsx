@@ -133,13 +133,6 @@ export default function WorkoutPreviewScreen() {
             </View>
           );
         })}
-
-        <Pressable
-          style={[styles.startBtn, { backgroundColor: colors.primary }]}
-          onPress={handleStart}
-        >
-          <Text style={styles.startBtnText}>Start workout</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -188,11 +181,5 @@ const styles = StyleSheet.create({
   exerciseName: { fontSize: 17, fontWeight: '600' },
   muscles: { fontSize: 13, marginTop: 4 },
   previous: { fontSize: 13, marginTop: 6, fontWeight: '500' },
-  startBtn: {
-    padding: 18,
-    borderRadius: 14,
-    marginTop: 24,
-  },
-  startBtnText: { color: '#fff', fontSize: 17, fontWeight: '600', textAlign: 'center' },
   errorText: { padding: 20, fontSize: 15 },
 });
