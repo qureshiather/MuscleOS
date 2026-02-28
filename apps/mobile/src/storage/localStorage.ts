@@ -39,6 +39,25 @@ export async function setSessions(sessions: WorkoutSession[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
 }
 
+export interface ExercisePrevious {
+  weightKg: number;
+  reps?: number;
+}
+
+export async function getExercisePrevious(): Promise<Record<string, ExercisePrevious>> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.exercisePrevious);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+export async function setExercisePrevious(prev: Record<string, ExercisePrevious>): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.exercisePrevious, JSON.stringify(prev));
+}
+
 export async function getRecovery(): Promise<MuscleRecovery[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.recovery);
   if (!raw) return [];

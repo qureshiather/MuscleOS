@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
-import { getSessions, setSessions } from '@/storage/localStorage';
+import {
+  getSessions,
+  setSessions,
+  getExercisePrevious,
+  setExercisePrevious,
+  type ExercisePrevious,
+} from '@/storage/localStorage';
 import { getRecovery, setRecovery } from '@/storage/localStorage';
 import { DEFAULT_RECOVERY_HOURS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
@@ -78,6 +84,21 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     };
     const sessions = await getSessions();
     await setSessions([...sessions, completed]);
+
+    // Update previous weight/reps per exercise (best set by weight, then reps)
+    const prev = await getExercisePrevious();
+    for (const se of completed.exercises) {
+      const best = se.sets
+        .filter((s) => s.weightKg != null && s.weightKg > 0)
+        .sort((a, b) => (b.weightKg ?? 0) - (a.weightKg ?? 0) || (b.reps ?? 0) - (a.reps ?? 0))[0];
+      if (best) {
+        prev[se.exerciseId] = {
+          weightKg: best.weightKg!,
+          reps: best.reps,
+        };
+      }
+    }
+    await setExercisePrevious(prev);
 
     // Update recovery: collect all muscles from exercises and add recovery window
     const muscleIds = new Set<MuscleId>();

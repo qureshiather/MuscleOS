@@ -1,13 +1,18 @@
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
 
-const TAB_BAR_HEIGHT = 56;
+/** Content height of the tab bar (without safe area). Matches default tab bar so pill sits flush. */
+const TAB_BAR_CONTENT_HEIGHT = 49;
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarBottomOffset = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
+
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -68,7 +73,7 @@ export default function TabsLayout() {
         }}
       />
       </Tabs>
-      <View style={{ position: 'absolute', bottom: TAB_BAR_HEIGHT, left: 0, right: 0 }}>
+      <View style={{ position: 'absolute', bottom: tabBarBottomOffset, left: 0, right: 0 }}>
         <ResumeWorkoutPill />
       </View>
     </View>

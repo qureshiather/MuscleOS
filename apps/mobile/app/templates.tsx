@@ -23,7 +23,7 @@ export default function TemplatesScreen() {
 
   function handleStartDay(template: WorkoutTemplate, day: WorkoutDay) {
     router.push({
-      pathname: '/active-workout',
+      pathname: '/workout-preview',
       params: {
         templateId: template.id,
         dayId: day.id,

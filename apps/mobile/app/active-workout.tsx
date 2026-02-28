@@ -16,6 +16,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { getExercise } from '@/data/exercises';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
+import { getExercisePrevious } from '@/storage/localStorage';
 
 const DEFAULT_REST_SECONDS = 90;
 
@@ -47,6 +48,9 @@ export default function ActiveWorkoutScreen() {
   const [restSecondsLeft, setRestSecondsLeft] = useState<number | null>(null);
   const [restAfter, setRestAfter] = useState<{ exIdx: number; setIdx: number } | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
+  const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
 
   useEffect(() => {
     if (params.templateId && params.dayId && params.dayName && params.exerciseIds && !session) {
@@ -54,6 +58,22 @@ export default function ActiveWorkoutScreen() {
       startWorkout(params.templateId, params.dayId, params.dayName, ids);
     }
   }, [params.templateId, params.dayId, params.dayName, params.exerciseIds, session, startWorkout]);
+
+  useEffect(() => {
+    if (!session) return;
+    getExercisePrevious().then((prev) => {
+      setPreviousMap(prev);
+      const current = useActiveWorkoutStore.getState().session;
+      if (!current) return;
+      current.exercises.forEach((se, exIdx) => {
+        const p = prev[se.exerciseId];
+        const firstSet = se.sets[0];
+        if (p && firstSet && firstSet.weightKg == null && firstSet.reps == null) {
+          setSetRecord(exIdx, 0, { weightKg: p.weightKg, reps: p.reps });
+        }
+      });
+    });
+  }, [session?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -104,12 +124,14 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header: Back | Elapsed time | Finish | Cancel */}
+      {/* Header: Back | Time (center) | Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerLeft}>
           <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
         </Pressable>
-        <Text style={[styles.elapsed, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.elapsed, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
+        </View>
         <View style={styles.headerRight}>
           <Pressable
             onPress={handleFinish}
@@ -119,15 +141,6 @@ export default function ActiveWorkoutScreen() {
             <Text style={[styles.finishHeaderText, { color: allDone ? colors.accent : colors.textMuted }]}>
               FINISH
             </Text>
-          </Pressable>
-          <Pressable onPress={() => {
-            Alert.alert(
-              'Cancel workout',
-              'This workout will not be saved. Are you sure?',
-              [{ text: 'Keep', style: 'cancel' }, { text: 'Cancel workout', style: 'destructive', onPress: handleCancel }]
-            );
-          }} hitSlop={8} style={styles.cancelHeaderBtn}>
-            <Text style={[styles.cancelHeaderText, { color: colors.textMuted }]}>Cancel</Text>
           </Pressable>
         </View>
       </View>
@@ -166,6 +179,12 @@ export default function ActiveWorkoutScreen() {
                   restAfter?.setIdx === setIdx &&
                   restSecondsLeft !== null &&
                   restSecondsLeft > 0;
+                const isKgFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'kg';
+                const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
+                const prev = previousMap[se.exerciseId];
+                const prevLabel = prev
+                  ? `${kgToDisplay(prev.weightKg, weightUnit)}${prev.reps != null ? ` × ${prev.reps}` : ''}`
+                  : '—';
 
                 return (
                   <View key={setIdx}>
@@ -173,9 +192,19 @@ export default function ActiveWorkoutScreen() {
                       <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
                         {setIdx + 1}
                       </Text>
-                      <Text style={[styles.prevCell, { color: colors.textMuted }]}>—</Text>
+                      <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
+                        {prevLabel}
+                      </Text>
                       <TextInput
-                        style={[styles.setInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                        style={[
+                          styles.setInput,
+                          {
+                            backgroundColor: isKgFocused ? colors.background : colors.surface,
+                            color: colors.text,
+                            borderColor: isKgFocused ? colors.border : 'transparent',
+                            borderWidth: isKgFocused ? 1 : 0,
+                          },
+                        ]}
                         placeholder="0"
                         placeholderTextColor={colors.textMuted}
                         keyboardType="decimal-pad"
@@ -185,9 +214,25 @@ export default function ActiveWorkoutScreen() {
                             weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
                           })
                         }
+                        onFocus={() => {
+                          setFocusedCell({ exIdx, setIdx, field: 'kg' });
+                          setEditingWeightExIdx(exIdx);
+                        }}
+                        onBlur={() => {
+                          setFocusedCell(null);
+                          setEditingWeightExIdx(null);
+                        }}
                       />
                       <TextInput
-                        style={[styles.setInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                        style={[
+                          styles.setInput,
+                          {
+                            backgroundColor: isRepsFocused ? colors.background : colors.surface,
+                            color: colors.text,
+                            borderColor: isRepsFocused ? colors.border : 'transparent',
+                            borderWidth: isRepsFocused ? 1 : 0,
+                          },
+                        ]}
                         placeholder="0"
                         placeholderTextColor={colors.textMuted}
                         keyboardType="number-pad"
@@ -197,6 +242,8 @@ export default function ActiveWorkoutScreen() {
                             reps: t === '' ? undefined : parseInt(t, 10),
                           })
                         }
+                        onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                        onBlur={() => setFocusedCell(null)}
                       />
                       <Pressable
                         style={[
@@ -238,7 +285,7 @@ export default function ActiveWorkoutScreen() {
                 );
               })}
 
-              {isBarbell && (
+              {isBarbell && editingWeightExIdx === exIdx && (
                 <PlateCalculator totalKg={currentWeightKg || 20} unit={weightUnit} />
               )}
             </View>
@@ -253,6 +300,19 @@ export default function ActiveWorkoutScreen() {
           <Text style={styles.finishBtnText}>
             {allDone ? 'Finish workout' : 'Complete all sets to finish'}
           </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.cancelWorkoutBtn}
+          onPress={() => {
+            Alert.alert(
+              'Cancel workout',
+              'This workout will not be saved. Are you sure?',
+              [{ text: 'Keep', style: 'cancel' }, { text: 'Cancel workout', style: 'destructive', onPress: handleCancel }]
+            );
+          }}
+        >
+          <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>Cancel workout</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -269,16 +329,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
+  headerLeft: { minWidth: 56 },
+  headerCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 56 },
   backText: { fontSize: 16 },
   elapsed: { fontSize: 20, fontWeight: '700' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   finishHeaderBtn: { minWidth: 48, alignItems: 'flex-end' },
   finishHeaderBtnDisabled: { opacity: 0.7 },
   finishHeaderText: { fontSize: 16, fontWeight: '600' },
-  cancelHeaderBtn: {},
-  cancelHeaderText: { fontSize: 14 },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { padding: 20, paddingBottom: 48 },
   exerciseCard: {
     padding: 16,
     borderRadius: 16,
@@ -289,32 +349,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
-    paddingRight: 8,
+    gap: 8,
   },
   th: { fontSize: 12, fontWeight: '600' },
   thSet: { width: 28 },
-  thPrev: { width: 44 },
-  thKg: { width: 52 },
-  thReps: { width: 52 },
-  thDone: { width: 36 },
+  thPrev: { width: 48 },
+  thKg: { flex: 1, minWidth: 56 },
+  thReps: { flex: 1, minWidth: 56 },
+  thDone: { width: 40 },
   setLabel: { width: 28, fontSize: 14 },
-  prevCell: { width: 44, fontSize: 13 },
+  prevCell: { width: 48, fontSize: 13 },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginBottom: 6,
   },
   setInput: {
-    width: 52,
+    flex: 1,
+    minWidth: 56,
     borderWidth: 1,
     borderRadius: 8,
     padding: 8,
     fontSize: 14,
   },
   doneBtn: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -339,4 +400,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   finishBtnText: { color: '#fff', fontSize: 17, fontWeight: '600', textAlign: 'center' },
+  cancelWorkoutBtn: {
+    paddingVertical: 18,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  cancelWorkoutText: { fontSize: 15 },
 });
