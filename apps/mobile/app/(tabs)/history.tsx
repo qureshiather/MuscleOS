@@ -77,7 +77,7 @@ export default function HistoryScreen() {
           <View>
             <Text style={[styles.title, { color: colors.text }]}>History</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Previous workouts you’ve completed
+              Previous workouts you've completed
             </Text>
           </View>
           <Pressable
@@ -100,14 +100,19 @@ export default function HistoryScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.cardsContainer}>
             {completed.map((s) => {
               const exercises = exercisesWithCompletedSets(s);
+              const hasStats = getSessionDuration(s) || getSessionVolume(s) > 0;
               return (
-                <View
+                <Pressable
                   key={s.id}
-                  style={[styles.workoutCard, { backgroundColor: colors.surface }]}
+                  style={({ pressed }) => [
+                    styles.workoutCard,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    pressed && styles.workoutCardPressed,
+                  ]}
                 >
                   <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
                     {s.completedAt ? formatSessionDate(s.completedAt) : ''}
@@ -115,20 +120,20 @@ export default function HistoryScreen() {
                   <Text style={[styles.cardTitle, { color: colors.text }]}>
                     {s.dayName} · {getTemplateName(s.templateId)}
                   </Text>
-                  {(getSessionDuration(s) || getSessionVolume(s) > 0) && (
+                  {hasStats && (
                     <View style={styles.statsRow}>
                       {getSessionDuration(s) && (
-                        <View style={styles.stat}>
-                          <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                          <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                        <View style={[styles.statChip, { backgroundColor: colors.surfaceElevated }]}>
+                          <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                          <Text style={[styles.statChipText, { color: colors.textSecondary }]}>
                             {getSessionDuration(s)}
                           </Text>
                         </View>
                       )}
                       {getSessionVolume(s) > 0 && (
-                        <View style={styles.stat}>
-                          <Ionicons name="barbell-outline" size={16} color={colors.textSecondary} />
-                          <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                        <View style={[styles.statChip, { backgroundColor: colors.surfaceElevated }]}>
+                          <Ionicons name="barbell-outline" size={12} color={colors.textSecondary} />
+                          <Text style={[styles.statChipText, { color: colors.textSecondary }]}>
                             {getSessionVolume(s).toLocaleString(undefined, { maximumFractionDigits: 0 })} kg
                           </Text>
                         </View>
@@ -136,28 +141,45 @@ export default function HistoryScreen() {
                     </View>
                   )}
                   {exercises.length > 0 && (
-                    <View style={styles.exerciseList}>
-                      {exercises.map((se) => {
+                    <View
+                      style={[
+                        styles.exerciseList,
+                        {
+                          borderLeftColor: colors.primary + '40',
+                          backgroundColor: colors.background,
+                        },
+                      ]}
+                    >
+                      {exercises.map((se, idx) => {
                         const completedSets = se.sets.filter((set) => set.completed);
-                        const setsSummary = completedSets
-                          .map((set) => formatSet(set))
-                          .join(' · ');
                         const exerciseName = getExercise(se.exerciseId)?.name ?? se.exerciseId;
+                        const isLast = idx === exercises.length - 1;
                         return (
-                          <View key={se.exerciseId} style={styles.exerciseRow}>
+                          <View key={se.exerciseId} style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}>
                             <Text style={[styles.exerciseName, { color: colors.text }]} numberOfLines={1}>
                               {exerciseName}
                             </Text>
-                            <Text style={[styles.setsWeight, { color: colors.textSecondary }]}>
-                              {completedSets.length} set{completedSets.length !== 1 ? 's' : ''}
-                              {setsSummary ? ` · ${setsSummary}` : ''}
-                            </Text>
+                            <View style={styles.setsRow}>
+                              {completedSets.map((set, setIdx) => (
+                                <View
+                                  key={setIdx}
+                                  style={[styles.setChip, { backgroundColor: colors.surfaceElevated }]}
+                                >
+                                  <Text
+                                    style={[styles.setChipText, { color: colors.textSecondary }]}
+                                    numberOfLines={1}
+                                  >
+                                    {formatSet(set)}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
                           </View>
                         );
                       })}
                     </View>
                   )}
-                </View>
+                </Pressable>
               );
             })}
           </View>
@@ -188,24 +210,47 @@ const styles = StyleSheet.create({
   empty: { flex: 1, justifyContent: 'center', padding: 20 },
   emptyText: { fontSize: 16, textAlign: 'center' },
   scroll: { padding: 20, paddingBottom: 40 },
-  cardsContainer: { gap: 12 },
+  cardsContainer: { gap: 16 },
   workoutCard: {
     borderRadius: 16,
-    padding: 18,
+    padding: 14,
     overflow: 'hidden',
+    borderWidth: 1,
   },
-  cardDate: { fontSize: 13, marginBottom: 4, textTransform: 'capitalize' },
-  cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 10 },
-  statsRow: { flexDirection: 'row', gap: 16, marginBottom: 14 },
-  stat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statText: { fontSize: 13 },
+  workoutCardPressed: { opacity: 0.96 },
+  cardDate: { fontSize: 12, marginBottom: 4, textTransform: 'capitalize', letterSpacing: 0.3 },
+  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 10 },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  statChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statChipText: { fontSize: 11, fontWeight: '500' },
   exerciseList: {
     marginTop: 4,
     paddingLeft: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: 'rgba(255,255,255,0.15)',
+    paddingRight: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderLeftWidth: 3,
   },
   exerciseRow: { marginBottom: 8 },
-  exerciseName: { fontSize: 15, fontWeight: '500' },
-  setsWeight: { fontSize: 13, marginTop: 2 },
+  exerciseRowLast: { marginBottom: 0 },
+  exerciseName: { fontSize: 13, fontWeight: '600' },
+  setsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  setChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  setChipText: { fontSize: 11 },
 });
