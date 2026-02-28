@@ -1,87 +1,87 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Ellipse, Path } from 'react-native-svg';
+import Body from 'react-native-body-highlighter';
+import type { Slug } from 'react-native-body-highlighter';
 import type { MuscleId } from '@muscleos/types';
 import { useTheme } from '@/theme/ThemeContext';
+import { useSettingsStore } from '@/store/settingsStore';
 
-const W = 120;
-const H = 220;
-
-/** Anatomy diagram: grayscale body with accent color for highlighted muscles. */
-const BODY_GRAY = '#6b7280';
-const MUSCLE_ACCENT = '#ea580c';
-const READY_GREEN = '#22c55e';
-const READY_GREEN_STROKE = '#16a34a';
+/** Map our MuscleId to the body-highlighter library's Slug (one or more muscles can map to same slug). */
+const MUSCLE_ID_TO_SLUG: Record<MuscleId, Slug> = {
+  chest: 'chest',
+  front_delts: 'deltoids',
+  side_delts: 'deltoids',
+  rear_delts: 'deltoids',
+  traps: 'trapezius',
+  lats: 'upper-back',
+  rhomboids: 'upper-back',
+  biceps: 'biceps',
+  triceps: 'triceps',
+  forearms: 'forearm',
+  abs: 'abs',
+  obliques: 'obliques',
+  lower_back: 'lower-back',
+  quads: 'quadriceps',
+  hamstrings: 'hamstring',
+  glutes: 'gluteal',
+  calves: 'calves',
+};
 
 export type DiagramVariant = 'male' | 'female';
+
+const HIGHLIGHT_ORANGE = ['#ea580c', '#c2410c'];
+const HIGHLIGHT_GREEN = ['#22c55e', '#16a34a'];
+const BODY_BORDER = '#4b5563';
+const BODY_FILL = '#6b7280';
 
 export function MuscleDiagram({
   muscleIds = [],
   showLabels = false,
   size = 1,
-  variant = 'male',
+  variant,
   /** Green when "all ready" (e.g. recovery); orange when targeted/recovering */
   highlightColor,
 }: {
   muscleIds?: MuscleId[];
   showLabels?: boolean;
   size?: number;
+  /** Override gender; if not set, uses user profile sex (male/female only). */
   variant?: DiagramVariant;
   highlightColor?: 'green' | 'orange';
 }) {
   const { colors } = useTheme();
-  const highlight = new Set(muscleIds);
-  const useGreen = highlightColor === 'green';
-  const fillColor = useGreen ? READY_GREEN : MUSCLE_ACCENT;
-  const strokeColor = useGreen ? READY_GREEN_STROKE : '#c2410c';
-  const fill = (id: MuscleId) => (highlight.has(id) ? fillColor : BODY_GRAY);
-  const stroke = (id: MuscleId) => (highlight.has(id) ? strokeColor : '#4b5563');
+  const profile = useSettingsStore((s) => s.profile);
+  const userGender = profile?.sex === 'female' ? 'female' : 'male';
+  const gender = (variant ?? userGender) as 'male' | 'female';
 
-  const isFemale = variant === 'female';
-  const chestRx = isFemale ? 24 : 28;
-  const chestRy = isFemale ? 20 : 22;
-  const shoulderOffset = isFemale ? 28 : 32;
-  const hipW = isFemale ? 22 : 20;
-  const quadInset = isFemale ? 16 : 18;
+  const useGreen = highlightColor === 'green';
+  const colorPalette = useGreen ? HIGHLIGHT_GREEN : HIGHLIGHT_ORANGE;
+
+  const slugSet = new Set<Slug>();
+  muscleIds.forEach((id) => slugSet.add(MUSCLE_ID_TO_SLUG[id]));
+  const data = Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
 
   return (
-    <View style={[styles.wrapper, { width: W * size * 2 + 24, height: H * size + 40 }]}>
+    <View style={styles.wrapper}>
       <View style={styles.row}>
-        <Svg width={W * size} height={H * size} viewBox={`0 0 ${W} ${H}`} style={styles.svg}>
-          <Ellipse cx={W / 2} cy={18} rx={isFemale ? 12 : 14} ry={16} fill={BODY_GRAY} stroke="#4b5563" />
-          <Path d={`M ${W/2 - 8} 34 L ${W/2 + 8} 34 L ${W/2 + 12} 50 L ${W/2 - 12} 50 Z`} fill={BODY_GRAY} stroke="#4b5563" />
-          <Ellipse cx={W / 2} cy={72} rx={chestRx} ry={chestRy} fill={fill('chest')} stroke={stroke('chest')} />
-          <Ellipse cx={W / 2 - shoulderOffset} cy={68} rx={isFemale ? 8 : 10} ry={12} fill={fill('front_delts')} stroke={stroke('front_delts')} />
-          <Ellipse cx={W / 2 + shoulderOffset} cy={68} rx={isFemale ? 8 : 10} ry={12} fill={fill('front_delts')} stroke={stroke('front_delts')} />
-          <Ellipse cx={W / 2 - (isFemale ? 34 : 38)} cy={75} rx={8} ry={10} fill={fill('side_delts')} stroke={stroke('side_delts')} />
-          <Ellipse cx={W / 2 + (isFemale ? 34 : 38)} cy={75} rx={8} ry={10} fill={fill('side_delts')} stroke={stroke('side_delts')} />
-          <Path d={`M ${W/2 - 22} 98 L ${W/2 + 22} 98 L ${W/2 + hipW} 140 L ${W/2 - hipW} 140 Z`} fill={fill('abs')} stroke={stroke('abs')} />
-          <Path d={`M ${W/2 - 22} 115 L ${W/2 - 28} 135 L ${W/2 - hipW} 140 L ${W/2 - 18} 118 Z`} fill={fill('obliques')} stroke={stroke('obliques')} />
-          <Path d={`M ${W/2 + 22} 115 L ${W/2 + 28} 135 L ${W/2 + hipW} 140 L ${W/2 + 18} 118 Z`} fill={fill('obliques')} stroke={stroke('obliques')} />
-          <Ellipse cx={W / 2 - shoulderOffset} cy={95} rx={8} ry={28} fill={fill('biceps')} stroke={stroke('biceps')} />
-          <Ellipse cx={W / 2 + shoulderOffset} cy={95} rx={8} ry={28} fill={fill('biceps')} stroke={stroke('biceps')} />
-          <Ellipse cx={W / 2 - (isFemale ? 26 : 30)} cy={110} rx={6} ry={20} fill={fill('triceps')} stroke={stroke('triceps')} />
-          <Ellipse cx={W / 2 + (isFemale ? 26 : 30)} cy={110} rx={6} ry={20} fill={fill('triceps')} stroke={stroke('triceps')} />
-          <Ellipse cx={W / 2 - 30} cy={155} rx={6} ry={22} fill={fill('forearms')} stroke={stroke('forearms')} />
-          <Ellipse cx={W / 2 + 30} cy={155} rx={6} ry={22} fill={fill('forearms')} stroke={stroke('forearms')} />
-          <Path d={`M ${W/2 - quadInset} 142 L ${W/2 - 22} 200 L ${W/2 - 10} 218 L ${W/2 + 2} 200 L ${W/2 - 8} 142 Z`} fill={fill('quads')} stroke={stroke('quads')} />
-          <Path d={`M ${W/2 + quadInset} 142 L ${W/2 + 22} 200 L ${W/2 + 10} 218 L ${W/2 - 2} 200 L ${W/2 + 8} 142 Z`} fill={fill('quads')} stroke={stroke('quads')} />
-        </Svg>
-        <Svg width={W * size} height={H * size} viewBox={`0 0 ${W} ${H}`} style={styles.svg}>
-          <Ellipse cx={W / 2} cy={18} rx={14} ry={16} fill={BODY_GRAY} stroke="#4b5563" />
-          <Path d={`M ${W/2 - 8} 34 L ${W/2 + 8} 34 L ${W/2 + 12} 50 L ${W/2 - 12} 50 Z`} fill={BODY_GRAY} stroke="#4b5563" />
-          <Path d={`M ${W/2 - (isFemale ? 22 : 25)} 42 L ${W/2 - 18} 75 L ${W/2 + 18} 75 L ${W/2 + (isFemale ? 22 : 25)} 42 Z`} fill={fill('traps')} stroke={stroke('traps')} />
-          <Ellipse cx={W / 2 - shoulderOffset} cy={72} rx={10} ry={10} fill={fill('rear_delts')} stroke={stroke('rear_delts')} />
-          <Ellipse cx={W / 2 + shoulderOffset} cy={72} rx={10} ry={10} fill={fill('rear_delts')} stroke={stroke('rear_delts')} />
-          <Path d={`M ${W/2 - 28} 78 L ${W/2 - 32} 130 L ${W/2 - 12} 128 L ${W/2 - 18} 82 Z`} fill={fill('lats')} stroke={stroke('lats')} />
-          <Path d={`M ${W/2 + 28} 78 L ${W/2 + 32} 130 L ${W/2 + 12} 128 L ${W/2 + 18} 82 Z`} fill={fill('lats')} stroke={stroke('lats')} />
-          <Path d={`M ${W/2 - 14} 70 L ${W/2 - 18} 95 L ${W/2} 92 L ${W/2 + 18} 95 L ${W/2 + 14} 70 Z`} fill={fill('rhomboids')} stroke={stroke('rhomboids')} />
-          <Path d={`M ${W/2 - 18} 98 L ${W/2 + 18} 98 L ${W/2 + 16} 138 L ${W/2 - 16} 138 Z`} fill={fill('lower_back')} stroke={stroke('lower_back')} />
-          <Path d={`M ${W/2 - 16} 138 L ${W/2 - 20} 168 L ${W/2 - 8} 172 L ${W/2 + 8} 172 L ${W/2 + 20} 168 L ${W/2 + 16} 138 Z`} fill={fill('glutes')} stroke={stroke('glutes')} />
-          <Path d={`M ${W/2 - 12} 172 L ${W/2 - 18} 208 L ${W/2 - 6} 218 L ${W/2 + 6} 218 L ${W/2 + 18} 208 L ${W/2 + 12} 172 Z`} fill={fill('hamstrings')} stroke={stroke('hamstrings')} />
-          <Ellipse cx={W / 2 - 8} cy={210} rx={6} ry={18} fill={fill('calves')} stroke={stroke('calves')} />
-          <Ellipse cx={W / 2 + 8} cy={210} rx={6} ry={18} fill={fill('calves')} stroke={stroke('calves')} />
-        </Svg>
+        <Body
+          data={data}
+          gender={gender}
+          side="front"
+          scale={size}
+          colors={colorPalette}
+          border={BODY_BORDER}
+          defaultFill={BODY_FILL}
+        />
+        <Body
+          data={data}
+          gender={gender}
+          side="back"
+          scale={size}
+          colors={colorPalette}
+          border={BODY_BORDER}
+          defaultFill={BODY_FILL}
+        />
       </View>
       {showLabels && muscleIds.length > 0 && (
         <View style={styles.labels}>
@@ -96,8 +96,7 @@ export function MuscleDiagram({
 
 const styles = StyleSheet.create({
   wrapper: { alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', gap: 12 },
-  svg: {},
-  labels: { marginTop: 8, paddingHorizontal: 8 },
+  row: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
+  labels: { width: '100%', marginTop: 8, paddingHorizontal: 8 },
   labelText: { fontSize: 12 },
 });
