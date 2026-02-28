@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { WorkoutHistoryChart } from '@/components/WorkoutHistoryChart';
 import { getExercise } from '@/data/exercises';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
 
@@ -102,8 +101,6 @@ export default function HistoryScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={[styles.chartTitle, { color: colors.text }]}>Workouts over time</Text>
-          <WorkoutHistoryChart sessions={completed} />
           <View style={styles.cardsContainer}>
             {completed.map((s) => {
               const exercises = exercisesWithCompletedSets(s);
@@ -191,8 +188,7 @@ const styles = StyleSheet.create({
   empty: { flex: 1, justifyContent: 'center', padding: 20 },
   emptyText: { fontSize: 16, textAlign: 'center' },
   scroll: { padding: 20, paddingBottom: 40 },
-  chartTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  cardsContainer: { marginTop: 16, gap: 12 },
+  cardsContainer: { gap: 12 },
   workoutCard: {
     borderRadius: 16,
     padding: 18,
