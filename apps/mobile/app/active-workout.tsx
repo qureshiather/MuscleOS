@@ -338,7 +338,7 @@ export default function ActiveWorkoutScreen() {
               style={[styles.headerRestContainer, { backgroundColor: colors.surfaceElevated }]}
             >
               <View style={styles.headerRestTop}>
-                <Ionicons name="timer-outline" size={14} color={colors.accent} />
+                <Ionicons name="timer-outline" size={12} color={colors.accent} />
                 <Text style={[styles.headerRestTime, { color: colors.accent }]}>
                   {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
                 </Text>
@@ -350,7 +350,7 @@ export default function ActiveWorkoutScreen() {
               hitSlop={8}
               style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
-              <Ionicons name="timer-outline" size={20} color={colors.accent} />
+              <Ionicons name="timer-outline" size={12} color={colors.accent} />
             </Pressable>
           )}
         </View>
@@ -456,9 +456,11 @@ export default function ActiveWorkoutScreen() {
                           },
                         ]}
                       >
-                        <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
-                          {setIdx + 1}
-                        </Text>
+                        <View style={styles.setLabelWrap}>
+                          <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
+                            {setIdx + 1}
+                          </Text>
+                        </View>
                         <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
                           {prevLabel}
                         </Text>
@@ -520,6 +522,12 @@ export default function ActiveWorkoutScreen() {
                           onPress={() => {
                             if (set.completed) {
                               uncompleteSet(exIdx, setIdx);
+                              // If the rest timer under this set is active, reset it to static duration
+                              if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
+                                setRestSecondsLeft(null);
+                                setRestAfter(null);
+                                setShowRestControlSheet(false);
+                              }
                             } else {
                               completeSet(exIdx, setIdx);
                               if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
@@ -854,15 +862,23 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 56 },
-  headerTimerBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  headerRestContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-    minWidth: 56,
+  headerTimerBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  headerRestTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerRestTime: { fontSize: 13, fontWeight: '700' },
+  headerRestContainer: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 8,
+    minWidth: 48,
+    minHeight: 24,
+    justifyContent: 'center',
+  },
+  headerRestTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerRestTime: { fontSize: 12, fontWeight: '700' },
   headerCenter: {
     position: 'absolute',
     left: 0,
@@ -909,7 +925,7 @@ const styles = StyleSheet.create({
   thPrev: { width: 80 },
   thKg: { flex: 1, minWidth: 56 },
   thReps: { flex: 1, minWidth: 56 },
-  thActions: { width: 40 },
+  thActions: { flex: 1, minWidth: 56 },
   swipeableContainer: {
     position: 'relative',
     overflow: 'hidden',
@@ -924,18 +940,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setLabel: { width: 28, fontSize: 14, textAlign: 'center' },
+  setLabelWrap: {
+    width: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  setLabel: { fontSize: 14, textAlign: 'center' },
   prevCell: { width: 80, fontSize: 12 },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
     paddingHorizontal: 4,
   },
   setInput: {
     flex: 1,
-    minWidth: 56,
+    minWidth: 52,
+    minHeight: 32,
     borderWidth: 1,
     borderRadius: 8,
     padding: 6,
@@ -943,9 +965,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   doneBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    flex: 1,
+    minWidth: 52,
+    height: 32,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -953,16 +976,17 @@ const styles = StyleSheet.create({
   restBetweenRow: {
     marginVertical: 2,
     alignItems: 'center',
-    minHeight: 24,
     justifyContent: 'center',
+    height: 28,
   },
   restProgressBar: {
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     justifyContent: 'center',
     alignSelf: 'stretch',
+    height: 28,
   },
   restProgressBarBg: {
     position: 'absolute',
@@ -976,13 +1000,13 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   restProgressBarTime: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
   },
-  restBetweenText: { fontSize: 13 },
+  restBetweenText: { fontSize: 12 },
   restControlOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
