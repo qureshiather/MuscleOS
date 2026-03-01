@@ -326,7 +326,7 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header: Back + (Rest timer | Timer icon) | Time (center) | Finish */}
+      {/* Header: Back + (Rest timer | Timer icon) | Time (center, absolute) | Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -343,17 +343,6 @@ export default function ActiveWorkoutScreen() {
                   {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
                 </Text>
               </View>
-              <View style={[styles.headerRestBarBg, { backgroundColor: colors.background }]}>
-                <View
-                  style={[
-                    styles.headerRestBarFill,
-                    {
-                      width: `${restTotalSeconds > 0 ? ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100 : 0}%`,
-                      backgroundColor: colors.accent,
-                    },
-                  ]}
-                />
-              </View>
             </Pressable>
           ) : (
             <Pressable
@@ -365,7 +354,7 @@ export default function ActiveWorkoutScreen() {
             </Pressable>
           )}
         </View>
-        <View style={styles.headerCenter}>
+        <View style={styles.headerCenter} pointerEvents="none">
           <Text style={[styles.elapsed, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
         </View>
         <View style={styles.headerRight}>
@@ -862,6 +851,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
+    position: 'relative',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 56 },
   headerTimerBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
@@ -869,19 +859,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 10,
-    minWidth: 100,
+    minWidth: 56,
   },
   headerRestTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerRestTime: { fontSize: 13, fontWeight: '700' },
-  headerRestBarBg: {
-    height: 3,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 4,
-    width: '100%',
+  headerCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerRestBarFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
-  headerCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 56 },
   elapsed: { fontSize: 20, fontWeight: '700' },
   finishHeaderBtn: { minWidth: 48, alignItems: 'flex-end' },
