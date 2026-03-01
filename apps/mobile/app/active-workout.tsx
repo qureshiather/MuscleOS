@@ -16,7 +16,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { getExercise, EXERCISES } from '@/data/exercises';
+import { useExercisesStore } from '@/store/exercisesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
@@ -47,11 +48,20 @@ export default function ActiveWorkoutScreen() {
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
   const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
   const addSet = useActiveWorkoutStore((s) => s.addSet);
+  const removeSet = useActiveWorkoutStore((s) => s.removeSet);
   const addExercise = useActiveWorkoutStore((s) => s.addExercise);
+  const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
+  const replaceTemplateAndAddExercise = useActiveWorkoutStore((s) => s.replaceTemplateAndAddExercise);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
-  const isPro = useSubscriptionStore((s) => s.isPro)();
+  const subscriptionState = useSubscriptionStore((s) => s.state);
+  const isPro = subscriptionState?.tier === 'pro' && (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
   const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const getExercise = useExercisesStore((s) => s.getExercise);
+  const getAllExercises = useExercisesStore((s) => s.getAllExercises);
+  const allTemplates = useTemplatesStore((s) => s.allTemplates);
+  const addTemplate = useTemplatesStore((s) => s.addTemplate);
+  const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
   const [restSecondsLeft, setRestSecondsLeft] = useState<number | null>(null);
@@ -68,8 +78,8 @@ export default function ActiveWorkoutScreen() {
   const [showFinishSummary, setShowFinishSummary] = useState(false);
 
   useEffect(() => {
-    if (params.templateId && params.dayId && params.dayName && params.exerciseIds && !session) {
-      const ids = params.exerciseIds.split(',').filter(Boolean);
+    if (params.templateId && params.dayId && params.dayName && !session) {
+      const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
       const defaultSets =
         params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
       const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
@@ -152,10 +162,40 @@ export default function ActiveWorkoutScreen() {
     setRestSecondsLeft((s) => (s === null ? null : s + 30));
   }
 
-  async function handleFinish() {
+  async function handleFinish(updateCustomTemplate?: boolean) {
     setShowFinishSummary(false);
+    if (updateCustomTemplate && session) {
+      const template = allTemplates().find((t) => t.id === session.templateId);
+      if (template && !template.isBuiltIn) {
+        const newDays = template.days.map((d) =>
+          d.id === session!.dayId
+            ? { ...d, exerciseIds: session!.exercises.map((e) => e.exerciseId) }
+            : d
+        );
+        await updateTemplate(session.templateId, { days: newDays });
+      }
+    }
     await finishWorkout();
     router.replace('/(tabs)');
+  }
+
+  function handleSaveWorkoutPress() {
+    if (!session) return;
+    const template = allTemplates().find((t) => t.id === session.templateId);
+    const isCustomTemplate = template && !template.isBuiltIn && session.templateId !== '_empty';
+    if (isCustomTemplate) {
+      Alert.alert(
+        'Save workout',
+        `Update template "${template!.name}" to match these exercises, or just save this workout?`,
+        [
+          { text: 'Just save workout', onPress: () => handleFinish(false) },
+          { text: 'Update template', onPress: () => handleFinish(true) },
+          { text: 'Cancel', style: 'cancel', onPress: () => {} },
+        ]
+      );
+    } else {
+      handleFinish(false);
+    }
   }
 
   function handleCancel() {
@@ -175,6 +215,9 @@ export default function ActiveWorkoutScreen() {
       </SafeAreaView>
     );
   }
+
+  const currentTemplate = allTemplates().find((t) => t.id === session.templateId);
+  const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
 
   const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
   const completedSetsByExercise = session.exercises.map((se) => ({
@@ -248,6 +291,13 @@ export default function ActiveWorkoutScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {session.exercises.length === 0 && (
+          <View style={[styles.emptyWorkoutBlock, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.emptyWorkoutText, { color: colors.textSecondary }]}>
+              No exercises yet. Tap Add Exercise below to build your workout.
+            </Text>
+          </View>
+        )}
         {session.exercises.map((se, exIdx) => {
           const exercise = getExercise(se.exerciseId);
           const isBarbell = exercise?.equipment.includes('barbell');
@@ -259,16 +309,36 @@ export default function ActiveWorkoutScreen() {
               key={se.exerciseId + exIdx}
               style={[styles.exerciseCard, { backgroundColor: colors.surface }]}
             >
-              <Text style={[styles.exerciseName, { color: colors.accent }]}>
-                {exercise?.name ?? se.exerciseId}
-              </Text>
+              <View style={styles.exerciseCardHeader}>
+                <Text style={[styles.exerciseName, { color: colors.accent }]}>
+                  {exercise?.name ?? se.exerciseId}
+                </Text>
+                {!isBuiltInWorkout && (
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      Alert.alert(
+                        'Remove exercise',
+                        `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
+                        ]
+                      );
+                    }}
+                    style={[styles.removeExerciseBtn, { backgroundColor: colors.surfaceElevated }]}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </Pressable>
+                )}
+              </View>
 
               <View style={styles.tableHeader}>
                 <Text style={[styles.th, styles.thSet, { color: colors.textMuted }]}>SET</Text>
                 <Text style={[styles.th, styles.thPrev, { color: colors.textMuted }]}>PREV</Text>
                 <Text style={[styles.th, styles.thKg, { color: colors.textMuted }]}>{weightLabel}</Text>
                 <Text style={[styles.th, styles.thReps, { color: colors.textMuted }]}>REPS</Text>
-                <View style={styles.thDone} />
+                <View style={styles.thActions} />
               </View>
 
               {se.sets.map((set, setIdx) => {
@@ -349,26 +419,37 @@ export default function ActiveWorkoutScreen() {
                         onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
                         onBlur={() => setFocusedCell(null)}
                       />
-                      <Pressable
-                        style={[
-                          styles.doneBtn,
-                          set.completed
-                            ? { backgroundColor: '#22c55e' }
-                            : { backgroundColor: colors.surfaceElevated },
-                        ]}
-                        onPress={() => {
-                          if (set.completed) {
-                            uncompleteSet(exIdx, setIdx);
-                          } else {
-                            completeSet(exIdx, setIdx);
-                            if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
-                          }
-                        }}
-                      >
-                        <Text style={[styles.doneBtnText, { color: set.completed ? '#fff' : colors.textSecondary }]}>
-                          ✓
-                        </Text>
-                      </Pressable>
+                      <View style={styles.setActions}>
+                        {se.sets.length > 1 && (
+                          <Pressable
+                            onPress={() => removeSet(exIdx, setIdx)}
+                            hitSlop={8}
+                            style={[styles.removeSetBtn, { backgroundColor: colors.surfaceElevated }]}
+                          >
+                            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                          </Pressable>
+                        )}
+                        <Pressable
+                          style={[
+                            styles.doneBtn,
+                            set.completed
+                              ? { backgroundColor: '#22c55e' }
+                              : { backgroundColor: colors.surfaceElevated },
+                          ]}
+                          onPress={() => {
+                            if (set.completed) {
+                              uncompleteSet(exIdx, setIdx);
+                            } else {
+                              completeSet(exIdx, setIdx);
+                              if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
+                            }
+                          }}
+                        >
+                          <Text style={[styles.doneBtnText, { color: set.completed ? '#fff' : colors.textSecondary }]}>
+                            ✓
+                          </Text>
+                        </Pressable>
+                      </View>
                     </View>
                     {/* Rest between sets: show after every set except the last */}
                     {setIdx < se.sets.length - 1 && (
@@ -508,7 +589,7 @@ export default function ActiveWorkoutScreen() {
             <View style={styles.summaryActions}>
               <Pressable
                 style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                onPress={handleFinish}
+                onPress={handleSaveWorkoutPress}
               >
                 <Text style={styles.summarySaveBtnText}>Save workout</Text>
               </Pressable>
@@ -543,7 +624,7 @@ export default function ActiveWorkoutScreen() {
               onChangeText={setAddExerciseSearch}
             />
             <FlatList
-              data={EXERCISES.filter(
+              data={getAllExercises().filter(
                 (e) =>
                   !addExerciseSearch.trim() ||
                   e.name.toLowerCase().includes(addExerciseSearch.trim().toLowerCase())
@@ -554,9 +635,52 @@ export default function ActiveWorkoutScreen() {
                 <Pressable
                   style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
                   onPress={() => {
-                    addExercise(item.id);
-                    setShowAddExerciseModal(false);
-                    setAddExerciseSearch('');
+                    if (!session) return;
+                    const template = allTemplates().find((t) => t.id === session.templateId);
+                    const isBuiltIn = template?.isBuiltIn === true;
+                    if (isBuiltIn) {
+                      Alert.alert(
+                        'Create custom workout',
+                        'Adding an exercise to a built-in workout will create a custom copy. You can edit it later.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Continue',
+                            onPress: () => {
+                              const newDayId = 'day_' + Date.now();
+                              const newTemplate = {
+                                id: 'tpl_' + Date.now(),
+                                name: (template?.name ?? session.dayName) + ' (Copy)',
+                                days: [
+                                  {
+                                    id: newDayId,
+                                    name: session.dayName,
+                                    exerciseIds: [
+                                      ...session.exercises.map((e) => e.exerciseId),
+                                      item.id,
+                                    ],
+                                  },
+                                ],
+                                isBuiltIn: false as const,
+                              };
+                              addTemplate(newTemplate);
+                              replaceTemplateAndAddExercise(
+                                newTemplate.id,
+                                newTemplate.days[0].id,
+                                newTemplate.days[0].name,
+                                item.id
+                              );
+                              setShowAddExerciseModal(false);
+                              setAddExerciseSearch('');
+                            },
+                          },
+                        ]
+                      );
+                    } else {
+                      addExercise(item.id);
+                      setShowAddExerciseModal(false);
+                      setAddExerciseSearch('');
+                    }
                   }}
                 >
                   <Text style={[styles.addExerciseRowText, { color: colors.text }]}>{item.name}</Text>
@@ -609,12 +733,26 @@ const styles = StyleSheet.create({
   finishHeaderText: { fontSize: 16, fontWeight: '600' },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 8, paddingVertical: 10, paddingBottom: 36 },
+  emptyWorkoutBlock: {
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
     padding: 10,
     borderRadius: 16,
     marginBottom: 12,
   },
-  exerciseName: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  exerciseCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  exerciseName: { fontSize: 18, fontWeight: '700', flex: 1 },
+  removeExerciseBtn: { padding: 8, borderRadius: 8 },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -626,7 +764,7 @@ const styles = StyleSheet.create({
   thPrev: { width: 48 },
   thKg: { flex: 1, minWidth: 56 },
   thReps: { flex: 1, minWidth: 56 },
-  thDone: { width: 36 },
+  thActions: { width: 64 },
   setLabel: { width: 28, fontSize: 14 },
   prevCell: { width: 48, fontSize: 13 },
   setRow: {
@@ -642,6 +780,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 6,
     fontSize: 14,
+  },
+  setActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: 64,
+  },
+  removeSetBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   doneBtn: {
     width: 36,

@@ -5,4 +5,6 @@ export const STORAGE_KEYS = {
   health: 'muscleos_health',
   subscription: 'muscleos_subscription',
   exercisePrevious: 'muscleos_exercise_previous',
+  customExercises: 'muscleos_custom_exercises',
+  devProOverride: 'muscleos_dev_pro_override',
 } as const;

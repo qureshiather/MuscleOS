@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
-import { EXERCISES } from '@/data/exercises';
+import { useExercisesStore } from '@/store/exercisesStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { Exercise, MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
@@ -58,11 +58,14 @@ function exerciseMatchesMuscleFilter(e: Exercise, muscleFilter: string | null): 
 
 export default function ExercisesScreen() {
   const { colors } = useTheme();
+  const getAllExercises = useExercisesStore((s) => s.getAllExercises);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<EquipmentTypeKey | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  const allExercises = getAllExercises();
 
   const toggleFilters = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -74,7 +77,7 @@ export default function ExercisesScreen() {
   const filterSummary = `${typeLabel} · ${muscleLabel}`;
 
   const filtered = useMemo(() => {
-    let list = EXERCISES;
+    let list = allExercises;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -87,14 +90,14 @@ export default function ExercisesScreen() {
     list = list.filter((e) => exerciseMatchesType(e, typeFilter));
     list = list.filter((e) => exerciseMatchesMuscleFilter(e, muscleFilter));
     return list;
-  }, [search, typeFilter, muscleFilter]);
+  }, [allExercises, search, typeFilter, muscleFilter]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Exercise catalog</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {EXERCISES.length} exercises · tap for muscles
+          {allExercises.length} exercises · tap for muscles
         </Text>
       </View>
       <TextInput
@@ -274,7 +277,16 @@ export default function ExercisesScreen() {
             ]}
             onPress={() => setSelected(item)}
           >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
+            <View style={styles.cardTitleRow}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
+              {item.id.startsWith('custom_') && (
+                <View style={[styles.customBadge, { backgroundColor: colors.border }]}>
+                  <Text style={[styles.customBadgeText, { color: colors.textSecondary }]}>
+                    Custom
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
               {item.muscles.map((id) => MUSCLE_GROUPS[id].name).join(' · ')}
             </Text>
@@ -386,7 +398,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
   },
-  cardTitle: { fontSize: 17, fontWeight: '600' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  cardTitle: { fontSize: 17, fontWeight: '600', flex: 1 },
+  customBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  customBadgeText: { fontSize: 11, fontWeight: '600' },
   cardMeta: { fontSize: 13, marginTop: 4 },
   modalOverlay: {
     flex: 1,

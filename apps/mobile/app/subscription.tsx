@@ -1,9 +1,12 @@
-import { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { isRevenueCatConfigured } from '@/utils/revenueCat';
+
+const __DEV__ = process.env.NODE_ENV !== 'production';
 
 export default function SubscriptionScreen() {
   const { colors } = useTheme();
@@ -12,8 +15,13 @@ export default function SubscriptionScreen() {
   const isPro = useSubscriptionStore((s) => s.isPro);
   const setPro = useSubscriptionStore((s) => s.setPro);
   const setFree = useSubscriptionStore((s) => s.setFree);
+  const purchasePro = useSubscriptionStore((s) => s.purchasePro);
+  const restorePurchases = useSubscriptionStore((s) => s.restorePurchases);
   const state = useSubscriptionStore((s) => s.state);
   const isLoading = useSubscriptionStore((s) => s.isLoading);
+
+  const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     load();
@@ -22,15 +30,26 @@ export default function SubscriptionScreen() {
   const pro = isPro();
 
   async function handleUpgrade() {
-    // Stub: in production would launch IAP flow. For now set Pro with 1 year expiry.
-    const expiresAt = new Date();
-    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    await setPro(expiresAt.toISOString());
+    setPurchasing(true);
+    const result = await purchasePro();
+    setPurchasing(false);
+    if (result.success) return;
+    Alert.alert('Purchase failed', result.error ?? 'Could not complete purchase.');
   }
 
   async function handleRestore() {
-    // Stub: in production would call IAP restore and then set state from receipt.
-    await load();
+    setRestoring(true);
+    const result = await restorePurchases();
+    setRestoring(false);
+    if (!result.success) {
+      Alert.alert('Restore failed', 'Could not restore purchases. Try again.');
+    }
+  }
+
+  async function handleGrantProTesting() {
+    const expiresAt = new Date();
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    await setPro(expiresAt.toISOString(), { devOverride: true });
   }
 
   return (
@@ -41,7 +60,7 @@ export default function SubscriptionScreen() {
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>Subscription</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Unlock custom templates, full catalog & recovery insights
+          Unlock custom templates, custom exercises & recovery insights
         </Text>
       </View>
       {isLoading ? (
@@ -65,32 +84,53 @@ export default function SubscriptionScreen() {
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Pro features</Text>
               <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Custom workout templates</Text>
-              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Full exercise catalog</Text>
+              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Custom exercises</Text>
+              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Add exercises to any workout</Text>
               <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Recovery insights</Text>
               <Pressable
                 style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                 onPress={handleUpgrade}
+                disabled={purchasing || !isRevenueCatConfigured()}
               >
-                <Text style={styles.primaryBtnText}>Upgrade to Pro</Text>
+                {purchasing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>
+                    {isRevenueCatConfigured() ? 'Upgrade to Pro' : 'Configure RevenueCat to enable purchases'}
+                  </Text>
+                )}
               </Pressable>
-              <Text style={[styles.stubHint, { color: colors.textMuted }]}>
-                In-app purchase will be wired here (IAP / RevenueCat).
-              </Text>
+              {!isRevenueCatConfigured() && (
+                <Text style={[styles.hint, { color: colors.textMuted }]}>
+                  Set revenueCatApiKey in app config (or EXPO_PUBLIC_REVENUECAT_API_KEY) and use a development build to purchase. In Expo Go, use “Grant Pro (testing)” below.
+                </Text>
+              )}
             </View>
           )}
           <Pressable
             style={[styles.secondaryBtn, { backgroundColor: colors.surface }]}
             onPress={handleRestore}
+            disabled={restoring}
           >
-            <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Restore purchases</Text>
+            {restoring ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Restore purchases</Text>
+            )}
           </Pressable>
-          {pro && (
-            <Pressable
-              style={[styles.textBtn]}
-              onPress={() => setFree()}
-            >
-              <Text style={[styles.textBtnText, { color: colors.textMuted }]}>Reset to Free (dev)</Text>
-            </Pressable>
+          {__DEV__ && (
+            <View style={[styles.devSection, { borderColor: colors.border }]}>
+              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing (dev only)</Text>
+              {!pro ? (
+                <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={handleGrantProTesting}>
+                  <Text style={[styles.devBtnText, { color: colors.primary }]}>Grant Pro (testing)</Text>
+                </Pressable>
+              ) : (
+                <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={() => setFree()}>
+                  <Text style={[styles.devBtnText, { color: colors.textMuted }]}>Reset to Free (dev)</Text>
+                </Pressable>
+              )}
+            </View>
           )}
         </ScrollView>
       )}
@@ -114,11 +154,13 @@ const styles = StyleSheet.create({
   expiry: { fontSize: 13, marginTop: 4 },
   cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   bullet: { fontSize: 15, marginBottom: 4 },
-  primaryBtn: { padding: 16, borderRadius: 12, marginTop: 16 },
+  primaryBtn: { padding: 16, borderRadius: 12, marginTop: 16, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  stubHint: { fontSize: 12, marginTop: 12 },
-  secondaryBtn: { padding: 16, borderRadius: 12, marginTop: 8 },
+  hint: { fontSize: 12, marginTop: 12 },
+  secondaryBtn: { padding: 16, borderRadius: 12, marginTop: 8, alignItems: 'center' },
   secondaryBtnText: { fontSize: 16, fontWeight: '500', textAlign: 'center' },
-  textBtn: { marginTop: 16, alignSelf: 'center' },
-  textBtnText: { fontSize: 14 },
+  devSection: { marginTop: 24, paddingTop: 16, borderTopWidth: 1 },
+  devLabel: { fontSize: 12, marginBottom: 8 },
+  devBtn: { padding: 12, borderRadius: 10, alignSelf: 'flex-start' },
+  devBtnText: { fontSize: 14 },
 });

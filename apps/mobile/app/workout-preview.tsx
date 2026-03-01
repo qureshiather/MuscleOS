@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
-import { getExercise } from '@/data/exercises';
+import { useExercisesStore } from '@/store/exercisesStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
@@ -38,6 +38,7 @@ export default function WorkoutPreviewScreen() {
   const template = allTemplates().find((t) => t.id === templateId);
   const templateName = template?.name ?? 'Workout';
 
+  const getExercise = useExercisesStore((s) => s.getExercise);
   const workoutMuscleIds: MuscleId[] = Array.from(
     new Set(
       exerciseIds.flatMap((id) => getExercise(id)?.muscles ?? [])

@@ -9,8 +9,6 @@ import {
   setExercisePrevious,
   type ExercisePrevious,
 } from '@/storage/localStorage';
-import { getExercise } from '@/data/exercises';
-
 export interface SessionsState {
   sessions: WorkoutSession[];
   isLoading: boolean;

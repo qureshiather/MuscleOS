@@ -10,7 +10,7 @@ import {
 import { getRecovery, setRecovery } from '@/storage/localStorage';
 import { DEFAULT_RECOVERY_HOURS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
-import { getExercise } from '@/data/exercises';
+import { useExercisesStore } from '@/store/exercisesStore';
 
 const DEFAULT_SETS_PER_EXERCISE = 3;
 
@@ -21,7 +21,11 @@ export interface ActiveWorkoutState {
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
   addSet: (exerciseIndex: number) => void;
+  removeSet: (exerciseIndex: number, setIndex: number) => void;
   addExercise: (exerciseId: string) => void;
+  removeExercise: (exerciseIndex: number) => void;
+  /** Switch session to a new custom template and add an exercise (used when adding to built-in). */
+  replaceTemplateAndAddExercise: (newTemplateId: string, newDayId: string, newDayName: string, exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
   discardWorkout: () => void;
 }
@@ -110,6 +114,17 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     set({ session: { ...session, exercises } });
   },
 
+  removeSet: (exerciseIndex, setIndex) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex || ex.sets.length <= 1) return;
+    const sets = ex.sets.filter((_, i) => i !== setIndex);
+    exercises[exerciseIndex] = { ...ex, sets };
+    set({ session: { ...session, exercises } });
+  },
+
   addExercise: (exerciseId) => {
     const { session } = get();
     if (!session) return;
@@ -120,6 +135,31 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     set({
       session: {
         ...session,
+        exercises: [...session.exercises, newEx],
+      },
+    });
+  },
+
+  removeExercise: (exerciseIndex) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = session.exercises.filter((_, i) => i !== exerciseIndex);
+    set({ session: { ...session, exercises } });
+  },
+
+  replaceTemplateAndAddExercise: (newTemplateId, newDayId, newDayName, exerciseId) => {
+    const { session } = get();
+    if (!session) return;
+    const newEx: SessionExercise = {
+      exerciseId,
+      sets: [{ completed: false }, { completed: false }, { completed: false }],
+    };
+    set({
+      session: {
+        ...session,
+        templateId: newTemplateId,
+        dayId: newDayId,
+        dayName: newDayName,
         exercises: [...session.exercises, newEx],
       },
     });
@@ -155,7 +195,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     for (const se of completed.exercises) {
       const hasCompletedSet = se.sets.some((s) => s.completed);
       if (!hasCompletedSet) continue;
-      const ex = getExercise(se.exerciseId);
+      const ex = useExercisesStore.getState().getExercise(se.exerciseId);
       if (ex) ex.muscles.forEach((m) => muscleIds.add(m));
     }
     const now = new Date();

@@ -7,7 +7,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
-import { getExercise } from '@/data/exercises';
+import { useExercisesStore } from '@/store/exercisesStore';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
 
 function formatSessionDate(isoDate: string): string {
@@ -56,6 +56,7 @@ export default function HistoryScreen() {
   const { load: loadSessions, completedSessions, deleteSession } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const loadRecovery = useRecoveryStore((s) => s.load);
+  const getExercise = useExercisesStore((s) => s.getExercise);
 
   useFocusEffect(
     useCallback(() => {

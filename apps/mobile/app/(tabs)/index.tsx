@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -14,14 +15,54 @@ export default function WorkoutsScreen() {
   const loadTemplates = useTemplatesStore((s) => s.load);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const isLoading = useTemplatesStore((s) => s.isLoading);
-  const isPro = useSubscriptionStore((s) => s.isPro)();
+  const subscriptionState = useSubscriptionStore((s) => s.state);
+  const isPro = subscriptionState?.tier === 'pro' && (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
   const activeSession = useActiveWorkoutStore((s) => s.session);
+
+  const [builtInExpanded, setBuiltInExpanded] = useState(true);
+  const [customExpanded, setCustomExpanded] = useState(true);
 
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
 
   const templates = allTemplates();
+  const { builtIn, custom } = useMemo(() => {
+    const builtIn: WorkoutTemplate[] = [];
+    const custom: WorkoutTemplate[] = [];
+    templates.forEach((t) => (t.isBuiltIn ? builtIn.push(t) : custom.push(t)));
+    return { builtIn, custom };
+  }, [templates]);
+
+  function renderTemplateCard(template: WorkoutTemplate) {
+    return (
+      <View key={template.id} style={[styles.templateCard, { backgroundColor: colors.surfaceElevated }]}>
+        <Text style={[styles.templateName, { color: colors.text }]}>{template.name}</Text>
+        {template.description ? (
+          <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>
+            {template.description}
+          </Text>
+        ) : null}
+        <View style={styles.daysRow}>
+          {template.days.map((day) => (
+            <Pressable
+              key={day.id}
+              style={({ pressed }) => [
+                styles.dayChip,
+                { backgroundColor: colors.background, opacity: pressed ? 0.9 : 1 },
+              ]}
+              onPress={() => handleStartDay(template, day)}
+            >
+              <Text style={[styles.dayChipText, { color: colors.primary }]}>{day.name}</Text>
+              <Text style={[styles.dayChipMeta, { color: colors.textMuted }]}>
+                {day.exerciseIds.length} exercises
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    );
+  }
 
   function handleStartDay(template: WorkoutTemplate, day: WorkoutDay) {
     if (activeSession) {
@@ -47,81 +88,135 @@ export default function WorkoutsScreen() {
     });
   }
 
+  function handleStartEmptyWorkout() {
+    if (activeSession) {
+      Alert.alert(
+        'Workout in progress',
+        'Finish or cancel your current workout before starting another.',
+        [
+          { text: 'Resume workout', onPress: () => router.push('/active-workout') },
+          { text: 'OK', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    router.push({
+      pathname: '/active-workout',
+      params: {
+        templateId: '_empty',
+        dayId: '_empty',
+        dayName: 'Workout',
+        exerciseIds: '',
+      },
+    });
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Workouts</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Choose a template to start
+            Start empty or pick a template
           </Text>
           <Pressable
             style={[
-              styles.createBtn,
+              styles.startEmptyBtn,
               { backgroundColor: isPro ? colors.primary : colors.surfaceElevated },
             ]}
             onPress={() =>
-              isPro ? router.push('/create-template') : router.push('/subscription')
+              isPro ? handleStartEmptyWorkout() : router.push('/subscription')
             }
           >
             <Text
-              style={[styles.createBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}
+              style={[styles.startEmptyBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}
             >
-              {isPro ? 'Create new template' : 'Pro: Create new template'}
+              {isPro ? 'Start empty workout' : 'Pro: Start empty workout'}
             </Text>
           </Pressable>
         </View>
 
-        {isLoading ? (
-          <View style={styles.placeholder}>
-            <Text style={[styles.placeholderText, { color: colors.textMuted }]}>Loading…</Text>
-          </View>
-        ) : (
-          <>
-            {templates.map((template) => (
-              <View
-                key={template.id}
-                style={[styles.templateCard, { backgroundColor: colors.surface }]}
-              >
-                <View style={styles.templateHeader}>
-                  <Text style={[styles.templateName, { color: colors.text }]}>{template.name}</Text>
-                  {template.isBuiltIn && (
-                    <View style={[styles.badge, { backgroundColor: colors.border }]}>
-                      <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
-                        Built-in
+        <View style={styles.templatesSection}>
+          <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>Templates</Text>
+
+          {isLoading ? (
+            <View style={styles.placeholder}>
+              <Text style={[styles.placeholderText, { color: colors.textMuted }]}>Loading…</Text>
+            </View>
+          ) : (
+            <>
+              {/* Custom section (first) */}
+              <View style={[styles.collapsibleSection, { backgroundColor: colors.surface }]}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sectionHeader,
+                    styles.sectionHeaderLeft,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  onPress={() => setCustomExpanded((e) => !e)}
+                >
+                  <Ionicons
+                    name={customExpanded ? 'chevron-down' : 'chevron-forward'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom</Text>
+                  <View style={[styles.sectionCount, { backgroundColor: colors.border }]}>
+                    <Text style={[styles.sectionCountText, { color: colors.textSecondary }]}>
+                      {custom.length}
+                    </Text>
+                  </View>
+                </Pressable>
+                {customExpanded && (
+                  <View style={styles.sectionContent}>
+                    {custom.length === 0 ? (
+                      <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
+                        No custom templates yet.
                       </Text>
-                    </View>
-                  )}
-                </View>
-                {template.description ? (
-                  <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>
-                    {template.description}
-                  </Text>
-                ) : null}
-                <View style={styles.daysRow}>
-                  {template.days.map((day) => (
-                    <Pressable
-                      key={day.id}
-                      style={({ pressed }) => [
-                        styles.dayChip,
-                        {
-                          backgroundColor: colors.surfaceElevated,
-                          opacity: pressed ? 0.9 : 1,
-                        },
-                      ]}
-                      onPress={() => handleStartDay(template, day)}
-                    >
-                      <Text style={[styles.dayChipText, { color: colors.primary }]}>{day.name}</Text>
-                      <Text style={[styles.dayChipMeta, { color: colors.textMuted }]}>
-                        {day.exerciseIds.length} exercises
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                    ) : (
+                      custom.map((template) => renderTemplateCard(template))
+                    )}
+                  </View>
+                )}
               </View>
-            ))}
-          </>
-        )}
+
+              {/* Built-in section */}
+              <View style={[styles.collapsibleSection, { backgroundColor: colors.surface }]}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sectionHeader,
+                    styles.sectionHeaderLeft,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  onPress={() => setBuiltInExpanded((e) => !e)}
+                >
+                  <Ionicons
+                    name={builtInExpanded ? 'chevron-down' : 'chevron-forward'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Built-in</Text>
+                  <View style={[styles.sectionCount, { backgroundColor: colors.border }]}>
+                    <Text style={[styles.sectionCountText, { color: colors.textSecondary }]}>
+                      {builtIn.length}
+                    </Text>
+                  </View>
+                </Pressable>
+                {builtInExpanded && (
+                  <View style={styles.sectionContent}>
+                    {builtIn.length === 0 ? (
+                      <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
+                        No built-in templates
+                      </Text>
+                    ) : (
+                      builtIn.map((template) => renderTemplateCard(template))
+                    )}
+                  </View>
+                )}
+              </View>
+            </>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -133,26 +228,54 @@ const styles = StyleSheet.create({
   header: { marginBottom: 20 },
   title: { fontSize: 28, fontWeight: '700' },
   subtitle: { fontSize: 15, marginTop: 4 },
-  createBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  startEmptyBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 12,
     marginTop: 12,
     alignSelf: 'flex-start',
   },
-  createBtnText: { fontSize: 15, fontWeight: '600' },
+  startEmptyBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  templatesSection: { marginTop: 24 },
+  templatesSectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  collapsibleSection: {
+    borderRadius: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  sectionHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionTitle: { fontSize: 17, fontWeight: '600', flex: 1 },
+  sectionCount: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    minWidth: 28,
+    alignItems: 'center',
+  },
+  sectionCountText: { fontSize: 13, fontWeight: '600' },
+  sectionContent: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0, gap: 10 },
+  emptySectionText: { fontSize: 14, paddingVertical: 12, paddingHorizontal: 4 },
   placeholder: { paddingVertical: 24, alignItems: 'center' },
   placeholderText: { fontSize: 15 },
   templateCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 4,
+    marginBottom: 4,
   },
-  templateHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  templateName: { fontSize: 18, fontWeight: '600' },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  badgeText: { fontSize: 12 },
-  templateDesc: { fontSize: 14, marginBottom: 12 },
+  templateName: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
+  templateDesc: { fontSize: 14, marginBottom: 10 },
   daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dayChip: {
     paddingVertical: 10,

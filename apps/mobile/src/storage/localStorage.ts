@@ -8,6 +8,7 @@ import type {
   SubscriptionState,
   ExportData,
   UserProfile,
+  Exercise,
 } from '@muscleos/types';
 import { STORAGE_KEYS } from './keys';
 
@@ -56,6 +57,33 @@ export async function getExercisePrevious(): Promise<Record<string, ExercisePrev
 
 export async function setExercisePrevious(prev: Record<string, ExercisePrevious>): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.exercisePrevious, JSON.stringify(prev));
+}
+
+export async function getCustomExercises(): Promise<Exercise[]> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.customExercises);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function setCustomExercises(exercises: Exercise[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.customExercises, JSON.stringify(exercises));
+}
+
+export async function getDevProOverride(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.devProOverride);
+  return raw === 'true';
+}
+
+export async function setDevProOverride(value: boolean): Promise<void> {
+  if (value) {
+    await AsyncStorage.setItem(STORAGE_KEYS.devProOverride, 'true');
+  } else {
+    await AsyncStorage.removeItem(STORAGE_KEYS.devProOverride);
+  }
 }
 
 export async function getRecovery(): Promise<MuscleRecovery[]> {
@@ -113,6 +141,8 @@ const ALL_APP_KEYS = [
   STORAGE_KEYS.health,
   STORAGE_KEYS.subscription,
   STORAGE_KEYS.exercisePrevious,
+  STORAGE_KEYS.customExercises,
+  STORAGE_KEYS.devProOverride,
   'muscleos_unit_system',
   'muscleos_profile',
   'muscleos_weight_unit',
