@@ -304,8 +304,8 @@ export default function ActiveWorkoutScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Ionicons name="chevron-down" size={28} color={colors.primary} />
           </Pressable>
           <Text style={[styles.elapsed, { color: colors.text }]}>Loading…</Text>
         </View>
@@ -330,7 +330,7 @@ export default function ActiveWorkoutScreen() {
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+            <Ionicons name="chevron-down" size={28} color={colors.primary} />
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (
             <Pressable
@@ -883,7 +883,6 @@ const styles = StyleSheet.create({
   headerRestBarFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   headerCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 56 },
-  backText: { fontSize: 16 },
   elapsed: { fontSize: 20, fontWeight: '700' },
   finishHeaderBtn: { minWidth: 48, alignItems: 'flex-end' },
   finishHeaderBtnDisabled: { opacity: 0.7 },

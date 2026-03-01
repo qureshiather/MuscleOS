@@ -25,7 +25,15 @@ function ThemedStack() {
               // Keep previous screen mounted so back transition reveals it instead of a white flash
               detachInactiveScreens: false,
             }}
-          />
+          >
+            <Stack.Screen
+              name="active-workout"
+              options={{
+                animation: 'slide_from_bottom',
+                gestureDirection: 'vertical',
+              }}
+            />
+          </Stack>
         </LinkPreviewContextProvider>
       </View>
     </>
