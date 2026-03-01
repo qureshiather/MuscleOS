@@ -922,9 +922,9 @@ const styles = StyleSheet.create({
   },
   th: { fontSize: 12, fontWeight: '600' },
   thSet: { width: 28, textAlign: 'center' },
-  thPrev: { width: 80 },
-  thKg: { flex: 1, minWidth: 56 },
-  thReps: { flex: 1, minWidth: 56 },
+  thPrev: { width: 80, textAlign: 'center' },
+  thKg: { flex: 1, minWidth: 56, textAlign: 'center' },
+  thReps: { flex: 1, minWidth: 56, textAlign: 'center' },
   thActions: { flex: 1, minWidth: 56 },
   swipeableContainer: {
     position: 'relative',
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   setLabel: { fontSize: 14, textAlign: 'center' },
-  prevCell: { width: 80, fontSize: 12 },
+  prevCell: { width: 80, fontSize: 12, textAlign: 'center' },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
