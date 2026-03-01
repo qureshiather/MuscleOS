@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   th: { fontSize: 12, fontWeight: '600' },
-  thSet: { width: 28 },
+  thSet: { width: 28, textAlign: 'center' },
   thPrev: { width: 80 },
   thKg: { flex: 1, minWidth: 56 },
   thReps: { flex: 1, minWidth: 56 },
@@ -937,7 +937,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setLabel: { width: 28, fontSize: 14 },
+  setLabel: { width: 28, fontSize: 14, textAlign: 'center' },
   prevCell: { width: 80, fontSize: 12 },
   setRow: {
     flexDirection: 'row',
