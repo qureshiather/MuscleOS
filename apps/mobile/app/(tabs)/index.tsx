@@ -35,10 +35,19 @@ export default function WorkoutsScreen() {
   }, [templates]);
 
   function renderTemplateCard(template: WorkoutTemplate) {
+    const hasDescription = Boolean(template.description?.trim());
     return (
       <View key={template.id} style={[styles.templateCard, { backgroundColor: colors.surfaceElevated }]}>
-        <Text style={[styles.templateName, { color: colors.text }]}>{template.name}</Text>
-        {template.description ? (
+        <Text
+          style={[
+            styles.templateName,
+            { color: colors.text },
+            !hasDescription && styles.templateNameNoDesc,
+          ]}
+        >
+          {template.name}
+        </Text>
+        {hasDescription ? (
           <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>
             {template.description}
           </Text>
@@ -275,6 +284,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   templateName: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
+  templateNameNoDesc: { marginBottom: 10 },
   templateDesc: { fontSize: 14, marginBottom: 10 },
   daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dayChip: {
