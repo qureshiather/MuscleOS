@@ -4,13 +4,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
 import { exportAndShareData } from '@/storage/exportData';
+import { clearAllData } from '@/storage/localStorage';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useTemplatesStore } from '@/store/templatesStore';
+import { useRecoveryStore } from '@/store/recoveryStore';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weightUnits';
 
 export default function SettingsScreen() {
   const { colors, setTheme } = useTheme();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const isDark = colors.background === '#0a0a0b';
   const unitSystem = useSettingsStore((s) => s.unitSystem);
@@ -19,6 +24,10 @@ export default function SettingsScreen() {
   const profile = useSettingsStore((s) => s.profile);
   const setUnitSystem = useSettingsStore((s) => s.setUnitSystem);
   const setProfile = useSettingsStore((s) => s.setProfile);
+  const loadTemplates = useTemplatesStore((s) => s.load);
+  const loadRecovery = useRecoveryStore((s) => s.load);
+  const loadSubscription = useSubscriptionStore((s) => s.load);
+  const loadSettings = useSettingsStore((s) => s.load);
 
   const [heightInput, setHeightInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
@@ -74,6 +83,33 @@ export default function SettingsScreen() {
     } finally {
       setExporting(false);
     }
+  }
+
+  function handleClearAllData() {
+    Alert.alert(
+      'Clear all data',
+      'This will reset your settings, clear all workouts, sessions, recovery data, and health info. You will stay signed in. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear all',
+          style: 'destructive',
+          onPress: async () => {
+            setClearing(true);
+            try {
+              await clearAllData();
+              await setTheme(true);
+              await Promise.all([loadTemplates(), loadRecovery(), loadSubscription(), loadSettings()]);
+              Alert.alert('Done', 'All data has been cleared.');
+            } catch (e) {
+              Alert.alert('Error', String(e));
+            } finally {
+              setClearing(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   const heightPlaceholder = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
@@ -294,6 +330,20 @@ export default function SettingsScreen() {
         <Text style={[styles.rowText, { color: colors.text }]}>Subscription</Text>
         <Text style={[styles.rowHint, { color: colors.textMuted }]}>Pro features</Text>
       </Pressable>
+      <Pressable
+        style={({ pressed }) => [
+          styles.row,
+          styles.rowDanger,
+          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+        ]}
+        onPress={handleClearAllData}
+        disabled={clearing}
+      >
+        <Text style={[styles.rowText, { color: colors.danger }]}>
+          {clearing ? 'Clearing…' : 'Clear all data'}
+        </Text>
+        <Text style={[styles.rowHint, { color: colors.textMuted }]}>Reset settings, workouts & more</Text>
+      </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -392,6 +442,7 @@ const styles = StyleSheet.create({
   },
   rowText: { fontSize: 16, fontWeight: '500' },
   rowHint: { fontSize: 13 },
+  rowDanger: { marginTop: 8 },
   themeRow: { flexDirection: 'row', gap: 8 },
   themeBtn: {
     paddingHorizontal: 14,

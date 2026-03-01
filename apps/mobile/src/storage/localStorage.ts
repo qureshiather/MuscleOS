@@ -105,6 +105,26 @@ export async function setSubscription(state: SubscriptionState): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.subscription, JSON.stringify(state));
 }
 
+/** All AsyncStorage keys used by the app (for clear-all-data). */
+const ALL_APP_KEYS = [
+  STORAGE_KEYS.templates,
+  STORAGE_KEYS.sessions,
+  STORAGE_KEYS.recovery,
+  STORAGE_KEYS.health,
+  STORAGE_KEYS.subscription,
+  STORAGE_KEYS.exercisePrevious,
+  'muscleos_unit_system',
+  'muscleos_profile',
+  'muscleos_weight_unit',
+  'muscleos_height_unit',
+  'muscleos_theme',
+] as const;
+
+/** Clears all app data from AsyncStorage: workouts, sessions, recovery, health, settings, theme. Does not clear auth (SecureStore). */
+export async function clearAllData(): Promise<void> {
+  await Promise.all(ALL_APP_KEYS.map((key) => AsyncStorage.removeItem(key)));
+}
+
 export async function buildExportData(profile?: UserProfile | null): Promise<ExportData> {
   const [templates, sessions, recovery, health, subscription] = await Promise.all([
     getTemplates(),
