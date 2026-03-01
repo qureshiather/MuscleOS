@@ -1,11 +1,12 @@
 import { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
+import { useRecoveryStore } from '@/store/recoveryStore';
 import { getExercise } from '@/data/exercises';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
 
@@ -52,8 +53,9 @@ function getSessionVolume(session: WorkoutSession): number {
 export default function HistoryScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { load: loadSessions, completedSessions } = useSessionsStore();
+  const { load: loadSessions, completedSessions, deleteSession } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
+  const loadRecovery = useRecoveryStore((s) => s.load);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,6 +70,24 @@ export default function HistoryScreen() {
 
   function exercisesWithCompletedSets(session: WorkoutSession): SessionExercise[] {
     return session.exercises.filter((se) => se.sets.some((s) => s.completed));
+  }
+
+  function handleDeleteSession(session: WorkoutSession) {
+    Alert.alert(
+      'Delete Workout',
+      'This will remove the workout from history and its impact on muscle recovery. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteSession(session.id);
+            loadRecovery();
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -114,9 +134,21 @@ export default function HistoryScreen() {
                     pressed && styles.workoutCardPressed,
                   ]}
                 >
-                  <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
-                    {s.completedAt ? formatSessionDate(s.completedAt) : ''}
-                  </Text>
+                  <View style={styles.cardHeader}>
+                    <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
+                      {s.completedAt ? formatSessionDate(s.completedAt) : ''}
+                    </Text>
+                    <Pressable
+                      onPress={() => handleDeleteSession(s)}
+                      hitSlop={8}
+                      style={({ pressed: delPressed }) => [
+                        styles.deleteButton,
+                        delPressed && styles.deleteButtonPressed,
+                      ]}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
+                    </Pressable>
+                  </View>
                   <Text style={[styles.cardTitle, { color: colors.text }]}>
                     {s.dayName} · {getTemplateName(s.templateId)}
                   </Text>
@@ -218,7 +250,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   workoutCardPressed: { opacity: 0.96 },
-  cardDate: { fontSize: 12, marginBottom: 4, textTransform: 'capitalize', letterSpacing: 0.3 },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cardDate: { fontSize: 12, textTransform: 'capitalize', letterSpacing: 0.3 },
+  deleteButton: {
+    padding: 6,
+  },
+  deleteButtonPressed: { opacity: 0.6 },
   cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 10 },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   statChip: {
