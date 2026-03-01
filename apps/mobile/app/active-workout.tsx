@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   FlatList,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
@@ -23,13 +25,95 @@ import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { Ionicons } from '@expo/vector-icons';
 
-const DEFAULT_REST_SECONDS = 90;
+const DEFAULT_REST_SECONDS = 120; // 2:00 default like reference app
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function SwipeableSetRow({
+  onRemove,
+  canDelete,
+  dangerColor,
+  children,
+}: {
+  onRemove: () => void;
+  canDelete: boolean;
+  dangerColor: string;
+  children: React.ReactNode;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const rowWidthRef = useRef(0);
+  const canDeleteRef = useRef(canDelete);
+  canDeleteRef.current = canDelete;
+  const onRemoveRef = useRef(onRemove);
+  onRemoveRef.current = onRemove;
+  const [swiping, setSwiping] = useState(false);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, g) =>
+          canDeleteRef.current && g.dx < -10 && Math.abs(g.dx) > Math.abs(g.dy),
+        onMoveShouldSetPanResponderCapture: (_, g) =>
+          canDeleteRef.current && g.dx < -15 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderGrant: () => setSwiping(true),
+        onPanResponderMove: (_, g) => {
+          translateX.setValue(Math.min(0, g.dx));
+        },
+        onPanResponderRelease: (_, g) => {
+          const half = rowWidthRef.current ? rowWidthRef.current / 2 : 150;
+          if (g.dx < -half) {
+            Animated.timing(translateX, {
+              toValue: -(rowWidthRef.current || 400),
+              duration: 200,
+              useNativeDriver: true,
+            }).start(() => {
+              onRemoveRef.current();
+              translateX.setValue(0);
+              setSwiping(false);
+            });
+          } else {
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start(() => setSwiping(false));
+          }
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start(() => setSwiping(false));
+        },
+      }),
+    []
+  );
+
+  return (
+    <View
+      style={styles.swipeableContainer}
+      onLayout={(e) => {
+        rowWidthRef.current = e.nativeEvent.layout.width;
+      }}
+    >
+      {swiping && (
+        <View style={[styles.swipeableReveal, { backgroundColor: dangerColor }]}>
+          <Ionicons name="trash-outline" size={22} color="#fff" />
+        </View>
+      )}
+      <Animated.View
+        style={canDelete ? { transform: [{ translateX }] } : undefined}
+        {...(canDelete ? panResponder.panHandlers : {})}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
 }
 
 export default function ActiveWorkoutScreen() {
@@ -69,6 +153,7 @@ export default function ActiveWorkoutScreen() {
   const [restAfter, setRestAfter] = useState<{ exIdx: number; setIdx: number } | null>(null);
   const [restDurationsBetweenSets, setRestDurationsBetweenSets] = useState<Record<string, number>>({});
   const [showRestPicker, setShowRestPicker] = useState(false);
+  const [showRestControlSheet, setShowRestControlSheet] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
@@ -128,6 +213,7 @@ export default function ActiveWorkoutScreen() {
       [`${restAfter.exIdx}-${restAfter.setIdx}`]: restTotalSeconds,
     }));
     setRestAfter(null);
+    setShowRestControlSheet(false);
   }, [restSecondsLeft, restAfter, restTotalSeconds]);
 
   function startRest(exIdx: number, setIdx: number, totalSeconds = DEFAULT_REST_SECONDS) {
@@ -155,11 +241,22 @@ export default function ActiveWorkoutScreen() {
     }
     setRestSecondsLeft(null);
     setRestAfter(null);
+    setShowRestControlSheet(false);
   }
 
   function add30SecondsRest() {
     setRestTotalSeconds((t) => t + 30);
     setRestSecondsLeft((s) => (s === null ? null : s + 30));
+  }
+
+  function subtract30SecondsRest() {
+    setRestTotalSeconds((t) => Math.max(30, t - 30));
+    setRestSecondsLeft((s) => (s === null ? null : Math.max(30, s - 30)));
+  }
+
+  function resetRest() {
+    setRestTotalSeconds(DEFAULT_REST_SECONDS);
+    setRestSecondsLeft(DEFAULT_REST_SECONDS);
   }
 
   async function handleFinish(updateCustomTemplate?: boolean) {
@@ -236,17 +333,15 @@ export default function ActiveWorkoutScreen() {
             <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (
-            <View style={[styles.headerRestContainer, { backgroundColor: colors.surfaceElevated }]}>
+            <Pressable
+              onPress={() => setShowRestControlSheet(true)}
+              style={[styles.headerRestContainer, { backgroundColor: colors.surfaceElevated }]}
+            >
               <View style={styles.headerRestTop}>
+                <Ionicons name="timer-outline" size={14} color={colors.accent} />
                 <Text style={[styles.headerRestTime, { color: colors.accent }]}>
                   {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
                 </Text>
-                <Pressable onPress={add30SecondsRest} hitSlop={6}>
-                  <Text style={[styles.headerRestCtrl, { color: colors.primary }]}>+30s</Text>
-                </Pressable>
-                <Pressable onPress={skipRest} hitSlop={6}>
-                  <Text style={[styles.headerRestCtrl, { color: colors.textMuted }]}>Skip</Text>
-                </Pressable>
               </View>
               <View style={[styles.headerRestBarBg, { backgroundColor: colors.background }]}>
                 <View
@@ -259,7 +354,7 @@ export default function ActiveWorkoutScreen() {
                   ]}
                 />
               </View>
-            </View>
+            </Pressable>
           ) : (
             <Pressable
               onPress={() => setShowRestPicker(true)}
@@ -312,30 +407,36 @@ export default function ActiveWorkoutScreen() {
               <View style={styles.exerciseCardHeader}>
                 <Text style={[styles.exerciseName, { color: colors.accent }]}>
                   {exercise?.name ?? se.exerciseId}
+                  {exercise?.equipment?.[0] ? ` (${exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)})` : ''}
                 </Text>
-                {!isBuiltInWorkout && (
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      Alert.alert(
-                        'Remove exercise',
-                        `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
-                        ]
-                      );
-                    }}
-                    style={[styles.removeExerciseBtn, { backgroundColor: colors.surfaceElevated }]}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                <View style={styles.exerciseCardActions}>
+                  <Pressable hitSlop={8} style={styles.exerciseHeaderIcon}>
+                    <Ionicons name="link-outline" size={18} color={colors.accent} />
                   </Pressable>
-                )}
+                  {!isBuiltInWorkout && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => {
+                        Alert.alert(
+                          'Remove exercise',
+                          `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
+                          ]
+                        );
+                      }}
+                      style={styles.exerciseHeaderIcon}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                    </Pressable>
+                  )}
+                </View>
               </View>
 
               <View style={styles.tableHeader}>
                 <Text style={[styles.th, styles.thSet, { color: colors.textMuted }]}>SET</Text>
-                <Text style={[styles.th, styles.thPrev, { color: colors.textMuted }]}>PREV</Text>
+                <Text style={[styles.th, styles.thPrev, { color: colors.textMuted }]}>PREVIOUS</Text>
                 <Text style={[styles.th, styles.thKg, { color: colors.textMuted }]}>{weightLabel}</Text>
                 <Text style={[styles.th, styles.thReps, { color: colors.textMuted }]}>REPS</Text>
                 <View style={styles.thActions} />
@@ -346,89 +447,80 @@ export default function ActiveWorkoutScreen() {
                 const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
-                  ? `${kgToDisplay(prev.weightKg, weightUnit)}${prev.reps != null ? ` × ${prev.reps}` : ''}`
+                  ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
                   : '—';
 
                 return (
                   <View key={setIdx}>
-                    <View
-                      style={[
-                        styles.setRow,
-                        set.completed && {
-                          backgroundColor: 'rgba(34, 197, 94, 0.22)',
-                          borderRadius: 10,
-                          marginHorizontal: -4,
-                          paddingHorizontal: 4,
-                          marginBottom: 4,
-                        },
-                      ]}
+                    <SwipeableSetRow
+                      canDelete={se.sets.length > 1}
+                      onRemove={() => removeSet(exIdx, setIdx)}
+                      dangerColor={colors.danger}
                     >
-                      <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
-                        {setIdx + 1}
-                      </Text>
-                      <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
-                        {prevLabel}
-                      </Text>
-                      <TextInput
+                      <View
                         style={[
-                          styles.setInput,
+                          styles.setRow,
                           {
-                            backgroundColor: isKgFocused ? colors.background : colors.surface,
-                            color: colors.text,
-                            borderColor: isKgFocused ? colors.border : 'transparent',
-                            borderWidth: isKgFocused ? 1 : 0,
+                            backgroundColor: set.completed
+                              ? 'rgba(34, 197, 94, 0.15)'
+                              : colors.surface,
                           },
                         ]}
-                        placeholder="0"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="decimal-pad"
-                        value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
-                        onChangeText={(t) =>
-                          setSetRecord(exIdx, setIdx, {
-                            weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
-                          })
-                        }
-                        onFocus={() => {
-                          setFocusedCell({ exIdx, setIdx, field: 'kg' });
-                          setEditingWeightExIdx(exIdx);
-                        }}
-                        onBlur={() => {
-                          setFocusedCell(null);
-                          setEditingWeightExIdx(null);
-                        }}
-                      />
-                      <TextInput
-                        style={[
-                          styles.setInput,
-                          {
-                            backgroundColor: isRepsFocused ? colors.background : colors.surface,
-                            color: colors.text,
-                            borderColor: isRepsFocused ? colors.border : 'transparent',
-                            borderWidth: isRepsFocused ? 1 : 0,
-                          },
-                        ]}
-                        placeholder="0"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="number-pad"
-                        value={set.reps !== undefined ? String(set.reps) : ''}
-                        onChangeText={(t) =>
-                          setSetRecord(exIdx, setIdx, {
-                            reps: t === '' ? undefined : parseInt(t, 10),
-                          })
-                        }
-                        onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
-                        onBlur={() => setFocusedCell(null)}
-                      />
-                      <View style={styles.setActions}>
-                        {se.sets.length > 1 && (
-                          <Pressable
-                            onPress={() => removeSet(exIdx, setIdx)}
-                            hitSlop={8}
-                            style={[styles.removeSetBtn, { backgroundColor: colors.surfaceElevated }]}
-                          >
-                            <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                          </Pressable>
-                        )}
+                      >
+                        <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
+                          {setIdx + 1}
+                        </Text>
+                        <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
+                          {prevLabel}
+                        </Text>
+                        <TextInput
+                          style={[
+                            styles.setInput,
+                            {
+                              backgroundColor: isKgFocused ? colors.background : colors.surfaceElevated,
+                              color: colors.text,
+                              borderColor: isKgFocused ? colors.accent : 'transparent',
+                            },
+                          ]}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="decimal-pad"
+                          value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
+                          onChangeText={(t) =>
+                            setSetRecord(exIdx, setIdx, {
+                              weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
+                            })
+                          }
+                          onFocus={() => {
+                            setFocusedCell({ exIdx, setIdx, field: 'kg' });
+                            setEditingWeightExIdx(exIdx);
+                          }}
+                          onBlur={() => {
+                            setFocusedCell(null);
+                            setEditingWeightExIdx(null);
+                          }}
+                        />
+                        <TextInput
+                          style={[
+                            styles.setInput,
+                            {
+                              backgroundColor: isRepsFocused ? colors.background : colors.surfaceElevated,
+                              color: colors.text,
+                              borderColor: isRepsFocused ? colors.accent : 'transparent',
+                            },
+                          ]}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="number-pad"
+                          value={set.reps !== undefined ? String(set.reps) : ''}
+                          onChangeText={(t) =>
+                            setSetRecord(exIdx, setIdx, {
+                              reps: t === '' ? undefined : parseInt(t, 10),
+                            })
+                          }
+                          onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                          onBlur={() => setFocusedCell(null)}
+                        />
                         <Pressable
                           style={[
                             styles.doneBtn,
@@ -450,16 +542,37 @@ export default function ActiveWorkoutScreen() {
                           </Text>
                         </Pressable>
                       </View>
-                    </View>
-                    {/* Rest between sets: show after every set except the last */}
+                    </SwipeableSetRow>
+                    {/* Rest between sets: active progress bar or static duration */}
                     {setIdx < se.sets.length - 1 && (
                       <View style={styles.restBetweenRow}>
-                        <Ionicons name="timer-outline" size={12} color={colors.textMuted} />
-                        <Text style={[styles.restBetweenText, { color: colors.textMuted }]}>
-                          Rest {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
-                            ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
-                            : '—'}
-                        </Text>
+                        {restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx && restSecondsLeft != null && restSecondsLeft > 0 ? (
+                          <Pressable
+                            style={[styles.restProgressBar, { backgroundColor: colors.accent }]}
+                            onPress={() => setShowRestControlSheet(true)}
+                          >
+                            <View style={[styles.restProgressBarBg, { backgroundColor: 'rgba(0,0,0,0.25)' }]}>
+                              <View
+                                style={[
+                                  styles.restProgressBarFill,
+                                  {
+                                    width: `${restTotalSeconds > 0 ? ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100 : 0}%`,
+                                    backgroundColor: colors.primary,
+                                  },
+                                ]}
+                              />
+                            </View>
+                            <Text style={[styles.restProgressBarTime, { color: '#fff' }]}>
+                              {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+                            </Text>
+                          </Pressable>
+                        ) : (
+                          <Text style={[styles.restBetweenText, { color: colors.accent }]}>
+                            {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
+                              ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
+                              : '2:00'}
+                          </Text>
+                        )}
                       </View>
                     )}
                   </View>
@@ -475,7 +588,7 @@ export default function ActiveWorkoutScreen() {
                 onPress={() => addSet(exIdx)}
               >
                 <Ionicons name="add" size={18} color={colors.accent} />
-                <Text style={[styles.addSetBtnText, { color: colors.accent }]}>Add set</Text>
+                <Text style={[styles.addSetBtnText, { color: colors.accent }]}>ADD SET (2:00)</Text>
               </Pressable>
             </View>
           );
@@ -544,6 +657,51 @@ export default function ActiveWorkoutScreen() {
             <Pressable onPress={() => setShowRestPicker(false)} style={styles.restPickerCancel}>
               <Text style={[styles.restPickerCancelText, { color: colors.textMuted }]}>Cancel</Text>
             </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showRestControlSheet && restSecondsLeft != null} transparent animationType="slide">
+        <Pressable style={styles.restControlOverlay} onPress={() => setShowRestControlSheet(false)}>
+          <View
+            style={[styles.restControlSheet, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={[styles.restControlSheetHandle, { backgroundColor: colors.textMuted }]} />
+            <Text style={[styles.restControlLabel, { color: colors.textMuted }]}>Pause</Text>
+            {restSecondsLeft != null && (
+              <Text style={[styles.restControlTimer, { color: colors.text }]}>
+                {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+              </Text>
+            )}
+            <View style={styles.restControlActions}>
+              <Pressable
+                style={[styles.restControlBtnCircle, { backgroundColor: colors.surfaceElevated }]}
+                onPress={subtract30SecondsRest}
+              >
+                <Ionicons name="remove" size={24} color={colors.text} />
+              </Pressable>
+              <Pressable
+                style={[styles.restControlBtnCircle, { backgroundColor: colors.surfaceElevated }]}
+                onPress={add30SecondsRest}
+              >
+                <Ionicons name="add" size={24} color={colors.text} />
+              </Pressable>
+            </View>
+            <View style={styles.restControlBottomActions}>
+              <Pressable
+                style={[styles.restControlBtnRect, { backgroundColor: colors.danger }]}
+                onPress={resetRest}
+              >
+                <Text style={[styles.restControlBtnText, { color: '#fff' }]}>RESET</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.restControlBtnRect, { backgroundColor: colors.primary }]}
+                onPress={skipRest}
+              >
+                <Text style={[styles.restControlBtnText, { color: '#fff' }]}>SKIP</Text>
+              </Pressable>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -715,7 +873,6 @@ const styles = StyleSheet.create({
   },
   headerRestTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerRestTime: { fontSize: 13, fontWeight: '700' },
-  headerRestCtrl: { fontSize: 11, fontWeight: '600' },
   headerRestBarBg: {
     height: 3,
     borderRadius: 2,
@@ -751,8 +908,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  exerciseName: { fontSize: 18, fontWeight: '700', flex: 1 },
-  removeExerciseBtn: { padding: 8, borderRadius: 8 },
+  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1 },
+  exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exerciseHeaderIcon: { padding: 6 },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -761,17 +919,32 @@ const styles = StyleSheet.create({
   },
   th: { fontSize: 12, fontWeight: '600' },
   thSet: { width: 28 },
-  thPrev: { width: 48 },
+  thPrev: { width: 80 },
   thKg: { flex: 1, minWidth: 56 },
   thReps: { flex: 1, minWidth: 56 },
-  thActions: { width: 64 },
+  thActions: { width: 40 },
+  swipeableContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  swipeableReveal: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   setLabel: { width: 28, fontSize: 14 },
-  prevCell: { width: 48, fontSize: 13 },
+  prevCell: { width: 80, fontSize: 12 },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   setInput: {
     flex: 1,
@@ -780,36 +953,104 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 6,
     fontSize: 14,
-  },
-  setActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    width: 64,
-  },
-  removeSetBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    textAlign: 'center',
   },
   doneBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  doneBtnText: { fontSize: 16 },
+  doneBtnText: { fontSize: 18, fontWeight: '600' },
   restBetweenRow: {
+    marginVertical: 2,
+    alignItems: 'center',
+    minHeight: 24,
+    justifyContent: 'center',
+  },
+  restProgressBar: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+  },
+  restProgressBarBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  restProgressBarFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 10,
+  },
+  restProgressBarTime: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  restBetweenText: { fontSize: 13 },
+  restControlOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  restControlSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+  },
+  restControlSheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  restControlLabel: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  restControlTimer: {
+    fontSize: 48,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  restControlActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-    paddingLeft: 36,
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 20,
   },
-  restBetweenText: { fontSize: 12 },
+  restControlBottomActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  restControlBtnCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  restControlBtnRect: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  restControlBtnText: { fontSize: 16, fontWeight: '700' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
