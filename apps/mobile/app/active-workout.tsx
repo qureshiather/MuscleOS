@@ -51,6 +51,8 @@ export default function ActiveWorkoutScreen() {
   const removeSet = useActiveWorkoutStore((s) => s.removeSet);
   const addExercise = useActiveWorkoutStore((s) => s.addExercise);
   const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
+  const moveExerciseUp = useActiveWorkoutStore((s) => s.moveExerciseUp);
+  const moveExerciseDown = useActiveWorkoutStore((s) => s.moveExerciseDown);
   const replaceTemplateAndAddExercise = useActiveWorkoutStore((s) => s.replaceTemplateAndAddExercise);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
@@ -97,6 +99,17 @@ export default function ActiveWorkoutScreen() {
       startWorkout(params.templateId, params.dayId, params.dayName, ids, sets);
     }
   }, [params.templateId, params.dayId, params.dayName, params.exerciseIds, params.defaultSets, session, startWorkout]);
+
+  // Redirect to tabs when no session and no params to start one. We're already on active-workout screen. Use delay so Android navigator is mounted (avoids "Attempted to navigate before mounting" and black screen).
+  const shouldRedirectToTabs =
+    !session && !(params.templateId && params.dayId && params.dayName);
+  useEffect(() => {
+    if (!shouldRedirectToTabs) return;
+    const id = setTimeout(() => {
+      router.replace('/(tabs)');
+    }, 400);
+    return () => clearTimeout(id);
+  }, [shouldRedirectToTabs, router]);
 
   useEffect(() => {
     if (!session) return;
@@ -365,6 +378,30 @@ export default function ActiveWorkoutScreen() {
                       <Ionicons name="list-outline" size={18} color={colors.text} />
                       <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
                     </Pressable>
+                    {session.exercises.length >= 2 && exIdx > 0 && (
+                      <Pressable
+                        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                        onPress={() => {
+                          moveExerciseUp(exIdx);
+                          setExerciseMenuExIdx(null);
+                        }}
+                      >
+                        <Ionicons name="chevron-up-outline" size={18} color={colors.text} />
+                        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move up</Text>
+                      </Pressable>
+                    )}
+                    {session.exercises.length >= 2 && exIdx < session.exercises.length - 1 && (
+                      <Pressable
+                        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                        onPress={() => {
+                          moveExerciseDown(exIdx);
+                          setExerciseMenuExIdx(null);
+                        }}
+                      >
+                        <Ionicons name="chevron-down-outline" size={18} color={colors.text} />
+                        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move down</Text>
+                      </Pressable>
+                    )}
                     {!isBuiltInWorkout && (
                       <Pressable
                         style={styles.exerciseDropdownItem}
@@ -657,6 +694,30 @@ export default function ActiveWorkoutScreen() {
                   <Ionicons name="list-outline" size={18} color={colors.text} />
                   <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
                 </Pressable>
+                {session.exercises.length >= 2 && exIdx > 0 && (
+                  <Pressable
+                    style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      moveExerciseUp(exIdx);
+                      setExerciseMenuExIdx(null);
+                    }}
+                  >
+                    <Ionicons name="chevron-up-outline" size={18} color={colors.text} />
+                    <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move up</Text>
+                  </Pressable>
+                )}
+                {session.exercises.length >= 2 && exIdx < session.exercises.length - 1 && (
+                  <Pressable
+                    style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      moveExerciseDown(exIdx);
+                      setExerciseMenuExIdx(null);
+                    }}
+                  >
+                    <Ionicons name="chevron-down-outline" size={18} color={colors.text} />
+                    <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move down</Text>
+                  </Pressable>
+                )}
                 {!isBuiltInWorkout && (
                   <Pressable
                     style={styles.exerciseDropdownItem}

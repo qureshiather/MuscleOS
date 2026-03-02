@@ -24,6 +24,8 @@ export interface ActiveWorkoutState {
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   addExercise: (exerciseId: string) => void;
   removeExercise: (exerciseIndex: number) => void;
+  moveExerciseUp: (exerciseIndex: number) => void;
+  moveExerciseDown: (exerciseIndex: number) => void;
   /** Switch session to a new custom template and add an exercise (used when adding to built-in). */
   replaceTemplateAndAddExercise: (newTemplateId: string, newDayId: string, newDayName: string, exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
@@ -144,6 +146,22 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const { session } = get();
     if (!session) return;
     const exercises = session.exercises.filter((_, i) => i !== exerciseIndex);
+    set({ session: { ...session, exercises } });
+  },
+
+  moveExerciseUp: (exerciseIndex) => {
+    const { session } = get();
+    if (!session || exerciseIndex <= 0) return;
+    const exercises = [...session.exercises];
+    [exercises[exerciseIndex - 1], exercises[exerciseIndex]] = [exercises[exerciseIndex], exercises[exerciseIndex - 1]];
+    set({ session: { ...session, exercises } });
+  },
+
+  moveExerciseDown: (exerciseIndex) => {
+    const { session } = get();
+    if (!session || exerciseIndex >= session.exercises.length - 1) return;
+    const exercises = [...session.exercises];
+    [exercises[exerciseIndex], exercises[exerciseIndex + 1]] = [exercises[exerciseIndex + 1], exercises[exerciseIndex]];
     set({ session: { ...session, exercises } });
   },
 
