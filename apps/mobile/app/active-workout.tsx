@@ -581,9 +581,8 @@ export default function ActiveWorkoutScreen() {
                   text: 'Cancel workout',
                   style: 'destructive',
                   onPress: () => {
-                    useActiveWorkoutStore.getState().discardWorkout();
-                    // Defer navigation so store update is applied before tabs (and Resume pill) render
-                    setTimeout(() => router.replace('/(tabs)'), 0);
+                    // Navigate with param so tabs layout clears session when it mounts; avoids pill staying visible due to render timing
+                    router.replace('/(tabs)?discardWorkout=1');
                   },
                 },
               ]

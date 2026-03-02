@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
 
 /** Content height of the tab bar (without safe area). Matches default tab bar so pill sits flush. */
@@ -12,6 +14,19 @@ export default function TabsLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarBottomOffset = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
+  const session = useActiveWorkoutStore((s) => s.session);
+  const router = useRouter();
+  const params = useLocalSearchParams<{ discardWorkout?: string }>();
+
+  // When we land on tabs with ?discardWorkout=1 (after cancel in active-workout), clear session here so pill never shows
+  useEffect(() => {
+    if (params.discardWorkout === '1') {
+      useActiveWorkoutStore.getState().discardWorkout();
+      router.replace('/(tabs)');
+    }
+  }, [params.discardWorkout, router]);
+
+  const showPill = session != null && params.discardWorkout !== '1';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -74,7 +89,7 @@ export default function TabsLayout() {
       />
       </Tabs>
       <View style={{ position: 'absolute', bottom: tabBarBottomOffset, left: 0, right: 0 }}>
-        <ResumeWorkoutPill />
+        {showPill && <ResumeWorkoutPill />}
       </View>
     </View>
   );
