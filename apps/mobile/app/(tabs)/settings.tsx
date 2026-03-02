@@ -12,12 +12,11 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weightUnits';
 
 export default function SettingsScreen() {
-  const { colors, setTheme } = useTheme();
+  const { colors, themePreference, setTheme } = useTheme();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const isDark = colors.background === '#0a0a0b';
   const unitSystem = useSettingsStore((s) => s.unitSystem);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const heightUnit = useSettingsStore((s) => s.heightUnit);
@@ -98,7 +97,7 @@ export default function SettingsScreen() {
             setClearing(true);
             try {
               await clearAllData();
-              await setTheme(true);
+              await setTheme('auto');
               await Promise.all([loadTemplates(), loadRecovery(), loadSubscription(), loadSettings()]);
               Alert.alert('Done', 'All data has been cleared.');
             } catch (e) {
@@ -270,30 +269,44 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={[styles.row, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.rowText, { color: colors.text }]}>Appearance</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
+          <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+            Auto: follow device · Dark or Light: fixed
+          </Text>
           <View style={styles.themeRow}>
             <Pressable
               style={[
                 styles.themeBtn,
-                isDark
+                themePreference === 'auto'
                   ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
                   : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
               ]}
-              onPress={() => setTheme(true)}
+              onPress={() => setTheme('auto')}
             >
-              <Text style={[styles.themeBtnText, { color: isDark ? '#fff' : colors.text }]}>Dark</Text>
+              <Text style={[styles.themeBtnText, { color: themePreference === 'auto' ? '#fff' : colors.text }]}>Auto</Text>
             </Pressable>
             <Pressable
               style={[
                 styles.themeBtn,
-                !isDark
+                themePreference === 'dark'
                   ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
                   : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
               ]}
-              onPress={() => setTheme(false)}
+              onPress={() => setTheme('dark')}
             >
-              <Text style={[styles.themeBtnText, { color: !isDark ? '#fff' : colors.text }]}>Light</Text>
+              <Text style={[styles.themeBtnText, { color: themePreference === 'dark' ? '#fff' : colors.text }]}>Dark</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                themePreference === 'light'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setTheme('light')}
+            >
+              <Text style={[styles.themeBtnText, { color: themePreference === 'light' ? '#fff' : colors.text }]}>Light</Text>
             </Pressable>
           </View>
         </View>

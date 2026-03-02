@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
+import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const THEME_KEY = 'muscleos_theme';
+
+export type ThemePreference = 'auto' | 'dark' | 'light';
 
 const darkColors = {
   background: '#0a0a0b',
@@ -43,30 +46,35 @@ export type ThemeColors = typeof darkColors;
 type ThemeContextValue = {
   colors: typeof darkColors | typeof lightColors;
   isDark: boolean;
-  setTheme: (dark: boolean) => Promise<void>;
+  themePreference: ThemePreference;
+  setTheme: (preference: ThemePreference) => Promise<void>;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(true);
+  const deviceScheme = useColorScheme();
+  const [themePreference, setThemePreference] = useState<ThemePreference>('auto');
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((v) => {
-      if (v === 'light') setIsDark(false);
-      else if (v === 'dark') setIsDark(true);
+      if (v === 'light' || v === 'dark' || v === 'auto') {
+        setThemePreference(v);
+      }
     });
   }, []);
 
-  const setTheme = async (dark: boolean) => {
-    setIsDark(dark);
-    await AsyncStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+  const setTheme = async (preference: ThemePreference) => {
+    setThemePreference(preference);
+    await AsyncStorage.setItem(THEME_KEY, preference);
   };
 
+  const isDark =
+    themePreference === 'dark' ? true : themePreference === 'light' ? false : (deviceScheme ?? 'light') === 'dark';
   const themeColors = isDark ? darkColors : lightColors;
   const value = useMemo(
-    () => ({ colors: themeColors, isDark, setTheme }),
-    [isDark]
+    () => ({ colors: themeColors, isDark, themePreference, setTheme }),
+    [isDark, themePreference]
   );
 
   return (
