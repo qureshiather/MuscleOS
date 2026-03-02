@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,6 @@ import {
   Alert,
   Modal,
   FlatList,
-  Animated,
-  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
@@ -32,88 +30,6 @@ function formatElapsed(ms: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-function SwipeableSetRow({
-  onRemove,
-  canDelete,
-  dangerColor,
-  children,
-}: {
-  onRemove: () => void;
-  canDelete: boolean;
-  dangerColor: string;
-  children: React.ReactNode;
-}) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const rowWidthRef = useRef(0);
-  const canDeleteRef = useRef(canDelete);
-  canDeleteRef.current = canDelete;
-  const onRemoveRef = useRef(onRemove);
-  onRemoveRef.current = onRemove;
-  const [swiping, setSwiping] = useState(false);
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, g) =>
-          canDeleteRef.current && g.dx < -10 && Math.abs(g.dx) > Math.abs(g.dy),
-        onMoveShouldSetPanResponderCapture: (_, g) =>
-          canDeleteRef.current && g.dx < -15 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-        onPanResponderGrant: () => setSwiping(true),
-        onPanResponderMove: (_, g) => {
-          translateX.setValue(Math.min(0, g.dx));
-        },
-        onPanResponderRelease: (_, g) => {
-          const half = rowWidthRef.current ? rowWidthRef.current / 2 : 150;
-          if (g.dx < -half) {
-            Animated.timing(translateX, {
-              toValue: -(rowWidthRef.current || 400),
-              duration: 200,
-              useNativeDriver: true,
-            }).start(() => {
-              onRemoveRef.current();
-              translateX.setValue(0);
-              setSwiping(false);
-            });
-          } else {
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start(() => setSwiping(false));
-          }
-        },
-        onPanResponderTerminate: () => {
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start(() => setSwiping(false));
-        },
-      }),
-    []
-  );
-
-  return (
-    <View
-      style={styles.swipeableContainer}
-      onLayout={(e) => {
-        rowWidthRef.current = e.nativeEvent.layout.width;
-      }}
-    >
-      {swiping && (
-        <View style={[styles.swipeableReveal, { backgroundColor: dangerColor }]}>
-          <Ionicons name="trash-outline" size={22} color="#fff" />
-        </View>
-      )}
-      <Animated.View
-        style={canDelete ? { transform: [{ translateX }] } : undefined}
-        {...(canDelete ? panResponder.panHandlers : {})}
-      >
-        {children}
-      </Animated.View>
-    </View>
-  );
 }
 
 export default function ActiveWorkoutScreen() {
@@ -161,6 +77,9 @@ export default function ActiveWorkoutScreen() {
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
   const [showFinishSummary, setShowFinishSummary] = useState(false);
+  const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
+  const [editSetsExIdx, setEditSetsExIdx] = useState<number | null>(null);
+  const [setsToDelete, setSetsToDelete] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (params.templateId && params.dayId && params.dayName && !session) {
@@ -393,19 +312,43 @@ export default function ActiveWorkoutScreen() {
               key={se.exerciseId + exIdx}
               style={[styles.exerciseCard, { backgroundColor: colors.surface }]}
             >
-              <View style={styles.exerciseCardHeader}>
-                <Text style={[styles.exerciseName, { color: colors.accent }]}>
-                  {exercise?.name ?? se.exerciseId}
-                  {exercise?.equipment?.[0] ? ` (${exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)})` : ''}
-                </Text>
-                <View style={styles.exerciseCardActions}>
-                  <Pressable hitSlop={8} style={styles.exerciseHeaderIcon}>
-                    <Ionicons name="link-outline" size={18} color={colors.accent} />
+              <View style={styles.exerciseCardHeaderWrap}>
+                <View style={styles.exerciseCardHeader}>
+                  <Text style={[styles.exerciseName, { color: colors.accent }]}>
+                    {exercise?.name ?? se.exerciseId}
+                    {exercise?.equipment?.[0] ? ` (${exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)})` : ''}
+                  </Text>
+                  <View style={styles.exerciseCardActions}>
+                    <Pressable hitSlop={8} style={styles.exerciseHeaderIcon}>
+                      <Ionicons name="link-outline" size={18} color={colors.accent} />
+                    </Pressable>
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => setExerciseMenuExIdx(exerciseMenuExIdx === exIdx ? null : exIdx)}
+                      style={styles.exerciseHeaderIcon}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                    </Pressable>
+                  </View>
+                </View>
+                {exerciseMenuExIdx === exIdx && (
+                  <View style={[styles.exerciseDropdown, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                  <Pressable
+                    style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      setEditSetsExIdx(exIdx);
+                      setSetsToDelete(new Set());
+                      setExerciseMenuExIdx(null);
+                    }}
+                  >
+                    <Ionicons name="list-outline" size={18} color={colors.text} />
+                    <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
                   </Pressable>
                   {!isBuiltInWorkout && (
                     <Pressable
-                      hitSlop={8}
+                      style={styles.exerciseDropdownItem}
                       onPress={() => {
+                        setExerciseMenuExIdx(null);
                         Alert.alert(
                           'Remove exercise',
                           `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
@@ -415,12 +358,13 @@ export default function ActiveWorkoutScreen() {
                           ]
                         );
                       }}
-                      style={styles.exerciseHeaderIcon}
                     >
-                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                      <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
                     </Pressable>
                   )}
-                </View>
+                  </View>
+                )}
               </View>
 
               <View style={styles.tableHeader}>
@@ -441,30 +385,25 @@ export default function ActiveWorkoutScreen() {
 
                 return (
                   <View key={setIdx}>
-                    <SwipeableSetRow
-                      canDelete={se.sets.length > 1}
-                      onRemove={() => removeSet(exIdx, setIdx)}
-                      dangerColor={colors.danger}
+                    <View
+                      style={[
+                        styles.setRow,
+                        {
+                          backgroundColor: set.completed
+                            ? 'rgba(34, 197, 94, 0.15)'
+                            : colors.surface,
+                        },
+                      ]}
                     >
-                      <View
-                        style={[
-                          styles.setRow,
-                          {
-                            backgroundColor: set.completed
-                              ? 'rgba(34, 197, 94, 0.15)'
-                              : colors.surface,
-                          },
-                        ]}
-                      >
-                        <View style={styles.setLabelWrap}>
-                          <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
-                            {setIdx + 1}
-                          </Text>
-                        </View>
-                        <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
-                          {prevLabel}
+                      <View style={styles.setLabelWrap}>
+                        <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
+                          {setIdx + 1}
                         </Text>
-                        <TextInput
+                      </View>
+                      <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
+                        {prevLabel}
+                      </Text>
+                      <TextInput
                           style={[
                             styles.setInput,
                             {
@@ -539,7 +478,6 @@ export default function ActiveWorkoutScreen() {
                           </Text>
                         </Pressable>
                       </View>
-                    </SwipeableSetRow>
                     {/* Rest between sets: active progress bar or static duration */}
                     {setIdx < se.sets.length - 1 && (
                       <View style={styles.restBetweenRow}>
@@ -699,6 +637,89 @@ export default function ActiveWorkoutScreen() {
                 <Text style={[styles.restControlBtnText, { color: '#fff' }]}>SKIP</Text>
               </Pressable>
             </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Edit sets: select sets to delete */}
+      <Modal visible={editSetsExIdx !== null} transparent animationType="fade">
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            setEditSetsExIdx(null);
+            setSetsToDelete(new Set());
+          }}
+        >
+          <View
+            style={[styles.editSetsCard, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            {editSetsExIdx !== null && session?.exercises[editSetsExIdx] && (() => {
+              const ex = session.exercises[editSetsExIdx];
+              const exerciseName = getExercise(ex.exerciseId)?.name ?? ex.exerciseId;
+              const numSets = ex.sets.length;
+              const canDeleteSelected = setsToDelete.size > 0 && setsToDelete.size < numSets;
+              const toggleSet = (setIdx: number) => {
+                setSetsToDelete((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(setIdx)) next.delete(setIdx);
+                  else next.add(setIdx);
+                  return next;
+                });
+              };
+              const handleDeleteSelected = () => {
+                if (!canDeleteSelected) return;
+                const indices = Array.from(setsToDelete).sort((a, b) => b - a);
+                indices.forEach((setIdx) => removeSet(editSetsExIdx, setIdx));
+                setEditSetsExIdx(null);
+                setSetsToDelete(new Set());
+              };
+              return (
+                <>
+                  <Text style={[styles.editSetsTitle, { color: colors.text }]}>Edit sets</Text>
+                  <Text style={[styles.editSetsSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
+                    {exerciseName}
+                  </Text>
+                  <Text style={[styles.editSetsHint, { color: colors.textMuted }]}>
+                    Select sets to remove. At least one set must remain.
+                  </Text>
+                  <ScrollView style={styles.editSetsList}>
+                    {ex.sets.map((_, setIdx) => (
+                      <Pressable
+                        key={setIdx}
+                        style={[styles.editSetsRow, { borderBottomColor: colors.border }]}
+                        onPress={() => toggleSet(setIdx)}
+                      >
+                        <View style={[styles.editSetsCheckbox, { borderColor: colors.border, backgroundColor: setsToDelete.has(setIdx) ? colors.primary : 'transparent' }]}>
+                          {setsToDelete.has(setIdx) && <Ionicons name="checkmark" size={16} color="#fff" />}
+                        </View>
+                        <Text style={[styles.editSetsRowLabel, { color: colors.text }]}>Set {setIdx + 1}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                  <View style={styles.editSetsActions}>
+                    <Pressable
+                      style={[styles.editSetsDeleteBtn, { backgroundColor: canDeleteSelected ? colors.danger : colors.surfaceElevated, opacity: canDeleteSelected ? 1 : 0.6 }]}
+                      onPress={handleDeleteSelected}
+                      disabled={!canDeleteSelected}
+                    >
+                      <Text style={[styles.editSetsDeleteBtnText, { color: canDeleteSelected ? '#fff' : colors.textMuted }]}>
+                        Delete selected ({setsToDelete.size})
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.editSetsDoneBtn, { borderColor: colors.border }]}
+                      onPress={() => {
+                        setEditSetsExIdx(null);
+                        setSetsToDelete(new Set());
+                      }}
+                    >
+                      <Text style={[styles.editSetsDoneBtnText, { color: colors.text }]}>Done</Text>
+                    </Pressable>
+                  </View>
+                </>
+              );
+            })()}
           </View>
         </Pressable>
       </Modal>
@@ -904,6 +925,10 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 16,
     marginBottom: 12,
+    overflow: 'visible',
+  },
+  exerciseCardHeaderWrap: {
+    position: 'relative',
   },
   exerciseCardHeader: {
     flexDirection: 'row',
@@ -926,20 +951,6 @@ const styles = StyleSheet.create({
   thKg: { flex: 1, minWidth: 56, textAlign: 'center' },
   thReps: { flex: 1, minWidth: 56, textAlign: 'center' },
   thActions: { flex: 1, minWidth: 56 },
-  swipeableContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  swipeableReveal: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   setLabelWrap: {
     width: 28,
     justifyContent: 'center',
@@ -1085,6 +1096,70 @@ const styles = StyleSheet.create({
   restPickerOptionText: { fontSize: 16, fontWeight: '600' },
   restPickerCancel: { alignItems: 'center', padding: 8 },
   restPickerCancelText: { fontSize: 15 },
+  exerciseDropdown: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    minWidth: 160,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+    zIndex: 10,
+    elevation: 5,
+  },
+  exerciseDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  exerciseDropdownItemBorder: {
+    borderBottomWidth: 1,
+  },
+  exerciseDropdownItemText: { fontSize: 15 },
+  editSetsCard: {
+    width: '100%',
+    maxWidth: 320,
+    maxHeight: '80%',
+    borderRadius: 16,
+    padding: 20,
+    overflow: 'hidden',
+  },
+  editSetsTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  editSetsSubtitle: { fontSize: 14, marginBottom: 8 },
+  editSetsHint: { fontSize: 13, marginBottom: 12 },
+  editSetsList: { maxHeight: 240, marginBottom: 16 },
+  editSetsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  editSetsCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editSetsRowLabel: { fontSize: 16 },
+  editSetsActions: { gap: 10 },
+  editSetsDeleteBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  editSetsDeleteBtnText: { fontSize: 16, fontWeight: '600' },
+  editSetsDoneBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  editSetsDoneBtnText: { fontSize: 16, fontWeight: '600' },
   addSetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
