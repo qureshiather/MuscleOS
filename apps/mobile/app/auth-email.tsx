@@ -5,20 +5,30 @@ import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
 
+type Mode = 'signin' | 'signup';
+
 export default function AuthEmailScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { signInWithEmail } = useSignIn();
-  const [displayName, setDisplayName] = useState('');
+  const { linkWithEmail, signInWithEmailOnly } = useSignIn();
+  const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit() {
     setLoading(true);
-    const ok = await signInWithEmail(displayName.trim(), email.trim() || undefined);
+    const ok =
+      mode === 'signin'
+        ? await signInWithEmailOnly(email.trim(), password)
+        : await linkWithEmail(email.trim(), password, displayName.trim() || undefined);
     setLoading(false);
     if (ok) router.replace('/(tabs)');
   }
+
+  const isSignIn = mode === 'signin';
+  const canSubmit = email.trim().length > 0 && password.length >= 6 && (isSignIn || true);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -30,26 +40,42 @@ export default function AuthEmailScreen() {
           <Pressable onPress={() => router.back()}>
             <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </Pressable>
-          <Text style={[styles.title, { color: colors.text }]}>Local account</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            {isSignIn ? 'Sign in' : 'Create account'}
+          </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            No server. Data stays on this device.
+            {isSignIn
+              ? 'Sign in with your email to subscribe and restore on any device.'
+              : 'Create an account to subscribe and restore on any device.'}
           </Text>
         </View>
+
+        {!isSignIn && (
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+            placeholder="Display name (optional)"
+            placeholderTextColor={colors.textMuted}
+            value={displayName}
+            onChangeText={setDisplayName}
+            autoCapitalize="words"
+          />
+        )}
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-          placeholder="Display name"
-          placeholderTextColor={colors.textMuted}
-          value={displayName}
-          onChangeText={setDisplayName}
-          autoCapitalize="words"
-        />
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-          placeholder="Email (optional)"
+          placeholder="Email"
           placeholderTextColor={colors.textMuted}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          placeholder="Password (min 6 characters)"
+          placeholderTextColor={colors.textMuted}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
           autoCapitalize="none"
         />
         <Pressable
@@ -59,9 +85,18 @@ export default function AuthEmailScreen() {
             loading && styles.buttonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={loading || !displayName.trim()}
+          disabled={loading || !canSubmit}
         >
-          <Text style={styles.buttonText}>Create account</Text>
+          <Text style={styles.buttonText}>{isSignIn ? 'Sign in' : 'Create account'}</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setMode(isSignIn ? 'signup' : 'signin')}
+          style={styles.switch}
+        >
+          <Text style={[styles.switchText, { color: colors.textMuted }]}>
+            {isSignIn ? "Don't have an account? Create one" : 'Already have an account? Sign in'}
+          </Text>
         </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -89,4 +124,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  switch: { marginTop: 20, alignSelf: 'center' },
+  switchText: { fontSize: 14 },
 });

@@ -20,16 +20,36 @@ export function isRevenueCatConfigured(): boolean {
   return configured && getApiKey().length > 0;
 }
 
-/** Call once at app start. Safe to call without API key (no-op). */
-export function configureRevenueCat(): void {
+/** Call once at app start. Pass appUserId (e.g. Supabase user.id) for anonymous/linked identity. */
+export function configureRevenueCat(appUserId?: string | null): void {
   if (configured) return;
   const apiKey = getApiKey();
   if (!apiKey) return;
   try {
-    Purchases.configure({ apiKey });
+    Purchases.configure({ apiKey, appUserID: appUserId ?? undefined });
     configured = true;
   } catch {
     // Expo Go or missing native module
+  }
+}
+
+/** Switch RevenueCat to a different user (e.g. after sign out, new anonymous user). */
+export async function revenueCatLogIn(appUserId: string): Promise<void> {
+  if (!configured || !getApiKey()) return;
+  try {
+    await Purchases.logIn(appUserId);
+  } catch {
+    // ignore
+  }
+}
+
+/** Sign out from RevenueCat (creates new anonymous identity). Call revenueCatLogIn(newUserId) after. */
+export async function revenueCatLogOut(): Promise<void> {
+  if (!configured || !getApiKey()) return;
+  try {
+    await Purchases.logOut();
+  } catch {
+    // ignore
   }
 }
 

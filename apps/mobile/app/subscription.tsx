@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { isRevenueCatConfigured } from '@/utils/revenueCat';
 
@@ -11,6 +12,7 @@ const __DEV__ = process.env.NODE_ENV !== 'production';
 export default function SubscriptionScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const isAnonymous = useAuthStore((s) => s.isAnonymous);
   const load = useSubscriptionStore((s) => s.load);
   const isPro = useSubscriptionStore((s) => s.isPro);
   const setPro = useSubscriptionStore((s) => s.setPro);
@@ -67,6 +69,32 @@ export default function SubscriptionScreen() {
         <View style={styles.placeholder}>
           <Text style={[styles.placeholderText, { color: colors.textMuted }]}>Loading…</Text>
         </View>
+      ) : isAnonymous ? (
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Link your account to subscribe</Text>
+            <Text style={[styles.bullet, { color: colors.textSecondary }]}>
+              Your subscription will be tied to your account and restore on any device.
+            </Text>
+            <Text style={[styles.bullet, { color: colors.textSecondary }]}>
+              Link with Google, Apple, or email to unlock Pro and purchase.
+            </Text>
+            <Pressable
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/auth')}
+            >
+              <Text style={styles.primaryBtnText}>Link account</Text>
+            </Pressable>
+          </View>
+          {__DEV__ && (
+            <View style={[styles.devSection, { borderColor: colors.border }]}>
+              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing (dev only)</Text>
+              <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={handleGrantProTesting}>
+                <Text style={[styles.devBtnText, { color: colors.primary }]}>Grant Pro (testing)</Text>
+              </Pressable>
+            </View>
+          )}
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -107,17 +135,19 @@ export default function SubscriptionScreen() {
               )}
             </View>
           )}
-          <Pressable
-            style={[styles.secondaryBtn, { backgroundColor: colors.surface }]}
-            onPress={handleRestore}
-            disabled={restoring}
-          >
-            {restoring ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Restore purchases</Text>
-            )}
-          </Pressable>
+          {!isAnonymous && (
+            <Pressable
+              style={[styles.secondaryBtn, { backgroundColor: colors.surface }]}
+              onPress={handleRestore}
+              disabled={restoring}
+            >
+              {restoring ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Restore purchases</Text>
+              )}
+            </Pressable>
+          )}
           {__DEV__ && (
             <View style={[styles.devSection, { borderColor: colors.border }]}>
               <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing (dev only)</Text>

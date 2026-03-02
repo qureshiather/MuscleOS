@@ -7,4 +7,6 @@ export interface UserProfile {
   provider: AuthProvider;
   /** Avatar URL if available */
   photoUrl?: string;
+  /** Stable account ID for RevenueCat / backend (e.g. Supabase user.id) */
+  accountId?: string;
 }

@@ -5,6 +5,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
 import { exportAndShareData } from '@/storage/exportData';
 import { clearAllData } from '@/storage/localStorage';
+import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
@@ -23,10 +24,31 @@ export default function SettingsScreen() {
   const profile = useSettingsStore((s) => s.profile);
   const setUnitSystem = useSettingsStore((s) => s.setUnitSystem);
   const setProfile = useSettingsStore((s) => s.setProfile);
+  const isLinked = !useAuthStore((s) => s.isAnonymous);
+  const authProfile = useAuthStore((s) => s.profile);
+  const signOut = useAuthStore((s) => s.signOut);
   const loadTemplates = useTemplatesStore((s) => s.load);
   const loadRecovery = useRecoveryStore((s) => s.load);
   const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
+
+  async function handleSignOut() {
+    Alert.alert(
+      'Sign out',
+      'You will stay on this device as a guest. Your subscription stays on your account and can be restored on another device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            loadSubscription();
+          },
+        },
+      ]
+    );
+  }
 
   const [heightInput, setHeightInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
@@ -310,16 +332,48 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         </View>
-        <Pressable
-        style={({ pressed }) => [
-          styles.row,
-          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
-        ]}
-        onPress={() => router.push('/auth')}
-      >
-        <Text style={[styles.rowText, { color: colors.text }]}>Sign in / Account</Text>
-        <Text style={[styles.rowHint, { color: colors.textMuted }]}>Google, Apple, email</Text>
-      </Pressable>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
+          {isLinked ? (
+            <>
+              <View style={styles.accountInfo}>
+                {authProfile?.displayName ? (
+                  <Text style={[styles.accountName, { color: colors.text }]}>{authProfile.displayName}</Text>
+                ) : null}
+                <Text style={[styles.accountEmail, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {authProfile?.email ?? 'Account linked'}
+                </Text>
+              </View>
+              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                Your subscription is tied to this account and restores on other devices.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.accountSignOutBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+                ]}
+                onPress={handleSignOut}
+              >
+                <Text style={[styles.accountSignOutText, { color: colors.text }]}>Sign out</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                Sign in to subscribe and restore your purchase on other devices.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.accountSignInBtn,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+                ]}
+                onPress={() => router.push('/auth')}
+              >
+                <Text style={styles.accountSignInText}>Sign in</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
       <Pressable
         style={({ pressed }) => [
           styles.row,
@@ -376,6 +430,26 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
   sectionHint: { fontSize: 13, marginBottom: 12 },
+  accountInfo: { marginBottom: 8 },
+  accountName: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
+  accountEmail: { fontSize: 15 },
+  accountSignOutBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  accountSignOutText: { fontSize: 16, fontWeight: '600' },
+  accountSignInBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  accountSignInText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   profileSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -18,7 +18,7 @@ import {
 export interface SubscriptionStoreState {
   state: SubscriptionState | null;
   isLoading: boolean;
-  load: () => Promise<void>;
+  load: (appUserId?: string | null) => Promise<void>;
   setPro: (expiresAt?: string, options?: { devOverride?: boolean }) => Promise<void>;
   setFree: () => Promise<void>;
   isPro: () => boolean;
@@ -30,10 +30,10 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   state: null,
   isLoading: true,
 
-  load: async () => {
+  load: async (_appUserId?: string | null) => {
     set({ isLoading: true });
     try {
-      configureRevenueCat();
+      configureRevenueCat(_appUserId);
       const devOverride = await getDevProOverride();
       if (devOverride) {
         const state: SubscriptionState = {

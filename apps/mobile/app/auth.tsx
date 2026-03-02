@@ -34,7 +34,7 @@ export default function AuthScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Sign in</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Use your Apple or Google account, or create a local account
+          Link account to subscribe and restore on any device
         </Text>
       </View>
       {Platform.OS === 'ios' && (

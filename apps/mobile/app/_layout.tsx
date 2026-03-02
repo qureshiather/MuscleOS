@@ -21,8 +21,6 @@ function ThemedStack() {
               headerShown: false,
               contentStyle: { backgroundColor: colors.background },
               animation: 'slide_from_right',
-              // Keep previous screen mounted so back transition reveals it instead of a white flash
-              detachInactiveScreens: false,
             }}
           >
             <Stack.Screen
@@ -40,16 +38,18 @@ function ThemedStack() {
 }
 
 export default function RootLayout() {
-  const loadProfile = useAuthStore((s) => s.loadProfile);
+  const initAuth = useAuthStore((s) => s.init);
   const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
   const loadCustomExercises = useExercisesStore((s) => s.load);
   useEffect(() => {
-    loadProfile();
-    loadSubscription();
-    loadSettings();
-    loadCustomExercises();
-  }, [loadProfile, loadSubscription, loadSettings, loadCustomExercises]);
+    (async () => {
+      const userId = await initAuth();
+      await loadSubscription(userId);
+      loadSettings();
+      loadCustomExercises();
+    })();
+  }, [initAuth, loadSubscription, loadSettings, loadCustomExercises]);
 
   return (
     <SafeAreaProvider>
