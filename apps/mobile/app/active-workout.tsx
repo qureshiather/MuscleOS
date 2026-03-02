@@ -78,8 +78,15 @@ export default function ActiveWorkoutScreen() {
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
+  const [dropdownLayout, setDropdownLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const dropdownMeasureRef = useRef<View>(null);
   const [editSetsExIdx, setEditSetsExIdx] = useState<number | null>(null);
   const [setsToDelete, setSetsToDelete] = useState<Set<number>>(new Set());
+
+  // Clear dropdown layout when menu closes so we re-measure next open
+  useEffect(() => {
+    if (exerciseMenuExIdx === null) setDropdownLayout(null);
+  }, [exerciseMenuExIdx]);
 
   useEffect(() => {
     if (params.templateId && params.dayId && params.dayName && !session) {
@@ -332,37 +339,51 @@ export default function ActiveWorkoutScreen() {
                   </View>
                 </View>
                 {exerciseMenuExIdx === exIdx && (
-                  <View style={[styles.exerciseDropdown, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                  <Pressable
-                    style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      setEditSetsExIdx(exIdx);
-                      setSetsToDelete(new Set());
-                      setExerciseMenuExIdx(null);
+                  <View
+                    ref={dropdownMeasureRef}
+                    style={[
+                      styles.exerciseDropdown,
+                      { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                      dropdownLayout !== null && { opacity: 0 },
+                    ]}
+                    onLayout={() => {
+                      if (exerciseMenuExIdx !== exIdx) return;
+                      dropdownMeasureRef.current?.measureInWindow((x, y, width, height) => {
+                        setDropdownLayout({ x, y, width, height });
+                      });
                     }}
+                    collapsable={false}
                   >
-                    <Ionicons name="list-outline" size={18} color={colors.text} />
-                    <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
-                  </Pressable>
-                  {!isBuiltInWorkout && (
                     <Pressable
-                      style={styles.exerciseDropdownItem}
+                      style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
                       onPress={() => {
+                        setEditSetsExIdx(exIdx);
+                        setSetsToDelete(new Set());
                         setExerciseMenuExIdx(null);
-                        Alert.alert(
-                          'Remove exercise',
-                          `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
-                          ]
-                        );
                       }}
                     >
-                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                      <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
+                      <Ionicons name="list-outline" size={18} color={colors.text} />
+                      <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
                     </Pressable>
-                  )}
+                    {!isBuiltInWorkout && (
+                      <Pressable
+                        style={styles.exerciseDropdownItem}
+                        onPress={() => {
+                          setExerciseMenuExIdx(null);
+                          Alert.alert(
+                            'Remove exercise',
+                            `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                        <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
+                      </Pressable>
+                    )}
                   </View>
                 )}
               </View>
@@ -596,6 +617,71 @@ export default function ActiveWorkoutScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Exercise dropdown overlay: tap outside to close */}
+      {dropdownLayout !== null && exerciseMenuExIdx !== null && session && (() => {
+        const exIdx = exerciseMenuExIdx;
+        const se = session.exercises[exIdx];
+        const exercise = se ? getExercise(se.exerciseId) : null;
+        return (
+          <Modal visible transparent animationType="none">
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => {
+                  setExerciseMenuExIdx(null);
+                  setDropdownLayout(null);
+                }}
+              />
+              <View
+                style={[
+                  styles.exerciseDropdown,
+                  {
+                    position: 'absolute',
+                    left: dropdownLayout!.x,
+                    top: dropdownLayout!.y,
+                    width: dropdownLayout!.width,
+                    backgroundColor: colors.surfaceElevated,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onStartShouldSetResponder={() => true}
+              >
+                <Pressable
+                  style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setEditSetsExIdx(exIdx);
+                    setSetsToDelete(new Set());
+                    setExerciseMenuExIdx(null);
+                  }}
+                >
+                  <Ionicons name="list-outline" size={18} color={colors.text} />
+                  <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
+                </Pressable>
+                {!isBuiltInWorkout && (
+                  <Pressable
+                    style={styles.exerciseDropdownItem}
+                    onPress={() => {
+                      setExerciseMenuExIdx(null);
+                      Alert.alert(
+                        'Remove exercise',
+                        `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
 
       <Modal visible={showRestControlSheet && restSecondsLeft != null} transparent animationType="slide">
         <Pressable style={styles.restControlOverlay} onPress={() => setShowRestControlSheet(false)}>
