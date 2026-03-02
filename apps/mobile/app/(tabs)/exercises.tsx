@@ -95,7 +95,7 @@ export default function ExercisesScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Exercise catalog</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Exercises</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {allExercises.length} exercises · tap for muscles
         </Text>
@@ -342,9 +342,9 @@ export default function ExercisesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
-  title: { fontSize: 26, fontWeight: '700' },
-  subtitle: { fontSize: 14, marginTop: 4 },
+  header: { padding: 20, paddingBottom: 16 },
+  title: { fontSize: 28, fontWeight: '700' },
+  subtitle: { fontSize: 15, marginTop: 4 },
   search: {
     marginHorizontal: 20,
     marginBottom: 16,
