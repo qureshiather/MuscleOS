@@ -561,7 +561,8 @@ export default function ActiveWorkoutScreen() {
                   style: 'destructive',
                   onPress: () => {
                     useActiveWorkoutStore.getState().discardWorkout();
-                    router.replace('/(tabs)');
+                    // Defer navigation so store update is applied before tabs (and Resume pill) render
+                    setTimeout(() => router.replace('/(tabs)'), 0);
                   },
                 },
               ]
