@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useSessionsStore } from '@/store/sessionsStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import type { WorkoutSession } from '@muscleos/types';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -19,6 +20,25 @@ function workoutDaysSet(sessions: WorkoutSession[]): Set<string> {
     set.add(key);
   }
   return set;
+}
+
+function formatDayLabel(isoDate: string): string {
+  const d = new Date(isoDate + 'T12:00:00');
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function getSessionDuration(session: WorkoutSession): string | null {
+  if (!session.startedAt || !session.completedAt) return null;
+  const ms = new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 /** Build calendar grid for a month: 0 = empty, 1-31 = day of month. */
@@ -44,7 +64,9 @@ export default function HistoryMonthlyScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { load: loadSessions, completedSessions } = useSessionsStore();
+  const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const [viewDate, setViewDate] = useState(() => new Date());
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,7 +75,20 @@ export default function HistoryMonthlyScreen() {
   );
 
   const completed = completedSessions();
+  const templates = allTemplates();
   const workoutDays = useMemo(() => workoutDaysSet(completed), [completed]);
+  const getTemplateName = (templateId: string) =>
+    templates.find((t) => t.id === templateId)?.name ?? 'Workout';
+
+  const sessionsForSelectedDay = useMemo(() => {
+    if (!selectedDayKey) return [];
+    return completed.filter((s) => {
+      if (!s.completedAt) return false;
+      const d = new Date(s.completedAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return key === selectedDayKey;
+    });
+  }, [completed, selectedDayKey]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -119,13 +154,20 @@ export default function HistoryMonthlyScreen() {
               {row.map((day, colIndex) => {
                 const key = dayKey(day);
                 const hasWorkout = day != null && workoutDays.has(key);
+                const isSelected = key === selectedDayKey;
                 return (
                   <View key={colIndex} style={styles.dayCell}>
                     {day != null ? (
-                      <View
-                        style={[
+                      <Pressable
+                        onPress={() => setSelectedDayKey(isSelected ? null : key)}
+                        style={({ pressed }) => [
                           styles.dayInner,
                           hasWorkout && { backgroundColor: colors.primary },
+                          isSelected && {
+                            borderWidth: 2,
+                            borderColor: colors.accent,
+                          },
+                          pressed && { opacity: 0.8 },
                         ]}
                       >
                         <Text
@@ -141,7 +183,7 @@ export default function HistoryMonthlyScreen() {
                             <Ionicons name="checkmark" size={10} color="#fff" />
                           </View>
                         )}
-                      </View>
+                      </Pressable>
                     ) : null}
                   </View>
                 );
@@ -150,14 +192,40 @@ export default function HistoryMonthlyScreen() {
           ))}
         </View>
 
-        <View style={styles.legend}>
-          <View style={[styles.legendDot, { backgroundColor: colors.primary }]}>
-            <Ionicons name="checkmark" size={10} color="#fff" />
+        {selectedDayKey != null && (
+          <View style={[styles.dayDetailCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.dayDetailTitle, { color: colors.text }]}>
+              {formatDayLabel(selectedDayKey)}
+            </Text>
+            {sessionsForSelectedDay.length === 0 ? (
+              <Text style={[styles.dayDetailEmpty, { color: colors.textMuted }]}>
+                No workouts this day
+              </Text>
+            ) : (
+              <View style={styles.dayDetailList}>
+                {sessionsForSelectedDay.map((s, idx) => (
+                  <View
+                    key={s.id}
+                    style={[
+                      styles.dayDetailRow,
+                      { borderBottomColor: colors.border },
+                      idx === sessionsForSelectedDay.length - 1 && styles.dayDetailRowLast,
+                    ]}
+                  >
+                    <Text style={[styles.dayDetailName, { color: colors.text }]}>
+                      {s.dayName} · {getTemplateName(s.templateId)}
+                    </Text>
+                    {getSessionDuration(s) && (
+                      <Text style={[styles.dayDetailDuration, { color: colors.textSecondary }]}>
+                        {getSessionDuration(s)}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-          <Text style={[styles.legendText, { color: colors.textSecondary }]}>
-            Day with completed workout
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -219,18 +287,28 @@ const styles = StyleSheet.create({
   },
   dayText: { fontSize: 15, fontWeight: '500' },
   checkmark: { position: 'absolute', bottom: 1 },
-  legend: {
+  dayDetailCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 8,
+  },
+  dayDetailTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  dayDetailEmpty: {
+    fontSize: 14,
+  },
+  dayDetailList: { gap: 0 },
+  dayDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
-  legendDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  legendText: { fontSize: 13 },
+  dayDetailRowLast: { borderBottomWidth: 0 },
+  dayDetailName: { fontSize: 15, fontWeight: '500' },
+  dayDetailDuration: { fontSize: 13 },
 });
