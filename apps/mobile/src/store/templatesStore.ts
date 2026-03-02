@@ -20,8 +20,12 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
 
   load: async () => {
     set({ isLoading: true });
-    const userTemplates = await getTemplates();
-    set({ userTemplates, isLoading: false });
+    try {
+      const userTemplates = await getTemplates();
+      set({ userTemplates, isLoading: false });
+    } catch {
+      set({ userTemplates: [], isLoading: false });
+    }
   },
 
   addTemplate: async (t) => {

@@ -32,31 +32,35 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
 
   load: async () => {
     set({ isLoading: true });
-    configureRevenueCat();
-    const devOverride = await getDevProOverride();
-    if (devOverride) {
-      const state: SubscriptionState = {
-        tier: 'pro',
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      };
-      const stored = await getSubscription();
-      set({
-        state: stored?.tier === 'pro' ? stored : state,
-        isLoading: false,
-      });
-      return;
-    }
-    const customerInfo = await getRevenueCatCustomerInfo();
-    if (customerInfo && hasProEntitlement(customerInfo)) {
-      const expiresAt = getProExpirationDate(customerInfo);
-      const state: SubscriptionState = { tier: 'pro', expiresAt };
+    try {
+      configureRevenueCat();
+      const devOverride = await getDevProOverride();
+      if (devOverride) {
+        const state: SubscriptionState = {
+          tier: 'pro',
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        const stored = await getSubscription();
+        set({
+          state: stored?.tier === 'pro' ? stored : state,
+          isLoading: false,
+        });
+        return;
+      }
+      const customerInfo = await getRevenueCatCustomerInfo();
+      if (customerInfo && hasProEntitlement(customerInfo)) {
+        const expiresAt = getProExpirationDate(customerInfo);
+        const state: SubscriptionState = { tier: 'pro', expiresAt };
+        await setSubscription(state);
+        set({ state, isLoading: false });
+        return;
+      }
+      const state: SubscriptionState = { tier: 'free' };
       await setSubscription(state);
       set({ state, isLoading: false });
-      return;
+    } catch {
+      set({ state: { tier: 'free' }, isLoading: false });
     }
-    const state: SubscriptionState = { tier: 'free' };
-    await setSubscription(state);
-    set({ state, isLoading: false });
   },
 
   setPro: async (expiresAt, options) => {

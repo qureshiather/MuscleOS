@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, Redirect, usePathname, useGlobalSearchParams } from 'expo-router';
 import { LinkPreviewContextProvider } from 'expo-router/build/link/preview/LinkPreviewContext';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,6 +9,20 @@ import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
+
+/** When we're on /active-workout with no session and no params to start one, redirect to main app. Renders alongside Stack so navigator is mounted first. */
+function ActiveWorkoutRedirectGate() {
+  const pathname = usePathname();
+  const params = useGlobalSearchParams<{ templateId?: string; dayId?: string; dayName?: string }>();
+  const session = useActiveWorkoutStore((s) => s.session);
+  const shouldRedirect =
+    pathname === '/active-workout' &&
+    !session &&
+    !(params.templateId && params.dayId && params.dayName);
+  if (shouldRedirect) return <Redirect href="/(tabs)" />;
+  return null;
+}
 
 function ThemedStack() {
   const { colors, isDark } = useTheme();
@@ -56,6 +70,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <ThemedStack />
+        <ActiveWorkoutRedirectGate />
       </ThemeProvider>
     </SafeAreaProvider>
   );
