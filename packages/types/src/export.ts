@@ -1,4 +1,4 @@
-import type { WorkoutTemplate } from './workout';
+import type { WorkoutTemplate, TemplateFolder } from './workout';
 import type { WorkoutSession } from './session';
 import type { MuscleRecovery } from './recovery';
 import type { MacroTargets, MetabolismInfo } from './health';
@@ -12,6 +12,7 @@ export interface ExportData {
   profile?: UserProfile;
   subscription?: SubscriptionState;
   templates: WorkoutTemplate[];
+  templateFolders?: TemplateFolder[];
   sessions: WorkoutSession[];
   recovery: MuscleRecovery[];
   health?: {

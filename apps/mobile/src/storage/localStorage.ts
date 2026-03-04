@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   WorkoutTemplate,
+  TemplateFolder,
   WorkoutSession,
   MuscleRecovery,
   MacroTargets,
@@ -12,8 +13,49 @@ import type {
 } from '@muscleos/types';
 import { STORAGE_KEYS } from './keys';
 
+/** Legacy shape: template had days[] instead of exerciseIds */
+function migrateTemplateFromDays(t: Record<string, unknown>): WorkoutTemplate {
+  const days = t.days as Array<{ exerciseIds?: string[]; defaultSets?: number }> | undefined;
+  if (days?.length) {
+    const first = days[0];
+    const { id, name, description, isBuiltIn, folderId } = t;
+    return {
+      id: id as string,
+      name: name as string,
+      ...(description != null && { description: description as string }),
+      exerciseIds: first.exerciseIds ?? [],
+      ...(first.defaultSets != null && { defaultSets: first.defaultSets }),
+      ...(isBuiltIn !== undefined && { isBuiltIn: isBuiltIn as boolean }),
+      ...(folderId != null && { folderId: folderId as string }),
+    };
+  }
+  return t as unknown as WorkoutTemplate;
+}
+
 export async function getTemplates(): Promise<WorkoutTemplate[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.templates);
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw) as Record<string, unknown>[];
+    const migrated = list.map((t) =>
+      t.days && Array.isArray(t.days) && (t.days as unknown[]).length > 0
+        ? migrateTemplateFromDays(t)
+        : (t as unknown as WorkoutTemplate)
+    );
+    const needsPersist = list.some((t) => t.days && Array.isArray(t.days));
+    if (needsPersist) await setTemplates(migrated);
+    return migrated;
+  } catch {
+    return [];
+  }
+}
+
+export async function setTemplates(templates: WorkoutTemplate[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.templates, JSON.stringify(templates));
+}
+
+export async function getTemplateFolders(): Promise<TemplateFolder[]> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.templateFolders);
   if (!raw) return [];
   try {
     return JSON.parse(raw);
@@ -22,8 +64,8 @@ export async function getTemplates(): Promise<WorkoutTemplate[]> {
   }
 }
 
-export async function setTemplates(templates: WorkoutTemplate[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.templates, JSON.stringify(templates));
+export async function setTemplateFolders(folders: TemplateFolder[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify(folders));
 }
 
 export async function getSessions(): Promise<WorkoutSession[]> {
@@ -136,6 +178,7 @@ export async function setSubscription(state: SubscriptionState): Promise<void> {
 /** All AsyncStorage keys used by the app (for clear-all-data). */
 const ALL_APP_KEYS = [
   STORAGE_KEYS.templates,
+  STORAGE_KEYS.templateFolders,
   STORAGE_KEYS.sessions,
   STORAGE_KEYS.recovery,
   STORAGE_KEYS.health,
@@ -156,19 +199,22 @@ export async function clearAllData(): Promise<void> {
 }
 
 export async function buildExportData(profile?: UserProfile | null): Promise<ExportData> {
-  const [templates, sessions, recovery, health, subscription] = await Promise.all([
-    getTemplates(),
-    getSessions(),
-    getRecovery(),
-    getHealth(),
-    getSubscription(),
-  ]);
+  const [templates, templateFolders, sessions, recovery, health, subscription] =
+    await Promise.all([
+      getTemplates(),
+      getTemplateFolders(),
+      getSessions(),
+      getRecovery(),
+      getHealth(),
+      getSubscription(),
+    ]);
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
     profile: profile ?? undefined,
     subscription: subscription ?? undefined,
     templates,
+    templateFolders: templateFolders.length ? templateFolders : undefined,
     sessions,
     recovery,
     health: Object.keys(health).length ? health : undefined,

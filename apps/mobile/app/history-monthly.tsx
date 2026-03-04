@@ -213,7 +213,7 @@ export default function HistoryMonthlyScreen() {
                     ]}
                   >
                     <Text style={[styles.dayDetailName, { color: colors.text }]}>
-                      {s.dayName} · {getTemplateName(s.templateId)}
+                      {getTemplateName(s.templateId)}
                     </Text>
                     {getSessionDuration(s) && (
                       <Text style={[styles.dayDetailDuration, { color: colors.textSecondary }]}>

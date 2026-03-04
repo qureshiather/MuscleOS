@@ -19,8 +19,6 @@ export default function WorkoutPreviewScreen() {
   const activeSession = useActiveWorkoutStore((s) => s.session);
   const params = useLocalSearchParams<{
     templateId?: string;
-    dayId?: string;
-    dayName?: string;
     exerciseIds?: string;
     defaultSets?: string;
   }>();
@@ -29,8 +27,6 @@ export default function WorkoutPreviewScreen() {
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
 
   const templateId = params.templateId ?? '';
-  const dayId = params.dayId ?? '';
-  const dayName = params.dayName ?? '';
   const exerciseIds = (params.exerciseIds ?? '').split(',').filter(Boolean);
   const defaultSets = params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
   const defaultSetsValid = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0;
@@ -63,15 +59,13 @@ export default function WorkoutPreviewScreen() {
       pathname: '/active-workout',
       params: {
         templateId,
-        dayId,
-        dayName,
         exerciseIds: exerciseIds.join(','),
         ...(defaultSetsValid && { defaultSets: params.defaultSets! }),
       },
     });
   }
 
-  if (!templateId || !dayId || !dayName || exerciseIds.length === 0) {
+  if (!templateId || exerciseIds.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <Pressable onPress={() => router.back()}>
@@ -90,8 +84,7 @@ export default function WorkoutPreviewScreen() {
         </Pressable>
         <View style={styles.headerTitleRow}>
           <View style={styles.titleBlock}>
-            <Text style={[styles.dayName, { color: colors.text }]}>{dayName}</Text>
-            <Text style={[styles.templateName, { color: colors.textSecondary }]}>{templateName}</Text>
+            <Text style={[styles.templateTitle, { color: colors.text }]}>{templateName}</Text>
           </View>
           <Pressable
             style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
@@ -174,8 +167,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   headerStartBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  dayName: { fontSize: 24, fontWeight: '700' },
-  templateName: { fontSize: 15, marginTop: 2 },
+  templateTitle: { fontSize: 24, fontWeight: '700' },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
   sectionLabel: { fontSize: 13, marginBottom: 12 },

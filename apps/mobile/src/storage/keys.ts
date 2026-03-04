@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   templates: 'muscleos_templates',
+  templateFolders: 'muscleos_template_folders',
   sessions: 'muscleos_sessions',
   recovery: 'muscleos_recovery',
   health: 'muscleos_health',

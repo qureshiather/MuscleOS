@@ -1,30 +1,83 @@
-import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Alert,
+  TextInput,
+  Modal,
+  Platform,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useTemplatesStore } from '@/store/templatesStore';
+import { BUILT_IN_FOLDERS } from '@/data/builtInTemplates';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
-import type { WorkoutTemplate, WorkoutDay } from '@muscleos/types';
+import { useSessionsStore } from '@/store/sessionsStore';
+import { formatRelative } from '@/utils/relativeTime';
+import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
+
+const UNCATEGORIZED = '_uncategorized';
+const ARCHIVED_SECTION = '_archived';
 
 export default function WorkoutsScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const loadTemplates = useTemplatesStore((s) => s.load);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
+  const userTemplates = useTemplatesStore((s) => s.userTemplates);
+  const folders = useTemplatesStore((s) => s.folders);
+  const addFolder = useTemplatesStore((s) => s.addFolder);
+  const updateFolder = useTemplatesStore((s) => s.updateFolder);
+  const deleteFolder = useTemplatesStore((s) => s.deleteFolder);
+  const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
+  const deleteTemplate = useTemplatesStore((s) => s.deleteTemplate);
   const isLoading = useTemplatesStore((s) => s.isLoading);
+  const loadSessions = useSessionsStore((s) => s.load);
+  const sessions = useSessionsStore((s) => s.sessions);
   const subscriptionState = useSubscriptionStore((s) => s.state);
-  const isPro = subscriptionState?.tier === 'pro' && (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
+  const isPro =
+    subscriptionState?.tier === 'pro' &&
+    (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
   const activeSession = useActiveWorkoutStore((s) => s.session);
 
   const [builtInExpanded, setBuiltInExpanded] = useState(true);
   const [customExpanded, setCustomExpanded] = useState(true);
+  const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>({});
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState('');
+  const [moveTemplateModal, setMoveTemplateModal] = useState<WorkoutTemplate | null>(null);
+  const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  const [folderDropdownLayout, setFolderDropdownLayout] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const folderDropdownRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (folderMenuId === null) setFolderDropdownLayout(null);
+  }, [folderMenuId]);
 
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSessions();
+    }, [loadSessions])
+  );
 
   const templates = allTemplates();
   const { builtIn, custom } = useMemo(() => {
@@ -34,46 +87,189 @@ export default function WorkoutsScreen() {
     return { builtIn, custom };
   }, [templates]);
 
-  function renderTemplateCard(template: WorkoutTemplate) {
+  const { byFolder, uncategorized } = useMemo(() => {
+    const byFolder: Record<string, WorkoutTemplate[]> = {};
+    folders.forEach((f) => {
+      byFolder[f.id] = custom.filter((t) => t.folderId === f.id);
+    });
+    const uncategorized = custom.filter((t) => !t.folderId);
+    return { byFolder, uncategorized };
+  }, [custom, folders]);
+
+  const { favoriteFolders, normalFolders, archivedFolders } = useMemo(() => {
+    const favorite: TemplateFolder[] = [];
+    const normal: TemplateFolder[] = [];
+    const archived: TemplateFolder[] = [];
+    folders.forEach((f) => {
+      if (f.archived) archived.push(f);
+      else if (f.favorite) favorite.push(f);
+      else normal.push(f);
+    });
+    return { favoriteFolders: favorite, normalFolders: normal, archivedFolders: archived };
+  }, [folders]);
+
+  const builtInByFolder = useMemo(() => {
+    const byFolder: Record<string, WorkoutTemplate[]> = {};
+    BUILT_IN_FOLDERS.forEach((f) => {
+      byFolder[f.id] = builtIn.filter((t) => t.folderId === f.id);
+    });
+    return byFolder;
+  }, [builtIn]);
+
+  const builtInUncategorized = useMemo(
+    () => builtIn.filter((t) => !t.folderId),
+    [builtIn]
+  );
+
+  const lastDoneByTemplate = useMemo(() => {
+    const completed = sessions.filter((s) => s.completedAt != null);
+    const map: Record<string, string> = {};
+    for (const s of completed) {
+      const completedAt = s.completedAt!;
+      if (!map[s.templateId] || completedAt > map[s.templateId]) {
+        map[s.templateId] = completedAt;
+      }
+    }
+    return map;
+  }, [sessions]);
+
+  function handleCreateFolder() {
+    const name = newFolderName.trim();
+    if (!name) return;
+    addFolder({ id: 'folder_' + Date.now(), name });
+    setNewFolderName('');
+    setShowFolderModal(false);
+  }
+
+  function handleSaveFolderRename() {
+    if (!editingFolder || !editingFolderName.trim()) return;
+    updateFolder(editingFolder.id, { name: editingFolderName.trim() });
+    setEditingFolder(null);
+    setEditingFolderName('');
+  }
+
+  function handleDeleteFolder(folder: TemplateFolder) {
+    const templatesInFolder = byFolder[folder.id] ?? [];
+    const templateCount = templatesInFolder.length;
+    if (templateCount === 0) {
+      Alert.alert(
+        'Delete folder',
+        `Delete "${folder.name}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => deleteFolder(folder.id) },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Delete folder',
+        `"${folder.name}" has ${templateCount} template${templateCount === 1 ? '' : 's'}. Move them to Uncategorized or delete them?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Move to Uncategorized',
+            onPress: () => deleteFolder(folder.id),
+          },
+          {
+            text: 'Delete folder and templates',
+            style: 'destructive',
+            onPress: async () => {
+              for (const t of templatesInFolder) {
+                await deleteTemplate(t.id);
+              }
+              await deleteFolder(folder.id);
+            },
+          },
+        ]
+      );
+    }
+  }
+
+  function handleMoveTemplate(template: WorkoutTemplate, folderId: string | undefined) {
+    updateTemplate(template.id, { folderId });
+    setMoveTemplateModal(null);
+  }
+
+  function getTemplateDisplayName(template: WorkoutTemplate): string {
+    return template.name;
+  }
+
+  function getLastDone(template: WorkoutTemplate): string | null {
+    const last = lastDoneByTemplate[template.id];
+    return last ? formatRelative(last) : null;
+  }
+
+  function isFolderExpanded(folderId: string): boolean {
+    return folderExpanded[folderId] ?? true;
+  }
+
+  function toggleFolderExpanded(folderId: string) {
+    setFolderExpanded((prev) => ({ ...prev, [folderId]: !(prev[folderId] ?? true) }));
+  }
+
+  function renderTemplateCard(
+    template: WorkoutTemplate,
+    cardStyle?: StyleProp<ViewStyle>,
+    showMoveOption?: boolean
+  ) {
+    const displayName = getTemplateDisplayName(template);
     const hasDescription = Boolean(template.description?.trim());
+    const lastDone = getLastDone(template);
+    const resolvedCardStyle = cardStyle ?? [
+      styles.templateCard,
+      { backgroundColor: colors.surfaceElevated },
+    ];
     return (
-      <View key={template.id} style={[styles.templateCard, { backgroundColor: colors.surfaceElevated }]}>
-        <Text
-          style={[
-            styles.templateName,
-            { color: colors.text },
-            !hasDescription && styles.templateNameNoDesc,
-          ]}
-        >
-          {template.name}
-        </Text>
-        {hasDescription ? (
-          <Text style={[styles.templateDesc, { color: colors.textSecondary }]}>
-            {template.description}
-          </Text>
-        ) : null}
-        <View style={styles.daysRow}>
-          {template.days.map((day) => (
-            <Pressable
-              key={day.id}
-              style={({ pressed }) => [
-                styles.dayChip,
-                { backgroundColor: colors.background, opacity: pressed ? 0.9 : 1 },
+      <Pressable
+        key={template.id}
+        style={({ pressed }) => [resolvedCardStyle, pressed && styles.templateCardPressed]}
+        onPress={() => handleStartTemplate(template)}
+      >
+        <View style={styles.templateCardHeader}>
+          <View style={styles.templateCardTitleRow}>
+            <Text
+              style={[
+                styles.templateName,
+                { color: colors.text },
+                !hasDescription && styles.templateNameNoDesc,
               ]}
-              onPress={() => handleStartDay(template, day)}
+              numberOfLines={1}
             >
-              <Text style={[styles.dayChipText, { color: colors.primary }]}>{day.name}</Text>
-              <Text style={[styles.dayChipMeta, { color: colors.textMuted }]}>
-                {day.exerciseIds.length} exercises
-              </Text>
-            </Pressable>
-          ))}
+              {displayName}
+            </Text>
+            {showMoveOption && (
+              <Pressable
+                hitSlop={8}
+                style={({ pressed: p }) => [
+                  styles.templateMoveBtn,
+                  { opacity: p ? 0.7 : 1 },
+                ]}
+                onPress={() => setMoveTemplateModal(template)}
+              >
+                <Ionicons name="arrow-redo-outline" size={16} color={colors.primary} />
+                <Text style={[styles.templateMoveLabel, { color: colors.primary }]}>Move</Text>
+              </Pressable>
+            )}
+          </View>
+          {hasDescription ? (
+            <Text style={[styles.templateDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+              {template.description}
+            </Text>
+          ) : null}
+          {lastDone && (
+            <Text style={[styles.lastDoneText, { color: colors.textMuted }]}>
+              Last done: {lastDone}
+            </Text>
+          )}
+          <Text style={[styles.exerciseCount, { color: colors.textMuted }]}>
+            {template.exerciseIds.length} exercises
+          </Text>
         </View>
-      </View>
+      </Pressable>
     );
   }
 
-  function handleStartDay(template: WorkoutTemplate, day: WorkoutDay) {
+  function handleStartTemplate(template: WorkoutTemplate) {
     if (activeSession) {
       Alert.alert(
         'Workout in progress',
@@ -89,10 +285,8 @@ export default function WorkoutsScreen() {
       pathname: '/workout-preview',
       params: {
         templateId: template.id,
-        dayId: day.id,
-        dayName: day.name,
-        exerciseIds: day.exerciseIds.join(','),
-        ...(day.defaultSets != null && { defaultSets: String(day.defaultSets) }),
+        exerciseIds: template.exerciseIds.join(','),
+        ...(template.defaultSets != null && { defaultSets: String(template.defaultSets) }),
       },
     });
   }
@@ -113,11 +307,221 @@ export default function WorkoutsScreen() {
       pathname: '/active-workout',
       params: {
         templateId: '_empty',
-        dayId: '_empty',
-        dayName: 'Workout',
         exerciseIds: '',
       },
     });
+  }
+
+  const sectionStyle = [
+    styles.collapsibleSection,
+    { backgroundColor: colors.surface },
+    !isDark && {
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
+        },
+        android: { elevation: 2 },
+      }),
+    },
+  ];
+
+  const nestedSectionStyle = [
+    styles.collapsibleSection,
+    styles.nestedSection,
+    { backgroundColor: colors.surfaceElevated },
+    !isDark && { borderWidth: 1, borderColor: colors.border },
+  ];
+
+  const templateCardStyle = [
+    styles.templateCard,
+    { backgroundColor: colors.surfaceElevated },
+    ...(!isDark ? [{ borderWidth: 1, borderColor: colors.border }] : []),
+  ];
+
+  function renderFolderDropdown(folder: TemplateFolder) {
+    return (
+      <View
+        ref={folderDropdownRef}
+        style={[
+          styles.folderDropdown,
+          {
+            backgroundColor: colors.surfaceElevated,
+            borderColor: colors.border,
+          },
+          folderDropdownLayout !== null && { opacity: 0 },
+        ]}
+        onLayout={() => {
+          if (folderMenuId !== folder.id) return;
+          folderDropdownRef.current?.measureInWindow((x, y, width, height) => {
+            setFolderDropdownLayout({ x, y, width, height });
+          });
+        }}
+        collapsable={false}
+      >
+        <Pressable
+          style={[
+            styles.folderDropdownItem,
+            styles.folderDropdownItemBorder,
+            { borderBottomColor: colors.border },
+          ]}
+          onPress={() => {
+            setEditingFolder(folder);
+            setEditingFolderName(folder.name);
+            setFolderMenuId(null);
+            setFolderDropdownLayout(null);
+          }}
+        >
+          <Ionicons name="pencil-outline" size={18} color={colors.text} />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>Rename</Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.folderDropdownItem,
+            styles.folderDropdownItemBorder,
+            { borderBottomColor: colors.border },
+          ]}
+          onPress={() => {
+            setFolderMenuId(null);
+            setFolderDropdownLayout(null);
+            updateFolder(folder.id, { favorite: !folder.favorite });
+          }}
+        >
+          <Ionicons
+            name={folder.favorite ? 'star' : 'star-outline'}
+            size={18}
+            color={folder.favorite ? colors.accent : colors.text}
+          />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+            {folder.favorite ? 'Unpin from top' : 'Pin to top'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.folderDropdownItem,
+            styles.folderDropdownItemBorder,
+            { borderBottomColor: colors.border },
+          ]}
+          onPress={() => {
+            setFolderMenuId(null);
+            setFolderDropdownLayout(null);
+            updateFolder(folder.id, { archived: !folder.archived });
+          }}
+        >
+          <Ionicons
+            name={folder.archived ? 'arrow-undo-outline' : 'archive-outline'}
+            size={18}
+            color={colors.text}
+          />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+            {folder.archived ? 'Unarchive' : 'Archive'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={styles.folderDropdownItem}
+          onPress={() => {
+            setFolderMenuId(null);
+            setFolderDropdownLayout(null);
+            handleDeleteFolder(folder);
+          }}
+        >
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Text style={[styles.folderDropdownItemText, { color: colors.danger }]}>Delete</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  function renderBuiltInFolderSection(folder: TemplateFolder) {
+    const templatesInFolder = builtInByFolder[folder.id] ?? [];
+    const expanded = isFolderExpanded(folder.id);
+    return (
+      <View key={folder.id} style={nestedSectionStyle}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.sectionHeader,
+            styles.sectionHeaderLeft,
+            { opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={() => toggleFolderExpanded(folder.id)}
+        >
+          <Ionicons
+            name={expanded ? 'chevron-down' : 'chevron-forward'}
+            size={20}
+            color={colors.textSecondary}
+          />
+          <Ionicons name="folder-outline" size={18} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{folder.name}</Text>
+        </Pressable>
+        {expanded && (
+          <View style={styles.sectionContent}>
+            {templatesInFolder.length === 0 ? null : (
+              templatesInFolder.map((template) =>
+                renderTemplateCard(template, templateCardStyle)
+              )
+            )}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  function renderFolderSection(folder: TemplateFolder, isArchived?: boolean) {
+    const templatesInFolder = byFolder[folder.id] ?? [];
+    const expanded = isFolderExpanded(folder.id);
+    const mutedStyle = isArchived ? { opacity: 0.7 } : undefined;
+    const titleColor = isArchived ? colors.textMuted : colors.text;
+    const iconColor = isArchived ? colors.textMuted : colors.primary;
+    return (
+      <View key={folder.id} style={[nestedSectionStyle, mutedStyle]}>
+        <View style={styles.folderSectionHeaderWrap}>
+          <View style={styles.sectionHeader}>
+            <Pressable
+              style={[styles.sectionHeaderLeft, { opacity: 1 }]}
+              onPress={() => toggleFolderExpanded(folder.id)}
+            >
+              <Ionicons
+                name={expanded ? 'chevron-down' : 'chevron-forward'}
+                size={20}
+                color={colors.textSecondary}
+              />
+              <Ionicons name="folder-outline" size={18} color={iconColor} />
+              {folder.favorite && !isArchived && (
+                <Ionicons name="star" size={14} color={colors.accent} style={styles.folderStar} />
+              )}
+              <Text style={[styles.sectionTitle, { color: titleColor }]}>{folder.name}</Text>
+            </Pressable>
+            <Pressable
+              hitSlop={8}
+              onPress={() =>
+                setFolderMenuId((id) => (id === folder.id ? null : folder.id))
+              }
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          {folderMenuId === folder.id && renderFolderDropdown(folder)}
+        </View>
+        {expanded && (
+          <View style={styles.sectionContent}>
+            {templatesInFolder.length === 0 ? (
+              <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
+                No templates in this folder.
+              </Text>
+            ) : (
+              templatesInFolder.map((template) =>
+                renderTemplateCard(template, templateCardStyle, true)
+              )
+            )}
+          </View>
+        )}
+      </View>
+    );
   }
 
   return (
@@ -128,25 +532,83 @@ export default function WorkoutsScreen() {
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Start empty or pick a template
           </Text>
+
+          {/* Start Empty Workout - distinctive card-style CTA */}
           <Pressable
-            style={[
-              styles.startEmptyBtn,
-              { backgroundColor: isPro ? colors.primary : colors.surfaceElevated },
+            style={({ pressed }) => [
+              styles.startEmptyCard,
+              {
+                backgroundColor: isPro ? colors.primary : colors.surfaceElevated,
+                borderColor: isPro ? colors.primary : colors.border,
+                opacity: pressed ? 0.92 : 1,
+              },
+              !isDark && isPro && {
+                ...Platform.select({
+                  ios: {
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                  },
+                  android: { elevation: 4 },
+                }),
+              },
             ]}
             onPress={() =>
               isPro ? handleStartEmptyWorkout() : router.push('/subscription')
             }
           >
-            <Text
-              style={[styles.startEmptyBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}
-            >
-              {isPro ? 'Start empty workout' : 'Pro: Start empty workout'}
-            </Text>
+            <View style={styles.startEmptyCardInner}>
+              <View
+                style={[
+                  styles.startEmptyIconWrap,
+                  { backgroundColor: isPro ? 'rgba(255,255,255,0.2)' : colors.background },
+                ]}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={28}
+                  color={isPro ? '#fff' : colors.primary}
+                />
+              </View>
+              <View style={styles.startEmptyTextWrap}>
+                <Text
+                  style={[
+                    styles.startEmptyCardTitle,
+                    { color: isPro ? '#fff' : colors.text },
+                  ]}
+                >
+                  {isPro ? 'Start Empty Workout' : 'Pro: Start Empty Workout'}
+                </Text>
+                <Text
+                  style={[
+                    styles.startEmptyCardSubtitle,
+                    { color: isPro ? 'rgba(255,255,255,0.85)' : colors.textMuted },
+                  ]}
+                >
+                  {isPro ? 'Add exercises as you go' : 'Upgrade to unlock'}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={22}
+                color={isPro ? 'rgba(255,255,255,0.8)' : colors.textMuted}
+              />
+            </View>
           </Pressable>
         </View>
 
         <View style={styles.templatesSection}>
-          <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>Templates</Text>
+          <View style={styles.templatesSectionRow}>
+            <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>Templates</Text>
+            <Pressable
+              style={[styles.addBtn, { borderColor: colors.border }]}
+              onPress={() => router.push('/create-template')}
+            >
+              <Ionicons name="add" size={18} color={colors.primary} />
+              <Text style={[styles.addBtnText, { color: colors.primary }]}>New template</Text>
+            </Pressable>
+          </View>
 
           {isLoading ? (
             <View style={styles.placeholder}>
@@ -154,8 +616,8 @@ export default function WorkoutsScreen() {
             </View>
           ) : (
             <>
-              {/* Custom section (first) */}
-              <View style={[styles.collapsibleSection, { backgroundColor: colors.surface }]}>
+              {/* Custom section with folders */}
+              <View style={sectionStyle}>
                 <Pressable
                   style={({ pressed }) => [
                     styles.sectionHeader,
@@ -170,27 +632,105 @@ export default function WorkoutsScreen() {
                     color={colors.textSecondary}
                   />
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom</Text>
-                  <View style={[styles.sectionCount, { backgroundColor: colors.border }]}>
-                    <Text style={[styles.sectionCountText, { color: colors.textSecondary }]}>
-                      {custom.length}
+                  <Pressable
+                    hitSlop={8}
+                    style={({ pressed: p2 }) => [
+                      styles.folderAddBtn,
+                      { backgroundColor: colors.surfaceElevated, opacity: p2 ? 0.8 : 1 },
+                    ]}
+                    onPress={() => setShowFolderModal(true)}
+                  >
+                    <Ionicons name="folder-open-outline" size={16} color={colors.primary} />
+                    <Text style={[styles.folderAddBtnText, { color: colors.primary }]}>
+                      New folder
                     </Text>
-                  </View>
+                  </Pressable>
                 </Pressable>
                 {customExpanded && (
                   <View style={styles.sectionContent}>
-                    {custom.length === 0 ? (
-                      <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
-                        No custom templates yet.
-                      </Text>
-                    ) : (
-                      custom.map((template) => renderTemplateCard(template))
+                    {favoriteFolders.map((f) => renderFolderSection(f))}
+                    {normalFolders.map((f) => renderFolderSection(f))}
+                    {uncategorized.length > 0 && (
+                      <View style={nestedSectionStyle}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.sectionHeader,
+                            styles.sectionHeaderLeft,
+                            { opacity: pressed ? 0.85 : 1 },
+                          ]}
+                          onPress={() => toggleFolderExpanded(UNCATEGORIZED)}
+                        >
+                          <Ionicons
+                            name={
+                              isFolderExpanded(UNCATEGORIZED) ? 'chevron-down' : 'chevron-forward'
+                            }
+                            size={20}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                            Uncategorized
+                          </Text>
+                        </Pressable>
+                        {isFolderExpanded(UNCATEGORIZED) && (
+                          <View style={styles.sectionContent}>
+                            {uncategorized.map((template) =>
+                              renderTemplateCard(template, templateCardStyle, true)
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                    {archivedFolders.length > 0 && (
+                      <View style={nestedSectionStyle}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.sectionHeader,
+                            styles.sectionHeaderLeft,
+                            { opacity: pressed ? 0.85 : 1 },
+                          ]}
+                          onPress={() => toggleFolderExpanded(ARCHIVED_SECTION)}
+                        >
+                          <Ionicons
+                            name={
+                              isFolderExpanded(ARCHIVED_SECTION) ? 'chevron-down' : 'chevron-forward'
+                            }
+                            size={20}
+                            color={colors.textMuted}
+                          />
+                          <Ionicons name="archive-outline" size={18} color={colors.textMuted} />
+                          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                            Archived
+                          </Text>
+                        </Pressable>
+                        {isFolderExpanded(ARCHIVED_SECTION) && (
+                          <View style={styles.sectionContent}>
+                            {archivedFolders.map((f) => renderFolderSection(f, true))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                    {custom.length === 0 && (
+                      <View style={styles.emptySectionRow}>
+                        <Text style={[styles.emptySectionText, styles.emptySectionTextInRow, { color: colors.textMuted }]}>
+                          No custom templates yet.
+                        </Text>
+                        <Pressable
+                          onPress={() => router.push('/create-template')}
+                          hitSlop={8}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                        >
+                          <Text style={[styles.emptySectionLink, { color: colors.primary }]}>
+                            Create one
+                          </Text>
+                        </Pressable>
+                      </View>
                     )}
                   </View>
                 )}
               </View>
 
               {/* Built-in section */}
-              <View style={[styles.collapsibleSection, { backgroundColor: colors.surface }]}>
+              <View style={sectionStyle}>
                 <Pressable
                   style={({ pressed }) => [
                     styles.sectionHeader,
@@ -205,20 +745,46 @@ export default function WorkoutsScreen() {
                     color={colors.textSecondary}
                   />
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Built-in</Text>
-                  <View style={[styles.sectionCount, { backgroundColor: colors.border }]}>
-                    <Text style={[styles.sectionCountText, { color: colors.textSecondary }]}>
-                      {builtIn.length}
-                    </Text>
-                  </View>
                 </Pressable>
                 {builtInExpanded && (
                   <View style={styles.sectionContent}>
-                    {builtIn.length === 0 ? (
+                    {BUILT_IN_FOLDERS.map((f) => renderBuiltInFolderSection(f))}
+                    {builtInUncategorized.length > 0 && (
+                      <View style={nestedSectionStyle}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.sectionHeader,
+                            styles.sectionHeaderLeft,
+                            { opacity: pressed ? 0.85 : 1 },
+                          ]}
+                          onPress={() => toggleFolderExpanded(UNCATEGORIZED + '_builtin')}
+                        >
+                          <Ionicons
+                            name={
+                              isFolderExpanded(UNCATEGORIZED + '_builtin')
+                                ? 'chevron-down'
+                                : 'chevron-forward'
+                            }
+                            size={20}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                            Uncategorized
+                          </Text>
+                        </Pressable>
+                        {isFolderExpanded(UNCATEGORIZED + '_builtin') && (
+                          <View style={styles.sectionContent}>
+                            {builtInUncategorized.map((template) =>
+                              renderTemplateCard(template, templateCardStyle)
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                    {builtIn.length === 0 && (
                       <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
                         No built-in templates
                       </Text>
-                    ) : (
-                      builtIn.map((template) => renderTemplateCard(template))
                     )}
                   </View>
                 )}
@@ -227,6 +793,256 @@ export default function WorkoutsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal visible={showFolderModal} animationType="slide" transparent>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowFolderModal(false)}
+        >
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>New folder</Text>
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.background,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Folder name"
+              placeholderTextColor={colors.textMuted}
+              value={newFolderName}
+              onChangeText={setNewFolderName}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+                onPress={() => setShowFolderModal(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                onPress={handleCreateFolder}
+                disabled={!newFolderName.trim()}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Create</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!editingFolder} animationType="slide" transparent>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setEditingFolder(null)}
+        >
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Rename folder</Text>
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.background,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Folder name"
+              placeholderTextColor={colors.textMuted}
+              value={editingFolderName}
+              onChangeText={setEditingFolderName}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+                onPress={() => setEditingFolder(null)}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                onPress={handleSaveFolderRename}
+                disabled={!editingFolderName.trim()}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Folder dropdown overlay: tap outside to close */}
+      {folderDropdownLayout !== null && folderMenuId !== null && (() => {
+        const folder = folders.find((f) => f.id === folderMenuId);
+        if (!folder) return null;
+        return (
+          <Modal visible transparent animationType="none">
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => {
+                  setFolderMenuId(null);
+                  setFolderDropdownLayout(null);
+                }}
+              />
+              <View
+                style={[
+                  styles.folderDropdown,
+                  {
+                    position: 'absolute',
+                    left: folderDropdownLayout!.x,
+                    top: folderDropdownLayout!.y,
+                    width: folderDropdownLayout!.width,
+                    backgroundColor: colors.surfaceElevated,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onStartShouldSetResponder={() => true}
+              >
+                <Pressable
+                  style={[
+                    styles.folderDropdownItem,
+                    styles.folderDropdownItemBorder,
+                    { borderBottomColor: colors.border },
+                  ]}
+                  onPress={() => {
+                    setEditingFolder(folder);
+                    setEditingFolderName(folder.name);
+                    setFolderMenuId(null);
+                    setFolderDropdownLayout(null);
+                  }}
+                >
+                  <Ionicons name="pencil-outline" size={18} color={colors.text} />
+                  <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+                    Rename
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.folderDropdownItem,
+                    styles.folderDropdownItemBorder,
+                    { borderBottomColor: colors.border },
+                  ]}
+                  onPress={() => {
+                    setFolderMenuId(null);
+                    setFolderDropdownLayout(null);
+                    updateFolder(folder.id, { favorite: !folder.favorite });
+                  }}
+                >
+                  <Ionicons
+                    name={folder.favorite ? 'star' : 'star-outline'}
+                    size={18}
+                    color={folder.favorite ? colors.accent : colors.text}
+                  />
+                  <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+                    {folder.favorite ? 'Unpin from top' : 'Pin to top'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.folderDropdownItem,
+                    styles.folderDropdownItemBorder,
+                    { borderBottomColor: colors.border },
+                  ]}
+                  onPress={() => {
+                    setFolderMenuId(null);
+                    setFolderDropdownLayout(null);
+                    updateFolder(folder.id, { archived: !folder.archived });
+                  }}
+                >
+                  <Ionicons
+                    name={folder.archived ? 'arrow-undo-outline' : 'archive-outline'}
+                    size={18}
+                    color={colors.text}
+                  />
+                  <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+                    {folder.archived ? 'Unarchive' : 'Archive'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.folderDropdownItem}
+                  onPress={() => {
+                    setFolderMenuId(null);
+                    setFolderDropdownLayout(null);
+                    handleDeleteFolder(folder);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  <Text style={[styles.folderDropdownItemText, { color: colors.danger }]}>
+                    Delete
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
+
+      <Modal visible={!!moveTemplateModal} animationType="slide" transparent>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMoveTemplateModal(null)}
+        >
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Move "{moveTemplateModal ? getTemplateDisplayName(moveTemplateModal) : ''}" to
+            </Text>
+            <ScrollView style={styles.moveFolderList} nestedScrollEnabled>
+              <Pressable
+                style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
+                onPress={() =>
+                  moveTemplateModal && handleMoveTemplate(moveTemplateModal, undefined)
+                }
+              >
+                <Ionicons name="folder-open-outline" size={20} color={colors.textMuted} />
+                <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
+                  Uncategorized
+                </Text>
+              </Pressable>
+              {folders
+                .filter((f) => f.id !== moveTemplateModal?.folderId)
+                .map((folder) => (
+                  <Pressable
+                    key={folder.id}
+                    style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
+                    onPress={() =>
+                      moveTemplateModal && handleMoveTemplate(moveTemplateModal, folder.id)
+                    }
+                  >
+                    <Ionicons name="folder-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
+                      {folder.name}
+                    </Text>
+                  </Pressable>
+                ))}
+            </ScrollView>
+            <Pressable
+              style={[styles.modalBtn, { borderColor: colors.border, alignSelf: 'flex-end', marginTop: 12 }]}
+              onPress={() => setMoveTemplateModal(null)}
+            >
+              <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -234,23 +1050,67 @@ export default function WorkoutsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 40 },
-  header: { marginBottom: 20 },
+  header: { marginBottom: 12 },
   title: { fontSize: 28, fontWeight: '700' },
   subtitle: { fontSize: 15, marginTop: 4 },
-  startEmptyBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+  startEmptyCard: {
     marginTop: 12,
-    alignSelf: 'flex-start',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    overflow: 'hidden',
   },
-  startEmptyBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  templatesSection: { marginTop: 24 },
-  templatesSectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  startEmptyCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 14,
+  },
+  startEmptyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startEmptyTextWrap: { flex: 1 },
+  startEmptyCardTitle: { fontSize: 17, fontWeight: '700' },
+  startEmptyCardSubtitle: { fontSize: 13, marginTop: 2 },
+  templatesSection: { marginTop: 16 },
+  templatesSectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 12,
+  },
+  templatesSectionTitle: { fontSize: 20, fontWeight: '700' },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  addBtnText: { fontSize: 14, fontWeight: '600' },
+  folderAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  folderAddBtnText: { fontSize: 13, fontWeight: '600' },
   collapsibleSection: {
     borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
+  },
+  nestedSection: {
+    marginBottom: 8,
+    marginTop: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -258,23 +1118,51 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
+  folderSectionHeaderWrap: {
+    position: 'relative',
+  },
+  folderDropdown: {
+    position: 'absolute',
+    top: '100%',
+    right: 12,
+    minWidth: 140,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+    zIndex: 10,
+    elevation: 5,
+  },
+  folderDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  folderDropdownItemBorder: {
+    borderBottomWidth: 1,
+  },
+  folderDropdownItemText: { fontSize: 15 },
   sectionHeaderLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
+  folderStar: { marginRight: 2 },
   sectionTitle: { fontSize: 17, fontWeight: '600', flex: 1 },
-  sectionCount: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    minWidth: 28,
-    alignItems: 'center',
-  },
-  sectionCountText: { fontSize: 13, fontWeight: '600' },
   sectionContent: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0, gap: 10 },
+  emptySectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
   emptySectionText: { fontSize: 14, paddingVertical: 12, paddingHorizontal: 4 },
+  emptySectionTextInRow: { paddingVertical: 0, paddingHorizontal: 0 },
+  emptySectionLink: { fontSize: 14, fontWeight: '600' },
   placeholder: { paddingVertical: 24, alignItems: 'center' },
   placeholderText: { fontSize: 15 },
   templateCard: {
@@ -283,16 +1171,67 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 4,
   },
+  templateCardPressed: { opacity: 0.85 },
+  templateCardHeader: { marginBottom: 0 },
+  templateCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  templateActionBtn: { padding: 4 },
+  templateMoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  templateMoveLabel: { fontSize: 13, fontWeight: '600' },
+  lastDoneText: { fontSize: 12, marginTop: 4 },
   templateName: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
   templateNameNoDesc: { marginBottom: 10 },
   templateDesc: { fontSize: 14, marginBottom: 10 },
-  daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dayChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    minWidth: 100,
+  exerciseCount: { fontSize: 12, marginTop: 6 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 24,
   },
-  dayChipText: { fontSize: 15, fontWeight: '600' },
-  dayChipMeta: { fontSize: 12, marginTop: 2 },
+  modalContent: {
+    borderRadius: 20,
+    padding: 24,
+  },
+  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  modalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  modalBtnPrimary: { borderWidth: 0 },
+  modalBtnText: { fontSize: 16, fontWeight: '600' },
+  moveFolderList: { maxHeight: 300, marginBottom: 8 },
+  moveFolderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+  },
+  moveFolderRowText: { fontSize: 16 },
 });

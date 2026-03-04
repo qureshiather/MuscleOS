@@ -151,7 +151,7 @@ export default function HistoryScreen() {
                     </Pressable>
                   </View>
                   <Text style={[styles.cardTitle, { color: colors.text }]}>
-                    {s.dayName} · {getTemplateName(s.templateId)}
+                    {getTemplateName(s.templateId)}
                   </Text>
                   {hasStats && (
                     <View style={styles.statsRow}>

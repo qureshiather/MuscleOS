@@ -16,7 +16,7 @@ const DEFAULT_SETS_PER_EXERCISE = 3;
 
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
-  startWorkout: (templateId: string, dayId: string, dayName: string, exerciseIds: string[], defaultSets?: number) => void;
+  startWorkout: (templateId: string, exerciseIds: string[], defaultSets?: number) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
@@ -27,15 +27,13 @@ export interface ActiveWorkoutState {
   moveExerciseUp: (exerciseIndex: number) => void;
   moveExerciseDown: (exerciseIndex: number) => void;
   /** Switch session to a new custom template and add an exercise (used when adding to built-in). */
-  replaceTemplateAndAddExercise: (newTemplateId: string, newDayId: string, newDayName: string, exerciseId: string) => void;
+  replaceTemplateAndAddExercise: (newTemplateId: string, exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
   discardWorkout: () => void;
 }
 
 function createEmptySession(
   templateId: string,
-  dayId: string,
-  dayName: string,
   exerciseIds: string[],
   defaultSets?: number
 ): WorkoutSession {
@@ -44,8 +42,6 @@ function createEmptySession(
   return {
     id: 'session_' + Date.now(),
     templateId,
-    dayId,
-    dayName,
     startedAt: new Date().toISOString(),
     exercises: exerciseIds.map((exerciseId) => ({
       exerciseId,
@@ -57,10 +53,10 @@ function createEmptySession(
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
 
-  startWorkout: (templateId, dayId, dayName, exerciseIds, defaultSets) => {
+  startWorkout: (templateId, exerciseIds, defaultSets) => {
     if (get().session) return; // Only one workout at a time
     set({
-      session: createEmptySession(templateId, dayId, dayName, exerciseIds, defaultSets),
+      session: createEmptySession(templateId, exerciseIds, defaultSets),
     });
   },
 
@@ -165,7 +161,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     set({ session: { ...session, exercises } });
   },
 
-  replaceTemplateAndAddExercise: (newTemplateId, newDayId, newDayName, exerciseId) => {
+  replaceTemplateAndAddExercise: (newTemplateId, exerciseId) => {
     const { session } = get();
     if (!session) return;
     const newEx: SessionExercise = {
@@ -176,8 +172,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       session: {
         ...session,
         templateId: newTemplateId,
-        dayId: newDayId,
-        dayName: newDayName,
         exercises: [...session.exercises, newEx],
       },
     });

@@ -17,8 +17,6 @@ export interface SessionExercise {
 export interface WorkoutSession {
   id: string;
   templateId: string;
-  dayId: string;
-  dayName: string;
   startedAt: string; // ISO
   completedAt?: string; // ISO, undefined if in progress
   exercises: SessionExercise[];

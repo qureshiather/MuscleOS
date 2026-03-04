@@ -37,8 +37,6 @@ export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     templateId?: string;
-    dayId?: string;
-    dayName?: string;
     exerciseIds?: string;
     defaultSets?: string;
   }>();
@@ -91,18 +89,17 @@ export default function ActiveWorkoutScreen() {
   }, [exerciseMenuExIdx]);
 
   useEffect(() => {
-    if (params.templateId && params.dayId && params.dayName && !session) {
+    if (params.templateId && !session) {
       const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
       const defaultSets =
         params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
       const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
-      startWorkout(params.templateId, params.dayId, params.dayName, ids, sets);
+      startWorkout(params.templateId, ids, sets);
     }
-  }, [params.templateId, params.dayId, params.dayName, params.exerciseIds, params.defaultSets, session, startWorkout]);
+  }, [params.templateId, params.exerciseIds, params.defaultSets, session, startWorkout]);
 
   // Redirect to tabs when no session and no params to start one. We're already on active-workout screen. Use delay so Android navigator is mounted (avoids "Attempted to navigate before mounting" and black screen).
-  const shouldRedirectToTabs =
-    !session && !(params.templateId && params.dayId && params.dayName);
+  const shouldRedirectToTabs = !session && !params.templateId;
   useEffect(() => {
     if (!shouldRedirectToTabs) return;
     const id = setTimeout(() => {
@@ -203,12 +200,9 @@ export default function ActiveWorkoutScreen() {
     if (updateCustomTemplate && session) {
       const template = allTemplates().find((t) => t.id === session.templateId);
       if (template && !template.isBuiltIn) {
-        const newDays = template.days.map((d) =>
-          d.id === session!.dayId
-            ? { ...d, exerciseIds: session!.exercises.map((e) => e.exerciseId) }
-            : d
-        );
-        await updateTemplate(session.templateId, { days: newDays });
+        await updateTemplate(session.templateId, {
+          exerciseIds: session.exercises.map((e) => e.exerciseId),
+        });
       }
     }
     await finishWorkout();
@@ -878,8 +872,8 @@ export default function ActiveWorkoutScreen() {
             onStartShouldSetResponder={() => true}
           >
             <Text style={[styles.summaryTitle, { color: colors.text }]}>Workout summary</Text>
-            {session?.dayName && (
-              <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{session.dayName}</Text>
+            {currentTemplate?.name && (
+              <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{currentTemplate.name}</Text>
             )}
             <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
               <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Duration</Text>
@@ -970,29 +964,17 @@ export default function ActiveWorkoutScreen() {
                           {
                             text: 'Continue',
                             onPress: () => {
-                              const newDayId = 'day_' + Date.now();
                               const newTemplate = {
                                 id: 'tpl_' + Date.now(),
-                                name: (template?.name ?? session.dayName) + ' (Copy)',
-                                days: [
-                                  {
-                                    id: newDayId,
-                                    name: session.dayName,
-                                    exerciseIds: [
-                                      ...session.exercises.map((e) => e.exerciseId),
-                                      item.id,
-                                    ],
-                                  },
+                                name: (template?.name ?? 'Workout') + ' (Copy)',
+                                exerciseIds: [
+                                  ...session.exercises.map((e) => e.exerciseId),
+                                  item.id,
                                 ],
                                 isBuiltIn: false as const,
                               };
                               addTemplate(newTemplate);
-                              replaceTemplateAndAddExercise(
-                                newTemplate.id,
-                                newTemplate.days[0].id,
-                                newTemplate.days[0].name,
-                                item.id
-                              );
+                              replaceTemplateAndAddExercise(newTemplate.id, item.id);
                               setShowAddExerciseModal(false);
                               setAddExerciseSearch('');
                             },
