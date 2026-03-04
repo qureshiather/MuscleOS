@@ -82,6 +82,8 @@ export default function ActiveWorkoutScreen() {
   const dropdownMeasureRef = useRef<View>(null);
   const [editSetsExIdx, setEditSetsExIdx] = useState<number | null>(null);
   const [setsToDelete, setSetsToDelete] = useState<Set<number>>(new Set());
+  const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
+  const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
 
   // Clear dropdown layout when menu closes so we re-measure next open
   useEffect(() => {
@@ -116,10 +118,12 @@ export default function ActiveWorkoutScreen() {
       if (!current) return;
       current.exercises.forEach((se, exIdx) => {
         const p = prev[se.exerciseId];
-        const firstSet = se.sets[0];
-        if (p && firstSet && firstSet.weightKg == null && firstSet.reps == null) {
-          setSetRecord(exIdx, 0, { weightKg: p.weightKg, reps: p.reps });
-        }
+        if (!p) return;
+        se.sets.forEach((set, setIdx) => {
+          if (set.weightKg == null && set.reps == null) {
+            setSetRecord(exIdx, setIdx, { weightKg: p.weightKg, reps: p.reps });
+          }
+        });
       });
     });
   }, [session?.id]);
@@ -197,6 +201,7 @@ export default function ActiveWorkoutScreen() {
 
   async function handleFinish(updateCustomTemplate?: boolean) {
     setShowFinishSummary(false);
+    setShowSaveAsTemplateModal(false);
     if (updateCustomTemplate && session) {
       const template = allTemplates().find((t) => t.id === session.templateId);
       if (template && !template.isBuiltIn) {
@@ -209,23 +214,30 @@ export default function ActiveWorkoutScreen() {
     router.replace('/(tabs)');
   }
 
-  function handleSaveWorkoutPress() {
+  function handleDiscardOnly() {
+    setShowFinishSummary(false);
+    setShowSaveAsTemplateModal(false);
+    discardWorkout();
+    router.replace('/(tabs)');
+  }
+
+  async function handleSaveAsTemplate() {
     if (!session) return;
-    const template = allTemplates().find((t) => t.id === session.templateId);
-    const isCustomTemplate = template && !template.isBuiltIn && session.templateId !== '_empty';
-    if (isCustomTemplate) {
-      Alert.alert(
-        'Save workout',
-        `Update template "${template!.name}" to match these exercises, or just save this workout?`,
-        [
-          { text: 'Just save workout', onPress: () => handleFinish(false) },
-          { text: 'Update template', onPress: () => handleFinish(true) },
-          { text: 'Cancel', style: 'cancel', onPress: () => {} },
-        ]
-      );
-    } else {
-      handleFinish(false);
-    }
+    const name = saveAsTemplateName.trim() || 'Workout';
+    await addTemplate({
+      id: 'tpl_' + Date.now(),
+      name,
+      exerciseIds: session.exercises.map((e) => e.exerciseId),
+      isBuiltIn: false,
+    });
+    setSaveAsTemplateName('');
+    await handleFinish(false);
+  }
+
+  function openSaveAsTemplateModal() {
+    const dateLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    setSaveAsTemplateName(`Workout ${dateLabel}`);
+    setShowSaveAsTemplateModal(true);
   }
 
   function handleCancel() {
@@ -248,6 +260,14 @@ export default function ActiveWorkoutScreen() {
 
   const currentTemplate = allTemplates().find((t) => t.id === session.templateId);
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
+  const isNoTemplateWorkout = session.templateId === '_empty';
+  const templateExerciseIds = currentTemplate?.exerciseIds ?? [];
+  const sessionExerciseIds = session.exercises.map((e) => e.exerciseId);
+  const hasAddedExercises =
+    currentTemplate &&
+    !currentTemplate.isBuiltIn &&
+    (sessionExerciseIds.length !== templateExerciseIds.length ||
+      sessionExerciseIds.some((id, i) => templateExerciseIds[i] !== id));
 
   const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
   const completedSetsByExercise = session.exercises.map((se) => ({
@@ -904,14 +924,90 @@ export default function ActiveWorkoutScreen() {
                 ))}
             </View>
             <View style={styles.summaryActions}>
-              <Pressable
-                style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSaveWorkoutPress}
-              >
-                <Text style={styles.summarySaveBtnText}>Save workout</Text>
-              </Pressable>
+              {isNoTemplateWorkout ? (
+                <>
+                  <Pressable
+                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                    onPress={openSaveAsTemplateModal}
+                  >
+                    <Text style={styles.summarySaveBtnText}>Save as template</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
+                    onPress={() => handleFinish(false)}
+                  >
+                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save workout only</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleDiscardOnly}
+                    style={[styles.summaryCancelBtn, { marginTop: 4 }]}
+                  >
+                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Do nothing</Text>
+                  </Pressable>
+                </>
+              ) : hasAddedExercises ? (
+                <>
+                  <Pressable
+                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => handleFinish(true)}
+                  >
+                    <Text style={styles.summarySaveBtnText}>Update template</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
+                    onPress={() => handleFinish(false)}
+                  >
+                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save workout only</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => handleFinish(false)}
+                  >
+                    <Text style={styles.summarySaveBtnText}>Save workout</Text>
+                  </Pressable>
+                </>
+              )}
               <Pressable onPress={() => setShowFinishSummary(false)} style={styles.summaryCancelBtn}>
                 <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showSaveAsTemplateModal} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSaveAsTemplateModal(false)}>
+          <View
+            style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.summaryTitle, { color: colors.text }]}>Save as template</Text>
+            <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>
+              Name this workout to use it again later.
+            </Text>
+            <TextInput
+              style={[
+                styles.saveAsTemplateInput,
+                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="Template name"
+              placeholderTextColor={colors.textMuted}
+              value={saveAsTemplateName}
+              onChangeText={setSaveAsTemplateName}
+              autoFocus
+            />
+            <View style={styles.summaryActions}>
+              <Pressable
+                style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                onPress={() => handleSaveAsTemplate()}
+              >
+                <Text style={styles.summarySaveBtnText}>Save</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowSaveAsTemplateModal(false)} style={styles.summaryCancelBtn}>
+                <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Cancel</Text>
               </Pressable>
             </View>
           </View>
@@ -1385,8 +1481,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summarySaveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  summarySecondaryBtn: { backgroundColor: 'transparent', borderWidth: 2 },
+  summarySecondaryBtnText: { fontSize: 17, fontWeight: '600' },
   summaryCancelBtn: { paddingVertical: 12, alignItems: 'center' },
   summaryCancelText: { fontSize: 16 },
+  saveAsTemplateCard: { minWidth: 280 },
+  saveAsTemplateInput: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 16,
+    marginBottom: 20,
+  },
   cancelWorkoutBtn: {
     paddingVertical: 14,
     marginTop: 6,
