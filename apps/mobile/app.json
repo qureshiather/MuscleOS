@@ -3,9 +3,16 @@
     "name": "MuscleOS",
     "slug": "muscleos",
     "version": "1.0.0",
-    "platforms": ["ios", "android"],
-    "ios": { "bundleIdentifier": "com.muscleos.app" },
-    "android": { "package": "com.muscleos.app" },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.muscleos.app"
+    },
+    "android": {
+      "package": "com.muscleos.app"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "muscleos",
@@ -16,9 +23,21 @@
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0b"
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "revenueCatApiKey": "",
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
+      "router": {},
+      "eas": {
+        "projectId": "ae7d06c7-76ab-4e99-a4f8-44904ef91478"
+      }
     }
   }
 }

@@ -8,7 +8,8 @@
     "build": "expo export",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "clean": "rm -rf .expo node_modules"
+    "clean": "rm -rf .expo node_modules",
+    "eas-build-post-install": "cd ../.. && pnpm run build --filter @muscleos/types"
   },
   "dependencies": {
     "@expo/metro-runtime": "^6.1.2",
@@ -42,6 +43,7 @@
     "@babel/core": "^7.26.0",
     "@babel/runtime": "^7.26.0",
     "@types/react": "~19.1.17",
+    "babel-preset-expo": "~54.0.0",
     "expo-mcp": "^0.2.4",
     "typescript": "~5.9.3"
   }
