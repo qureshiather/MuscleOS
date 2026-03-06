@@ -132,14 +132,16 @@ export async function getRecovery(): Promise<MuscleRecovery[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.recovery);
   if (!raw) return [];
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as Array<{ muscleId: MuscleRecovery['muscleId']; trainedAt: string }>;
+    return parsed.map(({ muscleId, trainedAt }) => ({ muscleId, trainedAt }));
   } catch {
     return [];
   }
 }
 
 export async function setRecovery(recovery: MuscleRecovery[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.recovery, JSON.stringify(recovery));
+  const normalized = recovery.map(({ muscleId, trainedAt }) => ({ muscleId, trainedAt }));
+  await AsyncStorage.setItem(STORAGE_KEYS.recovery, JSON.stringify(normalized));
 }
 
 export interface HealthData {

@@ -5,7 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { MUSCLE_GROUPS } from '@muscleos/types';
+import { MUSCLE_GROUPS, getRecoveryUntil } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 
@@ -74,7 +74,7 @@ export default function RecoveryScreen() {
                 <Text style={[styles.legendText, { color: colors.textSecondary }]}>Just trained</Text>
               </View>
               <View style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: '#ea580c' }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.muscleRecovering }]} />
                 <Text style={[styles.legendText, { color: colors.textSecondary }]}>In recovery</Text>
               </View>
               <View style={styles.legendRow}>
@@ -91,7 +91,7 @@ export default function RecoveryScreen() {
                   {MUSCLE_GROUPS[r.muscleId].name}
                 </Text>
                 <Text style={[styles.recoveryUntil, { color: colors.textMuted }]}>
-                  Until {new Date(r.recoveryUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  Until {new Date(getRecoveryUntil(r)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
             ))}

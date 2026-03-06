@@ -20,7 +20,7 @@ const darkColors = {
   danger: '#ef4444',
   warning: '#f59e0b',
   muscleHighlight: '#22c55e',
-  muscleRecovering: '#f59e0b',
+  muscleRecovering: '#eab308',
 } as const;
 
 const lightColors = {
@@ -37,7 +37,7 @@ const lightColors = {
   danger: '#dc2626',
   warning: '#d97706',
   muscleHighlight: '#ea580c',
-  muscleRecovering: '#d97706',
+  muscleRecovering: '#ca8a04',
 } as const;
 
 export const colors = darkColors;

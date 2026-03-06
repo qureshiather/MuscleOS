@@ -8,7 +8,7 @@ import {
   type ExercisePrevious,
 } from '@/storage/localStorage';
 import { getRecovery, setRecovery } from '@/storage/localStorage';
-import { DEFAULT_RECOVERY_HOURS } from '@muscleos/types';
+import { getRecoveryHoursForMuscle, getRecoveryUntil } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { useExercisesStore } from '@/store/exercisesStore';
 
@@ -211,14 +211,13 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       if (ex) ex.muscles.forEach((m) => muscleIds.add(m));
     }
     const now = new Date();
-    const recoveryUntil = new Date(now.getTime() + DEFAULT_RECOVERY_HOURS * 60 * 60 * 1000);
     const recoveryList = await getRecovery();
     const newRecovery = Array.from(muscleIds).map((muscleId) => ({
       muscleId,
       trainedAt: session.startedAt,
-      recoveryUntil: recoveryUntil.toISOString(),
     }));
-    const merged = [...recoveryList.filter((r) => r.recoveryUntil > now.toISOString()), ...newRecovery];
+    const nowIso = now.toISOString();
+    const merged = [...recoveryList.filter((r) => getRecoveryUntil(r) > nowIso), ...newRecovery];
     await setRecovery(merged);
 
     set({ session: null });

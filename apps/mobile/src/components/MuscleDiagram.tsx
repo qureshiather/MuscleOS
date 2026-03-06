@@ -33,6 +33,7 @@ const ALL_SLUGS = new Set<Slug>(Object.values(MUSCLE_ID_TO_SLUG));
 export type DiagramVariant = 'male' | 'female';
 
 const HIGHLIGHT_RED = ['#dc2626', '#b91c1c'];
+const HIGHLIGHT_YELLOW = ['#eab308', '#ca8a04'];
 const HIGHLIGHT_ORANGE = ['#ea580c', '#c2410c'];
 const HIGHLIGHT_GREEN = ['#22c55e', '#16a34a'];
 const BODY_BORDER = '#4b5563';
@@ -43,11 +44,11 @@ export function MuscleDiagram({
   showLabels = false,
   size = 1,
   variant,
-  /** Green when "all ready" (e.g. recovery); orange when targeted/recovering */
+  /** Green when "all ready" (e.g. recovery); yellow when targeted/recovering */
   highlightColor,
-  /** When set, show these in orange (recovering) and all other muscles in green (ready to train). */
+  /** When set, show these in yellow (recovering) and all other muscles in green (ready to train). */
   recoveringMuscleIds,
-  /** When set with recoveringMuscleIds, these show as RED (just trained); rest of recovering show orange. */
+  /** When set with recoveringMuscleIds, these show as RED (just trained); rest of recovering show yellow. */
   justTrainedMuscleIds,
 }: {
   muscleIds?: MuscleId[];
@@ -98,8 +99,8 @@ export function MuscleDiagram({
   const useGreen = highlightColor === 'green';
   const colorPalette = isRecoveryMode
     ? useThreeStates
-      ? [HIGHLIGHT_RED[0], HIGHLIGHT_ORANGE[0], HIGHLIGHT_GREEN[0]]
-      : [HIGHLIGHT_ORANGE[0], HIGHLIGHT_GREEN[0]]
+      ? [HIGHLIGHT_RED[0], HIGHLIGHT_YELLOW[0], HIGHLIGHT_GREEN[0]]
+      : [HIGHLIGHT_YELLOW[0], HIGHLIGHT_GREEN[0]]
     : useGreen
       ? HIGHLIGHT_GREEN
       : HIGHLIGHT_ORANGE;
