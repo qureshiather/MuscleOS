@@ -44,10 +44,17 @@ export default function RootLayout() {
   const loadCustomExercises = useExercisesStore((s) => s.load);
   useEffect(() => {
     (async () => {
-      const userId = await initAuth();
-      await loadSubscription(userId);
-      loadSettings();
-      loadCustomExercises();
+      try {
+        const userId = await initAuth();
+        await loadSubscription(userId);
+        loadSettings();
+        loadCustomExercises();
+      } catch (e) {
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.warn('App init error:', e);
+        }
+      }
     })();
   }, [initAuth, loadSubscription, loadSettings, loadCustomExercises]);
 

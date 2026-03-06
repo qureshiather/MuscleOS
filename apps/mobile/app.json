@@ -17,7 +17,7 @@
     "icon": "./assets/icon.png",
     "scheme": "muscleos",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
