@@ -18,7 +18,6 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { PlateCalculator } from '@/components/PlateCalculator';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { Ionicons } from '@expo/vector-icons';
@@ -585,10 +584,6 @@ export default function ActiveWorkoutScreen() {
                   </View>
                 );
               })}
-
-              {isBarbell && editingWeightExIdx === exIdx && (
-                <PlateCalculator totalKg={currentWeightKg || 20} unit={weightUnit} />
-              )}
 
               <Pressable
                 style={[styles.addSetBtn, { borderColor: colors.border }]}
