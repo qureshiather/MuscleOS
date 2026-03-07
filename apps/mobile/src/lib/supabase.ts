@@ -13,14 +13,22 @@ const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+const hasConfig = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
+
+// Only create a real client when configured; otherwise use placeholders so
+// createClient() doesn't throw and the app can start (auth is guarded by isSupabaseConfigured()).
+export const supabase = createClient(
+  hasConfig ? supabaseUrl : 'https://placeholder.supabase.co',
+  hasConfig ? supabaseAnonKey : 'placeholder-anon-key',
+  {
+    auth: {
+      ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
+);
 
 export function isSupabaseConfigured(): boolean {
   return supabaseUrl.length > 0 && supabaseAnonKey.length > 0;

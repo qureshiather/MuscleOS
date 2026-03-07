@@ -1,4 +1,10 @@
-/** Expo config. Use EXPO_PUBLIC_* vars (e.g. in .env) for RevenueCat and Supabase. */
+/**
+ * Expo config. Loads .env from apps/mobile so EXPO_PUBLIC_* vars are available
+ * in extra (and thus in the app via Constants.expoConfig.extra).
+ */
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 module.exports = ({ config }) => ({
   ...config,
   extra: {
