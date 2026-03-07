@@ -15,12 +15,14 @@ Your local `.env` is **not** uploaded (it’s gitignored). For the built app to 
    - `EXPO_PUBLIC_SUPABASE_URL`
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY`  
    For RevenueCat on preview use your **Android** API key (see section below), not the Test Store key.
+   - To show **Grant Pro (testing)** on the Subscription screen in preview builds, add `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING` = `true` (plain text). Remove this before going live.
 
 2. **Or CLI**
    ```bash
    cd apps/mobile
    eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "YOUR_SUPABASE_URL" --visibility plain-text
    eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_ANON_KEY" --visibility secret
+   eas env:create --environment preview --name EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING --value "true" --visibility plain-text
    ```
 
 3. **Or pull from EAS into local** (for reference; your existing `.env` is fine for local dev):

@@ -8,6 +8,9 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { isRevenueCatConfigured } from '@/utils/revenueCat';
 
 const __DEV__ = process.env.NODE_ENV !== 'production';
+// Show "Grant Pro (testing)" in dev and in preview builds. Set EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true in EAS preview env. Remove before go-live.
+const showGrantProTesting =
+  __DEV__ || process.env.EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING === 'true';
 
 export default function SubscriptionScreen() {
   const { colors } = useTheme();
@@ -86,9 +89,9 @@ export default function SubscriptionScreen() {
               <Text style={styles.primaryBtnText}>Link account</Text>
             </Pressable>
           </View>
-          {__DEV__ && (
+          {showGrantProTesting && (
             <View style={[styles.devSection, { borderColor: colors.border }]}>
-              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing (dev only)</Text>
+              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing</Text>
               <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={handleGrantProTesting}>
                 <Text style={[styles.devBtnText, { color: colors.primary }]}>Grant Pro (testing)</Text>
               </Pressable>
@@ -148,16 +151,16 @@ export default function SubscriptionScreen() {
               )}
             </Pressable>
           )}
-          {__DEV__ && (
+          {showGrantProTesting && (
             <View style={[styles.devSection, { borderColor: colors.border }]}>
-              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing (dev only)</Text>
+              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing</Text>
               {!pro ? (
                 <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={handleGrantProTesting}>
                   <Text style={[styles.devBtnText, { color: colors.primary }]}>Grant Pro (testing)</Text>
                 </Pressable>
               ) : (
                 <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={() => setFree()}>
-                  <Text style={[styles.devBtnText, { color: colors.textMuted }]}>Reset to Free (dev)</Text>
+                  <Text style={[styles.devBtnText, { color: colors.textMuted }]}>Reset to Free (testing)</Text>
                 </Pressable>
               )}
             </View>
