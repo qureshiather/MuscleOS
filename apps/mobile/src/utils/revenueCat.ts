@@ -26,7 +26,13 @@ export function configureRevenueCat(appUserId?: string | null): void {
   const apiKey = getApiKey();
   if (!apiKey) return;
   try {
-    Purchases.configure({ apiKey, appUserID: appUserId ?? undefined });
+    Purchases.configure({
+      apiKey,
+      appUserID: appUserId ?? undefined,
+      // Disable so preview/test builds with a test API key don't show the
+      // "prepare for release, use a production key" in-app message.
+      shouldShowInAppMessagesAutomatically: false,
+    });
     configured = true;
   } catch {
     // Expo Go or missing native module

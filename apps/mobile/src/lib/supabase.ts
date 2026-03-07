@@ -4,13 +4,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
+// Prefer extra (from app.config.js at build time), then process.env (inlined by Metro when bundling).
+// Both are set when .env is loaded in app.config.js and metro.config.js.
+const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
 const supabaseUrl =
-  (Constants.expoConfig?.extra as Record<string, string> | undefined)?.supabaseUrl ??
-  process.env.EXPO_PUBLIC_SUPABASE_URL ??
+  (extra?.supabaseUrl && extra.supabaseUrl.trim()) ||
+  (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').trim() ||
   '';
 const supabaseAnonKey =
-  (Constants.expoConfig?.extra as Record<string, string> | undefined)?.supabaseAnonKey ??
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  (extra?.supabaseAnonKey && extra.supabaseAnonKey.trim()) ||
+  (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '').trim() ||
   '';
 
 const hasConfig = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
