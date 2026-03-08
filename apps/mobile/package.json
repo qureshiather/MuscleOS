@@ -25,6 +25,7 @@
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
     "expo-linking": "~8.0.11",
+    "expo-notifications": "~0.30.7",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
@@ -42,11 +43,11 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5",
     "@babel/core": "^7.26.0",
     "@babel/runtime": "^7.26.0",
     "@types/react": "~19.1.17",
     "babel-preset-expo": "~54.0.0",
+    "dotenv": "^16.4.5",
     "expo-mcp": "^0.2.4",
     "typescript": "~5.9.3"
   }

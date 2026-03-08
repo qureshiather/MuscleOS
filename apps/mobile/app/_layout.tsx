@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
+import Constants from 'expo-constants';
 import { LinkPreviewContextProvider } from 'expo-router/build/link/preview/LinkPreviewContext';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,6 +10,14 @@ import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
+
+// expo-notifications is not supported in Expo Go (SDK 53+). Load only in dev builds / production.
+const WorkoutNotificationHandler = lazy(() =>
+  import('@/components/WorkoutNotificationHandler')
+);
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
 function ThemedStack() {
   const { colors, isDark } = useTheme();
   return (
@@ -61,6 +70,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
+        {!isExpoGo && (
+          <Suspense fallback={null}>
+            <WorkoutNotificationHandler />
+          </Suspense>
+        )}
         <ThemedStack />
       </ThemeProvider>
     </SafeAreaProvider>
