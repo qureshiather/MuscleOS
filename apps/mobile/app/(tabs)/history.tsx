@@ -101,17 +101,30 @@ export default function HistoryScreen() {
               Previous workouts you've completed
             </Text>
           </View>
-          <Pressable
-            onPress={() => router.push('/history-monthly')}
-            style={({ pressed }) => [
-              styles.calendarButton,
-              { backgroundColor: colors.surface },
-              pressed && styles.calendarButtonPressed,
-            ]}
-            hitSlop={8}
-          >
-            <Ionicons name="calendar-outline" size={24} color={colors.primary} />
-          </Pressable>
+          <View style={styles.headerButtons}>
+            <Pressable
+              onPress={() => router.push('/personal-records')}
+              style={({ pressed }) => [
+                styles.calendarButton,
+                { backgroundColor: colors.surface },
+                pressed && styles.calendarButtonPressed,
+              ]}
+              hitSlop={8}
+            >
+              <Ionicons name="trophy-outline" size={24} color={colors.primary} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/history-monthly')}
+              style={({ pressed }) => [
+                styles.calendarButton,
+                { backgroundColor: colors.surface },
+                pressed && styles.calendarButtonPressed,
+              ]}
+              hitSlop={8}
+            >
+              <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+            </Pressable>
+          </View>
         </View>
       </View>
       {completed.length === 0 ? (
@@ -229,6 +242,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   calendarButton: {
     width: 44,
