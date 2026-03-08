@@ -6,11 +6,13 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { isRevenueCatConfigured } from '@/utils/revenueCat';
+import Constants from 'expo-constants';
 
 const __DEV__ = process.env.NODE_ENV !== 'production';
 // Show "Grant Pro (testing)" in dev and in preview builds. Set EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true in EAS preview env. Remove before go-live.
-const showGrantProTesting =
-  __DEV__ || process.env.EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING === 'true';
+// Read from extra (set in app.config.js) so we never touch process.env in the app — avoids crashes in production when process.env is not inlined.
+const extra = Constants.expoConfig?.extra as { enableGrantProTesting?: boolean } | undefined;
+const showGrantProTesting = __DEV__ || extra?.enableGrantProTesting === true;
 
 export default function SubscriptionScreen() {
   const { colors } = useTheme();

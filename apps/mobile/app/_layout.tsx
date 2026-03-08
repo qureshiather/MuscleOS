@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
@@ -17,6 +17,9 @@ const WorkoutNotificationHandler = lazy(() =>
 );
 
 const isExpoGo = Constants.appOwnership === 'expo';
+
+// Defer mounting so native module registry is ready (avoids Android crash: "Cannot create event emitter for module not in registry").
+const NOTIFICATION_HANDLER_DELAY_MS = 800;
 
 function ThemedStack() {
   const { colors, isDark } = useTheme();
@@ -47,10 +50,12 @@ function ThemedStack() {
 }
 
 export default function RootLayout() {
+  const [mountNotifications, setMountNotifications] = useState(false);
   const initAuth = useAuthStore((s) => s.init);
   const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
   const loadCustomExercises = useExercisesStore((s) => s.load);
+
   useEffect(() => {
     (async () => {
       try {
@@ -67,10 +72,16 @@ export default function RootLayout() {
     })();
   }, [initAuth, loadSubscription, loadSettings, loadCustomExercises]);
 
+  useEffect(() => {
+    if (isExpoGo) return;
+    const t = setTimeout(() => setMountNotifications(true), NOTIFICATION_HANDLER_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        {!isExpoGo && (
+        {!isExpoGo && mountNotifications && (
           <Suspense fallback={null}>
             <WorkoutNotificationHandler />
           </Suspense>
