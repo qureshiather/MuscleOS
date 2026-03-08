@@ -132,9 +132,15 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
     if (!ex) return;
+    const lastSet = ex.sets[ex.sets.length - 1];
+    const newSet = {
+      completed: false,
+      ...(lastSet?.weightKg != null && { weightKg: lastSet.weightKg }),
+      ...(lastSet?.reps != null && { reps: lastSet.reps }),
+    };
     exercises[exerciseIndex] = {
       ...ex,
-      sets: [...ex.sets, { completed: false }],
+      sets: [...ex.sets, newSet],
     };
     set({ session: { ...session, exercises } });
   },

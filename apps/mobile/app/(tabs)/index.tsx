@@ -58,6 +58,8 @@ export default function WorkoutsScreen() {
   const [editingTemplateName, setEditingTemplateName] = useState<WorkoutTemplate | null>(null);
   const [editingTemplateNewName, setEditingTemplateNewName] = useState('');
   const [moveTemplateModal, setMoveTemplateModal] = useState<WorkoutTemplate | null>(null);
+  const [showCreateFolderInMoveModal, setShowCreateFolderInMoveModal] = useState(false);
+  const [moveModalNewFolderName, setMoveModalNewFolderName] = useState('');
   const [templateMenuTarget, setTemplateMenuTarget] = useState<WorkoutTemplate | null>(null);
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
   const [folderDropdownLayout, setFolderDropdownLayout] = useState<{
@@ -71,6 +73,13 @@ export default function WorkoutsScreen() {
   useEffect(() => {
     if (folderMenuId === null) setFolderDropdownLayout(null);
   }, [folderMenuId]);
+
+  useEffect(() => {
+    if (moveTemplateModal) {
+      setShowCreateFolderInMoveModal(false);
+      setMoveModalNewFolderName('');
+    }
+  }, [moveTemplateModal]);
 
   useEffect(() => {
     loadTemplates();
@@ -198,6 +207,16 @@ export default function WorkoutsScreen() {
   function handleMoveTemplate(template: WorkoutTemplate, folderId: string | undefined) {
     updateTemplate(template.id, { folderId });
     setMoveTemplateModal(null);
+    setShowCreateFolderInMoveModal(false);
+    setMoveModalNewFolderName('');
+  }
+
+  function handleCreateFolderAndMove() {
+    const name = moveModalNewFolderName.trim();
+    if (!name || !moveTemplateModal) return;
+    const id = 'folder_' + Date.now();
+    addFolder({ id, name });
+    handleMoveTemplate(moveTemplateModal, id);
   }
 
   function getTemplateDisplayName(template: WorkoutTemplate): string {
@@ -1102,7 +1121,11 @@ export default function WorkoutsScreen() {
       <Modal visible={!!moveTemplateModal} animationType="slide" transparent>
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setMoveTemplateModal(null)}
+          onPress={() => {
+            setMoveTemplateModal(null);
+            setShowCreateFolderInMoveModal(false);
+            setMoveModalNewFolderName('');
+          }}
         >
           <View
             style={[styles.modalContent, { backgroundColor: colors.surface }]}
@@ -1111,41 +1134,94 @@ export default function WorkoutsScreen() {
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               Move "{moveTemplateModal ? getTemplateDisplayName(moveTemplateModal) : ''}" to
             </Text>
-            <ScrollView style={styles.moveFolderList} nestedScrollEnabled>
-              <Pressable
-                style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
-                onPress={() =>
-                  moveTemplateModal && handleMoveTemplate(moveTemplateModal, undefined)
-                }
-              >
-                <Ionicons name="folder-open-outline" size={20} color={colors.textMuted} />
-                <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
-                  Uncategorized
-                </Text>
-              </Pressable>
-              {folders
-                .filter((f) => f.id !== moveTemplateModal?.folderId)
-                .map((folder) => (
+            {showCreateFolderInMoveModal ? (
+              <View style={styles.moveModalCreateFolderBlock}>
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  placeholder="Folder name"
+                  placeholderTextColor={colors.textMuted}
+                  value={moveModalNewFolderName}
+                  onChangeText={setMoveModalNewFolderName}
+                  autoFocus
+                />
+                <View style={styles.moveModalCreateFolderActions}>
                   <Pressable
-                    key={folder.id}
+                    style={[styles.modalBtn, { borderColor: colors.border }]}
+                    onPress={() => {
+                      setShowCreateFolderInMoveModal(false);
+                      setMoveModalNewFolderName('');
+                    }}
+                  >
+                    <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Back</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                    onPress={handleCreateFolderAndMove}
+                    disabled={!moveModalNewFolderName.trim()}
+                  >
+                    <Text style={[styles.modalBtnText, { color: '#fff' }]}>Create & move</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <>
+                <ScrollView style={styles.moveFolderList} nestedScrollEnabled>
+                  <Pressable
                     style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
                     onPress={() =>
-                      moveTemplateModal && handleMoveTemplate(moveTemplateModal, folder.id)
+                      moveTemplateModal && handleMoveTemplate(moveTemplateModal, undefined)
                     }
                   >
-                    <Ionicons name="folder-outline" size={20} color={colors.primary} />
+                    <Ionicons name="folder-open-outline" size={20} color={colors.textMuted} />
                     <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
-                      {folder.name}
+                      Uncategorized
                     </Text>
                   </Pressable>
-                ))}
-            </ScrollView>
-            <Pressable
-              style={[styles.modalBtn, { borderColor: colors.border, alignSelf: 'flex-end', marginTop: 12 }]}
-              onPress={() => setMoveTemplateModal(null)}
-            >
-              <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancel</Text>
-            </Pressable>
+                  {folders
+                    .filter((f) => f.id !== moveTemplateModal?.folderId)
+                    .map((folder) => (
+                      <Pressable
+                        key={folder.id}
+                        style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
+                        onPress={() =>
+                          moveTemplateModal && handleMoveTemplate(moveTemplateModal, folder.id)
+                        }
+                      >
+                        <Ionicons name="folder-outline" size={20} color={colors.primary} />
+                        <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
+                          {folder.name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  <Pressable
+                    style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
+                    onPress={() => setShowCreateFolderInMoveModal(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.moveFolderRowText, { color: colors.primary }]}>
+                      New folder…
+                    </Text>
+                  </Pressable>
+                </ScrollView>
+                <Pressable
+                  style={[styles.modalBtn, { borderColor: colors.border, alignSelf: 'flex-end', marginTop: 12 }]}
+                  onPress={() => {
+                    setMoveTemplateModal(null);
+                    setShowCreateFolderInMoveModal(false);
+                    setMoveModalNewFolderName('');
+                  }}
+                >
+                  <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </Pressable>
       </Modal>
@@ -1359,4 +1435,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   moveFolderRowText: { fontSize: 16 },
+  moveModalCreateFolderBlock: { marginBottom: 12 },
+  moveModalCreateFolderActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
 });
