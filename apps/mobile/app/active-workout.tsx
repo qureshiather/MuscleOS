@@ -63,12 +63,20 @@ export default function ActiveWorkoutScreen() {
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
-  const [restSecondsLeft, setRestSecondsLeft] = useState<number | null>(null);
+  // Time-based rest timer: end timestamp so it stays accurate when app is backgrounded (setInterval is throttled on Android)
+  const [restEndTime, setRestEndTime] = useState<number | null>(null);
   const [restTotalSeconds, setRestTotalSeconds] = useState(DEFAULT_REST_SECONDS);
   const [restAfter, setRestAfter] = useState<{ exIdx: number; setIdx: number } | null>(null);
   const [restDurationsBetweenSets, setRestDurationsBetweenSets] = useState<Record<string, number>>({});
+  const [restTick, setRestTick] = useState(0); // force re-render every second so derived restSecondsLeft updates
   const [showRestPicker, setShowRestPicker] = useState(false);
   const [showRestControlSheet, setShowRestControlSheet] = useState(false);
+
+  // Derive remaining seconds from end time so timer is correct after returning from background
+  const restSecondsLeft: number | null =
+    restEndTime === null
+      ? null
+      : Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
   const [elapsedMs, setElapsedMs] = useState(0);
   const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
@@ -136,36 +144,38 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [session?.startedAt]);
 
+  // Tick every second while rest is active so UI updates; timer is time-based so correct when app was backgrounded
   useEffect(() => {
-    if (restSecondsLeft === null || restSecondsLeft <= 0) return;
-    const t = setInterval(() => {
-      setRestSecondsLeft((s) => (s === null || s <= 1 ? null : s - 1));
-    }, 1000);
+    if (restEndTime === null) return;
+    const t = setInterval(() => setRestTick((n) => n + 1), 1000);
     return () => clearInterval(t);
-  }, [restSecondsLeft]);
+  }, [restEndTime]);
 
-  // When timer expires (restSecondsLeft becomes null), save full duration and clear restAfter
+  // When end time has passed, save duration and clear rest
   useEffect(() => {
-    if (restSecondsLeft !== null || restAfter === null) return;
-    setRestDurationsBetweenSets((prev) => ({
-      ...prev,
-      [`${restAfter.exIdx}-${restAfter.setIdx}`]: restTotalSeconds,
-    }));
+    if (restEndTime === null || Date.now() < restEndTime) return;
+    if (restAfter !== null) {
+      setRestDurationsBetweenSets((prev) => ({
+        ...prev,
+        [`${restAfter.exIdx}-${restAfter.setIdx}`]: restTotalSeconds,
+      }));
+    }
     setRestAfter(null);
+    setRestEndTime(null);
     setShowRestControlSheet(false);
-  }, [restSecondsLeft, restAfter, restTotalSeconds]);
+  }, [restEndTime, restTick, restAfter, restTotalSeconds]);
 
   function startRest(exIdx: number, setIdx: number, totalSeconds = DEFAULT_REST_SECONDS) {
     setRestAfter({ exIdx, setIdx });
     setRestTotalSeconds(totalSeconds);
-    setRestSecondsLeft(totalSeconds);
+    setRestEndTime(Date.now() + totalSeconds * 1000);
   }
 
   function startManualRest(seconds: number) {
     setShowRestPicker(false);
     setRestAfter(null);
     setRestTotalSeconds(seconds);
-    setRestSecondsLeft(seconds);
+    setRestEndTime(Date.now() + seconds * 1000);
   }
 
   function skipRest() {
@@ -178,24 +188,24 @@ export default function ActiveWorkoutScreen() {
         }));
       }
     }
-    setRestSecondsLeft(null);
+    setRestEndTime(null);
     setRestAfter(null);
     setShowRestControlSheet(false);
   }
 
   function add30SecondsRest() {
     setRestTotalSeconds((t) => t + 30);
-    setRestSecondsLeft((s) => (s === null ? null : s + 30));
+    setRestEndTime((end) => (end === null ? null : end + 30 * 1000));
   }
 
   function subtract30SecondsRest() {
     setRestTotalSeconds((t) => Math.max(30, t - 30));
-    setRestSecondsLeft((s) => (s === null ? null : Math.max(30, s - 30)));
+    setRestEndTime((end) => (end === null ? null : Math.max(Date.now() + 1000, end - 30 * 1000)));
   }
 
   function resetRest() {
     setRestTotalSeconds(DEFAULT_REST_SECONDS);
-    setRestSecondsLeft(DEFAULT_REST_SECONDS);
+    setRestEndTime(Date.now() + DEFAULT_REST_SECONDS * 1000);
   }
 
   async function handleFinish(updateCustomTemplate?: boolean) {
@@ -534,7 +544,7 @@ export default function ActiveWorkoutScreen() {
                               uncompleteSet(exIdx, setIdx);
                               // If the rest timer under this set is active, reset it to static duration
                               if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                                setRestSecondsLeft(null);
+                                setRestEndTime(null);
                                 setRestAfter(null);
                                 setShowRestControlSheet(false);
                               }
