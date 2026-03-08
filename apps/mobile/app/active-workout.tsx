@@ -23,6 +23,13 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { Ionicons } from '@expo/vector-icons';
+import { useAudioPlayer } from 'expo-audio';
+
+// Rest timer sounds: countdown beep (3–2–1) and buzz when ready for next set
+const REST_SOUND_COUNTDOWN =
+  'https://assets.mixkit.co/active_storage/sfx/2560-countdown-beep.mp3';
+const REST_SOUND_BUZZ =
+  'https://assets.mixkit.co/active_storage/sfx/2562-alarm-clock-beep.mp3';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -100,6 +107,11 @@ export default function ActiveWorkoutScreen() {
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
 
+  // Rest timer sounds: countdown beep at 3–2–1, buzz when rest ends
+  const countdownPlayer = useAudioPlayer(REST_SOUND_COUNTDOWN, { downloadFirst: true });
+  const buzzPlayer = useAudioPlayer(REST_SOUND_BUZZ, { downloadFirst: true });
+  const lastCountdownSecondRef = useRef<number | null>(null);
+
   // Clear dropdown layout when menu closes so we re-measure next open
   useEffect(() => {
     if (exerciseMenuExIdx === null) setDropdownLayout(null);
@@ -152,6 +164,24 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [session?.startedAt]);
 
+  // Reset countdown sound state when rest is not active
+  useEffect(() => {
+    if (restEndTime === null) lastCountdownSecondRef.current = null;
+  }, [restEndTime]);
+
+  // Play countdown beep at 3, 2, 1 seconds left (once per second)
+  useEffect(() => {
+    if (restSecondsLeft == null || restSecondsLeft > 3 || restSecondsLeft < 1) return;
+    if (lastCountdownSecondRef.current === restSecondsLeft) return;
+    lastCountdownSecondRef.current = restSecondsLeft;
+    try {
+      countdownPlayer.seekTo(0);
+      countdownPlayer.play();
+    } catch (_) {
+      // ignore if sound not loaded or play fails
+    }
+  }, [restSecondsLeft, countdownPlayer]);
+
   // Tick every second while rest is active so UI updates; timer is time-based so correct when app was backgrounded
   useEffect(() => {
     if (restEndTime === null) return;
@@ -159,15 +189,21 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [restEndTime]);
 
-  // When end time has passed, save duration and clear rest
+  // When end time has passed, play buzz then save duration and clear rest
   useEffect(() => {
     if (restEndTime === null || Date.now() < restEndTime) return;
+    try {
+      buzzPlayer.seekTo(0);
+      buzzPlayer.play();
+    } catch (_) {
+      // ignore if sound not loaded or play fails
+    }
     if (restAfter !== null) {
       recordRestDuration(restAfter.exIdx, restAfter.setIdx, restTotalSeconds);
     }
     clearRestTimer();
     setShowRestControlSheet(false);
-  }, [restEndTime, restTick, restAfter, restTotalSeconds, recordRestDuration, clearRestTimer]);
+  }, [restEndTime, restTick, restAfter, restTotalSeconds, recordRestDuration, clearRestTimer, buzzPlayer]);
 
   function handleStartManualRest(seconds: number) {
     setShowRestPicker(false);
