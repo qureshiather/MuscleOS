@@ -3,34 +3,23 @@ import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
-import { exportAndShareData } from '@/storage/exportData';
-import { clearAllData } from '@/storage/localStorage';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useTemplatesStore } from '@/store/templatesStore';
-import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weightUnits';
 
-export default function SettingsScreen() {
-  const { colors, themePreference, setTheme } = useTheme();
+export default function ProfileScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
-  const [exporting, setExporting] = useState(false);
-  const [clearing, setClearing] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const unitSystem = useSettingsStore((s) => s.unitSystem);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
-  const setUnitSystem = useSettingsStore((s) => s.setUnitSystem);
   const setProfile = useSettingsStore((s) => s.setProfile);
   const isLinked = !useAuthStore((s) => s.isAnonymous);
   const authProfile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
-  const loadTemplates = useTemplatesStore((s) => s.load);
-  const loadRecovery = useRecoveryStore((s) => s.load);
   const loadSubscription = useSubscriptionStore((s) => s.load);
-  const loadSettings = useSettingsStore((s) => s.load);
 
   async function handleSignOut() {
     Alert.alert(
@@ -94,45 +83,6 @@ export default function SettingsScreen() {
     setProfileModalVisible(false);
   }
 
-  async function handleExport() {
-    setExporting(true);
-    try {
-      const ok = await exportAndShareData();
-      if (!ok) Alert.alert('Export', 'Sharing is not available on this device.');
-    } catch (e) {
-      Alert.alert('Export failed', String(e));
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  function handleClearAllData() {
-    Alert.alert(
-      'Clear all data',
-      'This will reset your settings, clear all workouts, sessions, recovery data, and health info. You will stay signed in. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear all',
-          style: 'destructive',
-          onPress: async () => {
-            setClearing(true);
-            try {
-              await clearAllData();
-              await setTheme('auto');
-              await Promise.all([loadTemplates(), loadRecovery(), loadSubscription(), loadSettings()]);
-              Alert.alert('Done', 'All data has been cleared.');
-            } catch (e) {
-              Alert.alert('Error', String(e));
-            } finally {
-              setClearing(false);
-            }
-          },
-        },
-      ]
-    );
-  }
-
   const heightPlaceholder = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
   const weightPlaceholder = weightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
 
@@ -145,16 +95,62 @@ export default function SettingsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Profile, units, account & subscription
+            Account, biodata & subscription
           </Text>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
+          {isLinked ? (
+            <>
+              <View style={styles.accountInfo}>
+                {authProfile?.displayName ? (
+                  <Text style={[styles.accountName, { color: colors.text }]}>{authProfile.displayName}</Text>
+                ) : null}
+                <Text style={[styles.accountEmail, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {authProfile?.email ?? 'Account linked'}
+                </Text>
+              </View>
+              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                Your subscription is tied to this account and restores on other devices.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.accountSignOutBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+                ]}
+                onPress={handleSignOut}
+              >
+                <Text style={[styles.accountSignOutText, { color: colors.text }]}>Sign out</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                Sign in to subscribe and restore your purchase on other devices.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.accountSignInBtn,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+                ]}
+                onPress={() => router.push('/auth')}
+              >
+                <Text style={styles.accountSignInText}>Sign in</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <View style={styles.profileSectionHeader}>
-            <View>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile</Text>
+            <View style={styles.profileSectionHeaderText}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Biodata</Text>
+              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                Height, weight, age & gender (used for recovery estimates)
+              </Text>
             </View>
             <Pressable
               style={[styles.editBtn, { backgroundColor: colors.primary }]}
@@ -189,7 +185,7 @@ export default function SettingsScreen() {
         >
           <Pressable style={styles.modalOverlay} onPress={() => setProfileModalVisible(false)}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit profile</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit biodata</Text>
               <Text style={[styles.sectionHint, { color: colors.textMuted, marginBottom: 12 }]}>Height, weight, age & gender</Text>
               <Text style={[styles.unitLabel, { color: colors.textMuted }]}>Gender</Text>
               <View style={[styles.themeRow, { marginBottom: 12 }]}>
@@ -260,157 +256,27 @@ export default function SettingsScreen() {
           </Pressable>
         </Modal>
 
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Units</Text>
-          <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-            Metric: cm & kg · Imperial: in & lb (used everywhere)
-          </Text>
-          <View style={styles.themeRow}>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                unitSystem === 'metric'
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setUnitSystem('metric')}
-            >
-              <Text style={[styles.themeBtnText, { color: unitSystem === 'metric' ? '#fff' : colors.text }]}>Metric</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                unitSystem === 'imperial'
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setUnitSystem('imperial')}
-            >
-              <Text style={[styles.themeBtnText, { color: unitSystem === 'imperial' ? '#fff' : colors.text }]}>Imperial</Text>
-            </Pressable>
-          </View>
-        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.row,
+            { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+          ]}
+          onPress={() => router.push('/subscription')}
+        >
+          <Text style={[styles.rowText, { color: colors.text }]}>Subscription</Text>
+          <Text style={[styles.rowHint, { color: colors.textMuted }]}>Pro features</Text>
+        </Pressable>
 
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
-          <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-            Auto: follow device · Dark or Light: fixed
-          </Text>
-          <View style={styles.themeRow}>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                themePreference === 'auto'
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setTheme('auto')}
-            >
-              <Text style={[styles.themeBtnText, { color: themePreference === 'auto' ? '#fff' : colors.text }]}>Auto</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                themePreference === 'dark'
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setTheme('dark')}
-            >
-              <Text style={[styles.themeBtnText, { color: themePreference === 'dark' ? '#fff' : colors.text }]}>Dark</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                themePreference === 'light'
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setTheme('light')}
-            >
-              <Text style={[styles.themeBtnText, { color: themePreference === 'light' ? '#fff' : colors.text }]}>Light</Text>
-            </Pressable>
-          </View>
-        </View>
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
-          {isLinked ? (
-            <>
-              <View style={styles.accountInfo}>
-                {authProfile?.displayName ? (
-                  <Text style={[styles.accountName, { color: colors.text }]}>{authProfile.displayName}</Text>
-                ) : null}
-                <Text style={[styles.accountEmail, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {authProfile?.email ?? 'Account linked'}
-                </Text>
-              </View>
-              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-                Your subscription is tied to this account and restores on other devices.
-              </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.accountSignOutBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
-                ]}
-                onPress={handleSignOut}
-              >
-                <Text style={[styles.accountSignOutText, { color: colors.text }]}>Sign out</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-                Sign in to subscribe and restore your purchase on other devices.
-              </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.accountSignInBtn,
-                  { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
-                ]}
-                onPress={() => router.push('/auth')}
-              >
-                <Text style={styles.accountSignInText}>Sign in</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-      <Pressable
-        style={({ pressed }) => [
-          styles.row,
-          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
-        ]}
-        onPress={handleExport}
-        disabled={exporting}
-      >
-        <Text style={[styles.rowText, { color: colors.text }]}>
-          {exporting ? 'Exporting…' : 'Export my data'}
-        </Text>
-        <Text style={[styles.rowHint, { color: colors.textMuted }]}>Share JSON file</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [
-          styles.row,
-          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
-        ]}
-        onPress={() => router.push('/subscription')}
-      >
-        <Text style={[styles.rowText, { color: colors.text }]}>Subscription</Text>
-        <Text style={[styles.rowHint, { color: colors.textMuted }]}>Pro features</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [
-          styles.row,
-          styles.rowDanger,
-          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
-        ]}
-        onPress={handleClearAllData}
-        disabled={clearing}
-      >
-        <Text style={[styles.rowText, { color: colors.danger }]}>
-          {clearing ? 'Clearing…' : 'Clear all data'}
-        </Text>
-        <Text style={[styles.rowHint, { color: colors.textMuted }]}>Reset settings, workouts & more</Text>
-      </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.row,
+            { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+          ]}
+          onPress={() => router.push('/settings')}
+        >
+          <Text style={[styles.rowText, { color: colors.text }]}>Settings</Text>
+          <Text style={[styles.rowHint, { color: colors.textMuted }]}>Appearance, units, data</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -455,8 +321,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
+    gap: 12,
+  },
+  profileSectionHeaderText: {
+    flex: 1,
+    minWidth: 0,
   },
   editBtn: {
+    flexShrink: 0,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -529,7 +401,6 @@ const styles = StyleSheet.create({
   },
   rowText: { fontSize: 16, fontWeight: '500' },
   rowHint: { fontSize: 13 },
-  rowDanger: { marginTop: 8 },
   themeRow: { flexDirection: 'row', gap: 8 },
   themeBtn: {
     paddingHorizontal: 14,
