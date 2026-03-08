@@ -48,14 +48,17 @@ export default function WorkoutsScreen() {
     (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
   const activeSession = useActiveWorkoutStore((s) => s.session);
 
-  const [builtInExpanded, setBuiltInExpanded] = useState(true);
+  const [builtInExpanded, setBuiltInExpanded] = useState(false);
   const [customExpanded, setCustomExpanded] = useState(true);
   const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>({});
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
+  const [editingTemplateName, setEditingTemplateName] = useState<WorkoutTemplate | null>(null);
+  const [editingTemplateNewName, setEditingTemplateNewName] = useState('');
   const [moveTemplateModal, setMoveTemplateModal] = useState<WorkoutTemplate | null>(null);
+  const [templateMenuTarget, setTemplateMenuTarget] = useState<WorkoutTemplate | null>(null);
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
   const [folderDropdownLayout, setFolderDropdownLayout] = useState<{
     x: number;
@@ -146,6 +149,13 @@ export default function WorkoutsScreen() {
     updateFolder(editingFolder.id, { name: editingFolderName.trim() });
     setEditingFolder(null);
     setEditingFolderName('');
+  }
+
+  function handleSaveTemplateRename() {
+    if (!editingTemplateName || !editingTemplateNewName.trim()) return;
+    updateTemplate(editingTemplateName.id, { name: editingTemplateNewName.trim() });
+    setEditingTemplateName(null);
+    setEditingTemplateNewName('');
   }
 
   function handleDeleteFolder(folder: TemplateFolder) {
@@ -241,13 +251,12 @@ export default function WorkoutsScreen() {
               <Pressable
                 hitSlop={8}
                 style={({ pressed: p }) => [
-                  styles.templateMoveBtn,
+                  styles.templateMenuBtn,
                   { opacity: p ? 0.7 : 1 },
                 ]}
-                onPress={() => setMoveTemplateModal(template)}
+                onPress={() => setTemplateMenuTarget(template)}
               >
-                <Ionicons name="arrow-redo-outline" size={16} color={colors.primary} />
-                <Text style={[styles.templateMoveLabel, { color: colors.primary }]}>Move</Text>
+                <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
               </Pressable>
             )}
           </View>
@@ -993,6 +1002,103 @@ export default function WorkoutsScreen() {
         );
       })()}
 
+      <Modal visible={!!templateMenuTarget} animationType="fade" transparent>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setTemplateMenuTarget(null)}
+        >
+          <View
+            style={[styles.templateMenuContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Pressable
+              style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
+              onPress={() => {
+                if (templateMenuTarget) {
+                  setEditingTemplateName(templateMenuTarget);
+                  setEditingTemplateNewName(templateMenuTarget.name);
+                }
+                setTemplateMenuTarget(null);
+              }}
+            >
+              <Ionicons name="pencil-outline" size={20} color={colors.text} />
+              <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Rename</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
+              onPress={() => {
+                if (templateMenuTarget) setMoveTemplateModal(templateMenuTarget);
+                setTemplateMenuTarget(null);
+              }}
+            >
+              <Ionicons name="arrow-redo-outline" size={20} color={colors.text} />
+              <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Move</Text>
+            </Pressable>
+            <Pressable
+              style={styles.templateMenuItem}
+              onPress={() => {
+                if (templateMenuTarget) {
+                  router.push({
+                    pathname: '/create-template',
+                    params: { templateId: templateMenuTarget.id },
+                  });
+                }
+                setTemplateMenuTarget(null);
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.text} />
+              <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Edit</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!editingTemplateName} animationType="slide" transparent>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setEditingTemplateName(null)}
+        >
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Rename template</Text>
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.background,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Template name"
+              placeholderTextColor={colors.textMuted}
+              value={editingTemplateNewName}
+              onChangeText={setEditingTemplateNewName}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+                onPress={() => setEditingTemplateName(null)}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                onPress={handleSaveTemplateRename}
+                disabled={!editingTemplateNewName.trim()}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
       <Modal visible={!!moveTemplateModal} animationType="slide" transparent>
         <Pressable
           style={styles.modalOverlay}
@@ -1180,6 +1286,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   templateActionBtn: { padding: 4 },
+  templateMenuBtn: {
+    padding: 4,
+  },
+  templateMenuContent: {
+    marginHorizontal: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignSelf: 'center',
+    minWidth: 200,
+  },
+  templateMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+  },
+  templateMenuItemText: { fontSize: 16, fontWeight: '500' },
   templateMoveBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import type { WorkoutTemplate } from '@muscleos/types';
@@ -23,13 +23,31 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 export default function CreateTemplateScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { templateId: editTemplateId } = useLocalSearchParams<{ templateId?: string }>();
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
+  const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   const loadTemplates = useTemplatesStore((s) => s.load);
+  const userTemplates = useTemplatesStore((s) => s.userTemplates);
   const folders = useTemplatesStore((s) => s.folders);
+
+  const isEditMode = Boolean(editTemplateId?.trim());
+  const existingTemplate = useMemo(
+    () => (isEditMode ? userTemplates.find((t) => t.id === editTemplateId) : null),
+    [isEditMode, editTemplateId, userTemplates]
+  );
 
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
+
+  useEffect(() => {
+    if (existingTemplate) {
+      setName(existingTemplate.name);
+      setSelectedIds([...existingTemplate.exerciseIds]);
+      setFolderId(existingTemplate.folderId);
+    }
+  }, [existingTemplate?.id]);
+
   const getExercise = useExercisesStore((s) => s.getExercise);
   const allExercises = useExercisesStore((s) => s.getAllExercises)();
 
@@ -71,14 +89,22 @@ export default function CreateTemplateScreen() {
       return;
     }
     setShowErrors(false);
-    const template: WorkoutTemplate = {
-      id: 'tpl_' + Date.now(),
-      name: name.trim(),
-      exerciseIds: selectedIds,
-      isBuiltIn: false,
-      ...(folderId && { folderId }),
-    };
-    addTemplate(template);
+    if (isEditMode && existingTemplate) {
+      updateTemplate(existingTemplate.id, {
+        name: name.trim(),
+        exerciseIds: selectedIds,
+        ...(folderId !== undefined && { folderId }),
+      });
+    } else {
+      const template: WorkoutTemplate = {
+        id: 'tpl_' + Date.now(),
+        name: name.trim(),
+        exerciseIds: selectedIds,
+        isBuiltIn: false,
+        ...(folderId && { folderId }),
+      };
+      addTemplate(template);
+    }
     router.back();
   }
 
@@ -97,7 +123,7 @@ export default function CreateTemplateScreen() {
           <Text style={[styles.backText, { color: colors.primary }]}>Cancel</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]} pointerEvents="none">
-          Create template
+          {isEditMode ? 'Edit template' : 'Create template'}
         </Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.form}>
@@ -215,7 +241,7 @@ export default function CreateTemplateScreen() {
           style={[styles.saveBtn, { backgroundColor: colors.primary }]}
           onPress={handleSave}
         >
-          <Text style={styles.saveBtnText}>Save template</Text>
+          <Text style={styles.saveBtnText}>{isEditMode ? 'Save changes' : 'Save template'}</Text>
         </Pressable>
       </ScrollView>
 
