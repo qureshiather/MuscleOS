@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
@@ -993,35 +995,41 @@ export default function ActiveWorkoutScreen() {
 
       <Modal visible={showAddExerciseModal} animationType="slide" transparent>
         <Pressable style={styles.modalOverlay} onPress={() => setShowAddExerciseModal(false)}>
-          <View
-            style={[styles.addExerciseModalContent, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.addExerciseKeyboardAvoid}
+            keyboardVerticalOffset={0}
           >
-            <View style={styles.addExerciseModalHeader}>
-              <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
-              <Pressable onPress={() => setShowAddExerciseModal(false)}>
-                <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
-              </Pressable>
-            </View>
-            <TextInput
-              style={[
-                styles.addExerciseSearch,
-                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-              ]}
-              placeholder="Search exercises..."
-              placeholderTextColor={colors.textMuted}
-              value={addExerciseSearch}
-              onChangeText={setAddExerciseSearch}
-            />
-            <FlatList
-              data={getAllExercises().filter(
-                (e) =>
-                  !addExerciseSearch.trim() ||
-                  e.name.toLowerCase().includes(addExerciseSearch.trim().toLowerCase())
-              )}
-              keyExtractor={(item) => item.id}
-              style={styles.addExerciseList}
-              renderItem={({ item }) => (
+            <View
+              style={[styles.addExerciseModalContent, { backgroundColor: colors.surface }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.addExerciseModalHeader}>
+                <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
+                <Pressable onPress={() => setShowAddExerciseModal(false)}>
+                  <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                style={[
+                  styles.addExerciseSearch,
+                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                ]}
+                placeholder="Search exercises..."
+                placeholderTextColor={colors.textMuted}
+                value={addExerciseSearch}
+                onChangeText={setAddExerciseSearch}
+              />
+              <FlatList
+                data={getAllExercises().filter(
+                  (e) =>
+                    !addExerciseSearch.trim() ||
+                    e.name.toLowerCase().includes(addExerciseSearch.trim().toLowerCase())
+                )}
+                keyExtractor={(item) => item.id}
+                style={styles.addExerciseList}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
                 <Pressable
                   style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
                   onPress={() => {
@@ -1065,8 +1073,9 @@ export default function ActiveWorkoutScreen() {
                   <Ionicons name="add" size={20} color={colors.accent} />
                 </Pressable>
               )}
-            />
-          </View>
+              />
+            </View>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -1385,11 +1394,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   addExerciseBtnText: { fontSize: 17, fontWeight: '600' },
+  addExerciseKeyboardAvoid: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'flex-end',
+  },
   addExerciseModalContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    flex: 1,
     maxHeight: '80%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1415,7 +1426,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 16,
   },
-  addExerciseList: { maxHeight: 360 },
+  addExerciseList: { flex: 1, minHeight: 0, maxHeight: 360 },
   addExerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
