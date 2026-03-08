@@ -14,8 +14,21 @@ import { useExercisesStore } from '@/store/exercisesStore';
 
 const DEFAULT_SETS_PER_EXERCISE = 3;
 
+export const DEFAULT_REST_SECONDS = 120;
+
+export interface RestAfter {
+  exIdx: number;
+  setIdx: number;
+}
+
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
+  /** Rest timer: end timestamp (ms) so it stays correct when app is backgrounded */
+  restEndTime: number | null;
+  restTotalSeconds: number;
+  restAfter: RestAfter | null;
+  /** Saved rest durations keyed by "exIdx-setIdx" for display after timer ends */
+  restDurationsBetweenSets: Record<string, number>;
   startWorkout: (templateId: string, exerciseIds: string[], defaultSets?: number) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
@@ -30,6 +43,16 @@ export interface ActiveWorkoutState {
   replaceTemplateAndAddExercise: (newTemplateId: string, exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
   discardWorkout: () => void;
+  // Rest timer actions (in store so timer survives addSet/session updates)
+  startRest: (exIdx: number, setIdx: number, totalSeconds?: number) => void;
+  startManualRest: (seconds: number) => void;
+  skipRest: () => void;
+  add30SecondsRest: () => void;
+  subtract30SecondsRest: () => void;
+  resetRest: () => void;
+  clearRestTimer: () => void;
+  /** Record rest duration when timer completes or is skipped; merge into restDurationsBetweenSets */
+  recordRestDuration: (exIdx: number, setIdx: number, seconds: number) => void;
 }
 
 function createEmptySession(
@@ -52,6 +75,10 @@ function createEmptySession(
 
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
+  restEndTime: null,
+  restTotalSeconds: DEFAULT_REST_SECONDS,
+  restAfter: null,
+  restDurationsBetweenSets: {},
 
   startWorkout: (templateId, exerciseIds, defaultSets) => {
     if (get().session) return; // Only one workout at a time
@@ -220,8 +247,90 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const merged = [...recoveryList.filter((r) => getRecoveryUntil(r) > nowIso), ...newRecovery];
     await setRecovery(merged);
 
-    set({ session: null });
+    set({
+      session: null,
+      restEndTime: null,
+      restAfter: null,
+      restDurationsBetweenSets: {},
+    });
   },
 
-  discardWorkout: () => set({ session: null }),
+  discardWorkout: () =>
+    set({
+      session: null,
+      restEndTime: null,
+      restAfter: null,
+      restDurationsBetweenSets: {},
+    }),
+
+  startRest: (exIdx, setIdx, totalSeconds = DEFAULT_REST_SECONDS) => {
+    set({
+      restAfter: { exIdx, setIdx },
+      restTotalSeconds: totalSeconds,
+      restEndTime: Date.now() + totalSeconds * 1000,
+    });
+  },
+
+  startManualRest: (seconds) => {
+    set({
+      restAfter: null,
+      restTotalSeconds: seconds,
+      restEndTime: Date.now() + seconds * 1000,
+    });
+  },
+
+  skipRest: () => {
+    const { restAfter, restTotalSeconds, restEndTime } = get();
+    if (restAfter !== null && restTotalSeconds > 0 && restEndTime !== null) {
+      const taken = Math.max(0, restTotalSeconds - Math.ceil((restEndTime - Date.now()) / 1000));
+      if (taken > 0) {
+        set((s) => ({
+          restDurationsBetweenSets: {
+            ...s.restDurationsBetweenSets,
+            [`${restAfter.exIdx}-${restAfter.setIdx}`]: taken,
+          },
+        }));
+      }
+    }
+    set({ restEndTime: null, restAfter: null });
+  },
+
+  add30SecondsRest: () => {
+    const { restEndTime } = get();
+    if (restEndTime === null) return;
+    set((s) => ({
+      restTotalSeconds: s.restTotalSeconds + 30,
+      restEndTime: restEndTime + 30 * 1000,
+    }));
+  },
+
+  subtract30SecondsRest: () => {
+    const { restEndTime, restTotalSeconds } = get();
+    if (restEndTime === null) return;
+    const newTotal = Math.max(30, restTotalSeconds - 30);
+    set({
+      restTotalSeconds: newTotal,
+      restEndTime: Math.max(Date.now() + 1000, restEndTime - 30 * 1000),
+    });
+  },
+
+  resetRest: () => {
+    set({
+      restTotalSeconds: DEFAULT_REST_SECONDS,
+      restEndTime: Date.now() + DEFAULT_REST_SECONDS * 1000,
+    });
+  },
+
+  clearRestTimer: () => {
+    set({ restEndTime: null, restAfter: null });
+  },
+
+  recordRestDuration: (exIdx, setIdx, seconds) => {
+    set((s) => ({
+      restDurationsBetweenSets: {
+        ...s.restDurationsBetweenSets,
+        [`${exIdx}-${setIdx}`]: seconds,
+      },
+    }));
+  },
 }));

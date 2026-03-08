@@ -22,8 +22,6 @@ import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { Ionicons } from '@expo/vector-icons';
 
-const DEFAULT_REST_SECONDS = 120; // 2:00 default like reference app
-
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const m = Math.floor(totalSec / 60);
@@ -53,6 +51,18 @@ export default function ActiveWorkoutScreen() {
   const replaceTemplateAndAddExercise = useActiveWorkoutStore((s) => s.replaceTemplateAndAddExercise);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
+  const restEndTime = useActiveWorkoutStore((s) => s.restEndTime);
+  const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
+  const restAfter = useActiveWorkoutStore((s) => s.restAfter);
+  const restDurationsBetweenSets = useActiveWorkoutStore((s) => s.restDurationsBetweenSets);
+  const startRest = useActiveWorkoutStore((s) => s.startRest);
+  const startManualRest = useActiveWorkoutStore((s) => s.startManualRest);
+  const skipRest = useActiveWorkoutStore((s) => s.skipRest);
+  const add30SecondsRest = useActiveWorkoutStore((s) => s.add30SecondsRest);
+  const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
+  const resetRest = useActiveWorkoutStore((s) => s.resetRest);
+  const clearRestTimer = useActiveWorkoutStore((s) => s.clearRestTimer);
+  const recordRestDuration = useActiveWorkoutStore((s) => s.recordRestDuration);
   const subscriptionState = useSubscriptionStore((s) => s.state);
   const isPro = subscriptionState?.tier === 'pro' && (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
   const weightUnit = useSettingsStore((s) => s.weightUnit);
@@ -63,11 +73,7 @@ export default function ActiveWorkoutScreen() {
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
-  // Time-based rest timer: end timestamp so it stays accurate when app is backgrounded (setInterval is throttled on Android)
-  const [restEndTime, setRestEndTime] = useState<number | null>(null);
-  const [restTotalSeconds, setRestTotalSeconds] = useState(DEFAULT_REST_SECONDS);
-  const [restAfter, setRestAfter] = useState<{ exIdx: number; setIdx: number } | null>(null);
-  const [restDurationsBetweenSets, setRestDurationsBetweenSets] = useState<Record<string, number>>({});
+  // Rest timer state lives in store so it survives addSet/session updates
   const [restTick, setRestTick] = useState(0); // force re-render every second so derived restSecondsLeft updates
   const [showRestPicker, setShowRestPicker] = useState(false);
   const [showRestControlSheet, setShowRestControlSheet] = useState(false);
@@ -155,57 +161,24 @@ export default function ActiveWorkoutScreen() {
   useEffect(() => {
     if (restEndTime === null || Date.now() < restEndTime) return;
     if (restAfter !== null) {
-      setRestDurationsBetweenSets((prev) => ({
-        ...prev,
-        [`${restAfter.exIdx}-${restAfter.setIdx}`]: restTotalSeconds,
-      }));
+      recordRestDuration(restAfter.exIdx, restAfter.setIdx, restTotalSeconds);
     }
-    setRestAfter(null);
-    setRestEndTime(null);
+    clearRestTimer();
     setShowRestControlSheet(false);
-  }, [restEndTime, restTick, restAfter, restTotalSeconds]);
+  }, [restEndTime, restTick, restAfter, restTotalSeconds, recordRestDuration, clearRestTimer]);
 
-  function startRest(exIdx: number, setIdx: number, totalSeconds = DEFAULT_REST_SECONDS) {
-    setRestAfter({ exIdx, setIdx });
-    setRestTotalSeconds(totalSeconds);
-    setRestEndTime(Date.now() + totalSeconds * 1000);
-  }
-
-  function startManualRest(seconds: number) {
+  function handleStartManualRest(seconds: number) {
     setShowRestPicker(false);
-    setRestAfter(null);
-    setRestTotalSeconds(seconds);
-    setRestEndTime(Date.now() + seconds * 1000);
+    startManualRest(seconds);
   }
 
-  function skipRest() {
-    if (restAfter !== null && restTotalSeconds > 0 && restSecondsLeft !== null) {
-      const taken = restTotalSeconds - restSecondsLeft;
-      if (taken > 0) {
-        setRestDurationsBetweenSets((prev) => ({
-          ...prev,
-          [`${restAfter.exIdx}-${restAfter.setIdx}`]: taken,
-        }));
-      }
-    }
-    setRestEndTime(null);
-    setRestAfter(null);
+  function handleSkipRest() {
+    skipRest();
     setShowRestControlSheet(false);
   }
 
-  function add30SecondsRest() {
-    setRestTotalSeconds((t) => t + 30);
-    setRestEndTime((end) => (end === null ? null : end + 30 * 1000));
-  }
-
-  function subtract30SecondsRest() {
-    setRestTotalSeconds((t) => Math.max(30, t - 30));
-    setRestEndTime((end) => (end === null ? null : Math.max(Date.now() + 1000, end - 30 * 1000)));
-  }
-
-  function resetRest() {
-    setRestTotalSeconds(DEFAULT_REST_SECONDS);
-    setRestEndTime(Date.now() + DEFAULT_REST_SECONDS * 1000);
+  function handleResetRest() {
+    resetRest();
   }
 
   async function handleFinish(updateCustomTemplate?: boolean) {
@@ -542,10 +515,9 @@ export default function ActiveWorkoutScreen() {
                           onPress={() => {
                             if (set.completed) {
                               uncompleteSet(exIdx, setIdx);
-                              // If the rest timer under this set is active, reset it to static duration
+                              // If the rest timer under this set is active, clear it
                               if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                                setRestEndTime(null);
-                                setRestAfter(null);
+                                clearRestTimer();
                                 setShowRestControlSheet(false);
                               }
                             } else {
@@ -658,7 +630,7 @@ export default function ActiveWorkoutScreen() {
                 <Pressable
                   key={sec}
                   style={[styles.restPickerOption, { backgroundColor: colors.surfaceElevated }]}
-                  onPress={() => startManualRest(sec)}
+                  onPress={() => handleStartManualRest(sec)}
                 >
                   <Text style={[styles.restPickerOptionText, { color: colors.accent }]}>
                     {sec === 60 ? '1 min' : sec === 120 ? '2 min' : '3 min'}
@@ -792,13 +764,13 @@ export default function ActiveWorkoutScreen() {
             <View style={styles.restControlBottomActions}>
               <Pressable
                 style={[styles.restControlBtnRect, { backgroundColor: colors.danger }]}
-                onPress={resetRest}
+                onPress={handleResetRest}
               >
                 <Text style={[styles.restControlBtnText, { color: '#fff' }]}>RESET</Text>
               </Pressable>
               <Pressable
                 style={[styles.restControlBtnRect, { backgroundColor: colors.primary }]}
-                onPress={skipRest}
+                onPress={handleSkipRest}
               >
                 <Text style={[styles.restControlBtnText, { color: '#fff' }]}>SKIP</Text>
               </Pressable>
