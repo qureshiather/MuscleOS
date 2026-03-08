@@ -939,7 +939,19 @@ export default function ActiveWorkoutScreen() {
                 ))}
             </View>
             <View style={styles.summaryActions}>
-              {isNoTemplateWorkout ? (
+              {isBuiltInWorkout ? (
+                <>
+                  <Pressable
+                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => handleFinish(false)}
+                  >
+                    <Text style={styles.summarySaveBtnText}>Save values</Text>
+                  </Pressable>
+                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
+                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
+                  </Pressable>
+                </>
+              ) : isNoTemplateWorkout ? (
                 <>
                   <Pressable
                     style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
@@ -951,28 +963,30 @@ export default function ActiveWorkoutScreen() {
                     style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
                     onPress={() => handleFinish(false)}
                   >
-                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save workout only</Text>
+                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save values only</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={handleDiscardOnly}
-                    style={[styles.summaryCancelBtn, { marginTop: 4 }]}
-                  >
-                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Do nothing</Text>
+                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
+                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
                   </Pressable>
                 </>
               ) : hasAddedExercises ? (
                 <>
                   <Pressable
                     style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => handleFinish(true)}
+                    onPress={() => handleFinish(false)}
                   >
-                    <Text style={styles.summarySaveBtnText}>Update template</Text>
+                    <Text style={styles.summarySaveBtnText}>Save values only</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
-                    onPress={() => handleFinish(false)}
+                    onPress={() => handleFinish(true)}
                   >
-                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save workout only</Text>
+                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
+                      Save values and template
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
+                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
                   </Pressable>
                 </>
               ) : (
@@ -981,7 +995,10 @@ export default function ActiveWorkoutScreen() {
                     style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
                     onPress={() => handleFinish(false)}
                   >
-                    <Text style={styles.summarySaveBtnText}>Save workout</Text>
+                    <Text style={styles.summarySaveBtnText}>Save values</Text>
+                  </Pressable>
+                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
+                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
                   </Pressable>
                 </>
               )}
