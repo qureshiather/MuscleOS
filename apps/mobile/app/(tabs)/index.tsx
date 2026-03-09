@@ -22,7 +22,7 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { formatRelative } from '@/utils/relativeTime';
-import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
+import type { WorkoutTemplate, TemplateFolder, WorkoutSession } from '@muscleos/types';
 
 const UNCATEGORIZED = '_uncategorized';
 const ARCHIVED_SECTION = '_archived';
@@ -42,6 +42,7 @@ export default function WorkoutsScreen() {
   const isLoading = useTemplatesStore((s) => s.isLoading);
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
+  const completedSessions = useSessionsStore((s) => s.completedSessions);
   const subscriptionState = useSubscriptionStore((s) => s.state);
   const isPro =
     subscriptionState?.tier === 'pro' &&
@@ -50,6 +51,7 @@ export default function WorkoutsScreen() {
 
   const [builtInExpanded, setBuiltInExpanded] = useState(false);
   const [customExpanded, setCustomExpanded] = useState(true);
+  const [recentExpanded, setRecentExpanded] = useState(true);
   const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>({});
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -132,6 +134,18 @@ export default function WorkoutsScreen() {
     () => builtIn.filter((t) => !t.folderId),
     [builtIn]
   );
+
+  const recentWorkouts = useMemo(() => {
+    const completed = completedSessions();
+    const templateMap = new Map(templates.map((t) => [t.id, t]));
+    return completed
+      .filter((s) => templateMap.has(s.templateId))
+      .slice(0, 5)
+      .map((s) => ({
+        session: s,
+        template: templateMap.get(s.templateId)!,
+      }));
+  }, [sessions, templates]);
 
   const lastDoneByTemplate = useMemo(() => {
     const completed = sessions.filter((s) => s.completedAt != null);
@@ -226,6 +240,40 @@ export default function WorkoutsScreen() {
   function getLastDone(template: WorkoutTemplate): string | null {
     const last = lastDoneByTemplate[template.id];
     return last ? formatRelative(last) : null;
+  }
+
+  function renderRecentWorkoutCard(
+    session: WorkoutSession,
+    template: WorkoutTemplate,
+    cardStyle: StyleProp<ViewStyle>
+  ) {
+    const completedAgo = session.completedAt ? formatRelative(session.completedAt) : null;
+    return (
+      <Pressable
+        key={session.id}
+        style={({ pressed }) => [cardStyle, pressed && styles.templateCardPressed]}
+        onPress={() => handleStartTemplate(template)}
+      >
+        <View style={styles.templateCardHeader}>
+          <View style={styles.templateCardTitleRow}>
+            <Text
+              style={[styles.templateName, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {template.name}
+            </Text>
+          </View>
+          {completedAgo && (
+            <Text style={[styles.lastDoneText, { color: colors.textMuted }]}>
+              Done {completedAgo}
+            </Text>
+          )}
+          <Text style={[styles.exerciseCount, { color: colors.textMuted }]}>
+            {template.exerciseIds.length} exercises
+          </Text>
+        </View>
+      </Pressable>
+    );
   }
 
   function isFolderExpanded(folderId: string): boolean {
@@ -644,6 +692,36 @@ export default function WorkoutsScreen() {
             </View>
           ) : (
             <>
+              {/* Recent workouts section */}
+              {recentWorkouts.length > 0 && (
+                <View style={sectionStyle}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.sectionHeader,
+                      styles.sectionHeaderLeft,
+                      { opacity: pressed ? 0.85 : 1 },
+                    ]}
+                    onPress={() => setRecentExpanded((e) => !e)}
+                  >
+                    <Ionicons
+                      name={recentExpanded ? 'chevron-down' : 'chevron-forward'}
+                      size={20}
+                      color={colors.textSecondary}
+                    />
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      Recent Workouts
+                    </Text>
+                  </Pressable>
+                  {recentExpanded && (
+                    <View style={styles.sectionContent}>
+                      {recentWorkouts.map(({ session, template }) =>
+                        renderRecentWorkoutCard(session, template, templateCardStyle)
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* Custom section with folders */}
               <View style={sectionStyle}>
                 <Pressable
