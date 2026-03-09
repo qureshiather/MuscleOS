@@ -95,12 +95,7 @@ export default function HistoryScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
-            <Text style={[styles.title, { color: colors.text }]}>History</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Previous workouts you've completed
-            </Text>
-          </View>
+          <Text style={[styles.title, { color: colors.text }]}>History</Text>
           <View style={styles.headerButtons}>
             <Pressable
               onPress={() => router.push('/personal-records')}
@@ -241,7 +236,7 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   headerButtons: {
     flexDirection: 'row',
@@ -256,7 +251,6 @@ const styles = StyleSheet.create({
   },
   calendarButtonPressed: { opacity: 0.8 },
   title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
   empty: { flex: 1, justifyContent: 'center', padding: 20 },
   emptyText: { fontSize: 16, textAlign: 'center' },
   scroll: { padding: 20, paddingBottom: 40 },
