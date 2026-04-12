@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter } from 'expo-router';
@@ -209,41 +209,21 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Workout</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Sounds</Text>
           <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-            Short sounds during an active workout (rest countdown, set checkmark, finishing).
+            Beeps and tones while you have an active workout open.
           </Text>
-          <View style={styles.themeRow}>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                workoutSoundsEnabled
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setWorkoutSoundsEnabled(true)}
-            >
-              <Text
-                style={[styles.themeBtnText, { color: workoutSoundsEnabled ? '#fff' : colors.text }]}
-              >
-                On
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.themeBtn,
-                !workoutSoundsEnabled
-                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-              ]}
-              onPress={() => setWorkoutSoundsEnabled(false)}
-            >
-              <Text
-                style={[styles.themeBtnText, { color: !workoutSoundsEnabled ? '#fff' : colors.text }]}
-              >
-                Off
-              </Text>
-            </Pressable>
+          <View style={styles.soundRow}>
+            <Text style={[styles.rowText, { color: colors.text, flex: 1, paddingRight: 12 }]}>
+              Workout sounds
+            </Text>
+            <Switch
+              value={workoutSoundsEnabled}
+              onValueChange={(v) => void setWorkoutSoundsEnabled(v)}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#fff"
+              ios_backgroundColor={colors.border}
+            />
           </View>
         </View>
 
@@ -317,6 +297,12 @@ const styles = StyleSheet.create({
   rowText: { fontSize: 16, fontWeight: '500' },
   rowHint: { fontSize: 13 },
   rowDanger: { marginTop: 8 },
+  soundRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
   themeRow: { flexDirection: 'row', gap: 8 },
   themeBtn: {
     paddingHorizontal: 14,
