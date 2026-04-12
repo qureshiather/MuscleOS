@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { Exercise, MuscleId } from '@muscleos/types';
@@ -94,9 +95,9 @@ export default function ExercisesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Exercises</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+      <View style={screenHeaderStyles.headerFixed}>
+        <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Exercises</Text>
+        <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
           {allExercises.length} exercises · tap for muscles
         </Text>
       </View>
@@ -342,11 +343,8 @@ export default function ExercisesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 16 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
   search: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -354,7 +352,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 16,
   },
-  filterWrapper: { marginHorizontal: 20, marginBottom: 16 },
+  filterWrapper: { marginHorizontal: 16, marginBottom: 16 },
   filterToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -373,11 +371,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   chipsScroll: { flexGrow: 0 },
   chipsContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingRight: 40,
     flexDirection: 'row',
     alignItems: 'center',
@@ -390,9 +388,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   chipText: { fontSize: 15, fontWeight: '500' },
-  listHeader: { paddingHorizontal: 20, marginBottom: 8 },
+  listHeader: { paddingHorizontal: 16, marginBottom: 8 },
   listCount: { fontSize: 13 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 40 },
   card: {
     padding: 18,
     borderRadius: 16,

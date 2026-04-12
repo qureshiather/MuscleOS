@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { BUILT_IN_FOLDERS } from '@/data/builtInTemplates';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -257,7 +258,7 @@ export default function WorkoutsScreen() {
         <View style={styles.templateCardHeader}>
           <View style={styles.templateCardTitleRow}>
             <Text
-              style={[styles.templateName, { color: colors.text }]}
+              style={[styles.templateName, { color: colors.accent }]}
               numberOfLines={1}
             >
               {template.name}
@@ -307,7 +308,7 @@ export default function WorkoutsScreen() {
             <Text
               style={[
                 styles.templateName,
-                { color: colors.text },
+                { color: colors.accent },
                 !hasDescription && styles.templateNameNoDesc,
               ]}
               numberOfLines={1}
@@ -323,7 +324,7 @@ export default function WorkoutsScreen() {
                 ]}
                 onPress={() => setTemplateMenuTarget(template)}
               >
-                <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+                <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
               </Pressable>
             )}
           </View>
@@ -527,7 +528,7 @@ export default function WorkoutsScreen() {
         >
           <Ionicons
             name={expanded ? 'chevron-down' : 'chevron-forward'}
-            size={20}
+            size={18}
             color={colors.textSecondary}
           />
           <Ionicons name="folder-outline" size={18} color={colors.primary} />
@@ -562,7 +563,7 @@ export default function WorkoutsScreen() {
             >
               <Ionicons
                 name={expanded ? 'chevron-down' : 'chevron-forward'}
-                size={20}
+                size={18}
                 color={colors.textSecondary}
               />
               <Ionicons name="folder-outline" size={18} color={iconColor} />
@@ -602,10 +603,10 @@ export default function WorkoutsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Workouts</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+      <ScrollView contentContainerStyle={screenHeaderStyles.scrollContent}>
+        <View style={screenHeaderStyles.headerInScroll}>
+          <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Workouts</Text>
+          <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
             Start empty or pick a template
           </Text>
 
@@ -705,7 +706,7 @@ export default function WorkoutsScreen() {
                   >
                     <Ionicons
                       name={recentExpanded ? 'chevron-down' : 'chevron-forward'}
-                      size={20}
+                      size={18}
                       color={colors.textSecondary}
                     />
                     <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -734,7 +735,7 @@ export default function WorkoutsScreen() {
                 >
                   <Ionicons
                     name={customExpanded ? 'chevron-down' : 'chevron-forward'}
-                    size={20}
+                    size={18}
                     color={colors.textSecondary}
                   />
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom</Text>
@@ -770,7 +771,7 @@ export default function WorkoutsScreen() {
                             name={
                               isFolderExpanded(UNCATEGORIZED) ? 'chevron-down' : 'chevron-forward'
                             }
-                            size={20}
+                            size={18}
                             color={colors.textSecondary}
                           />
                           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -800,7 +801,7 @@ export default function WorkoutsScreen() {
                             name={
                               isFolderExpanded(ARCHIVED_SECTION) ? 'chevron-down' : 'chevron-forward'
                             }
-                            size={20}
+                            size={18}
                             color={colors.textMuted}
                           />
                           <Ionicons name="archive-outline" size={18} color={colors.textMuted} />
@@ -847,7 +848,7 @@ export default function WorkoutsScreen() {
                 >
                   <Ionicons
                     name={builtInExpanded ? 'chevron-down' : 'chevron-forward'}
-                    size={20}
+                    size={18}
                     color={colors.textSecondary}
                   />
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Built-in</Text>
@@ -871,7 +872,7 @@ export default function WorkoutsScreen() {
                                 ? 'chevron-down'
                                 : 'chevron-forward'
                             }
-                            size={20}
+                            size={18}
                             color={colors.textSecondary}
                           />
                           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -1118,7 +1119,7 @@ export default function WorkoutsScreen() {
                 setTemplateMenuTarget(null);
               }}
             >
-              <Ionicons name="pencil-outline" size={20} color={colors.text} />
+              <Ionicons name="pencil-outline" size={18} color={colors.text} />
               <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Rename</Text>
             </Pressable>
             <Pressable
@@ -1128,7 +1129,7 @@ export default function WorkoutsScreen() {
                 setTemplateMenuTarget(null);
               }}
             >
-              <Ionicons name="arrow-redo-outline" size={20} color={colors.text} />
+              <Ionicons name="arrow-redo-outline" size={18} color={colors.text} />
               <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Move</Text>
             </Pressable>
             <Pressable
@@ -1143,7 +1144,7 @@ export default function WorkoutsScreen() {
                 setTemplateMenuTarget(null);
               }}
             >
-              <Ionicons name="create-outline" size={20} color={colors.text} />
+              <Ionicons name="create-outline" size={18} color={colors.text} />
               <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Edit</Text>
             </Pressable>
           </View>
@@ -1257,7 +1258,7 @@ export default function WorkoutsScreen() {
                       moveTemplateModal && handleMoveTemplate(moveTemplateModal, undefined)
                     }
                   >
-                    <Ionicons name="folder-open-outline" size={20} color={colors.textMuted} />
+                    <Ionicons name="folder-open-outline" size={18} color={colors.textMuted} />
                     <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
                       Uncategorized
                     </Text>
@@ -1272,7 +1273,7 @@ export default function WorkoutsScreen() {
                           moveTemplateModal && handleMoveTemplate(moveTemplateModal, folder.id)
                         }
                       >
-                        <Ionicons name="folder-outline" size={20} color={colors.primary} />
+                        <Ionicons name="folder-outline" size={18} color={colors.primary} />
                         <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
                           {folder.name}
                         </Text>
@@ -1282,7 +1283,7 @@ export default function WorkoutsScreen() {
                     style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
                     onPress={() => setShowCreateFolderInMoveModal(true)}
                   >
-                    <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                    <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
                     <Text style={[styles.moveFolderRowText, { color: colors.primary }]}>
                       New folder…
                     </Text>
@@ -1309,51 +1310,48 @@ export default function WorkoutsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { padding: 20, paddingBottom: 40 },
-  header: { marginBottom: 12 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
   startEmptyCard: {
-    marginTop: 12,
-    borderRadius: 16,
+    marginTop: 10,
+    borderRadius: 14,
     borderWidth: 1.5,
     overflow: 'hidden',
   },
   startEmptyCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 12,
   },
   startEmptyIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   startEmptyTextWrap: { flex: 1 },
-  startEmptyCardTitle: { fontSize: 17, fontWeight: '700' },
-  startEmptyCardSubtitle: { fontSize: 13, marginTop: 2 },
-  templatesSection: { marginTop: 16 },
+  startEmptyCardTitle: { fontSize: 16, fontWeight: '700' },
+  startEmptyCardSubtitle: { fontSize: 12, marginTop: 2 },
+  templatesSection: { marginTop: 12 },
   templatesSectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 12,
+    marginBottom: 8,
+    gap: 10,
   },
-  templatesSectionTitle: { fontSize: 20, fontWeight: '700' },
+  templatesSectionTitle: { fontSize: 18, fontWeight: '700' },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     borderWidth: 1,
   },
-  addBtnText: { fontSize: 14, fontWeight: '600' },
+  addBtnText: { fontSize: 13, fontWeight: '600' },
   folderAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1364,19 +1362,19 @@ const styles = StyleSheet.create({
   },
   folderAddBtnText: { fontSize: 13, fontWeight: '600' },
   collapsibleSection: {
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    marginBottom: 10,
     overflow: 'hidden',
   },
   nestedSection: {
-    marginBottom: 8,
-    marginTop: 4,
+    marginBottom: 6,
+    marginTop: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   folderSectionHeaderWrap: {
     position: 'relative',
@@ -1410,8 +1408,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   folderStar: { marginRight: 2 },
-  sectionTitle: { fontSize: 17, fontWeight: '600', flex: 1 },
-  sectionContent: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0, gap: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', flex: 1 },
+  sectionContent: { paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0, gap: 6 },
   emptySectionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1426,10 +1424,11 @@ const styles = StyleSheet.create({
   placeholder: { paddingVertical: 24, alignItems: 'center' },
   placeholderText: { fontSize: 15 },
   templateCard: {
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 4,
-    marginBottom: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginTop: 2,
+    marginBottom: 2,
   },
   templateCardPressed: { opacity: 0.85 },
   templateCardHeader: { marginBottom: 0 },
@@ -1467,11 +1466,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   templateMoveLabel: { fontSize: 13, fontWeight: '600' },
-  lastDoneText: { fontSize: 12, marginTop: 4 },
-  templateName: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
-  templateNameNoDesc: { marginBottom: 10 },
-  templateDesc: { fontSize: 14, marginBottom: 10 },
-  exerciseCount: { fontSize: 12, marginTop: 6 },
+  lastDoneText: { fontSize: 11, marginTop: 2 },
+  templateName: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+  templateNameNoDesc: { marginBottom: 6 },
+  templateDesc: { fontSize: 13, marginBottom: 6, lineHeight: 18 },
+  exerciseCount: { fontSize: 11, marginTop: 4 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

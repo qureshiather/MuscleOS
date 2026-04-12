@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -94,10 +95,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+      <ScrollView contentContainerStyle={[screenHeaderStyles.scrollContent, styles.scrollExtra]}>
+        <View style={screenHeaderStyles.headerInScroll}>
+          <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Profile</Text>
+          <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
             Account, biodata & subscription
           </Text>
         </View>
@@ -287,12 +288,9 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingBottom: 40 },
-  header: { padding: 20, paddingBottom: 16 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
+  scrollExtra: { paddingBottom: 40 },
   section: {
-    marginHorizontal: 20,
+    marginHorizontal: 0,
     marginBottom: 12,
     padding: 16,
     borderRadius: 12,
@@ -398,7 +396,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    marginHorizontal: 20,
+    marginHorizontal: 0,
     marginBottom: 8,
     borderRadius: 12,
   },

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
+import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { MUSCLE_GROUPS, getRecoveryUntil } from '@muscleos/types';
@@ -36,9 +37,9 @@ export default function RecoveryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Recovery</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+      <View style={screenHeaderStyles.headerFixed}>
+        <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Recovery</Text>
+        <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
           {active.length === 0
             ? 'All muscles ready – you can work out any muscle'
             : 'Avoid training these muscles until recovered'}
@@ -58,7 +59,7 @@ export default function RecoveryScreen() {
           />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={[screenHeaderStyles.scrollContent, { paddingBottom: 40 }]}>
           <View style={styles.diagramWrap}>
             <MuscleDiagram
               muscleIds={muscleIds}
@@ -104,13 +105,9 @@ export default function RecoveryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
   placeholder: { flex: 1, padding: 20, justifyContent: 'center' },
   placeholderText: { fontSize: 15, textAlign: 'center' },
   readyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  scroll: { padding: 20, paddingBottom: 40 },
   diagramWrap: { alignItems: 'center', marginBottom: 24 },
   legend: { flexDirection: 'row', gap: 20, marginTop: 12, justifyContent: 'center' },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

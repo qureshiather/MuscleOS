@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
@@ -93,9 +94,14 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
+      <View style={screenHeaderStyles.headerFixed}>
         <View style={styles.headerTop}>
-          <Text style={[styles.title, { color: colors.text }]}>History</Text>
+          <View style={styles.headerTextBlock}>
+            <Text style={[screenHeaderStyles.title, { color: colors.text }]}>History</Text>
+            <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
+              Completed workouts
+            </Text>
+          </View>
           <View style={styles.headerButtons}>
             <Pressable
               onPress={() => router.push('/personal-records')}
@@ -129,7 +135,10 @@ export default function HistoryScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[screenHeaderStyles.scrollContent, { paddingBottom: 40 }]}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.cardsContainer}>
             {completed.map((s) => {
               const exercises = exercisesWithCompletedSets(s);
@@ -232,11 +241,15 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 16 },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTextBlock: {
+    flex: 1,
+    marginRight: 8,
+    minWidth: 0,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -250,10 +263,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   calendarButtonPressed: { opacity: 0.8 },
-  title: { fontSize: 28, fontWeight: '700' },
   empty: { flex: 1, justifyContent: 'center', padding: 20 },
   emptyText: { fontSize: 16, textAlign: 'center' },
-  scroll: { padding: 20, paddingBottom: 40 },
   cardsContainer: { gap: 16 },
   workoutCard: {
     borderRadius: 16,
