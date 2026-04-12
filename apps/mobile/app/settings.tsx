@@ -16,8 +16,12 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const unitSystem = useSettingsStore((s) => s.unitSystem);
-  const setUnitSystem = useSettingsStore((s) => s.setUnitSystem);
+  const heightUnit = useSettingsStore((s) => s.heightUnit);
+  const setHeightUnit = useSettingsStore((s) => s.setHeightUnit);
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const setWeightUnit = useSettingsStore((s) => s.setWeightUnit);
+  const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
+  const setBodyWeightUnit = useSettingsStore((s) => s.setBodyWeightUnit);
   const loadTemplates = useTemplatesStore((s) => s.load);
   const loadRecovery = useRecoveryStore((s) => s.load);
   const loadSubscription = useSubscriptionStore((s) => s.load);
@@ -120,30 +124,84 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Units</Text>
           <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-            Metric: cm & kg · Imperial: in & lb (used everywhere)
+            Height, profile body weight, and exercise loads can use different units.
           </Text>
+
+          <Text style={[styles.unitRowLabel, { color: colors.textSecondary }]}>Height</Text>
           <View style={styles.themeRow}>
             <Pressable
               style={[
                 styles.themeBtn,
-                unitSystem === 'metric'
+                heightUnit === 'cm'
                   ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
                   : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
               ]}
-              onPress={() => setUnitSystem('metric')}
+              onPress={() => setHeightUnit('cm')}
             >
-              <Text style={[styles.themeBtnText, { color: unitSystem === 'metric' ? '#fff' : colors.text }]}>Metric</Text>
+              <Text style={[styles.themeBtnText, { color: heightUnit === 'cm' ? '#fff' : colors.text }]}>cm</Text>
             </Pressable>
             <Pressable
               style={[
                 styles.themeBtn,
-                unitSystem === 'imperial'
+                heightUnit === 'in'
                   ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
                   : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
               ]}
-              onPress={() => setUnitSystem('imperial')}
+              onPress={() => setHeightUnit('in')}
             >
-              <Text style={[styles.themeBtnText, { color: unitSystem === 'imperial' ? '#fff' : colors.text }]}>Imperial</Text>
+              <Text style={[styles.themeBtnText, { color: heightUnit === 'in' ? '#fff' : colors.text }]}>in</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[styles.unitRowLabel, { color: colors.textSecondary, marginTop: 14 }]}>Body weight</Text>
+          <View style={styles.themeRow}>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                bodyWeightUnit === 'kg'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setBodyWeightUnit('kg')}
+            >
+              <Text style={[styles.themeBtnText, { color: bodyWeightUnit === 'kg' ? '#fff' : colors.text }]}>kg</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                bodyWeightUnit === 'lb'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setBodyWeightUnit('lb')}
+            >
+              <Text style={[styles.themeBtnText, { color: bodyWeightUnit === 'lb' ? '#fff' : colors.text }]}>lb</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[styles.unitRowLabel, { color: colors.textSecondary, marginTop: 14 }]}>Exercise weight</Text>
+          <View style={styles.themeRow}>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                weightUnit === 'kg'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setWeightUnit('kg')}
+            >
+              <Text style={[styles.themeBtnText, { color: weightUnit === 'kg' ? '#fff' : colors.text }]}>kg</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                weightUnit === 'lb'
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setWeightUnit('lb')}
+            >
+              <Text style={[styles.themeBtnText, { color: weightUnit === 'lb' ? '#fff' : colors.text }]}>lb</Text>
             </Pressable>
           </View>
         </View>
@@ -206,6 +264,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
   sectionHint: { fontSize: 13, marginBottom: 12 },
+  unitRowLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -12,7 +12,7 @@ export default function ProfileScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
   const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
   const setProfile = useSettingsStore((s) => s.setProfile);
@@ -45,20 +45,20 @@ export default function ProfileScreen() {
   const [sexSelection, setSexSelection] = useState<'male' | 'female' | null>(null);
 
   useEffect(() => {
-    const { profile: p, weightUnit: wu, heightUnit: hu } = useSettingsStore.getState();
+    const { profile: p, bodyWeightUnit: bwu, heightUnit: hu } = useSettingsStore.getState();
     if (p.heightCm != null) setHeightInput(String(cmToDisplay(p.heightCm, hu)));
     else setHeightInput('');
-    if (p.weightKg != null) setWeightInput(String(kgToDisplay(p.weightKg, wu)));
+    if (p.weightKg != null) setWeightInput(String(kgToDisplay(p.weightKg, bwu)));
     else setWeightInput('');
     if (p.age != null) setAgeInput(String(p.age));
     else setAgeInput('');
-  }, [profile.heightCm, profile.weightKg, profile.age, heightUnit, weightUnit]);
+  }, [profile.heightCm, profile.weightKg, profile.age, heightUnit, bodyWeightUnit]);
 
   function openProfileModal() {
-    const { profile: p, weightUnit: wu, heightUnit: hu } = useSettingsStore.getState();
+    const { profile: p, bodyWeightUnit: bwu, heightUnit: hu } = useSettingsStore.getState();
     if (p.heightCm != null) setHeightInput(String(cmToDisplay(p.heightCm, hu)));
     else setHeightInput('');
-    if (p.weightKg != null) setWeightInput(String(kgToDisplay(p.weightKg, wu)));
+    if (p.weightKg != null) setWeightInput(String(kgToDisplay(p.weightKg, bwu)));
     else setWeightInput('');
     if (p.age != null) setAgeInput(String(p.age));
     else setAgeInput('');
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
     const next: typeof profile = { ...profile };
     if (!Number.isNaN(h) && h > 0) next.heightCm = displayToCm(h, heightUnit);
     else delete next.heightCm;
-    if (!Number.isNaN(w) && w > 0) next.weightKg = displayToKg(w, weightUnit);
+    if (!Number.isNaN(w) && w > 0) next.weightKg = displayToKg(w, bodyWeightUnit);
     else delete next.weightKg;
     if (!Number.isNaN(a) && a > 0 && a < 150) next.age = a;
     else delete next.age;
@@ -84,10 +84,11 @@ export default function ProfileScreen() {
   }
 
   const heightPlaceholder = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
-  const weightPlaceholder = weightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
+  const weightPlaceholder = bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
 
   const heightDisplay = profile.heightCm != null ? `${cmToDisplay(profile.heightCm, heightUnit)} ${heightUnit === 'in' ? 'in' : 'cm'}` : '—';
-  const weightDisplay = profile.weightKg != null ? `${kgToDisplay(profile.weightKg, weightUnit)} ${weightUnit}` : '—';
+  const weightDisplay =
+    profile.weightKg != null ? `${kgToDisplay(profile.weightKg, bodyWeightUnit)} ${bodyWeightUnit}` : '—';
   const ageDisplay = profile.age != null ? String(profile.age) : '—';
   const sexDisplay = profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : '—';
 
@@ -164,7 +165,9 @@ export default function ProfileScreen() {
             <Text style={[styles.readOnlyValue, { color: colors.text }]}>{heightDisplay}</Text>
           </View>
           <View style={styles.readOnlyRow}>
-            <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>{weightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)'}</Text>
+            <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>
+              {bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)'}
+            </Text>
             <Text style={[styles.readOnlyValue, { color: colors.text }]}>{weightDisplay}</Text>
           </View>
           <View style={styles.readOnlyRow}>
