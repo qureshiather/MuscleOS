@@ -35,7 +35,7 @@ function formatElapsed(ms: number): string {
 }
 
 export default function ActiveWorkoutScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
     templateId?: string;
@@ -341,6 +341,8 @@ export default function ActiveWorkoutScreen() {
           const currentWeightKg =
             se.sets.find((s) => s.weightKg != null && s.weightKg > 0)?.weightKg ?? 0;
 
+          const lastCompletedSetIndex = se.sets.reduce((last, s, i) => (s.completed ? i : last), -1);
+
           return (
             <View
               key={se.exerciseId + exIdx}
@@ -450,134 +452,198 @@ export default function ActiveWorkoutScreen() {
               {se.sets.map((set, setIdx) => {
                 const isKgFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'kg';
                 const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
+                const firstIncompleteIdx = se.sets.findIndex((s) => !s.completed);
+                const isFutureSet =
+                  firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
+                const isCurrentSet = firstIncompleteIdx === setIdx && !set.completed;
+                const showRestGap = lastCompletedSetIndex === setIdx && setIdx < se.sets.length - 1;
+
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
                   ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
                   : '—';
 
+                const completedGreen = isDark ? 'rgba(34, 197, 94, 0.16)' : 'rgba(220, 252, 231, 0.95)';
+                const rowBg = set.completed ? completedGreen : colors.surface;
+                const mutedFill = isDark ? colors.surfaceElevated : '#f1f5f9';
+
+                let kgBorderW = 0;
+                let kgBorderColor = 'transparent';
+                let repsBorderW = 0;
+                let repsBorderColor = 'transparent';
+                let kgFill: string = colors.surface;
+                let repsFill: string = mutedFill;
+
+                if (!set.completed) {
+                  if (isFutureSet) {
+                    kgFill = mutedFill;
+                    repsFill = mutedFill;
+                  } else if (isCurrentSet) {
+                    if (isKgFocused) {
+                      kgFill = colors.surface;
+                      kgBorderW = 1.5;
+                      kgBorderColor = colors.accent;
+                      repsFill = mutedFill;
+                    } else if (isRepsFocused) {
+                      kgFill = mutedFill;
+                      repsFill = colors.surface;
+                      repsBorderW = 1.5;
+                      repsBorderColor = colors.accent;
+                    } else {
+                      kgFill = colors.surface;
+                      kgBorderW = 1;
+                      kgBorderColor = isDark ? colors.border : '#cbd5e1';
+                      repsFill = mutedFill;
+                    }
+                  }
+                }
+
+                const weightStr =
+                  set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : '—';
+                const repsStr = set.reps !== undefined ? String(set.reps) : '—';
+
                 return (
                   <View key={setIdx}>
-                    <View
-                      style={[
-                        styles.setRow,
-                        {
-                          backgroundColor: set.completed
-                            ? 'rgba(34, 197, 94, 0.15)'
-                            : colors.surface,
-                        },
-                      ]}
-                    >
+                    <View style={[styles.setRow, { backgroundColor: rowBg }]}>
                       <View style={styles.setLabelWrap}>
-                        <Text style={[styles.setLabel, { color: colors.textSecondary }]}>
+                        <Text
+                          style={[
+                            styles.setLabel,
+                            {
+                              color: set.completed ? colors.text : isFutureSet ? colors.textMuted : colors.text,
+                              fontWeight: '600',
+                            },
+                          ]}
+                        >
                           {setIdx + 1}
                         </Text>
                       </View>
                       <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
                         {prevLabel}
                       </Text>
-                      <TextInput
-                          style={[
-                            styles.setInput,
-                            {
-                              backgroundColor: isKgFocused ? colors.background : colors.surfaceElevated,
-                              color: colors.text,
-                              borderColor: isKgFocused ? colors.accent : 'transparent',
-                            },
-                          ]}
-                          placeholder="0"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="decimal-pad"
-                          value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
-                          onChangeText={(t) =>
-                            setSetRecord(exIdx, setIdx, {
-                              weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
-                            })
-                          }
-                          onFocus={() => {
-                            setFocusedCell({ exIdx, setIdx, field: 'kg' });
-                            setEditingWeightExIdx(exIdx);
-                          }}
-                          onBlur={() => {
-                            setFocusedCell(null);
-                            setEditingWeightExIdx(null);
-                          }}
-                        />
-                        <TextInput
-                          style={[
-                            styles.setInput,
-                            {
-                              backgroundColor: isRepsFocused ? colors.background : colors.surfaceElevated,
-                              color: colors.text,
-                              borderColor: isRepsFocused ? colors.accent : 'transparent',
-                            },
-                          ]}
-                          placeholder="0"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="number-pad"
-                          value={set.reps !== undefined ? String(set.reps) : ''}
-                          onChangeText={(t) =>
-                            setSetRecord(exIdx, setIdx, {
-                              reps: t === '' ? undefined : parseInt(t, 10),
-                            })
-                          }
-                          onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
-                          onBlur={() => setFocusedCell(null)}
-                        />
-                        <Pressable
-                          style={[
-                            styles.doneBtn,
-                            set.completed
-                              ? { backgroundColor: '#22c55e' }
-                              : { backgroundColor: colors.surfaceElevated },
-                          ]}
-                          onPress={() => {
-                            if (set.completed) {
-                              uncompleteSet(exIdx, setIdx);
-                              // If the rest timer under this set is active, clear it
-                              if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                                clearRestTimer();
-                                setShowRestControlSheet(false);
-                              }
-                            } else {
-                              completeSet(exIdx, setIdx);
-                              if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
+                      {set.completed ? (
+                        <>
+                          <Text style={[styles.setCellText, { color: colors.text }]}>{weightStr}</Text>
+                          <Text style={[styles.setCellText, { color: colors.text }]}>{repsStr}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <TextInput
+                            style={[
+                              styles.setInput,
+                              {
+                                backgroundColor: kgFill,
+                                color: colors.text,
+                                borderColor: kgBorderColor,
+                                borderWidth: kgBorderW,
+                              },
+                            ]}
+                            placeholder="0"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="decimal-pad"
+                            value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
+                            onChangeText={(t) =>
+                              setSetRecord(exIdx, setIdx, {
+                                weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
+                              })
                             }
-                          }}
-                        >
-                          <Text style={[styles.doneBtnText, { color: set.completed ? '#fff' : colors.textSecondary }]}>
-                            ✓
-                          </Text>
-                        </Pressable>
-                      </View>
-                    {/* Rest between sets: active progress bar or static duration */}
-                    {setIdx < se.sets.length - 1 && (
-                      <View style={styles.restBetweenRow}>
+                            onFocus={() => {
+                              setFocusedCell({ exIdx, setIdx, field: 'kg' });
+                              setEditingWeightExIdx(exIdx);
+                            }}
+                            onBlur={() => {
+                              setFocusedCell(null);
+                              setEditingWeightExIdx(null);
+                            }}
+                          />
+                          <TextInput
+                            style={[
+                              styles.setInput,
+                              {
+                                backgroundColor: repsFill,
+                                color: colors.text,
+                                borderColor: repsBorderColor,
+                                borderWidth: repsBorderW,
+                              },
+                            ]}
+                            placeholder="0"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="number-pad"
+                            value={set.reps !== undefined ? String(set.reps) : ''}
+                            onChangeText={(t) =>
+                              setSetRecord(exIdx, setIdx, {
+                                reps: t === '' ? undefined : parseInt(t, 10),
+                              })
+                            }
+                            onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                            onBlur={() => setFocusedCell(null)}
+                          />
+                        </>
+                      )}
+                      <Pressable
+                        style={[
+                          styles.doneBtn,
+                          set.completed
+                            ? { backgroundColor: colors.primary }
+                            : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
+                        ]}
+                        onPress={() => {
+                          if (set.completed) {
+                            uncompleteSet(exIdx, setIdx);
+                            if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
+                              clearRestTimer();
+                              setShowRestControlSheet(false);
+                            }
+                          } else {
+                            completeSet(exIdx, setIdx);
+                            if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
+                          }
+                        }}
+                      >
+                        <Ionicons
+                          name="checkmark"
+                          size={18}
+                          color={set.completed ? '#fff' : colors.textMuted}
+                        />
+                      </Pressable>
+                    </View>
+                    {showRestGap && (
+                      <View style={styles.restGapBlock}>
                         {restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx && restSecondsLeft != null && restSecondsLeft > 0 ? (
                           <Pressable
-                            style={[styles.restProgressBar, { backgroundColor: colors.accent }]}
                             onPress={() => setShowRestControlSheet(true)}
+                            style={styles.restTrackWrap}
                           >
-                            <View style={[styles.restProgressBarBg, { backgroundColor: 'rgba(0,0,0,0.25)' }]}>
+                            <View
+                              style={[
+                                styles.restTrack,
+                                { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(191, 219, 254, 0.85)' },
+                              ]}
+                            >
                               <View
                                 style={[
-                                  styles.restProgressBarFill,
+                                  styles.restTrackFill,
                                   {
-                                    width: `${restTotalSeconds > 0 ? ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100 : 0}%`,
-                                    backgroundColor: colors.primary,
+                                    width: `${restTotalSeconds > 0 ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100) : 0}%`,
+                                    backgroundColor: colors.accent,
                                   },
                                 ]}
                               />
+                              <Text style={[styles.restTrackCenterTime, { color: '#fff' }]}>
+                                {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+                              </Text>
                             </View>
-                            <Text style={[styles.restProgressBarTime, { color: '#fff' }]}>
-                              {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
-                            </Text>
                           </Pressable>
                         ) : (
-                          <Text style={[styles.restBetweenText, { color: colors.accent }]}>
-                            {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
-                              ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
-                              : '2:00'}
-                          </Text>
+                          <View style={styles.restGapIdle}>
+                            <View style={[styles.restIdleLine, { backgroundColor: colors.border }]} />
+                            <Text style={[styles.restBetweenText, { color: colors.accent }]}>
+                              {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
+                                ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
+                                : '2:00'}
+                            </Text>
+                            <View style={[styles.restIdleLine, { backgroundColor: colors.border }]} />
+                          </View>
                         )}
                       </View>
                     )}
@@ -589,7 +655,7 @@ export default function ActiveWorkoutScreen() {
                 style={[styles.addSetBtn, { borderColor: colors.border }]}
                 onPress={() => addSet(exIdx)}
               >
-                <Ionicons name="add" size={18} color={colors.accent} />
+                <Ionicons name="add" size={16} color={colors.accent} />
                 <Text style={[styles.addSetBtnText, { color: colors.accent }]}>ADD SET (2:00)</Text>
               </Pressable>
             </View>
@@ -1166,9 +1232,10 @@ const styles = StyleSheet.create({
   },
   emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
-    padding: 10,
-    borderRadius: 16,
-    marginBottom: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginBottom: 10,
     overflow: 'visible',
   },
   exerciseCardHeaderWrap: {
@@ -1178,90 +1245,112 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1 },
+  exerciseName: { fontSize: 16, fontWeight: '600', flex: 1 },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exerciseHeaderIcon: { padding: 6 },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
-    gap: 8,
+    paddingHorizontal: 2,
+    gap: 4,
   },
-  th: { fontSize: 12, fontWeight: '600' },
+  th: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   thSet: { width: 28, textAlign: 'center' },
-  thPrev: { width: 80, textAlign: 'center' },
-  thKg: { flex: 1, minWidth: 56, textAlign: 'center' },
-  thReps: { flex: 1, minWidth: 56, textAlign: 'center' },
-  thActions: { flex: 1, minWidth: 56 },
+  thPrev: { flex: 1, minWidth: 64, textAlign: 'center' },
+  thKg: { flex: 1, minWidth: 48, textAlign: 'center' },
+  thReps: { flex: 1, minWidth: 48, textAlign: 'center' },
+  thActions: { width: 34 },
   setLabelWrap: {
     width: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
   setLabel: { fontSize: 14, textAlign: 'center' },
-  prevCell: { width: 80, fontSize: 12, textAlign: 'center' },
+  prevCell: { flex: 1, minWidth: 64, fontSize: 10, textAlign: 'center' },
+  setCellText: {
+    flex: 1,
+    minWidth: 48,
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 5,
+  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
+    gap: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+    borderRadius: 6,
+    minHeight: 34,
   },
   setInput: {
     flex: 1,
-    minWidth: 52,
+    minWidth: 48,
     minHeight: 32,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 6,
-    fontSize: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 3,
+    borderRadius: 5,
+    fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
+    overflow: 'hidden',
   },
   doneBtn: {
-    flex: 1,
-    minWidth: 52,
-    height: 32,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 7,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  doneBtnText: { fontSize: 18, fontWeight: '600' },
-  restBetweenRow: {
-    marginVertical: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 28,
+  restGapBlock: {
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 4,
   },
-  restProgressBar: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    justifyContent: 'center',
+  restTrackWrap: { alignSelf: 'stretch' },
+  restTrack: {
     alignSelf: 'stretch',
-    height: 28,
+    height: 22,
+    borderRadius: 6,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  restProgressBarBg: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  restProgressBarFill: {
+  restTrackFill: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 8,
+    borderRadius: 6,
   },
-  restProgressBarTime: {
-    fontSize: 13,
+  restTrackCenterTime: {
+    width: '100%',
+    textAlign: 'center',
+    fontSize: 12,
     fontWeight: '700',
+    zIndex: 1,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  restBetweenText: { fontSize: 12 },
+  restGapIdle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+  },
+  restIdleLine: { flex: 1, height: StyleSheet.hairlineWidth, opacity: 0.9 },
+  restBetweenText: { fontSize: 12, fontWeight: '600' },
   restControlOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1408,14 +1497,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    marginTop: 6,
+    gap: 5,
+    paddingVertical: 6,
+    marginTop: 4,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  addSetBtnText: { fontSize: 14, fontWeight: '600' },
+  addSetBtnText: { fontSize: 13, fontWeight: '600' },
   addExerciseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
