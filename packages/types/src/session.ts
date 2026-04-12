@@ -11,6 +11,8 @@ export interface SetRecord {
 export interface SessionExercise {
   exerciseId: string;
   sets: SetRecord[];
+  /** Rest after every set in this exercise (including after the last set), in seconds; omit = app default. */
+  restBetweenSetsSeconds?: number;
 }
 
 /** A completed or in-progress workout session */

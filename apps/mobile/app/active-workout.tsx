@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
+import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -34,6 +34,20 @@ function formatElapsed(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** e.g. 120 → "2:00" for compact labels */
+function formatRestDurationLabel(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Shown in exercise menu → Rest timers; applies to every set in that exercise (including after the last). */
+const REST_BETWEEN_SETS_CHOICES = [
+  { label: '1:30', seconds: 90 },
+  { label: '2:00', seconds: 120 },
+  { label: '3:00', seconds: 180 },
+] as const;
+
 export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
@@ -45,6 +59,7 @@ export default function ActiveWorkoutScreen() {
   const session = useActiveWorkoutStore((s) => s.session);
   const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
+  const setExerciseRestBetweenSets = useActiveWorkoutStore((s) => s.setExerciseRestBetweenSets);
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
   const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
   const addSet = useActiveWorkoutStore((s) => s.addSet);
@@ -100,6 +115,7 @@ export default function ActiveWorkoutScreen() {
   const dropdownMeasureRef = useRef<View>(null);
   const [editSetsExIdx, setEditSetsExIdx] = useState<number | null>(null);
   const [setsToDelete, setSetsToDelete] = useState<Set<number>>(new Set());
+  const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
 
@@ -196,7 +212,12 @@ export default function ActiveWorkoutScreen() {
   }
 
   function handleResetRest() {
-    resetRest();
+    let secs = DEFAULT_REST_SECONDS;
+    if (restAfter && session?.exercises[restAfter.exIdx]) {
+      secs =
+        session.exercises[restAfter.exIdx].restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+    }
+    resetRest(secs);
   }
 
   async function handleFinish(updateCustomTemplate?: boolean) {
@@ -343,10 +364,16 @@ export default function ActiveWorkoutScreen() {
 
           const lastCompletedSetIndex = se.sets.reduce((last, s, i) => (s.completed ? i : last), -1);
 
+          const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+
           return (
             <View
               key={se.exerciseId + exIdx}
-              style={[styles.exerciseCard, { backgroundColor: colors.surface }]}
+              style={[
+                styles.exerciseCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                !isDark && styles.exerciseCardShadow,
+              ]}
             >
               <View style={styles.exerciseCardHeaderWrap}>
                 <View style={styles.exerciseCardHeader}>
@@ -393,6 +420,16 @@ export default function ActiveWorkoutScreen() {
                     >
                       <Ionicons name="list-outline" size={18} color={colors.text} />
                       <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                      onPress={() => {
+                        setRestTimersExIdx(exIdx);
+                        setExerciseMenuExIdx(null);
+                      }}
+                    >
+                      <Ionicons name="timer-outline" size={18} color={colors.text} />
+                      <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Rest timers</Text>
                     </Pressable>
                     {session.exercises.length >= 2 && exIdx > 0 && (
                       <Pressable
@@ -441,12 +478,31 @@ export default function ActiveWorkoutScreen() {
                 )}
               </View>
 
+              <View
+                style={[
+                  styles.tableInset,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: isDark ? colors.surfaceElevated : '#ffffff',
+                  },
+                ]}
+              >
+              <View
+                style={[
+                  styles.tableHeaderStrip,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9',
+                    borderBottomColor: colors.border,
+                  },
+                ]}
+              >
               <View style={styles.tableHeader}>
                 <Text style={[styles.th, styles.thSet, { color: colors.textMuted }]}>SET</Text>
                 <Text style={[styles.th, styles.thPrev, { color: colors.textMuted }]}>PREVIOUS</Text>
                 <Text style={[styles.th, styles.thKg, { color: colors.textMuted }]}>{weightLabel}</Text>
                 <Text style={[styles.th, styles.thReps, { color: colors.textMuted }]}>REPS</Text>
                 <View style={styles.thActions} />
+              </View>
               </View>
 
               {se.sets.map((set, setIdx) => {
@@ -456,15 +512,25 @@ export default function ActiveWorkoutScreen() {
                 const isFutureSet =
                   firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
                 const isCurrentSet = firstIncompleteIdx === setIdx && !set.completed;
-                const showRestGap = lastCompletedSetIndex === setIdx && setIdx < se.sets.length - 1;
+                const showRestGap = lastCompletedSetIndex === setIdx;
 
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
                   ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
                   : '—';
 
-                const completedGreen = isDark ? 'rgba(34, 197, 94, 0.16)' : 'rgba(220, 252, 231, 0.95)';
-                const rowBg = set.completed ? completedGreen : colors.surface;
+                const completedRowTint = isDark
+                  ? 'rgba(20, 83, 45, 0.22)'
+                  : '#f0fdf4';
+                const rowBg = set.completed
+                  ? completedRowTint
+                  : isFutureSet
+                    ? isDark
+                      ? 'rgba(255,255,255,0.03)'
+                      : '#f8fafc'
+                    : isDark
+                      ? colors.surface
+                      : '#ffffff';
                 const mutedFill = isDark ? colors.surfaceElevated : '#f1f5f9';
 
                 let kgBorderW = 0;
@@ -504,7 +570,15 @@ export default function ActiveWorkoutScreen() {
 
                 return (
                   <View key={setIdx}>
-                    <View style={[styles.setRow, { backgroundColor: rowBg }]}>
+                    <View
+                      style={[
+                        styles.setRow,
+                        {
+                          backgroundColor: rowBg,
+                          borderBottomColor: colors.border,
+                        },
+                      ]}
+                    >
                       <View style={styles.setLabelWrap}>
                         <Text
                           style={[
@@ -596,7 +670,11 @@ export default function ActiveWorkoutScreen() {
                             }
                           } else {
                             completeSet(exIdx, setIdx);
-                            if (setIdx < se.sets.length - 1) startRest(exIdx, setIdx);
+                            startRest(
+                              exIdx,
+                              setIdx,
+                              se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS
+                            );
                           }
                         }}
                       >
@@ -617,7 +695,11 @@ export default function ActiveWorkoutScreen() {
                             <View
                               style={[
                                 styles.restTrack,
-                                { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(191, 219, 254, 0.85)' },
+                                {
+                                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.22)' : '#dbeafe',
+                                  borderWidth: isDark ? 0 : 1,
+                                  borderColor: isDark ? 'transparent' : '#bfdbfe',
+                                },
                               ]}
                             >
                               <View
@@ -636,13 +718,15 @@ export default function ActiveWorkoutScreen() {
                           </Pressable>
                         ) : (
                           <View style={styles.restGapIdle}>
-                            <View style={[styles.restIdleLine, { backgroundColor: colors.border }]} />
+                            <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
                             <Text style={[styles.restBetweenText, { color: colors.accent }]}>
                               {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
                                 ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
-                                : '2:00'}
+                                : formatElapsed(
+                                    (se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS) * 1000
+                                  )}
                             </Text>
-                            <View style={[styles.restIdleLine, { backgroundColor: colors.border }]} />
+                            <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
                           </View>
                         )}
                       </View>
@@ -652,12 +736,14 @@ export default function ActiveWorkoutScreen() {
               })}
 
               <Pressable
-                style={[styles.addSetBtn, { borderColor: colors.border }]}
+                style={[styles.addSetBtn, { borderColor: colors.accent }]}
                 onPress={() => addSet(exIdx)}
               >
-                <Ionicons name="add" size={16} color={colors.accent} />
-                <Text style={[styles.addSetBtnText, { color: colors.accent }]}>ADD SET (2:00)</Text>
+                <Text style={[styles.addSetBtnText, { color: colors.accent }]}>
+                  + ADD SET ({formatRestDurationLabel(restPresetSec)})
+                </Text>
               </Pressable>
+              </View>
             </View>
           );
         })}
@@ -768,6 +854,17 @@ export default function ActiveWorkoutScreen() {
                 >
                   <Ionicons name="list-outline" size={18} color={colors.text} />
                   <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setRestTimersExIdx(exIdx);
+                    setExerciseMenuExIdx(null);
+                    setDropdownLayout(null);
+                  }}
+                >
+                  <Ionicons name="timer-outline" size={18} color={colors.text} />
+                  <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Rest timers</Text>
                 </Pressable>
                 {session.exercises.length >= 2 && exIdx > 0 && (
                   <Pressable
@@ -939,6 +1036,69 @@ export default function ActiveWorkoutScreen() {
                       <Text style={[styles.editSetsDoneBtnText, { color: colors.text }]}>Done</Text>
                     </Pressable>
                   </View>
+                </>
+              );
+            })()}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Rest after each set for this exercise (same duration for all sets, including after the last). */}
+      <Modal visible={restTimersExIdx !== null} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setRestTimersExIdx(null)}>
+          <View
+            style={[styles.restTimersCard, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            {restTimersExIdx !== null && session?.exercises[restTimersExIdx] && (() => {
+              const ex = session.exercises[restTimersExIdx];
+              const exerciseName = getExercise(ex.exerciseId)?.name ?? ex.exerciseId;
+              const effectiveSeconds = ex.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+              return (
+                <>
+                  <Text style={[styles.restTimersTitle, { color: colors.text }]}>Rest between sets</Text>
+                  <Text style={[styles.restTimersSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
+                    {exerciseName}
+                  </Text>
+                  <Text style={[styles.restTimersHint, { color: colors.textMuted }]}>
+                    Used after every set in this exercise, including the last set.
+                  </Text>
+                  <View style={styles.restTimersOptions}>
+                    {REST_BETWEEN_SETS_CHOICES.map((opt) => {
+                      const selected = effectiveSeconds === opt.seconds;
+                      return (
+                        <Pressable
+                          key={opt.seconds}
+                          style={[
+                            styles.restTimerChoiceBtn,
+                            {
+                              backgroundColor: selected ? colors.primary : colors.surfaceElevated,
+                              borderColor: selected ? colors.primary : colors.border,
+                            },
+                          ]}
+                          onPress={() => {
+                            setExerciseRestBetweenSets(restTimersExIdx, opt.seconds);
+                            setRestTimersExIdx(null);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.restTimerChoiceBtnText,
+                              { color: selected ? '#fff' : colors.text },
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Pressable
+                    style={[styles.restTimersDoneBtn, { borderColor: colors.border }]}
+                    onPress={() => setRestTimersExIdx(null)}
+                  >
+                    <Text style={[styles.restTimersDoneBtnText, { color: colors.text }]}>Cancel</Text>
+                  </Pressable>
                 </>
               );
             })()}
@@ -1223,7 +1383,7 @@ const styles = StyleSheet.create({
   finishHeaderBtnDisabled: { opacity: 0.7 },
   finishHeaderText: { fontSize: 16, fontWeight: '600' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 8, paddingVertical: 10, paddingBottom: 36 },
+  scrollContent: { paddingHorizontal: 12, paddingVertical: 10, paddingBottom: 36 },
   emptyWorkoutBlock: {
     padding: 20,
     borderRadius: 16,
@@ -1232,11 +1392,19 @@ const styles = StyleSheet.create({
   },
   emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 14,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginBottom: 12,
     overflow: 'visible',
+    borderWidth: 1,
+  },
+  exerciseCardShadow: {
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
   },
   exerciseCardHeaderWrap: {
     position: 'relative',
@@ -1247,14 +1415,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  exerciseName: { fontSize: 16, fontWeight: '600', flex: 1 },
+  exerciseName: { fontSize: 17, fontWeight: '700', flex: 1 },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exerciseHeaderIcon: { padding: 6 },
+  tableInset: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    marginTop: 6,
+  },
+  tableHeaderStrip: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-    paddingHorizontal: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
     gap: 4,
   },
   th: {
@@ -1267,13 +1444,13 @@ const styles = StyleSheet.create({
   thPrev: { flex: 1, minWidth: 64, textAlign: 'center' },
   thKg: { flex: 1, minWidth: 48, textAlign: 'center' },
   thReps: { flex: 1, minWidth: 48, textAlign: 'center' },
-  thActions: { width: 34 },
+  thActions: { width: 36 },
   setLabelWrap: {
     width: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setLabel: { fontSize: 14, textAlign: 'center' },
+  setLabel: { fontSize: 15, textAlign: 'center' },
   prevCell: { flex: 1, minWidth: 64, fontSize: 10, textAlign: 'center' },
   setCellText: {
     flex: 1,
@@ -1286,41 +1463,41 @@ const styles = StyleSheet.create({
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 3,
-    paddingHorizontal: 2,
-    borderRadius: 6,
-    minHeight: 34,
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 40,
   },
   setInput: {
     flex: 1,
     minWidth: 48,
-    minHeight: 32,
-    paddingVertical: 5,
-    paddingHorizontal: 3,
-    borderRadius: 5,
+    minHeight: 34,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
     overflow: 'hidden',
   },
   doneBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 7,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   restGapBlock: {
-    paddingHorizontal: 2,
-    paddingTop: 2,
-    paddingBottom: 4,
+    paddingHorizontal: 0,
+    paddingTop: 6,
+    paddingBottom: 6,
   },
   restTrackWrap: { alignSelf: 'stretch' },
   restTrack: {
     alignSelf: 'stretch',
-    height: 22,
-    borderRadius: 6,
+    height: 28,
+    borderRadius: 14,
     overflow: 'hidden',
     justifyContent: 'center',
     position: 'relative',
@@ -1330,7 +1507,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 6,
+    borderRadius: 14,
   },
   restTrackCenterTime: {
     width: '100%',
@@ -1493,18 +1670,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   editSetsDoneBtnText: { fontSize: 16, fontWeight: '600' },
+  restTimersCard: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 16,
+    padding: 20,
+  },
+  restTimersTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  restTimersSubtitle: { fontSize: 14, marginBottom: 6 },
+  restTimersHint: { fontSize: 13, marginBottom: 16 },
+  restTimersOptions: { gap: 10, marginBottom: 16 },
+  restTimerChoiceBtn: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  restTimerChoiceBtnText: { fontSize: 17, fontWeight: '700' },
+  restTimersDoneBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  restTimersDoneBtnText: { fontSize: 16, fontWeight: '600' },
   addSetBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 6,
-    marginTop: 4,
+    paddingVertical: 12,
+    marginHorizontal: 10,
+    marginBottom: 10,
+    marginTop: 2,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 8,
+    borderRadius: 10,
   },
-  addSetBtnText: { fontSize: 13, fontWeight: '600' },
+  addSetBtnText: { fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
   addExerciseBtn: {
     flexDirection: 'row',
     alignItems: 'center',

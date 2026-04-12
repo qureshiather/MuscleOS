@@ -31,6 +31,8 @@ export interface ActiveWorkoutState {
   restDurationsBetweenSets: Record<string, number>;
   startWorkout: (templateId: string, exerciseIds: string[], defaultSets?: number) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
+  /** Applies to all rests for this exercise (after each set, including the last). */
+  setExerciseRestBetweenSets: (exerciseIndex: number, seconds: number) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
   addSet: (exerciseIndex: number) => void;
@@ -49,7 +51,7 @@ export interface ActiveWorkoutState {
   skipRest: () => void;
   add30SecondsRest: () => void;
   subtract30SecondsRest: () => void;
-  resetRest: () => void;
+  resetRest: (totalSeconds?: number) => void;
   clearRestTimer: () => void;
   /** Record rest duration when timer completes or is skipped; merge into restDurationsBetweenSets */
   recordRestDuration: (exIdx: number, setIdx: number, seconds: number) => void;
@@ -97,6 +99,16 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     if (!sets[setIndex]) return;
     sets[setIndex] = { ...sets[setIndex], ...record };
     exercises[exerciseIndex] = { ...ex, sets };
+    set({ session: { ...session, exercises } });
+  },
+
+  setExerciseRestBetweenSets: (exerciseIndex, seconds) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex) return;
+    exercises[exerciseIndex] = { ...ex, restBetweenSetsSeconds: seconds };
     set({ session: { ...session, exercises } });
   },
 
@@ -320,10 +332,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  resetRest: () => {
+  resetRest: (totalSeconds = DEFAULT_REST_SECONDS) => {
     set({
-      restTotalSeconds: DEFAULT_REST_SECONDS,
-      restEndTime: Date.now() + DEFAULT_REST_SECONDS * 1000,
+      restTotalSeconds: totalSeconds,
+      restEndTime: Date.now() + totalSeconds * 1000,
     });
   },
 
