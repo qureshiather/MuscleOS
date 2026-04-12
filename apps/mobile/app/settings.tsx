@@ -22,6 +22,8 @@ export default function SettingsScreen() {
   const setWeightUnit = useSettingsStore((s) => s.setWeightUnit);
   const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
   const setBodyWeightUnit = useSettingsStore((s) => s.setBodyWeightUnit);
+  const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
+  const setWorkoutSoundsEnabled = useSettingsStore((s) => s.setWorkoutSoundsEnabled);
   const loadTemplates = useTemplatesStore((s) => s.load);
   const loadRecovery = useRecoveryStore((s) => s.load);
   const loadSubscription = useSubscriptionStore((s) => s.load);
@@ -202,6 +204,45 @@ export default function SettingsScreen() {
               onPress={() => setWeightUnit('lb')}
             >
               <Text style={[styles.themeBtnText, { color: weightUnit === 'lb' ? '#fff' : colors.text }]}>lb</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Workout</Text>
+          <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+            Short sounds during an active workout (rest countdown, set checkmark, finishing).
+          </Text>
+          <View style={styles.themeRow}>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                workoutSoundsEnabled
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setWorkoutSoundsEnabled(true)}
+            >
+              <Text
+                style={[styles.themeBtnText, { color: workoutSoundsEnabled ? '#fff' : colors.text }]}
+              >
+                On
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.themeBtn,
+                !workoutSoundsEnabled
+                  ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
+                  : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
+              ]}
+              onPress={() => setWorkoutSoundsEnabled(false)}
+            >
+              <Text
+                style={[styles.themeBtnText, { color: !workoutSoundsEnabled ? '#fff' : colors.text }]}
+              >
+                Off
+              </Text>
             </Pressable>
           </View>
         </View>

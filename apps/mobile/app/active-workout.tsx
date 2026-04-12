@@ -25,14 +25,12 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
+import { playWorkoutSound } from '@/utils/workoutSounds';
 import { Ionicons } from '@expo/vector-icons';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-// Rest timer sounds disabled: expo-audio useAudioPlayer triggers "Received 4 arguments, but 3 was expected"
-// (native bridge mismatch). Rest timer works silently until we switch to another audio API or expo-audio is fixed.
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -144,6 +142,7 @@ export default function ActiveWorkoutScreen() {
   const subscriptionState = useSubscriptionStore((s) => s.state);
   const isPro = subscriptionState?.tier === 'pro' && (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
   const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
@@ -177,7 +176,7 @@ export default function ActiveWorkoutScreen() {
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
 
-  const lastCountdownSecondRef = useRef<number | null>(null);
+  const prevRestSecondsLeftRef = useRef<number | null>(null);
 
   // Clear dropdown layout when menu closes so we re-measure next open
   useEffect(() => {
@@ -231,16 +230,21 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [session?.startedAt]);
 
-  // Reset countdown sound state when rest is not active
+  // Reset countdown tracking when rest is not active
   useEffect(() => {
-    if (restEndTime === null) lastCountdownSecondRef.current = null;
+    if (restEndTime === null) prevRestSecondsLeftRef.current = null;
   }, [restEndTime]);
 
-  // Countdown beep at 3, 2, 1 (sounds disabled; see comment at top)
+  // Countdown ticks at 3, 2, 1 seconds remaining (ref tracks time even when sounds are off)
   useEffect(() => {
-    if (restSecondsLeft == null || restSecondsLeft > 3 || restSecondsLeft < 1) return;
-    lastCountdownSecondRef.current = restSecondsLeft;
-  }, [restSecondsLeft]);
+    if (restSecondsLeft == null) return;
+    const prev = prevRestSecondsLeftRef.current;
+    prevRestSecondsLeftRef.current = restSecondsLeft;
+    if (!workoutSoundsEnabled) return;
+    if (restSecondsLeft < 1 || restSecondsLeft > 3) return;
+    if (prev !== null && restSecondsLeft >= prev) return;
+    void playWorkoutSound('restTick');
+  }, [restSecondsLeft, workoutSoundsEnabled, restTick]);
 
   // Tick every second while rest is active so UI updates; timer is time-based so correct when app was backgrounded
   useEffect(() => {
@@ -249,15 +253,26 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [restEndTime]);
 
-  // When end time has passed, save duration and clear rest (buzz sound disabled)
+  // When end time has passed, save duration and clear rest
   useEffect(() => {
     if (restEndTime === null || Date.now() < restEndTime) return;
+    if (workoutSoundsEnabled) {
+      void playWorkoutSound('restEnd');
+    }
     if (restAfter !== null) {
       recordRestDuration(restAfter.exIdx, restAfter.setIdx, restTotalSeconds);
     }
     clearRestTimer();
     setShowRestControlSheet(false);
-  }, [restEndTime, restTick, restAfter, restTotalSeconds, recordRestDuration, clearRestTimer]);
+  }, [
+    restEndTime,
+    restTick,
+    restAfter,
+    restTotalSeconds,
+    workoutSoundsEnabled,
+    recordRestDuration,
+    clearRestTimer,
+  ]);
 
   function handleStartManualRest(seconds: number) {
     setShowRestPicker(false);
@@ -288,6 +303,9 @@ export default function ActiveWorkoutScreen() {
           exerciseIds: session.exercises.map((e) => e.exerciseId),
         });
       }
+    }
+    if (workoutSoundsEnabled) {
+      void playWorkoutSound('workoutComplete');
     }
     await finishWorkout();
     router.replace('/(tabs)');
@@ -570,7 +588,9 @@ export default function ActiveWorkoutScreen() {
                 const isFutureSet =
                   firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
                 const isCurrentSet = firstIncompleteIdx === setIdx && !set.completed;
-                const showRestGap = lastCompletedSetIndex === setIdx;
+                /** Rest row after each completed set so earlier rests stay visible, not only under the latest completed set. */
+                const showRestGap = set.completed;
+                const isCurrentRestGap = setIdx === lastCompletedSetIndex;
 
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
@@ -725,6 +745,9 @@ export default function ActiveWorkoutScreen() {
                             }
                           } else {
                             completeSet(exIdx, setIdx);
+                            if (workoutSoundsEnabled) {
+                              void playWorkoutSound('setComplete');
+                            }
                             startRest(
                               exIdx,
                               setIdx,
@@ -768,12 +791,24 @@ export default function ActiveWorkoutScreen() {
                         ) : (
                           <View style={styles.restGapIdle}>
                             <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
-                            <Text style={[styles.restBetweenText, { color: colors.accent }]}>
+                            <Text
+                              style={[
+                                styles.restBetweenText,
+                                {
+                                  color:
+                                    restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null || isCurrentRestGap
+                                      ? colors.accent
+                                      : colors.textMuted,
+                                },
+                              ]}
+                            >
                               {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
                                 ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
-                                : formatElapsed(
-                                    (se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS) * 1000
-                                  )}
+                                : isCurrentRestGap
+                                  ? formatElapsed(
+                                      (se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS) * 1000
+                                    )
+                                  : '—'}
                             </Text>
                             <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
                           </View>

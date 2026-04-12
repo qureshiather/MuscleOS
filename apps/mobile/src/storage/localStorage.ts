@@ -194,6 +194,7 @@ const ALL_APP_KEYS = [
   'muscleos_height_unit',
   'muscleos_exercise_weight_unit',
   'muscleos_body_weight_unit',
+  'muscleos_workout_sounds',
   'muscleos_theme',
 ] as const;
 
