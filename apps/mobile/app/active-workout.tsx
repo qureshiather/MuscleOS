@@ -11,6 +11,9 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
@@ -23,6 +26,10 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { Ionicons } from '@expo/vector-icons';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // Rest timer sounds disabled: expo-audio useAudioPlayer triggers "Received 4 arguments, but 3 was expected"
 // (native bridge mismatch). Rest timer works silently until we switch to another audio API or expo-audio is fixed.
@@ -47,6 +54,57 @@ const REST_BETWEEN_SETS_CHOICES = [
   { label: '2:00', seconds: 120 },
   { label: '3:00', seconds: 180 },
 ] as const;
+
+function SetDonePressable({
+  completed,
+  mutedFill,
+  colors,
+  onPress,
+}: {
+  completed: boolean;
+  mutedFill: string;
+  colors: { primary: string; border: string; textMuted: string };
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const handlePress = () => {
+    if (!completed) {
+      LayoutAnimation.configureNext(
+        LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+      );
+      Animated.sequence([
+        Animated.spring(scale, {
+          toValue: 1.2,
+          friction: 5,
+          tension: 220,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          friction: 7,
+          tension: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    onPress();
+  };
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        style={[
+          styles.doneBtn,
+          completed
+            ? { backgroundColor: colors.primary }
+            : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
+        ]}
+        onPress={handlePress}
+      >
+        <Ionicons name="checkmark" size={16} color={completed ? '#fff' : colors.textMuted} />
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
@@ -654,13 +712,10 @@ export default function ActiveWorkoutScreen() {
                           />
                         </>
                       )}
-                      <Pressable
-                        style={[
-                          styles.doneBtn,
-                          set.completed
-                            ? { backgroundColor: colors.primary }
-                            : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
-                        ]}
+                      <SetDonePressable
+                        completed={set.completed}
+                        mutedFill={mutedFill}
+                        colors={colors}
                         onPress={() => {
                           if (set.completed) {
                             uncompleteSet(exIdx, setIdx);
@@ -677,13 +732,7 @@ export default function ActiveWorkoutScreen() {
                             );
                           }
                         }}
-                      >
-                        <Ionicons
-                          name="checkmark"
-                          size={18}
-                          color={set.completed ? '#fff' : colors.textMuted}
-                        />
-                      </Pressable>
+                      />
                     </View>
                     {showRestGap && (
                       <View style={styles.restGapBlock}>
@@ -1347,8 +1396,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     position: 'relative',
   },
@@ -1378,12 +1427,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 56 },
-  elapsed: { fontSize: 20, fontWeight: '700' },
+  elapsed: { fontSize: 17, fontWeight: '700' },
   finishHeaderBtn: { minWidth: 48, alignItems: 'flex-end' },
   finishHeaderBtnDisabled: { opacity: 0.7 },
-  finishHeaderText: { fontSize: 16, fontWeight: '600' },
+  finishHeaderText: { fontSize: 14, fontWeight: '700' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 12, paddingVertical: 10, paddingBottom: 36 },
+  scrollContent: { paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 28 },
   emptyWorkoutBlock: {
     padding: 20,
     borderRadius: 16,
@@ -1392,19 +1441,19 @@ const styles = StyleSheet.create({
   },
   emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 16,
-    marginBottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 8,
     overflow: 'visible',
     borderWidth: 1,
   },
   exerciseCardShadow: {
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   exerciseCardHeaderWrap: {
     position: 'relative',
@@ -1413,16 +1462,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  exerciseName: { fontSize: 17, fontWeight: '700', flex: 1 },
+  exerciseName: { fontSize: 15, fontWeight: '700', flex: 1 },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exerciseHeaderIcon: { padding: 6 },
   tableInset: {
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    marginTop: 6,
+    marginTop: 2,
   },
   tableHeaderStrip: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -1430,74 +1479,74 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    gap: 2,
   },
   th: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  thSet: { width: 28, textAlign: 'center' },
+  thSet: { width: 24, textAlign: 'center' },
   thPrev: { flex: 1, minWidth: 64, textAlign: 'center' },
   thKg: { flex: 1, minWidth: 48, textAlign: 'center' },
   thReps: { flex: 1, minWidth: 48, textAlign: 'center' },
-  thActions: { width: 36 },
+  thActions: { width: 30 },
   setLabelWrap: {
-    width: 28,
+    width: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setLabel: { fontSize: 15, textAlign: 'center' },
-  prevCell: { flex: 1, minWidth: 64, fontSize: 10, textAlign: 'center' },
+  setLabel: { fontSize: 13, textAlign: 'center' },
+  prevCell: { flex: 1, minWidth: 56, fontSize: 9, textAlign: 'center' },
   setCellText: {
     flex: 1,
-    minWidth: 48,
-    fontSize: 15,
+    minWidth: 44,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
-    paddingVertical: 5,
+    paddingVertical: 2,
   },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    minHeight: 40,
+    minHeight: 32,
   },
   setInput: {
     flex: 1,
-    minWidth: 48,
-    minHeight: 34,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    borderRadius: 8,
-    fontSize: 15,
+    minWidth: 44,
+    minHeight: 30,
+    paddingVertical: 4,
+    paddingHorizontal: 3,
+    borderRadius: 6,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
     overflow: 'hidden',
   },
   doneBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 7,
     justifyContent: 'center',
     alignItems: 'center',
   },
   restGapBlock: {
     paddingHorizontal: 0,
-    paddingTop: 6,
-    paddingBottom: 6,
+    paddingTop: 3,
+    paddingBottom: 3,
   },
   restTrackWrap: { alignSelf: 'stretch' },
   restTrack: {
     alignSelf: 'stretch',
-    height: 28,
-    borderRadius: 14,
+    height: 22,
+    borderRadius: 11,
     overflow: 'hidden',
     justifyContent: 'center',
     position: 'relative',
@@ -1507,12 +1556,12 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 14,
+    borderRadius: 11,
   },
   restTrackCenterTime: {
     width: '100%',
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     zIndex: 1,
     textShadowColor: 'rgba(0,0,0,0.35)',
@@ -1522,12 +1571,12 @@ const styles = StyleSheet.create({
   restGapIdle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 3,
-    paddingHorizontal: 2,
+    gap: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 0,
   },
   restIdleLine: { flex: 1, height: StyleSheet.hairlineWidth, opacity: 0.9 },
-  restBetweenText: { fontSize: 12, fontWeight: '600' },
+  restBetweenText: { fontSize: 11, fontWeight: '600' },
   restControlOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1697,26 +1746,27 @@ const styles = StyleSheet.create({
   addSetBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    marginHorizontal: 10,
-    marginBottom: 10,
-    marginTop: 2,
+    paddingVertical: 8,
+    marginHorizontal: 6,
+    marginBottom: 6,
+    marginTop: 0,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  addSetBtnText: { fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
+  addSetBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   addExerciseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 14,
-    marginTop: 6,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginTop: 4,
     borderWidth: 1,
   },
-  addExerciseBtnText: { fontSize: 17, fontWeight: '600' },
+  addExerciseBtnText: { fontSize: 15, fontWeight: '600' },
   addExerciseKeyboardAvoid: {
     flex: 1,
     width: '100%',
