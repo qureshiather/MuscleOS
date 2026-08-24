@@ -12,6 +12,12 @@ import type { MuscleId } from '@muscleos/types';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
+import {
+  notifySessionUpsert,
+  notifyRecoverySnapshot,
+  notifyExercisePreviousSnapshot,
+  syncAfterWorkout,
+} from '@/sync';
 
 const DEFAULT_SETS_PER_EXERCISE = 3;
 
@@ -382,6 +388,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       useSessionsStore.getState().load(),
       useRecoveryStore.getState().load(),
     ]);
+
+    notifySessionUpsert(completed);
+    notifyRecoverySnapshot(merged);
+    notifyExercisePreviousSnapshot(prev);
+    void syncAfterWorkout();
   },
 
   discardWorkout: () =>

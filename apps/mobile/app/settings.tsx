@@ -11,16 +11,22 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useSessionsStore } from '@/store/sessionsStore';
+import { useExercisesStore } from '@/store/exercisesStore';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ListRow } from '@/components/ui/ListRow';
+import { syncNow } from '@/sync';
+import { useAuthStore } from '@/store/authStore';
 
 export default function SettingsScreen() {
   const { colors, themePreference, setTheme } = useTheme();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const isAnonymous = useAuthStore((s) => s.isAnonymous);
   const heightUnit = useSettingsStore((s) => s.heightUnit);
   const setHeightUnit = useSettingsStore((s) => s.setHeightUnit);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
@@ -33,6 +39,8 @@ export default function SettingsScreen() {
   const loadRecovery = useRecoveryStore((s) => s.load);
   const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
+  const loadSessions = useSessionsStore((s) => s.load);
+  const loadExercises = useExercisesStore((s) => s.load);
 
   async function handleExport() {
     setExporting(true);
@@ -43,6 +51,25 @@ export default function SettingsScreen() {
       Alert.alert('Export failed', String(e));
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleForceSync() {
+    setSyncing(true);
+    try {
+      await syncNow();
+      await Promise.all([
+        loadTemplates(),
+        loadRecovery(),
+        loadSettings(),
+        loadSessions(),
+        loadExercises(),
+      ]);
+      Alert.alert('Synced', 'Your workout data is up to date.');
+    } catch (e) {
+      Alert.alert('Sync failed', String(e));
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -152,6 +179,16 @@ export default function SettingsScreen() {
             />
           </View>
         </Card>
+
+        {!isAnonymous ? (
+          <ListRow
+            title={syncing ? 'Syncing…' : 'Sync now'}
+            hint="Upload & download workout data"
+            onPress={() => {
+              if (!syncing) void handleForceSync();
+            }}
+          />
+        ) : null}
 
         <ListRow
           title={exporting ? 'Exporting…' : 'Export my data'}

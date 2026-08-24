@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Exercise } from '@muscleos/types';
 import { getCustomExercises, setCustomExercises } from '@/storage/localStorage';
 import { EXERCISES } from '@/data/exercises';
+import { notifyCustomExerciseUpsert, notifyCustomExerciseDelete } from '@/sync';
 
 export interface ExercisesStoreState {
   customExercises: Exercise[];
@@ -50,6 +51,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
     const next = [...customExercises, newEx];
     await setCustomExercises(next);
     set({ customExercises: next });
+    notifyCustomExerciseUpsert(newEx);
     return newEx;
   },
 
@@ -58,6 +60,8 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
     const next = customExercises.map((e) => (e.id === id ? { ...e, ...patch } : e));
     await setCustomExercises(next);
     set({ customExercises: next });
+    const updated = next.find((e) => e.id === id);
+    if (updated) notifyCustomExerciseUpsert(updated);
   },
 
   removeExercise: async (id) => {
@@ -65,5 +69,6 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
     const next = customExercises.filter((e) => e.id !== id);
     await setCustomExercises(next);
     set({ customExercises: next });
+    notifyCustomExerciseDelete(id);
   },
 }));

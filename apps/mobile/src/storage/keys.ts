@@ -8,4 +8,6 @@ export const STORAGE_KEYS = {
   exercisePrevious: 'muscleos_exercise_previous',
   customExercises: 'muscleos_custom_exercises',
   devProOverride: 'muscleos_dev_pro_override',
+  syncOutbox: 'muscleos_sync_outbox',
+  syncMeta: 'muscleos_sync_meta',
 } as const;

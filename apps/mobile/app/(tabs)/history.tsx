@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { Card } from '@/components/ui/Card';
 import { StatChip } from '@/components/ui/StatChip';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
+import { syncNow } from '@/sync';
+import { useAuthStore } from '@/store/authStore';
 
 function formatSessionDate(isoDate: string): string {
   const d = new Date(isoDate);
@@ -63,6 +65,22 @@ export default function HistoryScreen() {
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const loadRecovery = useRecoveryStore((s) => s.load);
   const getExercise = useExercisesStore((s) => s.getExercise);
+  const isAnonymous = useAuthStore((s) => s.isAnonymous);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    if (isAnonymous) {
+      await loadSessions();
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await syncNow();
+      await loadSessions();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [isAnonymous, loadSessions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,6 +171,9 @@ export default function HistoryScreen() {
         <ScrollView
           contentContainerStyle={[screenHeaderStyles.scrollContent, { paddingBottom: 40 }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
         >
           <View style={styles.cardsContainer}>
             {completed.map((s) => {

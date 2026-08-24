@@ -102,14 +102,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 // Subscribe to auth state changes (for when user links identity)
 if (isSupabaseConfigured()) {
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
     if (session?.user) {
       const u = session.user;
+      const wasAnonymous = useAuthStore.getState().isAnonymous;
       useAuthStore.setState({
         user: u,
         isAnonymous: u.is_anonymous ?? false,
         profile: userToProfile(u),
       });
+
+      const isNowLinked = !(u.is_anonymous ?? false);
+      if (isNowLinked && wasAnonymous) {
+        void import('@/sync').then((m) => m.onAccountLinked());
+      } else if (isNowLinked && event === 'SIGNED_IN') {
+        void import('@/sync').then((m) => m.syncNow());
+      }
+
+      if (isNowLinked && u.id) {
+        void revenueCatLogIn(u.id);
+      }
     }
   });
 }

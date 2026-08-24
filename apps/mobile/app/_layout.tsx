@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { syncNow } from '@/sync';
 
 // expo-notifications is not supported in Expo Go (SDK 53+). Load only in dev builds / production.
 const WorkoutNotificationHandler = lazy(() =>
@@ -66,6 +67,7 @@ export default function RootLayout() {
         await loadSubscription(userId);
         loadSettings();
         loadCustomExercises();
+        void syncNow();
       } catch (e) {
         if (__DEV__) {
           // eslint-disable-next-line no-console
@@ -86,6 +88,7 @@ export default function RootLayout() {
       if (nextState === 'active') {
         const userId = useAuthStore.getState().user?.id;
         void loadSubscription(userId);
+        void syncNow();
       }
     });
     return () => sub.remove();

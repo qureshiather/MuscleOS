@@ -7,6 +7,12 @@ import {
   setTemplateFolders,
 } from '@/storage/localStorage';
 import { BUILT_IN_TEMPLATES } from '@/data/builtInTemplates';
+import {
+  notifyTemplateUpsert,
+  notifyTemplateDelete,
+  notifyFolderUpsert,
+  notifyFolderDelete,
+} from '@/sync';
 
 export interface TemplatesState {
   userTemplates: WorkoutTemplate[];
@@ -46,6 +52,7 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     const next = [...userTemplates, t];
     await setTemplates(next);
     set({ userTemplates: next });
+    notifyTemplateUpsert(t);
   },
 
   updateTemplate: async (id, patch) => {
@@ -53,6 +60,8 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     const next = userTemplates.map((t) => (t.id === id ? { ...t, ...patch } : t));
     await setTemplates(next);
     set({ userTemplates: next });
+    const updated = next.find((t) => t.id === id);
+    if (updated) notifyTemplateUpsert(updated);
   },
 
   deleteTemplate: async (id) => {
@@ -60,6 +69,7 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     const next = userTemplates.filter((t) => t.id !== id);
     await setTemplates(next);
     set({ userTemplates: next });
+    notifyTemplateDelete(id);
   },
 
   addFolder: async (f) => {
@@ -67,6 +77,7 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     const next = [...folders, f];
     await setTemplateFolders(next);
     set({ folders: next });
+    notifyFolderUpsert(f);
   },
 
   updateFolder: async (id, patch) => {
@@ -74,6 +85,8 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     const next = folders.map((f) => (f.id === id ? { ...f, ...patch } : f));
     await setTemplateFolders(next);
     set({ folders: next });
+    const updated = next.find((f) => f.id === id);
+    if (updated) notifyFolderUpsert(updated);
   },
 
   deleteFolder: async (id) => {
@@ -84,6 +97,8 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     );
     await Promise.all([setTemplateFolders(nextFolders), setTemplates(nextTemplates)]);
     set({ folders: nextFolders, userTemplates: nextTemplates });
+    notifyFolderDelete(id);
+    for (const t of nextTemplates) notifyTemplateUpsert(t);
   },
 
   allTemplates: () => {

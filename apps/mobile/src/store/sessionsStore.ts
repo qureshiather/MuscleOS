@@ -9,6 +9,7 @@ import {
   setExercisePrevious,
   type ExercisePrevious,
 } from '@/storage/localStorage';
+import { notifySessionDelete, notifyRecoverySnapshot, notifyExercisePreviousSnapshot } from '@/sync';
 export interface SessionsState {
   sessions: WorkoutSession[];
   isLoading: boolean;
@@ -63,6 +64,9 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     await setExercisePrevious(prev);
 
     set({ sessions: remaining });
+    notifySessionDelete(sessionId);
+    notifyRecoverySnapshot(updatedRecovery);
+    notifyExercisePreviousSnapshot(prev);
   },
 
   completedSessions: () => {
