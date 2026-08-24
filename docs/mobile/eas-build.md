@@ -1,79 +1,143 @@
-# EAS Build (preview on device)
+# Android preview builds (EAS)
 
-To run a build on your phone:
+Preview builds are **standalone APKs** you can install on a phone or emulator without Expo Go or a Metro server. They use the `preview` profile in [`apps/mobile/eas.json`](../../apps/mobile/eas.json) (`distribution: "internal"` → APK).
+
+Package name: **`com.muscleos.app`**.
+
+## Prerequisites
+
+1. Node ≥ 20, pnpm, and repo deps installed (`pnpm install` from root).
+2. Expo account (team login: see [README](../../README.md#expo-login)).
+3. EAS CLI (one-time):
 
 ```bash
+npm install -g eas-cli
+# or: pnpx eas-cli
+```
+
+4. Logged in and linked to the project:
+
+```bash
+cd apps/mobile
+eas login
+eas whoami
+```
+
+## One-time: environment variables
+
+Local `apps/mobile/.env` is **gitignored** and is **not** uploaded to EAS. Set the same values on the Expo **preview** environment or auth / Supabase / purchases will fail in the installed APK.
+
+### Required
+
+| Variable | Notes |
+|----------|--------|
+| `EXPO_PUBLIC_SUPABASE_URL` | From Supabase project settings |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Anon/public key |
+
+### Recommended for IAP testing
+
+| Variable | Notes |
+|----------|--------|
+| `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | Android public key (`goog_…`), **not** the Test Store key |
+| `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING` | `true` to show **Grant Pro (testing)** on Subscription (remove before store release) |
+
+### Set via dashboard
+
+[expo.dev](https://expo.dev) → MuscleOS project → **Environment variables** → **preview** → add the variables above.
+
+### Or via CLI
+
+```bash
+cd apps/mobile
+
+eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "YOUR_SUPABASE_URL" --visibility plain-text
+eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_ANON_KEY" --visibility secret
+eas env:create --environment preview --name EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID --value "goog_YOUR_KEY" --visibility secret
+eas env:create --environment preview --name EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING --value "true" --visibility plain-text
+```
+
+Pull EAS preview env into a local file (optional):
+
+```bash
+eas env:pull --environment preview
+```
+
+That writes/updates `.env.local`. Prefer keeping day-to-day local values in `.env`.
+
+## Create a preview build
+
+From the mobile app directory:
+
+```bash
+cd apps/mobile
 eas build --platform android --profile preview
 ```
 
-Your local `.env` is **not** uploaded (it's gitignored). For the built app to have Supabase (and "link account") working, set the same variables in EAS for the **preview** environment.
+- First Android build may prompt to generate a keystore — accept the EAS-managed keystore unless you already have one.
+- Build runs in the cloud; progress is on [expo.dev](https://expo.dev) and in the terminal.
+- Typical wait: ~10–20 minutes.
 
-## Set env vars for preview builds
+Monorepo note: `eas-build-post-install` builds `@muscleos/types` so the cloud job has the shared package.
 
-1. **Expo dashboard**  
-   [expo.dev](https://expo.dev) → your project → **Environment variables** → choose **preview**. Add:
-   - `EXPO_PUBLIC_SUPABASE_URL`
-   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`  
-   For RevenueCat on preview use your **Android** API key (see section below), not the Test Store key.
-   - To show **Grant Pro (testing)** on the Subscription screen in preview builds, add `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING` = `true` (plain text). Remove this before going live.
+## Install the APK
 
-2. **Or CLI**
-   ```bash
-   cd apps/mobile
-   eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "YOUR_SUPABASE_URL" --visibility plain-text
-   eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_ANON_KEY" --visibility secret
-   eas env:create --environment preview --name EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING --value "true" --visibility plain-text
-   ```
+### Physical device
 
-3. **Or pull from EAS into local** (for reference; your existing `.env` is fine for local dev):
-   ```bash
-   eas env:pull --environment preview
-   ```
-   That creates/updates `.env.local` from EAS (you can copy values into `.env` if you like).
+1. Open the finished build on [expo.dev](https://expo.dev) (or use the install URL printed by the CLI).
+2. On the phone, open the link → download the APK → allow install from that source if prompted.
+3. No device registration in EAS is required for Android internal distribution.
 
-After the variables are set for **preview**, run:
+### Emulator
 
 ```bash
+cd apps/mobile
+eas build:run -p android --latest
+```
+
+Or download the APK from the dashboard and `adb install path/to/app.apk`.
+
+## Rebuild after code or env changes
+
+Env vars are baked in at build time. After changing preview env (or shipping new app code):
+
+```bash
+cd apps/mobile
 eas build --platform android --profile preview
 ```
 
-The build will use those values and the installed app will have Supabase configured.
+Install the new APK over the old one (same package name).
 
 ---
 
-## RevenueCat: stop "prepare for release / use production key" on preview
+## RevenueCat: “prepare for release / use production key”
 
-Preview builds are **release** builds. RevenueCat shows that dialog when you use a **Test Store** API key in a release build.
+Preview builds are **release**-signed. RevenueCat shows that warning when a **Test Store** API key is used in a release build.
 
-**Fix:** Use your **Android (platform) API key** for preview, not the Test Store key.
+**Fix:** use the real **Android** public API key (`goog_…`) as `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` (or legacy `EXPO_PUBLIC_REVENUECAT_API_KEY`) in the EAS **preview** environment, then rebuild.
 
-1. In [RevenueCat](https://app.revenuecat.com) go to **Project** → **API keys**.
-2. Under your **Android** app, copy the **Public API key** (the real Android key, not "Test Store").
-3. Set that as `EXPO_PUBLIC_REVENUECAT_API_KEY` in EAS for the **preview** environment.
-4. Rebuild: `eas build --platform android --profile preview`.
+Purchases stay sandbox if the Google account on the device is a **license tester** (below).
 
-Purchases on your device stay in **sandbox** as long as your Google account is a license tester (see below).
+Details: [RevenueCat setup](../monetization/revenuecat-setup.md).
 
 ---
 
-## Add your Android for testing (install + in-app purchases)
+## Testing in-app purchases (no real charges)
 
-### Installing the app
+1. **Google Play Console** — create/select the app with package **`com.muscleos.app`**.
+2. **License testers** — **Setup** → **License testing** (or **Testing** → **License testers**). Add the Gmail used on the test phone.
+3. **Optional: Internal testing track** — upload an AAB from `eas build --platform android --profile production`, add the same Gmail as a tester. You can still install the EAS preview APK; same package + license tester → sandbox purchases.
+4. Install a preview APK that uses the Android RevenueCat key and test purchases on device.
 
-After the build finishes, open the build on [expo.dev](https://expo.dev), use **Download** or the build link, and open it on your Android phone to install. You don't need to "add" the device in EAS for internal distribution.
+---
 
-### Testing in-app purchases (no real charges)
+## Profiles (reference)
 
-To test subscriptions without being charged:
+From `apps/mobile/eas.json`:
 
-1. **Google Play Console**  
-   [Play Console](https://play.google.com/console) → your app (create one if needed). Package name must be **`com.muscleos.app`**.
+| Profile | Use |
+|---------|-----|
+| `development` | Dev client + internal distribution |
+| `preview` | Internal APK for device/emulator QA |
+| `production` | Store AAB (auto-increment version) |
 
-2. **License testers**  
-   In your app: **Setup** → **License testing** (or **Testing** → **License testers**). Add the **Gmail address** you use on your Android phone. That account gets test purchases (no real charge).
-
-3. **Internal testing track**  
-   **Release** → **Testing** → **Internal testing** → create a release and upload an AAB (e.g. from `eas build --platform android --profile production`). Add your Gmail as a tester for the internal test track. You can then install from the Play internal test link, or keep installing the EAS preview APK; with the same package and your account as license tester, test purchases work.
-
-4. **On your phone**  
-   Use the **Android** RevenueCat key in EAS preview (above), rebuild, install the new APK. Your device is set for testing; purchases are sandbox.
+Official Expo refs: [Internal distribution](https://docs.expo.dev/build/internal-distribution/), [Build APKs](https://docs.expo.dev/build-reference/apk/).
