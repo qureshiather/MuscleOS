@@ -1198,11 +1198,13 @@ export default function ActiveWorkoutScreen() {
                             if (workoutSoundsEnabled) {
                               void playWorkoutSound('setComplete');
                             }
-                            startRest(
-                              exIdx,
-                              setIdx,
-                              se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS
-                            );
+                            if (!isWarmUp) {
+                              startRest(
+                                exIdx,
+                                setIdx,
+                                se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS
+                              );
+                            }
                           }
                         }}
                       />
