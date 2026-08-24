@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
@@ -13,6 +15,9 @@ import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weig
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ListRow } from '@/components/ui/ListRow';
+import { useSyncStore } from '@/store/syncStore';
+import { syncNow } from '@/sync';
+import { formatRelative } from '@/utils/relativeTime';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -26,6 +31,42 @@ export default function ProfileScreen() {
   const authProfile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const loadSubscription = useSubscriptionStore((s) => s.load);
+  const isSyncing = useSyncStore((s) => s.isSyncing);
+  const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
+  const lastSyncError = useSyncStore((s) => s.lastError);
+  const loadSyncStatus = useSyncStore((s) => s.loadStatus);
+  const [, setTick] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadSyncStatus();
+    }, [loadSyncStatus])
+  );
+
+  useEffect(() => {
+    if (!isLinked || isSyncing) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [isLinked, isSyncing, lastSyncedAt]);
+
+  async function handleSyncTap() {
+    if (isSyncing) return;
+    try {
+      await syncNow();
+    } catch (e) {
+      Alert.alert('Sync failed', String(e));
+    }
+  }
+
+  const syncStatusText = isSyncing
+    ? 'Syncing…'
+    : lastSyncError
+      ? 'Sync failed — tap to retry'
+      : lastSyncedAt
+        ? `Last synced ${formatRelative(lastSyncedAt)}`
+        : 'Not synced yet — tap to sync';
+
+  const syncStatusColor = lastSyncError && !isSyncing ? colors.danger : colors.textMuted;
 
   async function handleSignOut() {
     Alert.alert(
@@ -127,9 +168,38 @@ export default function ProfileScreen() {
                   {authProfile?.email ?? 'Account linked'}
                 </Text>
               </View>
-              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.sm }]}>
                 Subscription restores on other devices with this account.
               </Text>
+              <Pressable
+                onPress={() => void handleSyncTap()}
+                disabled={isSyncing}
+                style={({ pressed }) => [
+                  styles.syncRow,
+                  {
+                    backgroundColor: colors.surfaceElevated,
+                    borderColor: colors.border,
+                    opacity: pressed && !isSyncing ? 0.85 : 1,
+                  },
+                ]}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color={colors.primary} style={styles.syncIcon} />
+                ) : (
+                  <Ionicons
+                    name={lastSyncError ? 'cloud-offline-outline' : 'cloud-done-outline'}
+                    size={18}
+                    color={lastSyncError ? colors.danger : colors.primary}
+                    style={styles.syncIcon}
+                  />
+                )}
+                <Text style={[typography.caption, { color: syncStatusColor, flex: 1 }]}>
+                  {syncStatusText}
+                </Text>
+                {!isSyncing ? (
+                  <Ionicons name="refresh-outline" size={16} color={colors.textMuted} />
+                ) : null}
+              </Pressable>
               <PrimaryButton label="Sign out" variant="outline" onPress={handleSignOut} />
             </>
           ) : (
@@ -295,6 +365,17 @@ const styles = StyleSheet.create({
   scrollExtra: { paddingBottom: 40 },
   section: { marginBottom: spacing.md },
   accountInfo: { marginBottom: spacing.sm },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  syncIcon: { width: 20 },
   profileSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

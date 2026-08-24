@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { getOutbox, clearOutbox, setOutbox, enqueueOutbox } from './outbox';
 import { getSyncMeta, setSyncMeta } from './meta';
+import { useSyncStore } from '@/store/syncStore';
 import { applyRemoteRecords, collectFullLocalSnapshot, reloadSyncedStores } from './merge';
 import type { OutboxEntry, RemoteSyncRecord } from './types';
 
@@ -85,12 +86,19 @@ export async function syncNow(): Promise<void> {
   if (!isCloudSyncEnabled()) return;
   if (syncInFlight) return syncInFlight;
 
+  useSyncStore.getState().setSyncing(true);
+
   syncInFlight = (async () => {
     try {
       await pullNow();
       await pushNow();
+      const now = new Date().toISOString();
+      await setSyncMeta({ lastSyncedAt: now });
+      useSyncStore.getState().setSynced(now);
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Sync failed';
       if (__DEV__) console.warn('[sync] syncNow error:', e);
+      useSyncStore.getState().setError(message);
     } finally {
       syncInFlight = null;
     }
@@ -104,6 +112,9 @@ export async function syncAfterWorkout(): Promise<void> {
   if (!isCloudSyncEnabled()) return;
   try {
     await pushNow();
+    const now = new Date().toISOString();
+    await setSyncMeta({ lastSyncedAt: now });
+    useSyncStore.getState().setSynced(now);
   } catch {
     schedulePush(0);
   }

@@ -14,9 +14,13 @@
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev",
     "dev:landing": "pnpm --filter landing dev",
+    "supabase": "node scripts/supabase.mjs",
+    "supabase:link": "node scripts/supabase.mjs link",
+    "supabase:migrate": "node scripts/supabase.mjs db push",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "supabase": "^2.115.0",
     "turbo": "^2.8.17"
   },
   "engines": {

@@ -2,7 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '@/storage/keys';
 import type { SyncMeta } from './types';
 
-const DEFAULT_META: SyncMeta = { lastPulledAt: null, lastPushedAt: null };
+const DEFAULT_META: SyncMeta = { lastPulledAt: null, lastPushedAt: null, lastSyncedAt: null };
+
+export function latestSyncTime(meta: SyncMeta): string | null {
+  return meta.lastSyncedAt ?? meta.lastPushedAt ?? meta.lastPulledAt;
+}
 
 export async function getSyncMeta(): Promise<SyncMeta> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.syncMeta);

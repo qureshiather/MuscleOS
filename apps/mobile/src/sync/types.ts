@@ -17,6 +17,7 @@ export interface OutboxEntry {
 export interface SyncMeta {
   lastPulledAt: string | null;
   lastPushedAt: string | null;
+  lastSyncedAt: string | null;
 }
 
 export interface RemoteSyncRecord {
