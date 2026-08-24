@@ -14,6 +14,7 @@ import {
   Animated,
   LayoutAnimation,
   UIManager,
+  Dimensions,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
@@ -353,8 +354,9 @@ export default function ActiveWorkoutScreen() {
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
-  const [dropdownLayout, setDropdownLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [dropdownLayout, setDropdownLayout] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const dropdownMeasureRef = useRef<View>(null);
+  const menuAnchorRefs = useRef<Record<number, View | null>>({});
   const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
@@ -370,6 +372,35 @@ export default function ActiveWorkoutScreen() {
   useEffect(() => {
     if (exerciseMenuExIdx === null) setDropdownLayout(null);
   }, [exerciseMenuExIdx]);
+
+  const closeExerciseMenu = () => {
+    setExerciseMenuExIdx(null);
+    setDropdownLayout(null);
+  };
+
+  const positionExerciseMenu = (exIdx: number) => {
+    const anchor = menuAnchorRefs.current[exIdx];
+    const dropdown = dropdownMeasureRef.current;
+    if (!anchor || !dropdown) return;
+    anchor.measureInWindow((bx, by, bw, bh) => {
+      dropdown.measureInWindow((_, __, dw, dh) => {
+        const screenWidth = Dimensions.get('window').width;
+        const gap = 6;
+        const top = by + bh + gap;
+        const left = Math.max(8, Math.min(bx + bw - dw, screenWidth - dw - 8));
+        setDropdownLayout({ top, left, width: dw, height: dh });
+      });
+    });
+  };
+
+  const toggleExerciseMenu = (exIdx: number) => {
+    if (exerciseMenuExIdx === exIdx) {
+      closeExerciseMenu();
+      return;
+    }
+    setDropdownLayout(null);
+    setExerciseMenuExIdx(exIdx);
+  };
 
   useEffect(() => {
     if (!params.templateId || session || startedFromParamsRef.current || leavingWorkoutRef.current) {
@@ -921,56 +952,22 @@ export default function ActiveWorkoutScreen() {
                     </View>
                   </Pressable>
                   <View style={styles.exerciseCardActions}>
-                    <Pressable
-                      hitSlop={8}
-                      onPress={() => setExerciseMenuExIdx(exerciseMenuExIdx === exIdx ? null : exIdx)}
-                      style={styles.exerciseHeaderIcon}
+                    <View
+                      ref={(node) => {
+                        menuAnchorRefs.current[exIdx] = node;
+                      }}
+                      collapsable={false}
                     >
-                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
-                    </Pressable>
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() => toggleExerciseMenu(exIdx)}
+                        style={styles.exerciseHeaderIcon}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
-                {exerciseMenuExIdx === exIdx && (
-                  <View
-                    ref={dropdownMeasureRef}
-                    style={[
-                      styles.exerciseDropdown,
-                      { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
-                      dropdownLayout !== null && { opacity: 0 },
-                    ]}
-                    onLayout={() => {
-                      if (exerciseMenuExIdx !== exIdx) return;
-                      dropdownMeasureRef.current?.measureInWindow((x, y, width, height) => {
-                        setDropdownLayout({ x, y, width, height });
-                      });
-                    }}
-                    collapsable={false}
-                  >
-                    <ExerciseMenuContent
-                      isBuiltInWorkout={isBuiltInWorkout}
-                      colors={colors}
-                      onAddWarmUp={() => {
-                        addWarmUpSet(exIdx);
-                        setExerciseMenuExIdx(null);
-                      }}
-                      onEditRest={() => {
-                        setRestTimersExIdx(exIdx);
-                        setExerciseMenuExIdx(null);
-                      }}
-                      onRemove={() => {
-                        setExerciseMenuExIdx(null);
-                        Alert.alert(
-                          'Remove exercise',
-                          `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
-                          ]
-                        );
-                      }}
-                    />
-                  </View>
-                )}
               </View>
 
               <View
@@ -1279,6 +1276,31 @@ export default function ActiveWorkoutScreen() {
         </Pressable>
       </Modal>
 
+      {/* Hidden dropdown for sizing; positioned from ellipsis anchor */}
+      {exerciseMenuExIdx !== null && session?.exercises[exerciseMenuExIdx] && (
+        <View
+          ref={dropdownMeasureRef}
+          style={[
+            styles.exerciseDropdown,
+            styles.exerciseDropdownMeasure,
+            { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+          ]}
+          pointerEvents="none"
+          onLayout={() => {
+            if (exerciseMenuExIdx != null) positionExerciseMenu(exerciseMenuExIdx);
+          }}
+          collapsable={false}
+        >
+          <ExerciseMenuContent
+            isBuiltInWorkout={isBuiltInWorkout}
+            colors={colors}
+            onAddWarmUp={() => {}}
+            onEditRest={() => {}}
+            onRemove={() => {}}
+          />
+        </View>
+      )}
+
       {/* Exercise dropdown overlay: tap outside to close */}
       {dropdownLayout !== null && exerciseMenuExIdx !== null && session && (() => {
         const exIdx = exerciseMenuExIdx;
@@ -1289,19 +1311,16 @@ export default function ActiveWorkoutScreen() {
             <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
               <Pressable
                 style={StyleSheet.absoluteFill}
-                onPress={() => {
-                  setExerciseMenuExIdx(null);
-                  setDropdownLayout(null);
-                }}
+                onPress={closeExerciseMenu}
               />
               <View
                 style={[
                   styles.exerciseDropdown,
                   {
                     position: 'absolute',
-                    left: dropdownLayout!.x,
-                    top: dropdownLayout!.y,
-                    width: dropdownLayout!.width,
+                    left: dropdownLayout.left,
+                    top: dropdownLayout.top,
+                    width: dropdownLayout.width,
                     backgroundColor: colors.surfaceElevated,
                     borderColor: colors.border,
                   },
@@ -1313,17 +1332,14 @@ export default function ActiveWorkoutScreen() {
                   colors={colors}
                   onAddWarmUp={() => {
                     addWarmUpSet(exIdx);
-                    setExerciseMenuExIdx(null);
-                    setDropdownLayout(null);
+                    closeExerciseMenu();
                   }}
                   onEditRest={() => {
                     setRestTimersExIdx(exIdx);
-                    setExerciseMenuExIdx(null);
-                    setDropdownLayout(null);
+                    closeExerciseMenu();
                   }}
                   onRemove={() => {
-                    setExerciseMenuExIdx(null);
-                    setDropdownLayout(null);
+                    closeExerciseMenu();
                     Alert.alert(
                       'Remove exercise',
                       `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
@@ -2182,15 +2198,18 @@ const styles = StyleSheet.create({
   restPickerCancel: { alignItems: 'center', padding: 8 },
   restPickerCancelText: { ...typography.caption },
   exerciseDropdown: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    minWidth: 160,
+    minWidth: 200,
     borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
     zIndex: 10,
     elevation: 5,
+  },
+  exerciseDropdownMeasure: {
+    position: 'absolute',
+    opacity: 0,
+    left: -10000,
+    top: 0,
   },
   exerciseDropdownItem: {
     flexDirection: 'row',
