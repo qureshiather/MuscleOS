@@ -24,8 +24,10 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { useRequirePro } from '@/hooks/useProGate';
 
 export default function CreateTemplateScreen() {
+  const isPro = useRequirePro('custom_templates');
   const { colors } = useTheme();
   const router = useRouter();
   const { templateId: editTemplateId } = useLocalSearchParams<{ templateId?: string }>();
@@ -117,6 +119,8 @@ export default function CreateTemplateScreen() {
     () => Array.from(new Set(selectedIds.flatMap((id) => getExercise(id)?.muscles ?? []))),
     [selectedIds, getExercise]
   );
+
+  if (!isPro) return null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>

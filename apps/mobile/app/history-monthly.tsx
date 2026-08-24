@@ -11,6 +11,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
 import type { WorkoutSession } from '@muscleos/types';
+import { useRequirePro } from '@/hooks/useProGate';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -63,6 +64,7 @@ function monthGrid(year: number, month: number): (number | null)[][] {
 }
 
 export default function HistoryMonthlyScreen() {
+  const isPro = useRequirePro('monthly_calendar');
   const { colors } = useTheme();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -115,6 +117,8 @@ export default function HistoryMonthlyScreen() {
     if (day == null) return '';
     return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
+
+  if (!isPro) return null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>

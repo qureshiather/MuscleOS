@@ -128,6 +128,19 @@ apps/mobile/
 - Inline styles via `StyleSheet.create` or plain objects; theme colors from `useTheme()`.
 - `SafeAreaView` / `useSafeAreaInsets` for safe areas.
 
+### 10. Subscriptions & monetization
+
+- **Specs:** [`docs/monetization/`](../docs/monetization/) — overview, pricing, features, technical, launch checklist.
+- **Tiers:** `basic` (free) and `pro`. UI labels: Basic / Pro.
+- **Pricing (USD):** $2.99/mo · $19.99/yr · $39.99 lifetime — see `apps/mobile/src/subscription/pricing.ts`.
+- **Billing:** RevenueCat SDK (`src/utils/revenueCat.ts`). Entitlement: **`MuscleOS Pro`**. Products: `muscleos_pro_monthly`, `muscleos_pro_annual`, `muscleos_pro_lifetime`.
+- **Identity:** Supabase `user.id` is RevenueCat `appUserID`. Purchases require a linked (non-anonymous) account.
+- **State:** `subscriptionStore` + `SubscriptionState` in `@muscleos/types`. Use `useProGate()` / `useRequirePro()` from `src/hooks/useProGate.ts` for feature gates.
+- **Feature list:** `src/subscription/features.ts` — single source for paywall copy and gate keys.
+- **Pro gates:** custom templates/exercises, empty workout, add exercise mid-workout, save-as-template, PRs, progression charts, monthly calendar.
+- **Basic includes:** built-in templates, workout logging, recovery, history list, exercise library, export.
+- **Setup:** See `apps/mobile/REVENUECAT_SETUP.md` for store + RevenueCat dashboard steps.
+
 ---
 
 ## When Editing

@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
 import { LinkPreviewContextProvider } from 'expo-router/build/link/preview/LinkPreviewContext';
@@ -80,6 +80,16 @@ export default function RootLayout() {
     const t = setTimeout(() => setMountNotifications(true), NOTIFICATION_HANDLER_DELAY_MS);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        const userId = useAuthStore.getState().user?.id;
+        void loadSubscription(userId);
+      }
+    });
+    return () => sub.remove();
+  }, [loadSubscription]);
 
   if (!fontsLoaded) {
     return (

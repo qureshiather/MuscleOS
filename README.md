@@ -3,11 +3,16 @@ Login with Expo Credentials
 
 ## Subscriptions (RevenueCat) & local testing
 
-- **No account required for testing:** In development builds, the Subscription screen shows a **"Grant Pro (testing)"** button (dev only). Use it to unlock Pro and test custom templates, custom exercises, and adding exercises to workouts.
-- **Real IAP:** Create a [RevenueCat](https://www.revenuecat.com) project, add an entitlement named `pro`, create an offering with your App Store / Play products, then set your **public** API key:
-  - In `apps/mobile`: create `.env` with `EXPO_PUBLIC_REVENUECAT_API_KEY=your_public_key` (or set in `app.config.js` `extra.revenueCatApiKey`).
-  - Use an **Expo development build** (not Expo Go) to test real purchases; use Apple/Google sandbox accounts.
-- **Expo Go:** RevenueCat runs in preview/mock mode in Expo Go; use "Grant Pro (testing)" to simulate Pro.
+MuscleOS has **Basic** (free) and **Pro** tiers. Pro is available as monthly ($2.99), annual ($19.99), or lifetime ($39.99).
+
+Full specs: [`docs/monetization/`](docs/monetization/)
+
+- **Entitlement:** `MuscleOS Pro` (single entitlement for all paid plans)
+- **Product IDs:** `muscleos_pro_monthly`, `muscleos_pro_annual`, `muscleos_pro_lifetime`
+- **Setup guide:** [`apps/mobile/REVENUECAT_SETUP.md`](apps/mobile/REVENUECAT_SETUP.md)
+- **Testing:** Dev builds show **Grant Pro (testing)** on the Subscription screen. Use it to test Pro gates without IAP.
+- **Real IAP:** Set `EXPO_PUBLIC_REVENUECAT_API_KEY` in `apps/mobile/.env`. Use an **Expo development build** (not Expo Go) with Apple/Google sandbox accounts.
+- **Account required to purchase:** Link an account (Supabase) before subscribing; Pro restores via RevenueCat on any device when signed in.
 
 ## Set up Expo MCP
 

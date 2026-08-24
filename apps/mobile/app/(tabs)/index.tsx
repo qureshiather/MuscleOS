@@ -19,7 +19,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { BUILT_IN_FOLDERS } from '@/data/builtInTemplates';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useProGate } from '@/hooks/useProGate';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { formatRelative } from '@/utils/relativeTime';
@@ -50,10 +50,7 @@ export default function WorkoutsScreen() {
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
   const completedSessions = useSessionsStore((s) => s.completedSessions);
-  const subscriptionState = useSubscriptionStore((s) => s.state);
-  const isPro =
-    subscriptionState?.tier === 'pro' &&
-    (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
+  const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
 
   const [builtInExpanded, setBuiltInExpanded] = useState(false);
@@ -176,6 +173,7 @@ export default function WorkoutsScreen() {
   }, [sessions]);
 
   function handleCreateFolder() {
+    if (!gatePro('custom_templates')) return;
     const name = newFolderName.trim();
     if (!name) return;
     addFolder({ id: 'folder_' + Date.now(), name });
@@ -242,6 +240,7 @@ export default function WorkoutsScreen() {
   }
 
   function handleCreateFolderAndMove() {
+    if (!gatePro('custom_templates')) return;
     const name = moveModalNewFolderName.trim();
     if (!name || !moveTemplateModal) return;
     const id = 'folder_' + Date.now();
@@ -615,7 +614,7 @@ export default function WorkoutsScreen() {
               },
             ]}
             onPress={() =>
-              isPro ? handleStartEmptyWorkout() : router.push('/subscription')
+              isPro ? handleStartEmptyWorkout() : gatePro('empty_workout')
             }
           >
             <View style={styles.startEmptyCardInner}>
@@ -680,7 +679,9 @@ export default function WorkoutsScreen() {
               <SectionHeader
                 title="Quick start"
                 actionLabel="New template"
-                onAction={() => router.push('/create-template')}
+                onAction={() => {
+                  if (gatePro('custom_templates')) router.push('/create-template');
+                }}
               />
               <QuickStartGrid templates={quickStartTemplates} onPress={handleStartTemplate} />
             </View>
@@ -691,13 +692,17 @@ export default function WorkoutsScreen() {
             <View style={styles.templatesSectionActions}>
               <Pressable
                 style={[styles.addBtn, { borderColor: colors.border }]}
-                onPress={() => setShowFolderModal(true)}
+                onPress={() => {
+                  if (gatePro('custom_templates')) setShowFolderModal(true);
+                }}
               >
                 <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
               </Pressable>
               <Pressable
                 style={[styles.addBtn, { borderColor: colors.border }]}
-                onPress={() => router.push('/create-template')}
+                onPress={() => {
+                  if (gatePro('custom_templates')) router.push('/create-template');
+                }}
               >
                 <Ionicons name="add" size={18} color={colors.primary} />
                 <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
@@ -799,7 +804,9 @@ export default function WorkoutsScreen() {
                           No templates yet.
                         </Text>
                         <Pressable
-                          onPress={() => router.push('/create-template')}
+                          onPress={() => {
+                            if (gatePro('custom_templates')) router.push('/create-template');
+                          }}
                           hitSlop={8}
                           style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                         >
@@ -1089,6 +1096,10 @@ export default function WorkoutsScreen() {
             <Pressable
               style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
               onPress={() => {
+                if (!gatePro('custom_templates')) {
+                  setTemplateMenuTarget(null);
+                  return;
+                }
                 if (templateMenuTarget) {
                   setEditingTemplateName(templateMenuTarget);
                   setEditingTemplateNewName(templateMenuTarget.name);
@@ -1102,6 +1113,10 @@ export default function WorkoutsScreen() {
             <Pressable
               style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
               onPress={() => {
+                if (!gatePro('custom_templates')) {
+                  setTemplateMenuTarget(null);
+                  return;
+                }
                 if (templateMenuTarget) setMoveTemplateModal(templateMenuTarget);
                 setTemplateMenuTarget(null);
               }}
@@ -1112,6 +1127,10 @@ export default function WorkoutsScreen() {
             <Pressable
               style={styles.templateMenuItem}
               onPress={() => {
+                if (!gatePro('custom_templates')) {
+                  setTemplateMenuTarget(null);
+                  return;
+                }
                 if (templateMenuTarget) {
                   router.push({
                     pathname: '/create-template',

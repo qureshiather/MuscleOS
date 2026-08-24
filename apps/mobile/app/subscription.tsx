@@ -1,14 +1,30 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import type { PurchasesPackage } from 'react-native-purchases';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { isRevenueCatConfigured } from '@/utils/revenueCat';
+import { getOfferingPackages, isRevenueCatConfigured } from '@/utils/revenueCat';
+import {
+  BASIC_FEATURES_LIST,
+  PRO_FEATURES_LIST,
+  PRO_FEATURE_LABELS,
+  parseProFeatureParam,
+} from '@/subscription/features';
+import { FALLBACK_PRICE_LABELS, annualSavingsPercent } from '@/subscription/pricing';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -18,38 +34,73 @@ const __DEV__ = process.env.NODE_ENV !== 'production';
 const extra = Constants.expoConfig?.extra as { enableGrantProTesting?: boolean } | undefined;
 const showGrantProTesting = __DEV__ || extra?.enableGrantProTesting === true;
 
-const PRO_FEATURES = [
-  'Custom workout templates',
-  'Custom exercises',
-  'Add exercises mid-workout',
-  'Recovery insights',
-] as const;
+type PlanKey = 'monthly' | 'annual' | 'lifetime';
+
+const PLAN_LABELS: Record<PlanKey, string> = {
+  monthly: 'Monthly',
+  annual: 'Annual',
+  lifetime: 'Lifetime',
+};
+
+function packagePrice(pkg: PurchasesPackage | null, fallback: string): string {
+  return pkg?.product.priceString ?? fallback;
+}
 
 export default function SubscriptionScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { feature: featureParam } = useLocalSearchParams<{ feature?: string }>();
+  const highlightedFeature = parseProFeatureParam(featureParam);
+
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
   const load = useSubscriptionStore((s) => s.load);
   const isPro = useSubscriptionStore((s) => s.isPro);
   const setPro = useSubscriptionStore((s) => s.setPro);
-  const setFree = useSubscriptionStore((s) => s.setFree);
-  const purchasePro = useSubscriptionStore((s) => s.purchasePro);
+  const setBasic = useSubscriptionStore((s) => s.setBasic);
+  const purchasePackage = useSubscriptionStore((s) => s.purchasePackage);
   const restorePurchases = useSubscriptionStore((s) => s.restorePurchases);
   const state = useSubscriptionStore((s) => s.state);
   const isLoading = useSubscriptionStore((s) => s.isLoading);
 
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PlanKey>('annual');
+  const [packages, setPackages] = useState<{
+    monthly: PurchasesPackage | null;
+    annual: PurchasesPackage | null;
+    lifetime: PurchasesPackage | null;
+  }>({ monthly: null, annual: null, lifetime: null });
 
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!isRevenueCatConfigured()) return;
+    getOfferingPackages().then(setPackages);
+  }, []);
+
   const pro = isPro();
 
-  async function handleUpgrade() {
+  const selectedPackage = packages[selectedPlan];
+
+  const annualSavings = useMemo(() => {
+    const monthly = packages.monthly?.product.price;
+    const annual = packages.annual?.product.price;
+    if (monthly != null && annual != null && monthly > 0) {
+      const pct = Math.round((1 - annual / (monthly * 12)) * 100);
+      if (pct > 0) return pct;
+    }
+    return annualSavingsPercent();
+  }, [packages.monthly, packages.annual]);
+
+  async function handlePurchase() {
+    if (!selectedPackage) {
+      Alert.alert('Unavailable', 'This plan is not configured yet. Check RevenueCat setup.');
+      return;
+    }
     setPurchasing(true);
-    const result = await purchasePro();
+    const result = await purchasePackage(selectedPackage);
     setPurchasing(false);
     if (result.success) return;
     Alert.alert('Purchase failed', result.error ?? 'Could not complete purchase.');
@@ -67,7 +118,13 @@ export default function SubscriptionScreen() {
   async function handleGrantProTesting() {
     const expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    await setPro(expiresAt.toISOString(), { devOverride: true });
+    await setPro(expiresAt.toISOString(), { devOverride: true, plan: 'annual' });
+  }
+
+  function planSubtitle(plan: PlanKey): string | null {
+    if (plan === 'annual') return `Save ${annualSavings}% vs monthly`;
+    if (plan === 'lifetime') return 'Pay once, keep Pro forever';
+    return null;
   }
 
   return (
@@ -79,9 +136,10 @@ export default function SubscriptionScreen() {
         </Pressable>
         <Text style={[typography.screenTitle, { color: colors.text }]}>Subscription</Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-          Templates, custom exercises, and recovery tools for serious training.
+          Customize your training and track progress with Pro.
         </Text>
       </View>
+
       {isLoading ? (
         <View style={styles.scroll}>
           <SkeletonCard lines={2} />
@@ -119,56 +177,141 @@ export default function SubscriptionScreen() {
               Current plan
             </Text>
             <Text style={[typography.dataLarge, { color: pro ? colors.primary : colors.text }]}>
-              {pro ? 'Pro' : 'Free'}
+              {pro ? 'Pro' : 'Basic'}
             </Text>
-            {state?.expiresAt && pro && (
+            {pro && state?.isLifetime && (
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
+                Lifetime access
+              </Text>
+            )}
+            {state?.expiresAt && pro && !state.isLifetime && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
                 Renews{' '}
                 {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
               </Text>
             )}
           </Card>
-          {!pro && (
-            <Card>
-              <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
-                Included with Pro
+
+          {highlightedFeature && !pro && (
+            <Card style={{ borderColor: colors.primaryBorder }}>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>
+                {PRO_FEATURE_LABELS[highlightedFeature]} is included with Pro.
               </Text>
-              {PRO_FEATURES.map((feature) => (
-                <View key={feature} style={styles.featureRow}>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                  <Text style={[typography.body, { color: colors.textSecondary, flex: 1 }]}>{feature}</Text>
-                </View>
-              ))}
-              <Pressable
-                style={[
-                  styles.primaryBtn,
-                  { backgroundColor: colors.primary, opacity: purchasing ? 0.8 : 1 },
-                ]}
-                onPress={handleUpgrade}
-                disabled={purchasing || !isRevenueCatConfigured()}
-              >
-                {purchasing ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={[typography.button, { color: '#fff', textAlign: 'center' }]}>
-                    {isRevenueCatConfigured() ? 'Upgrade to Pro' : 'Configure RevenueCat to enable purchases'}
-                  </Text>
-                )}
-              </Pressable>
-              {!isRevenueCatConfigured() && (
-                <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
-                  Set revenueCatApiKey in app config and use a development build. In Expo Go, use Grant Pro
-                  (testing).
-                </Text>
-              )}
             </Card>
           )}
+
+          {!pro && (
+            <>
+              <Card>
+                <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
+                  Basic vs Pro
+                </Text>
+                <View style={styles.compareRow}>
+                  <View style={styles.compareCol}>
+                    <Text style={[typography.label, { color: colors.text, marginBottom: spacing.sm }]}>
+                      Basic
+                    </Text>
+                    {BASIC_FEATURES_LIST.map((feature) => (
+                      <View key={feature} style={styles.featureRow}>
+                        <Ionicons name="checkmark-circle" size={16} color={colors.textMuted} />
+                        <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
+                          {feature}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.compareCol}>
+                    <Text style={[typography.label, { color: colors.primary, marginBottom: spacing.sm }]}>
+                      Pro
+                    </Text>
+                    {PRO_FEATURES_LIST.map((feature) => (
+                      <View key={feature} style={styles.featureRow}>
+                        <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                        <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
+                          {feature}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Card>
+
+              <Card>
+                <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
+                  Choose a plan
+                </Text>
+                {(['monthly', 'annual', 'lifetime'] as const).map((plan) => {
+                  const selected = selectedPlan === plan;
+                  const subtitle = planSubtitle(plan);
+                  return (
+                    <Pressable
+                      key={plan}
+                      style={[
+                        styles.planOption,
+                        {
+                          borderColor: selected ? colors.primary : colors.border,
+                          backgroundColor: selected ? colors.primarySurface : colors.surfaceElevated,
+                        },
+                      ]}
+                      onPress={() => setSelectedPlan(plan)}
+                    >
+                      <View style={styles.planOptionLeft}>
+                        <View style={styles.planTitleRow}>
+                          <Text style={[typography.bodyMedium, { color: colors.text }]}>
+                            {PLAN_LABELS[plan]}
+                          </Text>
+                          {plan === 'annual' && (
+                            <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                              <Text style={[typography.caption, { color: '#fff', fontFamily: typography.label.fontFamily }]}>
+                                Best value
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        {subtitle && (
+                          <Text style={[typography.caption, { color: colors.textMuted }]}>{subtitle}</Text>
+                        )}
+                      </View>
+                      <Text style={[typography.label, { color: selected ? colors.primary : colors.text }]}>
+                        {packagePrice(packages[plan], FALLBACK_PRICE_LABELS[plan])}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+
+                <Pressable
+                  style={[
+                    styles.primaryBtn,
+                    {
+                      backgroundColor: colors.primary,
+                      opacity: purchasing || !isRevenueCatConfigured() ? 0.8 : 1,
+                    },
+                  ]}
+                  onPress={handlePurchase}
+                  disabled={purchasing || !isRevenueCatConfigured()}
+                >
+                  {purchasing ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={[typography.button, { color: '#fff', textAlign: 'center' }]}>
+                      {isRevenueCatConfigured()
+                        ? `Continue with ${PLAN_LABELS[selectedPlan]}`
+                        : 'Configure RevenueCat to enable purchases'}
+                    </Text>
+                  )}
+                </Pressable>
+                {!isRevenueCatConfigured() && (
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
+                    Set EXPO_PUBLIC_REVENUECAT_API_KEY and use a development build. See REVENUECAT_SETUP.md.
+                  </Text>
+                )}
+              </Card>
+            </>
+          )}
+
           {!isAnonymous && (
             <Pressable
-              style={[
-                styles.secondaryBtn,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
+              style={[styles.secondaryBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={handleRestore}
               disabled={restoring}
             >
@@ -179,6 +322,7 @@ export default function SubscriptionScreen() {
               )}
             </Pressable>
           )}
+
           {showGrantProTesting && (
             <View style={[styles.devSection, { borderColor: colors.border }]}>
               <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.sm }]}>
@@ -194,9 +338,9 @@ export default function SubscriptionScreen() {
               ) : (
                 <Pressable
                   style={[styles.devBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => setFree()}
+                  onPress={() => setBasic()}
                 >
-                  <Text style={[typography.label, { color: colors.textMuted }]}>Reset to Free (testing)</Text>
+                  <Text style={[typography.label, { color: colors.textMuted }]}>Reset to Basic (testing)</Text>
                 </Pressable>
               )}
             </View>
@@ -213,16 +357,34 @@ const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing.sm },
   subtitle: { marginTop: spacing.sm },
   scroll: { padding: spacing.lg + 4, paddingBottom: 40 },
+  compareRow: { flexDirection: 'row', gap: spacing.md },
+  compareCol: { flex: 1 },
   featureRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    alignItems: 'flex-start',
+    gap: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  planOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    marginBottom: spacing.sm,
+  },
+  planOptionLeft: { flex: 1, marginRight: spacing.sm },
+  planTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  badge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
   },
   primaryBtn: {
     padding: spacing.lg,
     borderRadius: radius.md,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     alignItems: 'center',
   },
   secondaryBtn: {

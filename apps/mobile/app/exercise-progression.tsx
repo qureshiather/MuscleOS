@@ -27,6 +27,7 @@ import {
   STRENGTH_LEVEL_LABELS,
   type StrengthLevel,
 } from '@/data/strengthStandards';
+import { useRequirePro } from '@/hooks/useProGate';
 
 const CHART_HEIGHT = 180;
 const CHART_PADDING = 24;
@@ -116,6 +117,7 @@ function StrengthStandardBar({
 }
 
 export default function ExerciseProgressionScreen() {
+  const isPro = useRequirePro('exercise_progression');
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ exerciseId?: string }>();
@@ -150,6 +152,8 @@ export default function ExerciseProgressionScreen() {
           profile.sex
         )
       : null;
+
+  if (!isPro) return null;
 
   if (!exerciseId || !pr) {
     return (

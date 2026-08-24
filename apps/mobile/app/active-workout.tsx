@@ -13,7 +13,6 @@ import {
   Platform,
   Animated,
   LayoutAnimation,
-  UIManager,
   Dimensions,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
@@ -24,7 +23,7 @@ import { typography } from '@/theme/typography';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useProGate } from '@/hooks/useProGate';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
@@ -34,10 +33,6 @@ import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
 import type { MuscleId, SessionExercise } from '@muscleos/types';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -321,8 +316,7 @@ export default function ActiveWorkoutScreen() {
   const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
   const clearRestTimer = useActiveWorkoutStore((s) => s.clearRestTimer);
   const recordRestDuration = useActiveWorkoutStore((s) => s.recordRestDuration);
-  const subscriptionState = useSubscriptionStore((s) => s.state);
-  const isPro = subscriptionState?.tier === 'pro' && (!subscriptionState?.expiresAt || new Date(subscriptionState.expiresAt) > new Date());
+  const { isPro, gatePro } = useProGate();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
@@ -516,6 +510,10 @@ export default function ActiveWorkoutScreen() {
 
     const template = allTemplates().find((t) => t.id === session.templateId);
     if (updateCustomTemplate && template && !template.isBuiltIn) {
+      if (!isPro) {
+        gatePro('save_as_template');
+        return;
+      }
       await updateTemplate(session.templateId, {
         exerciseIds: session.exercises.map((e) => e.exerciseId),
       });
@@ -562,7 +560,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   async function handleSaveAsTemplate() {
-    if (!session) return;
+    if (!session || !gatePro('save_as_template')) return;
     const name = saveAsTemplateName.trim() || 'Workout';
     await addTemplate({
       id: 'tpl_' + Date.now(),
@@ -575,6 +573,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   function openSaveAsTemplateModal() {
+    if (!gatePro('save_as_template')) return;
     const dateLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     setSaveAsTemplateName(`Workout ${dateLabel}`);
     setShowSaveAsTemplateModal(true);
@@ -842,10 +841,8 @@ export default function ActiveWorkoutScreen() {
                   : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
               ]}
               onPress={() => {
-                if (isPro) {
+                if (gatePro('add_exercise_mid_workout')) {
                   setShowAddExerciseModal(true);
-                } else {
-                  router.push('/subscription');
                 }
               }}
             >
@@ -1543,7 +1540,9 @@ export default function ActiveWorkoutScreen() {
                   </Pressable>
                   <Pressable
                     style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
-                    onPress={() => handleFinish(true)}
+                    onPress={() => {
+                      if (gatePro('save_as_template')) void handleFinish(true);
+                    }}
                   >
                     <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
                       Save values and template

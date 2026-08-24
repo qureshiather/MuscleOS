@@ -3,10 +3,27 @@
  * Set EXPO_PUBLIC_REVENUECAT_API_KEY in app config or .env for real IAP.
  * In Expo Go, the SDK runs in preview/mock mode.
  */
-import Purchases, { type CustomerInfo } from 'react-native-purchases';
+import Purchases, {
+  type CustomerInfo,
+  type PurchasesPackage,
+} from 'react-native-purchases';
+import type { SubscriptionPlan } from '@muscleos/types';
 import Constants from 'expo-constants';
 
 export const PRO_ENTITLEMENT_ID = 'MuscleOS Pro';
+
+/** App Store / Play product identifiers — must match store consoles and RevenueCat. */
+export const PRODUCT_IDS = {
+  monthly: 'muscleos_pro_monthly',
+  annual: 'muscleos_pro_annual',
+  lifetime: 'muscleos_pro_lifetime',
+} as const;
+
+export type OfferingPackages = {
+  monthly: PurchasesPackage | null;
+  annual: PurchasesPackage | null;
+  lifetime: PurchasesPackage | null;
+};
 
 /** API key from app config extra or env. Empty = skip RevenueCat (local/dev only). */
 function getApiKey(): string {
@@ -29,8 +46,6 @@ export function configureRevenueCat(appUserId?: string | null): void {
     Purchases.configure({
       apiKey,
       appUserID: appUserId ?? undefined,
-      // Disable so preview/test builds with a test API key don't show the
-      // "prepare for release, use a production key" in-app message.
       shouldShowInAppMessagesAutomatically: false,
     });
     configured = true;
@@ -77,7 +92,7 @@ export function hasProEntitlement(customerInfo: CustomerInfo | null): boolean {
   return ent?.isActive === true;
 }
 
-/** Expiration date for Pro entitlement, ISO string or undefined. */
+/** Expiration date for Pro entitlement, ISO string or undefined (lifetime). */
 export function getProExpirationDate(customerInfo: CustomerInfo | null): string | undefined {
   if (!customerInfo) return undefined;
   const ent = customerInfo.entitlements.active[PRO_ENTITLEMENT_ID];
@@ -85,24 +100,48 @@ export function getProExpirationDate(customerInfo: CustomerInfo | null): string 
   return date ?? undefined;
 }
 
-/** Get default offering and its default package (e.g. monthly). Used for purchase. */
-export async function getDefaultPackage() {
+/** Derive billing plan from active Pro entitlement product identifier. */
+export function getProPlan(customerInfo: CustomerInfo | null): SubscriptionPlan {
+  if (!customerInfo) return null;
+  const ent = customerInfo.entitlements.active[PRO_ENTITLEMENT_ID];
+  if (!ent?.isActive) return null;
+
+  const productId = ent.productIdentifier;
+  if (productId === PRODUCT_IDS.lifetime) return 'lifetime';
+  if (productId === PRODUCT_IDS.annual) return 'annual';
+  if (productId === PRODUCT_IDS.monthly) return 'monthly';
+  if (!ent.expirationDate) return 'lifetime';
+  return 'monthly';
+}
+
+export function isLifetimeEntitlement(customerInfo: CustomerInfo | null): boolean {
+  return getProPlan(customerInfo) === 'lifetime';
+}
+
+/** Get packages from the current offering (monthly, annual, lifetime). */
+export async function getOfferingPackages(): Promise<OfferingPackages> {
   if (!configured) configureRevenueCat();
-  if (!getApiKey()) return null;
+  if (!getApiKey()) {
+    return { monthly: null, annual: null, lifetime: null };
+  }
   try {
     const offerings = await Purchases.getOfferings();
     const current = offerings.current;
-    if (!current?.availablePackages?.length) return null;
-    return current.availablePackages[0] ?? null;
+    if (!current) {
+      return { monthly: null, annual: null, lifetime: null };
+    }
+    return {
+      monthly: current.monthly ?? null,
+      annual: current.annual ?? null,
+      lifetime: current.lifetime ?? null,
+    };
   } catch {
-    return null;
+    return { monthly: null, annual: null, lifetime: null };
   }
 }
 
-/** Purchase the default package. Returns updated CustomerInfo on success. */
-export async function purchasePro(): Promise<CustomerInfo | null> {
-  const pkg = await getDefaultPackage();
-  if (!pkg) return null;
+/** Purchase a specific package. Returns updated CustomerInfo on success. */
+export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo | null> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return customerInfo;

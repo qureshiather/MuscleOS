@@ -167,7 +167,10 @@ export async function getSubscription(): Promise<SubscriptionState | null> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.subscription);
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as Omit<SubscriptionState, 'tier'> & { tier?: string };
+    const tier: SubscriptionState['tier'] =
+      parsed.tier === 'pro' ? 'pro' : 'basic';
+    return { ...parsed, tier };
   } catch {
     return null;
   }

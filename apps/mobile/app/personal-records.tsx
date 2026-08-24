@@ -28,6 +28,7 @@ import {
 } from '@/data/strengthStandards';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
+import { useRequirePro } from '@/hooks/useProGate';
 
 const MAX_BARS = 10;
 
@@ -153,6 +154,7 @@ function PRCard({
 }
 
 export default function PersonalRecordsScreen() {
+  const isPro = useRequirePro('personal_records');
   const { colors } = useTheme();
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -178,6 +180,8 @@ export default function PersonalRecordsScreen() {
       return name.toLowerCase().includes(q);
     });
   }, [allPRs, search, getExercise]);
+
+  if (!isPro) return null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>

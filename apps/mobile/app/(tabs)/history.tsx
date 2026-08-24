@@ -8,6 +8,7 @@ import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useSessionsStore } from '@/store/sessionsStore';
+import { useProGate } from '@/hooks/useProGate';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -57,6 +58,7 @@ function getSessionVolume(session: WorkoutSession): number {
 export default function HistoryScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { gatePro } = useProGate();
   const { load: loadSessions, completedSessions, deleteSession } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const loadRecovery = useRecoveryStore((s) => s.load);
@@ -107,7 +109,9 @@ export default function HistoryScreen() {
           </View>
           <View style={styles.headerButtons}>
             <Pressable
-              onPress={() => router.push('/personal-records')}
+              onPress={() => {
+                if (gatePro('personal_records')) router.push('/personal-records');
+              }}
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: colors.surface, borderColor: colors.border },
@@ -118,7 +122,9 @@ export default function HistoryScreen() {
               <Ionicons name="trophy-outline" size={22} color={colors.primary} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/history-monthly')}
+              onPress={() => {
+                if (gatePro('monthly_calendar')) router.push('/history-monthly');
+              }}
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: colors.surface, borderColor: colors.border },

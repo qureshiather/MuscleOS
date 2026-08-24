@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { SubscriptionState } from '@muscleos/types';
+import type { CustomerInfo } from 'react-native-purchases';
+import type { PurchasesPackage } from 'react-native-purchases';
+import type { SubscriptionPlan, SubscriptionState } from '@muscleos/types';
 import {
   getSubscription,
   setSubscription,
@@ -11,18 +13,34 @@ import {
   getRevenueCatCustomerInfo,
   hasProEntitlement,
   getProExpirationDate,
-  purchasePro,
+  getProPlan,
+  purchasePackage as rcPurchasePackage,
   restorePurchases as rcRestorePurchases,
 } from '@/utils/revenueCat';
+
+function stateFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionState {
+  const plan = getProPlan(customerInfo);
+  const isLifetime = plan === 'lifetime';
+  const expiresAt = isLifetime ? undefined : getProExpirationDate(customerInfo);
+  return {
+    tier: 'pro',
+    expiresAt,
+    plan,
+    isLifetime,
+  };
+}
 
 export interface SubscriptionStoreState {
   state: SubscriptionState | null;
   isLoading: boolean;
   load: (appUserId?: string | null) => Promise<void>;
-  setPro: (expiresAt?: string, options?: { devOverride?: boolean }) => Promise<void>;
-  setFree: () => Promise<void>;
+  setPro: (
+    expiresAt?: string,
+    options?: { devOverride?: boolean; plan?: SubscriptionPlan; isLifetime?: boolean }
+  ) => Promise<void>;
+  setBasic: () => Promise<void>;
   isPro: () => boolean;
-  purchasePro: () => Promise<{ success: boolean; error?: string }>;
+  purchasePackage: (pkg: PurchasesPackage) => Promise<{ success: boolean; error?: string }>;
   restorePurchases: () => Promise<{ success: boolean }>;
 }
 
@@ -39,6 +57,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
         const state: SubscriptionState = {
           tier: 'pro',
           expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          plan: 'annual',
         };
         const stored = await getSubscription();
         set({
@@ -49,25 +68,28 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
       }
       const customerInfo = await getRevenueCatCustomerInfo();
       if (customerInfo && hasProEntitlement(customerInfo)) {
-        const expiresAt = getProExpirationDate(customerInfo);
-        const state: SubscriptionState = { tier: 'pro', expiresAt };
+        const state = stateFromCustomerInfo(customerInfo);
         await setSubscription(state);
         set({ state, isLoading: false });
         return;
       }
-      const state: SubscriptionState = { tier: 'free' };
+      const state: SubscriptionState = { tier: 'basic' };
       await setSubscription(state);
       set({ state, isLoading: false });
     } catch {
-      set({ state: { tier: 'free' }, isLoading: false });
+      set({ state: { tier: 'basic' }, isLoading: false });
     }
   },
 
   setPro: async (expiresAt, options) => {
+    const isLifetime = options?.isLifetime ?? false;
     const state: SubscriptionState = {
       tier: 'pro',
-      expiresAt: expiresAt ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      purchaseToken: undefined,
+      expiresAt: isLifetime
+        ? undefined
+        : expiresAt ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      plan: options?.plan ?? 'annual',
+      isLifetime,
     };
     await setSubscription(state);
     if (options?.devOverride) {
@@ -78,8 +100,8 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     set({ state });
   },
 
-  setFree: async () => {
-    const state: SubscriptionState = { tier: 'free' };
+  setBasic: async () => {
+    const state: SubscriptionState = { tier: 'basic' };
     await setSubscription(state);
     await setDevProOverride(false);
     set({ state });
@@ -88,16 +110,16 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   isPro: () => {
     const { state } = get();
     if (!state || state.tier !== 'pro') return false;
+    if (state.isLifetime) return true;
     if (state.expiresAt && new Date(state.expiresAt) < new Date()) return false;
     return true;
   },
 
-  purchasePro: async () => {
+  purchasePackage: async (pkg) => {
     try {
-      const customerInfo = await purchasePro();
+      const customerInfo = await rcPurchasePackage(pkg);
       if (customerInfo && hasProEntitlement(customerInfo)) {
-        const expiresAt = getProExpirationDate(customerInfo);
-        const state: SubscriptionState = { tier: 'pro', expiresAt };
+        const state = stateFromCustomerInfo(customerInfo);
         await setSubscription(state);
         set({ state });
         return { success: true };
@@ -118,13 +140,12 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     try {
       const customerInfo = await rcRestorePurchases();
       if (customerInfo && hasProEntitlement(customerInfo)) {
-        const expiresAt = getProExpirationDate(customerInfo);
-        const state: SubscriptionState = { tier: 'pro', expiresAt };
+        const state = stateFromCustomerInfo(customerInfo);
         await setSubscription(state);
         set({ state });
         return { success: true };
       }
-      const state: SubscriptionState = { tier: 'free' };
+      const state: SubscriptionState = { tier: 'basic' };
       await setSubscription(state);
       set({ state });
       return { success: true };

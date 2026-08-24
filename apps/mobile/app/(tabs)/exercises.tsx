@@ -11,12 +11,14 @@ import {
   LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useProGate } from '@/hooks/useProGate';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { Exercise, MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
@@ -61,6 +63,8 @@ function exerciseMatchesMuscleFilter(e: Exercise, muscleFilter: string | null): 
 
 export default function ExercisesScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
+  const { isPro, gatePro } = useProGate();
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<EquipmentTypeKey | null>(null);
@@ -98,10 +102,30 @@ export default function ExercisesScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={screenHeaderStyles.headerFixed}>
-        <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Exercises</Text>
-        <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-          {allExercises.length} movements · tap for muscle map
-        </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTextBlock}>
+            <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Exercises</Text>
+            <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
+              {allExercises.length} movements · tap for muscle map
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              if (gatePro('custom_exercises')) router.push('/create-exercise');
+            }}
+            style={({ pressed }) => [
+              styles.addButton,
+              {
+                backgroundColor: isPro ? colors.primarySurface : colors.surface,
+                borderColor: isPro ? colors.primaryBorder : colors.border,
+              },
+              pressed && { opacity: 0.85 },
+            ]}
+            hitSlop={8}
+          >
+            <Ionicons name="add" size={22} color={isPro ? colors.primary : colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
       <TextInput
         style={[
@@ -349,6 +373,21 @@ export default function ExercisesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headerTextBlock: { flex: 1, minWidth: 0 },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   search: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,

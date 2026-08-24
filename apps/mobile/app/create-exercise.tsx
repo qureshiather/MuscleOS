@@ -19,6 +19,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
+import { useRequirePro } from '@/hooks/useProGate';
 
 const EQUIPMENT_OPTIONS: Equipment[] = [
   'barbell',
@@ -47,6 +48,7 @@ const EQUIPMENT_LABELS: Record<Equipment, string> = {
 const MUSCLE_IDS = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
 export default function CreateExerciseScreen() {
+  const isPro = useRequirePro('custom_exercises');
   const { colors } = useTheme();
   const router = useRouter();
   const addExercise = useExercisesStore((s) => s.addExercise);
@@ -76,6 +78,8 @@ export default function CreateExerciseScreen() {
   }
 
   const canSave = name.trim().length > 0 && muscles.length > 0 && equipment.length > 0;
+
+  if (!isPro) return null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
