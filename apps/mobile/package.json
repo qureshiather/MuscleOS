@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "clean": "rm -rf .expo node_modules",
+    "seed:exercises": "node scripts/seed-exercises-from-strengthlog.mjs",
     "eas-build-post-install": "cd ../.. && pnpm run build --filter @muscleos/types"
   },
   "dependencies": {
