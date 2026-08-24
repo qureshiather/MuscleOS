@@ -53,7 +53,6 @@ export default function SubscriptionScreen() {
   const highlightedFeature = parseProFeatureParam(featureParam);
 
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
-  const authLoading = useAuthStore((s) => s.isLoading);
   const userId = useAuthStore((s) => s.user?.id);
   const load = useSubscriptionStore((s) => s.load);
   const isPro = useSubscriptionStore((s) => s.isPro);
@@ -74,9 +73,8 @@ export default function SubscriptionScreen() {
   }>({ monthly: null, annual: null, lifetime: null });
 
   useEffect(() => {
-    if (authLoading) return;
     void load(userId);
-  }, [authLoading, load, userId]);
+  }, [load, userId]);
 
   useEffect(() => {
     if (!hasRevenueCatApiKey()) return;
@@ -143,7 +141,7 @@ export default function SubscriptionScreen() {
         </Text>
       </View>
 
-      {isLoading || authLoading ? (
+      {isLoading && state == null ? (
         <View style={styles.scroll}>
           <SkeletonCard lines={2} />
           <SkeletonCard lines={4} />

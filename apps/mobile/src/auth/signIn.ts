@@ -1,7 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform, Alert } from 'react-native';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { revenueCatLogIn } from '@/utils/revenueCat';
+import { applyAuthUser, useAuthStore } from '@/store/authStore';
 
 export function useSignIn() {
   async function linkWithApple(): Promise<boolean> {
@@ -118,8 +118,8 @@ export function useSignIn() {
         }
         return false;
       }
-      if (data.session?.user?.id) {
-        await revenueCatLogIn(data.session.user.id);
+      if (data.session?.user) {
+        applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
       }
       return true;
     } catch (e) {
@@ -146,8 +146,8 @@ export function useSignIn() {
         Alert.alert('Sign up failed', error.message);
         return false;
       }
-      if (data.session?.user?.id) {
-        await revenueCatLogIn(data.session.user.id);
+      if (data.session?.user) {
+        applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
         return true;
       }
       Alert.alert(

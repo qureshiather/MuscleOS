@@ -80,37 +80,44 @@ export async function ensureRevenueCatConfigured(appUserId?: string | null): Pro
   const apiKey = getApiKey();
   if (!apiKey) return false;
 
-  if (!configurePromise) {
-    configurePromise = (async () => {
-      try {
-        Purchases.configure({
-          apiKey,
-          appUserID: appUserId ?? undefined,
-          shouldShowInAppMessagesAutomatically: false,
-        });
-        configured = true;
-        configuredUserId = appUserId ?? null;
-        return true;
-      } catch {
-        // Hot reload or second JS bundle: native SDK may already be configured.
-        configured = true;
-        return true;
+  const result = await withTimeout(
+    (async () => {
+      if (!configurePromise) {
+        configurePromise = (async () => {
+          try {
+            Purchases.configure({
+              apiKey,
+              appUserID: appUserId ?? undefined,
+              shouldShowInAppMessagesAutomatically: false,
+            });
+            configured = true;
+            configuredUserId = appUserId ?? null;
+            return true;
+          } catch {
+            // Hot reload or second JS bundle: native SDK may already be configured.
+            configured = true;
+            return true;
+          }
+        })();
       }
-    })();
-  }
 
-  await configurePromise;
+      await configurePromise;
 
-  if (appUserId && appUserId !== configuredUserId) {
-    try {
-      await Purchases.logIn(appUserId);
-      configuredUserId = appUserId;
-    } catch {
-      // ignore — keep existing RC user
-    }
-  }
+      if (appUserId && appUserId !== configuredUserId) {
+        try {
+          await Purchases.logIn(appUserId);
+          configuredUserId = appUserId;
+        } catch {
+          // ignore — keep existing RC user
+        }
+      }
 
-  return configured;
+      return configured;
+    })(),
+    RC_REQUEST_TIMEOUT_MS
+  );
+
+  return result ?? false;
 }
 
 /** @deprecated Use ensureRevenueCatConfigured — kept for sync call sites during init. */

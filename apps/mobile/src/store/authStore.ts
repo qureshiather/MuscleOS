@@ -1,8 +1,19 @@
 import { create } from 'zustand';
-import type { User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, User } from '@supabase/supabase-js';
 import type { UserProfile, AuthProvider } from '@muscleos/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { revenueCatLogOut, revenueCatLogIn } from '@/utils/revenueCat';
+
+const AUTH_INIT_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), ms);
+    }),
+  ]);
+}
 
 function userToProfile(user: User): UserProfile | null {
   if (user.is_anonymous) return null;
@@ -14,6 +25,26 @@ function userToProfile(user: User): UserProfile | null {
     displayName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? undefined,
     provider,
   };
+}
+
+/** Apply a signed-in user to local state and run link/sync side effects. */
+export function applyAuthUser(u: User, event: AuthChangeEvent, wasAnonymous: boolean): void {
+  useAuthStore.setState({
+    user: u,
+    isAnonymous: u.is_anonymous ?? false,
+    profile: userToProfile(u),
+  });
+
+  const isNowLinked = !(u.is_anonymous ?? false);
+  if (isNowLinked && wasAnonymous) {
+    void import('@/sync').then((m) => m.onAccountLinked());
+  } else if (isNowLinked && event === 'SIGNED_IN') {
+    void import('@/sync').then((m) => m.syncNow());
+  }
+
+  if (isNowLinked && u.id) {
+    void revenueCatLogIn(u.id);
+  }
 }
 
 export interface AuthState {
@@ -38,9 +69,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return null;
     }
     try {
+      const sessionResult = await withTimeout(supabase.auth.getSession(), AUTH_INIT_TIMEOUT_MS);
+      if (!sessionResult) {
+        set({ user: null, isAnonymous: true, profile: null, isLoading: false });
+        return null;
+      }
+
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = sessionResult;
 
       if (session?.user) {
         const user = session.user;
@@ -53,7 +90,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return user.id;
       }
 
-      const { data, error } = await supabase.auth.signInAnonymously();
+      const anonResult = await withTimeout(supabase.auth.signInAnonymously(), AUTH_INIT_TIMEOUT_MS);
+      if (!anonResult) {
+        set({ user: null, isAnonymous: true, profile: null, isLoading: false });
+        return null;
+      }
+      const { data, error } = anonResult;
       if (error) {
         set({ user: null, isAnonymous: true, profile: null, isLoading: false });
         return null;
@@ -103,25 +145,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // Subscribe to auth state changes (for when user links identity)
 if (isSupabaseConfigured()) {
   supabase.auth.onAuthStateChange((event, session) => {
-    if (session?.user) {
-      const u = session.user;
-      const wasAnonymous = useAuthStore.getState().isAnonymous;
-      useAuthStore.setState({
-        user: u,
-        isAnonymous: u.is_anonymous ?? false,
-        profile: userToProfile(u),
-      });
-
-      const isNowLinked = !(u.is_anonymous ?? false);
-      if (isNowLinked && wasAnonymous) {
-        void import('@/sync').then((m) => m.onAccountLinked());
-      } else if (isNowLinked && event === 'SIGNED_IN') {
-        void import('@/sync').then((m) => m.syncNow());
-      }
-
-      if (isNowLinked && u.id) {
-        void revenueCatLogIn(u.id);
-      }
-    }
+    if (!session?.user) return;
+    const u = session.user;
+    const prev = useAuthStore.getState();
+    const nextAnonymous = u.is_anonymous ?? false;
+    if (prev.user?.id === u.id && prev.isAnonymous === nextAnonymous) return;
+    applyAuthUser(u, event, prev.isAnonymous);
   });
 }
