@@ -66,6 +66,8 @@ export interface ActiveWorkoutState {
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
   addSet: (exerciseIndex: number) => void;
+  /** Inserts a warm-up set at the start of the exercise. */
+  addWarmUpSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   addExercise: (exerciseId: string) => void;
   removeExercise: (exerciseIndex: number) => void;
@@ -105,6 +107,26 @@ function createEmptySession(
       sets: [...sets],
     })),
   };
+}
+
+function bumpRestKeysForInsertedSet(
+  durations: Record<string, number>,
+  exIdx: number
+): Record<string, number> {
+  const next = { ...durations };
+  const keys = Object.keys(durations)
+    .map((k) => {
+      const [exStr, setStr] = k.split('-');
+      return { k, ex: parseInt(exStr, 10), set: parseInt(setStr, 10) };
+    })
+    .filter((x) => x.ex === exIdx && !Number.isNaN(x.set))
+    .sort((a, b) => b.set - a.set);
+
+  for (const { k, set } of keys) {
+    next[restKey(exIdx, set + 1)] = durations[k];
+    delete next[k];
+  }
+  return next;
 }
 
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
@@ -187,6 +209,28 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       sets: [...ex.sets, newSet],
     };
     set({ session: { ...session, exercises } });
+  },
+
+  addWarmUpSet: (exerciseIndex) => {
+    const { session, restAfter, restDurationsBetweenSets } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex) return;
+    exercises[exerciseIndex] = {
+      ...ex,
+      sets: [{ completed: false, isWarmUp: true }, ...ex.sets],
+    };
+    const newDurations = bumpRestKeysForInsertedSet(restDurationsBetweenSets, exerciseIndex);
+    let newRestAfter = restAfter;
+    if (restAfter?.exIdx === exerciseIndex) {
+      newRestAfter = { exIdx: exerciseIndex, setIdx: restAfter.setIdx + 1 };
+    }
+    set({
+      session: { ...session, exercises },
+      restDurationsBetweenSets: newDurations,
+      restAfter: newRestAfter,
+    });
   },
 
   removeSet: (exerciseIndex, setIndex) => {

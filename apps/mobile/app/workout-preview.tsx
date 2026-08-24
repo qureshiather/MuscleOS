@@ -8,7 +8,7 @@ import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
+import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
@@ -145,6 +145,20 @@ export default function WorkoutPreviewScreen() {
                       {prev.reps != null ? ` × ${prev.reps}` : ''}
                     </Text>
                   ) : null}
+                  <View
+                    style={[
+                      styles.restBadge,
+                      {
+                        backgroundColor: `${colors.primary}14`,
+                        borderColor: `${colors.primary}33`,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="timer-outline" size={12} color={colors.primary} />
+                    <Text style={[styles.restBadgeText, { color: colors.primary }]}>
+                      {formatRestDuration(DEFAULT_REST_SECONDS)} rest between sets
+                    </Text>
+                  </View>
                 </View>
               </View>
             </Card>
@@ -157,6 +171,12 @@ export default function WorkoutPreviewScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+function formatRestDuration(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -201,6 +221,22 @@ const styles = StyleSheet.create({
   exerciseIndex: { width: 28, marginRight: spacing.md, marginTop: 2 },
   exerciseMain: { flex: 1 },
   previous: { marginTop: spacing.sm - 2, fontFamily: typography.data.fontFamily },
+  restBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  restBadgeText: {
+    fontFamily: typography.data.fontFamily,
+    fontSize: 11,
+    fontWeight: '600',
+  },
   footer: {
     padding: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,

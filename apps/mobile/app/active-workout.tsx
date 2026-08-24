@@ -59,7 +59,50 @@ const REST_BETWEEN_SETS_CHOICES = [
   { label: '3:00', seconds: 180 },
 ] as const;
 
-const REST_GAP_HEIGHT = 26;
+const REST_GAP_HEIGHT = 34;
+
+function ExerciseMenuContent({
+  isBuiltInWorkout,
+  colors,
+  onAddWarmUp,
+  onEditRest,
+  onRemove,
+}: {
+  isBuiltInWorkout: boolean;
+  colors: { text: string; danger: string; border: string };
+  onAddWarmUp: () => void;
+  onEditRest: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <>
+      <Pressable
+        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+        onPress={onAddWarmUp}
+      >
+        <Ionicons name="add-circle-outline" size={18} color={colors.text} />
+        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Add warm-up set</Text>
+      </Pressable>
+      <Pressable
+        style={[
+          styles.exerciseDropdownItem,
+          !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
+          { borderBottomColor: colors.border },
+        ]}
+        onPress={onEditRest}
+      >
+        <Ionicons name="timer-outline" size={18} color={colors.text} />
+        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit rest timer</Text>
+      </Pressable>
+      {!isBuiltInWorkout ? (
+        <Pressable style={styles.exerciseDropdownItem} onPress={onRemove}>
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
 const SET_COMPLETE_LAYOUT = LayoutAnimation.create(
   320,
   LayoutAnimation.Types.easeInEaseOut,
@@ -175,7 +218,7 @@ function ActiveRestGap({
   visible: boolean;
   restSecondsLeft: number;
   restTotalSeconds: number;
-  colors: { accent: string };
+  colors: { primary: string; text: string; textMuted: string; border: string };
   isDark: boolean;
 }) {
   const anim = useRef(new Animated.Value(visible ? 1 : 0)).current;
@@ -212,32 +255,24 @@ function ActiveRestGap({
     restTotalSeconds > 0
       ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100)
       : 0;
+  const timeLabel = `${Math.floor(restSecondsLeft / 60)}:${(restSecondsLeft % 60).toString().padStart(2, '0')}`;
+  const trackBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
   return (
     <Animated.View style={[styles.restGapBlock, { height, opacity: anim, overflow: 'hidden' }]}>
-      <View style={styles.restTrackWrap}>
-        <View
-          style={[
-            styles.restTrack,
-            {
-              backgroundColor: isDark ? 'rgba(196, 92, 38, 0.18)' : 'rgba(196, 92, 38, 0.12)',
-              borderWidth: isDark ? 0 : 1,
-              borderColor: isDark ? 'transparent' : 'rgba(196, 92, 38, 0.25)',
-            },
-          ]}
-        >
-          <Animated.View
+      <View style={styles.restGapInner}>
+        <View style={styles.restGapTimeRow}>
+          <Ionicons name="timer-outline" size={12} color={colors.primary} />
+          <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
+          <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
+        </View>
+        <View style={[styles.restGapTrack, { backgroundColor: trackBg }]}>
+          <View
             style={[
-              styles.restTrackFill,
-              {
-                width: `${progress}%`,
-                backgroundColor: colors.accent,
-              },
+              styles.restGapFill,
+              { width: `${progress}%`, backgroundColor: colors.primary },
             ]}
           />
-          <Text style={[styles.restTrackCenterTime, { color: isDark ? '#fff' : colors.accent }]}>
-            {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
-          </Text>
         </View>
       </View>
     </Animated.View>
@@ -270,6 +305,7 @@ export default function ActiveWorkoutScreen() {
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
   const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
   const addSet = useActiveWorkoutStore((s) => s.addSet);
+  const addWarmUpSet = useActiveWorkoutStore((s) => s.addWarmUpSet);
   const removeSet = useActiveWorkoutStore((s) => s.removeSet);
   const addExercise = useActiveWorkoutStore((s) => s.addExercise);
   const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
@@ -866,6 +902,22 @@ export default function ActiveWorkoutScreen() {
                           {exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)}
                         </Text>
                       ) : null}
+                      <Pressable
+                        onPress={() => setRestTimersExIdx(exIdx)}
+                        hitSlop={4}
+                        style={[
+                          styles.exerciseRestChip,
+                          {
+                            backgroundColor: isDark ? 'rgba(196, 92, 38, 0.14)' : 'rgba(196, 92, 38, 0.08)',
+                            borderColor: isDark ? 'rgba(196, 92, 38, 0.28)' : 'rgba(196, 92, 38, 0.18)',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="timer-outline" size={11} color={colors.primary} />
+                        <Text style={[styles.exerciseRestChipText, { color: colors.primary }]}>
+                          {formatRestDurationLabel(restPresetSec)} rest
+                        </Text>
+                      </Pressable>
                     </View>
                   </Pressable>
                   <View style={styles.exerciseCardActions}>
@@ -894,39 +946,29 @@ export default function ActiveWorkoutScreen() {
                     }}
                     collapsable={false}
                   >
-                    <Pressable
-                      style={[
-                        styles.exerciseDropdownItem,
-                        !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
-                        { borderBottomColor: colors.border },
-                      ]}
-                      onPress={() => {
+                    <ExerciseMenuContent
+                      isBuiltInWorkout={isBuiltInWorkout}
+                      colors={colors}
+                      onAddWarmUp={() => {
+                        addWarmUpSet(exIdx);
+                        setExerciseMenuExIdx(null);
+                      }}
+                      onEditRest={() => {
                         setRestTimersExIdx(exIdx);
                         setExerciseMenuExIdx(null);
                       }}
-                    >
-                      <Ionicons name="timer-outline" size={18} color={colors.text} />
-                      <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Rest timers</Text>
-                    </Pressable>
-                    {!isBuiltInWorkout && (
-                      <Pressable
-                        style={styles.exerciseDropdownItem}
-                        onPress={() => {
-                          setExerciseMenuExIdx(null);
-                          Alert.alert(
-                            'Remove exercise',
-                            `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
-                            ]
-                          );
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                        <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
-                      </Pressable>
-                    )}
+                      onRemove={() => {
+                        setExerciseMenuExIdx(null);
+                        Alert.alert(
+                          'Remove exercise',
+                          `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
+                          ]
+                        );
+                      }}
+                    />
                   </View>
                 )}
               </View>
@@ -973,6 +1015,15 @@ export default function ActiveWorkoutScreen() {
                   restSecondsLeft != null &&
                   restSecondsLeft > 0;
 
+                const isWarmUp = set.isWarmUp === true;
+                const warmUpNumber = isWarmUp
+                  ? se.sets.slice(0, setIdx + 1).filter((s) => s.isWarmUp).length
+                  : 0;
+                const workingSetNumber = isWarmUp
+                  ? 0
+                  : se.sets.slice(0, setIdx + 1).filter((s) => !s.isWarmUp).length;
+                const setLabelText = isWarmUp ? `W${warmUpNumber}` : String(workingSetNumber);
+
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
                   ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
@@ -981,15 +1032,18 @@ export default function ActiveWorkoutScreen() {
                 const completedRowTint = isDark
                   ? 'rgba(20, 83, 45, 0.22)'
                   : '#f0fdf4';
+                const warmUpRowTint = isDark ? 'rgba(255,255,255,0.04)' : '#faf8f6';
                 const rowBg = set.completed
                   ? completedRowTint
-                  : isFutureSet
-                    ? isDark
-                      ? 'rgba(255,255,255,0.03)'
-                      : '#f8fafc'
-                    : isDark
-                      ? colors.surface
-                      : '#ffffff';
+                  : isWarmUp
+                    ? warmUpRowTint
+                    : isFutureSet
+                      ? isDark
+                        ? 'rgba(255,255,255,0.03)'
+                        : '#f8fafc'
+                      : isDark
+                        ? colors.surface
+                        : '#ffffff';
                 const mutedFill = isDark ? colors.surfaceElevated : '#f1f5f9';
 
                 let kgBorderW = 0;
@@ -1042,13 +1096,20 @@ export default function ActiveWorkoutScreen() {
                         <Text
                           style={[
                             styles.setLabel,
+                            isWarmUp && styles.setLabelWarmUp,
                             {
-                              color: set.completed ? colors.text : isFutureSet ? colors.textMuted : colors.text,
+                              color: set.completed
+                                ? colors.text
+                                : isWarmUp
+                                  ? colors.textSecondary
+                                  : isFutureSet
+                                    ? colors.textMuted
+                                    : colors.text,
                               fontWeight: '600',
                             },
                           ]}
                         >
-                          {setIdx + 1}
+                          {setLabelText}
                         </Text>
                         {set.completed && recordedRestSec != null ? (
                           <Text style={[styles.setRestDuration, { color: colors.textMuted }]}>
@@ -1247,40 +1308,32 @@ export default function ActiveWorkoutScreen() {
                 ]}
                 onStartShouldSetResponder={() => true}
               >
-                <Pressable
-                  style={[
-                    styles.exerciseDropdownItem,
-                    !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
-                    { borderBottomColor: colors.border },
-                  ]}
-                  onPress={() => {
+                <ExerciseMenuContent
+                  isBuiltInWorkout={isBuiltInWorkout}
+                  colors={colors}
+                  onAddWarmUp={() => {
+                    addWarmUpSet(exIdx);
+                    setExerciseMenuExIdx(null);
+                    setDropdownLayout(null);
+                  }}
+                  onEditRest={() => {
                     setRestTimersExIdx(exIdx);
                     setExerciseMenuExIdx(null);
                     setDropdownLayout(null);
                   }}
-                >
-                  <Ionicons name="timer-outline" size={18} color={colors.text} />
-                  <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Rest timers</Text>
-                </Pressable>
-                {!isBuiltInWorkout && (
-                  <Pressable
-                    style={styles.exerciseDropdownItem}
-                    onPress={() => {
-                      setExerciseMenuExIdx(null);
-                      Alert.alert(
-                        'Remove exercise',
-                        `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
-                        ]
-                      );
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                    <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
-                  </Pressable>
-                )}
+                  onRemove={() => {
+                    setExerciseMenuExIdx(null);
+                    setDropdownLayout(null);
+                    Alert.alert(
+                      'Remove exercise',
+                      `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
+                      ]
+                    );
+                  }}
+                />
               </View>
             </View>
           </Modal>
@@ -1339,7 +1392,7 @@ export default function ActiveWorkoutScreen() {
               const effectiveSeconds = ex.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
               return (
                 <>
-                  <Text style={[styles.restTimersTitle, { color: colors.text }]}>Rest between sets</Text>
+                  <Text style={[styles.restTimersTitle, { color: colors.text }]}>Edit rest timer</Text>
                   <Text style={[styles.restTimersSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
                     {exerciseName}
                   </Text>
@@ -1902,6 +1955,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
+  exerciseRestChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  exerciseRestChipText: {
+    fontFamily: typography.data.fontFamily,
+    fontSize: 11,
+    fontWeight: '600',
+  },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exerciseHeaderIcon: { padding: 4, marginTop: 1 },
   tableInset: {
@@ -1936,6 +2005,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   setLabel: { fontSize: 13, textAlign: 'center' },
+  setLabelWarmUp: { fontSize: 11 },
   setRestDuration: {
     fontSize: 9,
     fontFamily: typography.data.fontFamily,
@@ -1982,35 +2052,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   restGapBlock: {
-    paddingHorizontal: 0,
-    paddingTop: 3,
-    paddingBottom: 3,
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 2,
   },
-  restTrackWrap: { alignSelf: 'stretch' },
-  restTrack: {
-    alignSelf: 'stretch',
-    height: 20,
-    borderRadius: 4,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    position: 'relative',
+  restGapInner: {
+    gap: 5,
   },
-  restTrackFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: 0,
+  restGapTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 2,
   },
-  restTrackCenterTime: {
-    width: '100%',
-    textAlign: 'center',
+  restGapTime: {
+    fontFamily: typography.data.fontFamily,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  restGapLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    zIndex: 1,
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontWeight: '500',
+  },
+  restGapTrack: {
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  restGapFill: {
+    height: '100%',
+    borderRadius: 2,
   },
   restGapIdle: {
     flexDirection: 'row',

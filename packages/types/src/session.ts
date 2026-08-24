@@ -3,6 +3,8 @@ export interface SetRecord {
   reps?: number;
   weightKg?: number;
   completed: boolean;
+  /** Warm-up set (lighter weight, labeled separately in the log) */
+  isWarmUp?: boolean;
   /** Optional note */
   note?: string;
 }
