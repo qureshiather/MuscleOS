@@ -30,7 +30,6 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
 
-const UNCATEGORIZED = '_uncategorized';
 const ARCHIVED_SECTION = '_archived';
 
 export default function WorkoutsScreen() {
@@ -227,11 +226,11 @@ export default function WorkoutsScreen() {
     } else {
       Alert.alert(
         'Delete folder',
-        `"${folder.name}" has ${templateCount} template${templateCount === 1 ? '' : 's'}. Move them to Uncategorized or delete them?`,
+        `"${folder.name}" has ${templateCount} template${templateCount === 1 ? '' : 's'}. Remove them from the folder or delete them?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Move to Uncategorized',
+            text: 'Remove from folder',
             onPress: () => deleteFolder(folder.id),
           },
           {
@@ -758,38 +757,11 @@ export default function WorkoutsScreen() {
                 </Pressable>
                 {customExpanded && (
                   <View style={styles.sectionContent}>
+                    {uncategorized.map((template) =>
+                      renderTemplateCard(template, templateCardStyle, true)
+                    )}
                     {favoriteFolders.map((f) => renderFolderSection(f))}
                     {normalFolders.map((f) => renderFolderSection(f))}
-                    {uncategorized.length > 0 && (
-                      <View style={nestedSectionStyle}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.sectionHeader,
-                            styles.sectionHeaderLeft,
-                            { opacity: pressed ? 0.85 : 1 },
-                          ]}
-                          onPress={() => toggleFolderExpanded(UNCATEGORIZED)}
-                        >
-                          <Ionicons
-                            name={
-                              isFolderExpanded(UNCATEGORIZED) ? 'chevron-down' : 'chevron-forward'
-                            }
-                            size={18}
-                            color={colors.textSecondary}
-                          />
-                          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                            Uncategorized
-                          </Text>
-                        </Pressable>
-                        {isFolderExpanded(UNCATEGORIZED) && (
-                          <View style={styles.sectionContent}>
-                            {uncategorized.map((template) =>
-                              renderTemplateCard(template, templateCardStyle, true)
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    )}
                     {archivedFolders.length > 0 && (
                       <View style={nestedSectionStyle}>
                         <Pressable
@@ -853,7 +825,6 @@ export default function WorkoutsScreen() {
                       if (!e) {
                         const next: Record<string, boolean> = {};
                         for (const f of BUILT_IN_FOLDERS) next[f.id] = true;
-                        next[UNCATEGORIZED + '_builtin'] = true;
                         setFolderExpanded((prev) => ({ ...prev, ...next }));
                       }
                       return !e;
@@ -869,39 +840,10 @@ export default function WorkoutsScreen() {
                 </Pressable>
                 {builtInExpanded && (
                   <View style={styles.sectionContent}>
-                    {BUILT_IN_FOLDERS.map((f) => renderBuiltInFolderSection(f))}
-                    {builtInUncategorized.length > 0 && (
-                      <View style={nestedSectionStyle}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.sectionHeader,
-                            styles.sectionHeaderLeft,
-                            { opacity: pressed ? 0.85 : 1 },
-                          ]}
-                          onPress={() => toggleFolderExpanded(UNCATEGORIZED + '_builtin')}
-                        >
-                          <Ionicons
-                            name={
-                              isFolderExpanded(UNCATEGORIZED + '_builtin')
-                                ? 'chevron-down'
-                                : 'chevron-forward'
-                            }
-                            size={18}
-                            color={colors.textSecondary}
-                          />
-                          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                            Uncategorized
-                          </Text>
-                        </Pressable>
-                        {isFolderExpanded(UNCATEGORIZED + '_builtin') && (
-                          <View style={styles.sectionContent}>
-                            {builtInUncategorized.map((template) =>
-                              renderTemplateCard(template, templateCardStyle)
-                            )}
-                          </View>
-                        )}
-                      </View>
+                    {builtInUncategorized.map((template) =>
+                      renderTemplateCard(template, templateCardStyle)
                     )}
+                    {BUILT_IN_FOLDERS.map((f) => renderBuiltInFolderSection(f))}
                     {builtIn.length === 0 && (
                       <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
                         No built-in templates
@@ -1297,7 +1239,7 @@ export default function WorkoutsScreen() {
                   >
                     <Ionicons name="folder-open-outline" size={18} color={colors.textMuted} />
                     <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
-                      Uncategorized
+                      No folder
                     </Text>
                   </Pressable>
                   {folders

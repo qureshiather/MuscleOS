@@ -17,7 +17,7 @@ export interface WorkoutTemplate {
   defaultSets?: number;
   /** Built-in templates are read-only */
   isBuiltIn?: boolean;
-  /** Optional folder for custom templates. Omit = uncategorized. */
+  /** Optional folder for custom templates. Omit = no folder (shown at top of Custom). */
   folderId?: string;
 }
 
