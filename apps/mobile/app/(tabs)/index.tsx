@@ -23,7 +23,6 @@ import { useProGate } from '@/hooks/useProGate';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { formatRelative } from '@/utils/relativeTime';
-import { RecoverySnapshot } from '@/components/RecoverySnapshot';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { RecentWorkoutsRow, QuickStartGrid } from '@/components/workouts/WorkoutHomeSections';
@@ -194,6 +193,23 @@ export default function WorkoutsScreen() {
     updateTemplate(editingTemplateName.id, { name: editingTemplateNewName.trim() });
     setEditingTemplateName(null);
     setEditingTemplateNewName('');
+  }
+
+  function handleDeleteTemplate(template: WorkoutTemplate) {
+    Alert.alert(
+      'Delete template',
+      `Delete "${template.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteTemplate(template.id);
+          },
+        },
+      ]
+    );
   }
 
   function handleDeleteFolder(folder: TemplateFolder) {
@@ -591,8 +607,6 @@ export default function WorkoutsScreen() {
             Pick a template or start from scratch
           </Text>
 
-          <RecoverySnapshot />
-
           {/* Start Empty Workout - hero CTA */}
           <Pressable
             style={({ pressed }) => [
@@ -834,7 +848,17 @@ export default function WorkoutsScreen() {
                     styles.sectionHeaderLeft,
                     { opacity: pressed ? 0.85 : 1 },
                   ]}
-                  onPress={() => setBuiltInExpanded((e) => !e)}
+                  onPress={() => {
+                    setBuiltInExpanded((e) => {
+                      if (!e) {
+                        const next: Record<string, boolean> = {};
+                        for (const f of BUILT_IN_FOLDERS) next[f.id] = true;
+                        next[UNCATEGORIZED + '_builtin'] = true;
+                        setFolderExpanded((prev) => ({ ...prev, ...next }));
+                      }
+                      return !e;
+                    });
+                  }}
                 >
                   <Ionicons
                     name={builtInExpanded ? 'chevron-down' : 'chevron-forward'}
@@ -1131,7 +1155,7 @@ export default function WorkoutsScreen() {
               <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Move</Text>
             </Pressable>
             <Pressable
-              style={styles.templateMenuItem}
+              style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
               onPress={() => {
                 if (!gatePro('custom_templates')) {
                   setTemplateMenuTarget(null);
@@ -1148,6 +1172,17 @@ export default function WorkoutsScreen() {
             >
               <Ionicons name="create-outline" size={18} color={colors.text} />
               <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Edit</Text>
+            </Pressable>
+            <Pressable
+              style={styles.templateMenuItem}
+              onPress={() => {
+                const target = templateMenuTarget;
+                setTemplateMenuTarget(null);
+                if (target) handleDeleteTemplate(target);
+              }}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              <Text style={[styles.templateMenuItemText, { color: colors.danger }]}>Delete</Text>
             </Pressable>
           </View>
         </Pressable>
