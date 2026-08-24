@@ -1,8 +1,8 @@
 /**
  * RevenueCat integration for Pro subscription.
- * Set EXPO_PUBLIC_REVENUECAT_API_KEY in app config or .env for real IAP.
- * In Expo Go, the SDK runs in preview/mock mode.
+ * Set platform API keys in .env — Android requires the goog_ key, iOS the appl_ key.
  */
+import { Platform } from 'react-native';
 import Purchases, {
   type CustomerInfo,
   type PurchasesPackage,
@@ -25,40 +25,106 @@ export type OfferingPackages = {
   lifetime: PurchasesPackage | null;
 };
 
-/** API key from app config extra or env. Empty = skip RevenueCat (local/dev only). */
+const RC_REQUEST_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), ms);
+    }),
+  ]);
+}
+
+/** API key from app config extra or env. Platform-specific keys take precedence. */
 function getApiKey(): string {
   const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
-  return extra?.revenueCatApiKey ?? process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+  const fallback = extra?.revenueCatApiKey ?? process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+
+  if (Platform.OS === 'android') {
+    return (
+      extra?.revenueCatApiKeyAndroid ??
+      process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ??
+      fallback
+    );
+  }
+  if (Platform.OS === 'ios') {
+    return (
+      extra?.revenueCatApiKeyIos ??
+      process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ??
+      fallback
+    );
+  }
+  return fallback;
 }
 
 let configured = false;
+let configuredUserId: string | null = null;
+/** Serializes configure so parallel callers never invoke Purchases.configure() twice. */
+let configurePromise: Promise<boolean> | null = null;
+
+/** True when an API key is present for this platform. */
+export function hasRevenueCatApiKey(): boolean {
+  return getApiKey().length > 0;
+}
 
 export function isRevenueCatConfigured(): boolean {
   return configured && getApiKey().length > 0;
 }
 
-/** Call once at app start. Pass appUserId (e.g. Supabase user.id) for anonymous/linked identity. */
-export function configureRevenueCat(appUserId?: string | null): void {
-  if (configured) return;
+/**
+ * Configure RevenueCat once, then use logIn for user changes.
+ * Safe to call from multiple places concurrently.
+ */
+export async function ensureRevenueCatConfigured(appUserId?: string | null): Promise<boolean> {
   const apiKey = getApiKey();
-  if (!apiKey) return;
-  try {
-    Purchases.configure({
-      apiKey,
-      appUserID: appUserId ?? undefined,
-      shouldShowInAppMessagesAutomatically: false,
-    });
-    configured = true;
-  } catch {
-    // Expo Go or missing native module
+  if (!apiKey) return false;
+
+  if (!configurePromise) {
+    configurePromise = (async () => {
+      try {
+        Purchases.configure({
+          apiKey,
+          appUserID: appUserId ?? undefined,
+          shouldShowInAppMessagesAutomatically: false,
+        });
+        configured = true;
+        configuredUserId = appUserId ?? null;
+        return true;
+      } catch {
+        // Hot reload or second JS bundle: native SDK may already be configured.
+        configured = true;
+        return true;
+      }
+    })();
   }
+
+  await configurePromise;
+
+  if (appUserId && appUserId !== configuredUserId) {
+    try {
+      await Purchases.logIn(appUserId);
+      configuredUserId = appUserId;
+    } catch {
+      // ignore — keep existing RC user
+    }
+  }
+
+  return configured;
+}
+
+/** @deprecated Use ensureRevenueCatConfigured — kept for sync call sites during init. */
+export function configureRevenueCat(appUserId?: string | null): void {
+  void ensureRevenueCatConfigured(appUserId);
 }
 
 /** Switch RevenueCat to a different user (e.g. after sign out, new anonymous user). */
 export async function revenueCatLogIn(appUserId: string): Promise<void> {
-  if (!configured || !getApiKey()) return;
+  if (!(await ensureRevenueCatConfigured(appUserId))) return;
+  if (appUserId === configuredUserId) return;
   try {
     await Purchases.logIn(appUserId);
+    configuredUserId = appUserId;
   } catch {
     // ignore
   }
@@ -69,17 +135,17 @@ export async function revenueCatLogOut(): Promise<void> {
   if (!configured || !getApiKey()) return;
   try {
     await Purchases.logOut();
+    configuredUserId = null;
   } catch {
     // ignore
   }
 }
 
-/** Get current customer info. Resolves to null if RevenueCat not configured or fails. */
+/** Get current customer info. Resolves to null if not configured, fails, or times out. */
 export async function getRevenueCatCustomerInfo(): Promise<CustomerInfo | null> {
-  if (!configured) configureRevenueCat();
-  if (!getApiKey()) return null;
+  if (!(await ensureRevenueCatConfigured())) return null;
   try {
-    return await Purchases.getCustomerInfo();
+    return await withTimeout(Purchases.getCustomerInfo(), RC_REQUEST_TIMEOUT_MS);
   } catch {
     return null;
   }
@@ -120,12 +186,14 @@ export function isLifetimeEntitlement(customerInfo: CustomerInfo | null): boolea
 
 /** Get packages from the current offering (monthly, annual, lifetime). */
 export async function getOfferingPackages(): Promise<OfferingPackages> {
-  if (!configured) configureRevenueCat();
-  if (!getApiKey()) {
+  if (!(await ensureRevenueCatConfigured())) {
     return { monthly: null, annual: null, lifetime: null };
   }
   try {
-    const offerings = await Purchases.getOfferings();
+    const offerings = await withTimeout(Purchases.getOfferings(), RC_REQUEST_TIMEOUT_MS);
+    if (!offerings) {
+      return { monthly: null, annual: null, lifetime: null };
+    }
     const current = offerings.current;
     if (!current) {
       return { monthly: null, annual: null, lifetime: null };
@@ -142,6 +210,7 @@ export async function getOfferingPackages(): Promise<OfferingPackages> {
 
 /** Purchase a specific package. Returns updated CustomerInfo on success. */
 export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo | null> {
+  if (!(await ensureRevenueCatConfigured())) return null;
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return customerInfo;
@@ -152,10 +221,9 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerIn
 
 /** Restore previous purchases. Returns updated CustomerInfo. */
 export async function restorePurchases(): Promise<CustomerInfo | null> {
-  if (!configured) configureRevenueCat();
-  if (!getApiKey()) return null;
+  if (!(await ensureRevenueCatConfigured())) return null;
   try {
-    return await Purchases.restorePurchases();
+    return await withTimeout(Purchases.restorePurchases(), RC_REQUEST_TIMEOUT_MS);
   } catch {
     return null;
   }

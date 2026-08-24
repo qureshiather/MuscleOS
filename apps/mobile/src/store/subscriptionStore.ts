@@ -9,11 +9,12 @@ import {
   setDevProOverride,
 } from '@/storage/localStorage';
 import {
-  configureRevenueCat,
+  ensureRevenueCatConfigured,
   getRevenueCatCustomerInfo,
   hasProEntitlement,
   getProExpirationDate,
   getProPlan,
+  hasRevenueCatApiKey,
   purchasePackage as rcPurchasePackage,
   restorePurchases as rcRestorePurchases,
 } from '@/utils/revenueCat';
@@ -29,6 +30,9 @@ function stateFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionState {
     isLifetime,
   };
 }
+
+/** Ignore stale overlapping load() calls (foreground refresh, screen mount, etc.). */
+let loadGeneration = 0;
 
 export interface SubscriptionStoreState {
   state: SubscriptionState | null;
@@ -49,10 +53,27 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   isLoading: true,
 
   load: async (_appUserId?: string | null) => {
-    set({ isLoading: true });
+    const generation = ++loadGeneration;
+
+    // Show cached tier immediately so the subscription screen is never stuck on skeleton.
+    const cached = await getSubscription();
+    if (generation !== loadGeneration) return;
+    if (cached) {
+      set({ state: cached, isLoading: false });
+    } else if (!hasRevenueCatApiKey()) {
+      const state: SubscriptionState = { tier: 'basic' };
+      await setSubscription(state);
+      set({ state, isLoading: false });
+      return;
+    } else {
+      set({ isLoading: true });
+    }
+
     try {
-      configureRevenueCat(_appUserId);
+      await ensureRevenueCatConfigured(_appUserId);
       const devOverride = await getDevProOverride();
+      if (generation !== loadGeneration) return;
+
       if (devOverride) {
         const state: SubscriptionState = {
           tier: 'pro',
@@ -60,24 +81,31 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
           plan: 'annual',
         };
         const stored = await getSubscription();
+        if (generation !== loadGeneration) return;
         set({
           state: stored?.tier === 'pro' ? stored : state,
           isLoading: false,
         });
         return;
       }
+
       const customerInfo = await getRevenueCatCustomerInfo();
+      if (generation !== loadGeneration) return;
+
       if (customerInfo && hasProEntitlement(customerInfo)) {
         const state = stateFromCustomerInfo(customerInfo);
         await setSubscription(state);
         set({ state, isLoading: false });
         return;
       }
+
       const state: SubscriptionState = { tier: 'basic' };
       await setSubscription(state);
       set({ state, isLoading: false });
     } catch {
-      set({ state: { tier: 'basic' }, isLoading: false });
+      if (generation !== loadGeneration) return;
+      const fallback = cached ?? { tier: 'basic' as const };
+      set({ state: fallback, isLoading: false });
     }
   },
 
@@ -97,14 +125,14 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     } else {
       await setDevProOverride(false);
     }
-    set({ state });
+    set({ state, isLoading: false });
   },
 
   setBasic: async () => {
     const state: SubscriptionState = { tier: 'basic' };
     await setSubscription(state);
     await setDevProOverride(false);
-    set({ state });
+    set({ state, isLoading: false });
   },
 
   isPro: () => {
@@ -121,7 +149,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
       if (customerInfo && hasProEntitlement(customerInfo)) {
         const state = stateFromCustomerInfo(customerInfo);
         await setSubscription(state);
-        set({ state });
+        set({ state, isLoading: false });
         return { success: true };
       }
       return { success: false, error: 'Purchase did not grant Pro.' };
@@ -142,12 +170,12 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
       if (customerInfo && hasProEntitlement(customerInfo)) {
         const state = stateFromCustomerInfo(customerInfo);
         await setSubscription(state);
-        set({ state });
+        set({ state, isLoading: false });
         return { success: true };
       }
       const state: SubscriptionState = { tier: 'basic' };
       await setSubscription(state);
-      set({ state });
+      set({ state, isLoading: false });
       return { success: true };
     } catch {
       return { success: false };

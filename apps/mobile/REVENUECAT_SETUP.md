@@ -20,6 +20,15 @@ All paid products grant this single entitlement (subscriptions + lifetime).
 | `muscleos_pro_annual` | Auto-renewable subscription, 1 year | $19.99 |
 | `muscleos_pro_lifetime` | Non-consumable (iOS) / one-time (Android) | $39.99 |
 
+**Platform API keys (required for store builds):**
+
+| Platform | Env var | Key prefix |
+|----------|---------|------------|
+| iOS | `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` | `appl_` |
+| Android | `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | `goog_` |
+
+Using the iOS key on Android (or vice versa) will fail silently or hang. Get both from RevenueCat → Project → API keys.
+
 Create a subscription group for monthly + annual on iOS. Attach lifetime as a separate non-consumable.
 
 ## RevenueCat dashboard

@@ -10,6 +10,8 @@ module.exports = ({ config }) => ({
   extra: {
     ...(config.extra ?? {}),
     revenueCatApiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '',
+    revenueCatApiKeyIos: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ?? '',
+    revenueCatApiKeyAndroid: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ?? '',
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
     enableGrantProTesting: process.env.EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING === 'true',

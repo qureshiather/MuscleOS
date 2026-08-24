@@ -17,7 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { getOfferingPackages, isRevenueCatConfigured } from '@/utils/revenueCat';
+import { getOfferingPackages, hasRevenueCatApiKey, isRevenueCatConfigured } from '@/utils/revenueCat';
 import {
   BASIC_FEATURES_LIST,
   PRO_FEATURES_LIST,
@@ -53,6 +53,8 @@ export default function SubscriptionScreen() {
   const highlightedFeature = parseProFeatureParam(featureParam);
 
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const userId = useAuthStore((s) => s.user?.id);
   const load = useSubscriptionStore((s) => s.load);
   const isPro = useSubscriptionStore((s) => s.isPro);
   const setPro = useSubscriptionStore((s) => s.setPro);
@@ -72,11 +74,12 @@ export default function SubscriptionScreen() {
   }>({ monthly: null, annual: null, lifetime: null });
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (authLoading) return;
+    void load(userId);
+  }, [authLoading, load, userId]);
 
   useEffect(() => {
-    if (!isRevenueCatConfigured()) return;
+    if (!hasRevenueCatApiKey()) return;
     getOfferingPackages().then(setPackages);
   }, []);
 
@@ -140,7 +143,7 @@ export default function SubscriptionScreen() {
         </Text>
       </View>
 
-      {isLoading ? (
+      {isLoading || authLoading ? (
         <View style={styles.scroll}>
           <SkeletonCard lines={2} />
           <SkeletonCard lines={4} />
@@ -300,9 +303,15 @@ export default function SubscriptionScreen() {
                     </Text>
                   )}
                 </Pressable>
-                {!isRevenueCatConfigured() && (
+                {!isRevenueCatConfigured() && hasRevenueCatApiKey() && (
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
-                    Set EXPO_PUBLIC_REVENUECAT_API_KEY and use a development build. See REVENUECAT_SETUP.md.
+                    RevenueCat could not load plans. On Android, set EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID
+                    (goog_…). Use a dev build with Google Play sandbox.
+                  </Text>
+                )}
+                {!hasRevenueCatApiKey() && (
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
+                    Set platform RevenueCat keys in .env and use a development build. See REVENUECAT_SETUP.md.
                   </Text>
                 )}
               </Card>

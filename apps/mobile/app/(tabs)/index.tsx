@@ -151,6 +151,7 @@ export default function WorkoutsScreen() {
   }, [sessions, templates]);
 
   const quickStartTemplates = useMemo(() => {
+    if (!isPro) return [];
     const pinned = custom.filter((t) => {
       if (!t.folderId) return false;
       const folder = folders.find((f) => f.id === t.folderId);
@@ -158,7 +159,7 @@ export default function WorkoutsScreen() {
     });
     const rest = custom.filter((t) => !pinned.some((p) => p.id === t.id)).slice(0, Math.max(0, 6 - pinned.length));
     return [...pinned, ...rest].slice(0, 6);
-  }, [custom, folders]);
+  }, [custom, folders, isPro]);
 
   const lastDoneByTemplate = useMemo(() => {
     const completed = sessions.filter((s) => s.completedAt != null);
@@ -678,10 +679,14 @@ export default function WorkoutsScreen() {
             <View style={styles.homeSection}>
               <SectionHeader
                 title="Quick start"
-                actionLabel="New template"
-                onAction={() => {
-                  if (gatePro('custom_templates')) router.push('/create-template');
-                }}
+                {...(isPro
+                  ? {
+                      actionLabel: 'New template',
+                      onAction: () => {
+                        if (gatePro('custom_templates')) router.push('/create-template');
+                      },
+                    }
+                  : {})}
               />
               <QuickStartGrid templates={quickStartTemplates} onPress={handleStartTemplate} />
             </View>
@@ -689,25 +694,27 @@ export default function WorkoutsScreen() {
 
           <View style={styles.templatesSectionRow}>
             <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
-            <View style={styles.templatesSectionActions}>
-              <Pressable
-                style={[styles.addBtn, { borderColor: colors.border }]}
-                onPress={() => {
-                  if (gatePro('custom_templates')) setShowFolderModal(true);
-                }}
-              >
-                <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
-              </Pressable>
-              <Pressable
-                style={[styles.addBtn, { borderColor: colors.border }]}
-                onPress={() => {
-                  if (gatePro('custom_templates')) router.push('/create-template');
-                }}
-              >
-                <Ionicons name="add" size={18} color={colors.primary} />
-                <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
-              </Pressable>
-            </View>
+            {isPro && (
+              <View style={styles.templatesSectionActions}>
+                <Pressable
+                  style={[styles.addBtn, { borderColor: colors.border }]}
+                  onPress={() => {
+                    if (gatePro('custom_templates')) setShowFolderModal(true);
+                  }}
+                >
+                  <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
+                </Pressable>
+                <Pressable
+                  style={[styles.addBtn, { borderColor: colors.border }]}
+                  onPress={() => {
+                    if (gatePro('custom_templates')) router.push('/create-template');
+                  }}
+                >
+                  <Ionicons name="add" size={18} color={colors.primary} />
+                  <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
           {isLoading ? (
@@ -718,7 +725,7 @@ export default function WorkoutsScreen() {
             </View>
           ) : (
             <>
-              {/* Custom section with folders */}
+              {isPro ? (
               <View style={sectionStyle}>
                 <Pressable
                   style={({ pressed }) => [
@@ -804,9 +811,7 @@ export default function WorkoutsScreen() {
                           No templates yet.
                         </Text>
                         <Pressable
-                          onPress={() => {
-                            if (gatePro('custom_templates')) router.push('/create-template');
-                          }}
+                          onPress={() => router.push('/create-template')}
                           hitSlop={8}
                           style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                         >
@@ -819,6 +824,7 @@ export default function WorkoutsScreen() {
                   </View>
                 )}
               </View>
+              ) : null}
 
               {/* Built-in section */}
               <View style={sectionStyle}>
