@@ -3,11 +3,16 @@ import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weightUnits';
+import { Card } from '@/components/ui/Card';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { ListRow } from '@/components/ui/ListRow';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -87,7 +92,10 @@ export default function ProfileScreen() {
   const heightPlaceholder = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
   const weightPlaceholder = bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
 
-  const heightDisplay = profile.heightCm != null ? `${cmToDisplay(profile.heightCm, heightUnit)} ${heightUnit === 'in' ? 'in' : 'cm'}` : '—';
+  const heightDisplay =
+    profile.heightCm != null
+      ? `${cmToDisplay(profile.heightCm, heightUnit)} ${heightUnit === 'in' ? 'in' : 'cm'}`
+      : '—';
   const weightDisplay =
     profile.weightKg != null ? `${kgToDisplay(profile.weightKg, bodyWeightUnit)} ${bodyWeightUnit}` : '—';
   const ageDisplay = profile.age != null ? String(profile.age) : '—';
@@ -103,83 +111,72 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
+        <Card style={styles.section}>
+          <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>
+            Account
+          </Text>
           {isLinked ? (
             <>
               <View style={styles.accountInfo}>
                 {authProfile?.displayName ? (
-                  <Text style={[styles.accountName, { color: colors.text }]}>{authProfile.displayName}</Text>
+                  <Text style={[typography.bodyMedium, { color: colors.text }]}>
+                    {authProfile.displayName}
+                  </Text>
                 ) : null}
-                <Text style={[styles.accountEmail, { color: colors.textSecondary }]} numberOfLines={1}>
+                <Text style={[typography.body, { color: colors.textSecondary }]} numberOfLines={1}>
                   {authProfile?.email ?? 'Account linked'}
                 </Text>
               </View>
-              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-                Your subscription is tied to this account and restores on other devices.
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
+                Subscription restores on other devices with this account.
               </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.accountSignOutBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
-                ]}
-                onPress={handleSignOut}
-              >
-                <Text style={[styles.accountSignOutText, { color: colors.text }]}>Sign out</Text>
-              </Pressable>
+              <PrimaryButton label="Sign out" variant="outline" onPress={handleSignOut} />
             </>
           ) : (
             <>
-              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-                Sign in to subscribe and restore your purchase on other devices.
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
+                Sign in to subscribe and restore purchases on other devices.
               </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.accountSignInBtn,
-                  { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
-                ]}
-                onPress={() => router.push('/auth')}
-              >
-                <Text style={styles.accountSignInText}>Sign in</Text>
-              </Pressable>
+              <PrimaryButton label="Sign in" onPress={() => router.push('/auth')} />
             </>
           )}
-        </View>
+        </Card>
 
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <Card style={styles.section}>
           <View style={styles.profileSectionHeader}>
             <View style={styles.profileSectionHeaderText}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Biodata</Text>
-              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-                Height, weight, age & gender (used for recovery estimates)
+              <Text style={[typography.sectionTitle, { color: colors.text }]}>Biodata</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+                Used for recovery estimates
               </Text>
             </View>
             <Pressable
               style={[styles.editBtn, { backgroundColor: colors.primary }]}
               onPress={openProfileModal}
             >
-              <Text style={styles.editBtnText}>Edit</Text>
+              <Text style={[typography.label, { color: '#fff' }]}>Edit</Text>
             </Pressable>
           </View>
-          <View style={styles.readOnlyRow}>
-            <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>{heightUnit === 'in' ? 'Height (in)' : 'Height (cm)'}</Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]}>{heightDisplay}</Text>
-          </View>
-          <View style={styles.readOnlyRow}>
-            <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>
-              {bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)'}
-            </Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]}>{weightDisplay}</Text>
-          </View>
-          <View style={styles.readOnlyRow}>
-            <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>Age</Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]}>{ageDisplay}</Text>
-          </View>
-          <View style={[styles.readOnlyRow, styles.readOnlyRowLast]}>
-            <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>Gender</Text>
-            <Text style={[styles.readOnlyValue, { color: colors.text }]}>{sexDisplay}</Text>
-          </View>
-        </View>
+          {(
+            [
+              [heightUnit === 'in' ? 'Height (in)' : 'Height (cm)', heightDisplay],
+              [bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)', weightDisplay],
+              ['Age', ageDisplay],
+              ['Gender', sexDisplay],
+            ] as const
+          ).map(([label, value], i, arr) => (
+            <View
+              key={label}
+              style={[
+                styles.readOnlyRow,
+                i < arr.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+              ]}
+            >
+              <Text style={[typography.body, { color: colors.textMuted }]}>{label}</Text>
+              <Text style={[typography.data, { color: colors.text }]}>{value}</Text>
+            </View>
+          ))}
+        </Card>
 
         <Modal
           visible={profileModalVisible}
@@ -188,37 +185,49 @@ export default function ProfileScreen() {
           onRequestClose={() => setProfileModalVisible(false)}
         >
           <Pressable style={styles.modalOverlay} onPress={() => setProfileModalVisible(false)}>
-            <Pressable style={[styles.modalContent, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit biodata</Text>
-              <Text style={[styles.sectionHint, { color: colors.textMuted, marginBottom: 12 }]}>Height, weight, age & gender</Text>
-              <Text style={[styles.unitLabel, { color: colors.textMuted }]}>Gender</Text>
-              <View style={[styles.themeRow, { marginBottom: 12 }]}>
-                <Pressable
-                  style={[
-                    styles.themeBtn,
-                    (sexSelection ?? profile.sex) === 'male'
-                      ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                      : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-                  ]}
-                  onPress={() => setSexSelection('male')}
-                >
-                  <Text style={[styles.themeBtnText, { color: (sexSelection ?? profile.sex) === 'male' ? '#fff' : colors.text }]}>Male</Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.themeBtn,
-                    (sexSelection ?? profile.sex) === 'female'
-                      ? { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary }
-                      : { backgroundColor: colors.surfaceElevated, borderWidth: 1.5, borderColor: colors.border },
-                  ]}
-                  onPress={() => setSexSelection('female')}
-                >
-                  <Text style={[styles.themeBtnText, { color: (sexSelection ?? profile.sex) === 'female' ? '#fff' : colors.text }]}>Female</Text>
-                </Pressable>
+            <Pressable
+              style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[typography.screenTitle, { fontSize: 22, color: colors.text }]}>Edit biodata</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
+                Height, weight, age & gender
+              </Text>
+              <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.xs }]}>
+                Gender
+              </Text>
+              <View style={[styles.themeRow, { marginBottom: spacing.md }]}>
+                {(['male', 'female'] as const).map((sex) => {
+                  const selected = (sexSelection ?? profile.sex) === sex;
+                  return (
+                    <Pressable
+                      key={sex}
+                      style={[
+                        styles.themeBtn,
+                        selected
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                      ]}
+                      onPress={() => setSexSelection(sex)}
+                    >
+                      <Text
+                        style={[
+                          typography.label,
+                          { color: selected ? '#fff' : colors.text, textTransform: 'capitalize' },
+                        ]}
+                      >
+                        {sex}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
               <View style={styles.inputRow}>
                 <TextInput
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  ]}
                   placeholder={heightPlaceholder}
                   placeholderTextColor={colors.textMuted}
                   value={heightInput}
@@ -226,7 +235,10 @@ export default function ProfileScreen() {
                   keyboardType="decimal-pad"
                 />
                 <TextInput
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  ]}
                   placeholder={weightPlaceholder}
                   placeholderTextColor={colors.textMuted}
                   value={weightInput}
@@ -235,7 +247,10 @@ export default function ProfileScreen() {
                 />
               </View>
               <TextInput
-                style={[styles.inputFull, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                style={[
+                  styles.inputFull,
+                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                ]}
                 placeholder="Age"
                 placeholderTextColor={colors.textMuted}
                 value={ageInput}
@@ -244,43 +259,32 @@ export default function ProfileScreen() {
               />
               <View style={styles.modalActions}>
                 <Pressable
-                  style={[styles.modalBtn, styles.modalBtnCancel, { borderColor: colors.border }]}
+                  style={[styles.modalBtn, { borderColor: colors.border }]}
                   onPress={() => setProfileModalVisible(false)}
                 >
-                  <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+                  <Text style={[typography.button, { color: colors.textSecondary }]}>Cancel</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalBtn, styles.modalBtnSave, { backgroundColor: colors.primary }]}
+                  style={[styles.modalBtn, { backgroundColor: colors.primary, borderWidth: 0 }]}
                   onPress={saveProfileFromModal}
                 >
-                  <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                  <Text style={[typography.button, { color: '#fff' }]}>Save</Text>
                 </Pressable>
               </View>
             </Pressable>
           </Pressable>
         </Modal>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.row,
-            { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
-          ]}
+        <ListRow
+          title="Subscription"
+          hint="Pro features"
           onPress={() => router.push('/subscription')}
-        >
-          <Text style={[styles.rowText, { color: colors.text }]}>Subscription</Text>
-          <Text style={[styles.rowHint, { color: colors.textMuted }]}>Pro features</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.row,
-            { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
-          ]}
+        />
+        <ListRow
+          title="Settings"
+          hint="Appearance, units, data"
           onPress={() => router.push('/settings')}
-        >
-          <Text style={[styles.rowText, { color: colors.text }]}>Settings</Text>
-          <Text style={[styles.rowHint, { color: colors.textMuted }]}>Appearance, units, data</Text>
-        </Pressable>
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -289,126 +293,77 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollExtra: { paddingBottom: 40 },
-  section: {
-    marginHorizontal: 0,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
-  sectionHint: { fontSize: 13, marginBottom: 12 },
-  accountInfo: { marginBottom: 8 },
-  accountName: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
-  accountEmail: { fontSize: 15 },
-  accountSignOutBtn: {
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  accountSignOutText: { fontSize: 16, fontWeight: '600' },
-  accountSignInBtn: {
-    marginTop: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  accountSignInText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  section: { marginBottom: spacing.md },
+  accountInfo: { marginBottom: spacing.sm },
   profileSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
-    gap: 12,
+    marginBottom: spacing.md,
+    gap: spacing.md,
   },
-  profileSectionHeaderText: {
-    flex: 1,
-    minWidth: 0,
-  },
+  profileSectionHeaderText: { flex: 1, minWidth: 0 },
   editBtn: {
     flexShrink: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
   },
-  editBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   readOnlyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(128,128,128,0.25)',
+    paddingVertical: spacing.sm + 2,
   },
-  readOnlyLabel: { fontSize: 15 },
-  readOnlyValue: { fontSize: 16, fontWeight: '500' },
-  readOnlyRowLast: { borderBottomWidth: 0 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xl,
   },
   modalContent: {
     width: '100%',
     maxWidth: 400,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg + 4,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
   modalBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     alignItems: 'center',
-  },
-  modalBtnCancel: {
     borderWidth: 1,
   },
-  modalBtnSave: {},
-  modalBtnText: { fontSize: 16, fontWeight: '600' },
-  unitLabel: { fontSize: 14, marginBottom: 6 },
-  inputRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  inputRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: radius.md,
+    padding: spacing.md,
     fontSize: 16,
+    fontFamily: typography.body.fontFamily,
   },
   inputFull: {
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: radius.md,
+    padding: spacing.md,
     fontSize: 16,
+    fontFamily: typography.body.fontFamily,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    marginHorizontal: 0,
-    marginBottom: 8,
-    borderRadius: 12,
-  },
-  rowText: { fontSize: 16, fontWeight: '500' },
-  rowHint: { fontSize: 13 },
-  themeRow: { flexDirection: 'row', gap: 8 },
+  themeRow: { flexDirection: 'row', gap: spacing.sm },
   themeBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
     minWidth: 76,
-    alignItems: 'center' as const,
+    alignItems: 'center',
+    borderWidth: 1.5,
   },
-  themeBtnText: { fontSize: 14, fontWeight: '600' },
 });

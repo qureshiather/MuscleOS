@@ -4,11 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { MUSCLE_GROUPS, getRecoveryUntil } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
@@ -41,13 +45,14 @@ export default function RecoveryScreen() {
         <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Recovery</Text>
         <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
           {active.length === 0
-            ? 'All muscles ready – you can work out any muscle'
-            : 'Avoid training these muscles until recovered'}
+            ? 'All clear — every muscle group is ready'
+            : 'Muscles still recovering from recent training'}
         </Text>
       </View>
       {isLoading ? (
         <View style={styles.placeholder}>
-          <Text style={[styles.placeholderText, { color: colors.textMuted }]}>Loading…</Text>
+          <Skeleton width={220} height={220} borderRadius={110} />
+          <Skeleton width="60%" height={14} style={{ marginTop: spacing.lg }} />
         </View>
       ) : active.length === 0 ? (
         <View style={styles.readyWrap}>
@@ -71,32 +76,44 @@ export default function RecoveryScreen() {
             />
             <View style={styles.legend}>
               <View style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: '#dc2626' }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Just trained</Text>
+                <View style={[styles.legendDot, { backgroundColor: colors.recoveryHot }]} />
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>Just trained</Text>
               </View>
               <View style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: colors.muscleRecovering }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>In recovery</Text>
+                <View style={[styles.legendDot, { backgroundColor: colors.recoveryWarm }]} />
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>In recovery</Text>
               </View>
               <View style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Ready to train</Text>
+                <View style={[styles.legendDot, { backgroundColor: colors.recoveryReady }]} />
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>Ready</Text>
               </View>
             </View>
           </View>
-          <View style={[styles.listCard, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.listTitle, { color: colors.text }]}>In recovery</Text>
+          <Card>
+            <Text style={[typography.sectionTitle, styles.listTitle, { color: colors.text }]}>In recovery</Text>
             {active.map((r, i) => (
-              <View key={`${r.muscleId}-${r.trainedAt}-${i}`} style={styles.listRow}>
-                <Text style={[styles.muscleName, { color: colors.text }]}>
+              <View
+                key={`${r.muscleId}-${r.trainedAt}-${i}`}
+                style={[
+                  styles.listRow,
+                  i < active.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                ]}
+              >
+                <Text style={[typography.body, { color: colors.text }]}>
                   {MUSCLE_GROUPS[r.muscleId].name}
                 </Text>
-                <Text style={[styles.recoveryUntil, { color: colors.textMuted }]}>
-                  Until {new Date(getRecoveryUntil(r)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                <Text style={[typography.caption, styles.recoveryUntil, { color: colors.textMuted }]}>
+                  Until{' '}
+                  {new Date(getRecoveryUntil(r)).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </Text>
               </View>
             ))}
-          </View>
+          </Card>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -105,17 +122,20 @@ export default function RecoveryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  placeholder: { flex: 1, padding: 20, justifyContent: 'center' },
-  placeholderText: { fontSize: 15, textAlign: 'center' },
-  readyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  diagramWrap: { alignItems: 'center', marginBottom: 24 },
-  legend: { flexDirection: 'row', gap: 20, marginTop: 12, justifyContent: 'center' },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 12, height: 12, borderRadius: 6 },
-  legendText: { fontSize: 13 },
-  listCard: { padding: 16, borderRadius: 16 },
-  listTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  listRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  muscleName: { fontSize: 16 },
-  recoveryUntil: { fontSize: 13 },
+  placeholder: { flex: 1, padding: spacing.lg, justifyContent: 'center', alignItems: 'center' },
+  readyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  diagramWrap: { alignItems: 'center', marginBottom: spacing.xl },
+  legend: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md, justifyContent: 'center', flexWrap: 'wrap' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+  legendDot: { width: 10, height: 10, borderRadius: radius.sm / 2 },
+  listTitle: { marginBottom: spacing.md },
+  listRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+  },
+  recoveryUntil: {
+    fontFamily: typography.data.fontFamily,
+  },
 });

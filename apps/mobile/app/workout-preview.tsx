@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -12,6 +15,8 @@ import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { formatWeight } from '@/utils/weightUnits';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { Card } from '@/components/ui/Card';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
@@ -36,9 +41,7 @@ export default function WorkoutPreviewScreen() {
 
   const getExercise = useExercisesStore((s) => s.getExercise);
   const workoutMuscleIds: MuscleId[] = Array.from(
-    new Set(
-      exerciseIds.flatMap((id) => getExercise(id)?.muscles ?? [])
-    )
+    new Set(exerciseIds.flatMap((id) => getExercise(id)?.muscles ?? []))
   );
   const workoutMuscleNames = workoutMuscleIds.map((id) => MUSCLE_GROUPS[id].name).join(', ');
 
@@ -46,7 +49,6 @@ export default function WorkoutPreviewScreen() {
     getExercisePrevious().then(setPreviousMap);
   }, []);
 
-  // Only one workout at a time: if they landed here with an active session, send them back to it
   useEffect(() => {
     if (activeSession) {
       router.replace('/active-workout');
@@ -54,7 +56,7 @@ export default function WorkoutPreviewScreen() {
   }, [activeSession, router]);
 
   function handleStart() {
-    if (activeSession) return; // Guard: only one workout at a time
+    if (activeSession) return;
     router.replace({
       pathname: '/active-workout',
       params: {
@@ -68,10 +70,13 @@ export default function WorkoutPreviewScreen() {
   if (!templateId || exerciseIds.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+        <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={colors.accent} />
+          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
         </Pressable>
-        <Text style={[styles.errorText, { color: colors.textMuted }]}>Missing workout details</Text>
+        <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg }]}>
+          Missing workout details
+        </Text>
       </SafeAreaView>
     );
   }
@@ -79,18 +84,19 @@ export default function WorkoutPreviewScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+        <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={colors.accent} />
+          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
         </Pressable>
         <View style={styles.headerTitleRow}>
-          <View style={styles.titleBlock}>
-            <Text style={[styles.templateTitle, { color: colors.text }]}>{templateName}</Text>
-          </View>
+          <Text style={[typography.screenTitle, styles.templateTitle, { color: colors.text }]} numberOfLines={2}>
+            {templateName}
+          </Text>
           <Pressable
             style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
             onPress={handleStart}
           >
-            <Text style={styles.headerStartBtnText}>Start</Text>
+            <Text style={[typography.button, { color: '#fff' }]}>Start</Text>
           </Pressable>
         </View>
       </View>
@@ -101,48 +107,54 @@ export default function WorkoutPreviewScreen() {
         showsVerticalScrollIndicator={false}
       >
         {workoutMuscleIds.length > 0 && (
-          <View style={[styles.musclesSection, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Muscles used</Text>
+          <Card style={styles.musclesSection}>
+            <Text style={[typography.caption, styles.sectionLabel, { color: colors.textMuted }]}>
+              Muscles used
+            </Text>
             <MuscleDiagram muscleIds={workoutMuscleIds} size={0.85} />
-            <Text style={[styles.muscleNames, { color: colors.textSecondary }]}>
+            <Text style={[typography.caption, styles.muscleNames, { color: colors.textSecondary }]}>
               {workoutMuscleNames}
             </Text>
-          </View>
+          </Card>
         )}
 
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-          {exerciseIds.length} exercises · tap Start when ready
+        <Text style={[typography.caption, styles.sectionLabel, { color: colors.textMuted }]}>
+          {exerciseIds.length} exercises · review, then start
         </Text>
         {exerciseIds.map((exerciseId, index) => {
           const exercise = getExercise(exerciseId);
           const prev = previousMap[exerciseId];
-          const muscleNames = exercise?.muscles.map((id) => MUSCLE_GROUPS[id].name).join(', ') ?? '—';
+          const muscleNames =
+            exercise?.muscles.map((id) => MUSCLE_GROUPS[id].name).join(', ') ?? '—';
           return (
-            <View
-              key={exerciseId}
-              style={[styles.exerciseCard, { backgroundColor: colors.surface }]}
-            >
+            <Card key={exerciseId} elevated style={styles.exerciseCard}>
               <View style={styles.exerciseRow}>
-                <Text style={[styles.exerciseIndex, { color: colors.textMuted }]}>{index + 1}</Text>
+                <Text style={[typography.data, styles.exerciseIndex, { color: colors.textMuted }]}>
+                  {String(index + 1).padStart(2, '0')}
+                </Text>
                 <View style={styles.exerciseMain}>
-                  <Text style={[styles.exerciseName, { color: colors.text }]}>
+                  <Text style={[typography.bodyMedium, { color: colors.text }]}>
                     {exercise?.name ?? exerciseId}
                   </Text>
-                  <Text style={[styles.muscles, { color: colors.textSecondary }]}>
+                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
                     {muscleNames}
                   </Text>
-                  {prev && (
-                    <Text style={[styles.previous, { color: colors.primary }]}>
+                  {prev ? (
+                    <Text style={[typography.caption, styles.previous, { color: colors.primary }]}>
                       Previous: {formatWeight(prev.weightKg, weightUnit)}
-                      {prev.reps != null ? ` × ${prev.reps} reps` : ''}
+                      {prev.reps != null ? ` × ${prev.reps}` : ''}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
               </View>
-            </View>
+            </Card>
           );
         })}
       </ScrollView>
+
+      <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
+        <PrimaryButton label="Start workout" onPress={handleStart} />
+      </View>
     </SafeAreaView>
   );
 }
@@ -150,44 +162,47 @@ export default function WorkoutPreviewScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
+    paddingHorizontal: spacing.lg + 4,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  backText: { fontSize: 16, marginBottom: 8 },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing.sm },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  titleBlock: { flex: 1, minWidth: 0 },
   headerStartBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
   },
-  headerStartBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  templateTitle: { fontSize: 24, fontWeight: '700' },
+  templateTitle: { flex: 1, fontSize: 24, minWidth: 0 },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  sectionLabel: { fontSize: 13, marginBottom: 12 },
+  scrollContent: { padding: spacing.lg + 4, paddingBottom: spacing.xxl },
+  sectionLabel: {
+    fontFamily: typography.label.fontFamily,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: spacing.md,
+  },
   musclesSection: {
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
+    marginBottom: spacing.lg,
     alignItems: 'center',
   },
-  muscleNames: { fontSize: 13, marginTop: 8, textAlign: 'center' },
+  muscleNames: { marginTop: spacing.sm, textAlign: 'center' },
   exerciseCard: {
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
+    marginBottom: spacing.sm + 2,
+    padding: spacing.md + 2,
   },
   exerciseRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  exerciseIndex: { width: 24, fontSize: 14, marginRight: 12 },
+  exerciseIndex: { width: 28, marginRight: spacing.md, marginTop: 2 },
   exerciseMain: { flex: 1 },
-  exerciseName: { fontSize: 17, fontWeight: '600' },
-  muscles: { fontSize: 13, marginTop: 4 },
-  previous: { fontSize: 13, marginTop: 6, fontWeight: '500' },
-  errorText: { padding: 20, fontSize: 15 },
+  previous: { marginTop: spacing.sm - 2, fontFamily: typography.data.fontFamily },
+  footer: {
+    padding: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });

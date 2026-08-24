@@ -1,18 +1,29 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { isRevenueCatConfigured } from '@/utils/revenueCat';
+import { Card } from '@/components/ui/Card';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import Constants from 'expo-constants';
 
 const __DEV__ = process.env.NODE_ENV !== 'production';
-// Show "Grant Pro (testing)" in dev and in preview builds. Set EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true in EAS preview env. Remove before go-live.
-// Read from extra (set in app.config.js) so we never touch process.env in the app — avoids crashes in production when process.env is not inlined.
 const extra = Constants.expoConfig?.extra as { enableGrantProTesting?: boolean } | undefined;
 const showGrantProTesting = __DEV__ || extra?.enableGrantProTesting === true;
+
+const PRO_FEATURES = [
+  'Custom workout templates',
+  'Custom exercises',
+  'Add exercises mid-workout',
+  'Recovery insights',
+] as const;
 
 export default function SubscriptionScreen() {
   const { colors } = useTheme();
@@ -62,107 +73,130 @@ export default function SubscriptionScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
-          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+        <Pressable onPress={() => router.back()} style={styles.back} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={colors.accent} />
+          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Subscription</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Unlock custom templates, custom exercises & recovery insights
+        <Text style={[typography.screenTitle, { color: colors.text }]}>Subscription</Text>
+        <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
+          Templates, custom exercises, and recovery tools for serious training.
         </Text>
       </View>
       {isLoading ? (
-        <View style={styles.placeholder}>
-          <Text style={[styles.placeholderText, { color: colors.textMuted }]}>Loading…</Text>
+        <View style={styles.scroll}>
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={4} />
         </View>
       ) : isAnonymous ? (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Link your account to subscribe</Text>
-            <Text style={[styles.bullet, { color: colors.textSecondary }]}>
-              Your subscription will be tied to your account and restore on any device.
+          <Card>
+            <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>
+              Link your account
             </Text>
-            <Text style={[styles.bullet, { color: colors.textSecondary }]}>
-              Link with Google, Apple, or email to unlock Pro and purchase.
+            <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+              Subscriptions are tied to your account so Pro restores on any device.
             </Text>
-            <Pressable
-              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/auth')}
-            >
-              <Text style={styles.primaryBtnText}>Link account</Text>
-            </Pressable>
-          </View>
+            <PrimaryButton label="Link account" onPress={() => router.push('/auth')} />
+          </Card>
           {showGrantProTesting && (
             <View style={[styles.devSection, { borderColor: colors.border }]}>
-              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing</Text>
-              <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={handleGrantProTesting}>
-                <Text style={[styles.devBtnText, { color: colors.primary }]}>Grant Pro (testing)</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.sm }]}>
+                Testing
+              </Text>
+              <Pressable
+                style={[styles.devBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={handleGrantProTesting}
+              >
+                <Text style={[typography.label, { color: colors.primary }]}>Grant Pro (testing)</Text>
               </Pressable>
             </View>
           )}
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.tierLabel, { color: colors.textSecondary }]}>Current plan</Text>
-            <Text style={[styles.tierValue, { color: pro ? colors.primary : colors.text }]}>
+          <Card>
+            <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.xs }]}>
+              Current plan
+            </Text>
+            <Text style={[typography.dataLarge, { color: pro ? colors.primary : colors.text }]}>
               {pro ? 'Pro' : 'Free'}
             </Text>
             {state?.expiresAt && pro && (
-              <Text style={[styles.expiry, { color: colors.textMuted }]}>
-                Renews {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
+                Renews{' '}
+                {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
               </Text>
             )}
-          </View>
+          </Card>
           {!pro && (
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Pro features</Text>
-              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Custom workout templates</Text>
-              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Custom exercises</Text>
-              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Add exercises to any workout</Text>
-              <Text style={[styles.bullet, { color: colors.textSecondary }]}>• Recovery insights</Text>
+            <Card>
+              <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
+                Included with Pro
+              </Text>
+              {PRO_FEATURES.map((feature) => (
+                <View key={feature} style={styles.featureRow}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                  <Text style={[typography.body, { color: colors.textSecondary, flex: 1 }]}>{feature}</Text>
+                </View>
+              ))}
               <Pressable
-                style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.primaryBtn,
+                  { backgroundColor: colors.primary, opacity: purchasing ? 0.8 : 1 },
+                ]}
                 onPress={handleUpgrade}
                 disabled={purchasing || !isRevenueCatConfigured()}
               >
                 {purchasing ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.primaryBtnText}>
+                  <Text style={[typography.button, { color: '#fff', textAlign: 'center' }]}>
                     {isRevenueCatConfigured() ? 'Upgrade to Pro' : 'Configure RevenueCat to enable purchases'}
                   </Text>
                 )}
               </Pressable>
               {!isRevenueCatConfigured() && (
-                <Text style={[styles.hint, { color: colors.textMuted }]}>
-                  Set revenueCatApiKey in app config (or EXPO_PUBLIC_REVENUECAT_API_KEY) and use a development build to purchase. In Expo Go, use “Grant Pro (testing)” below.
+                <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
+                  Set revenueCatApiKey in app config and use a development build. In Expo Go, use Grant Pro
+                  (testing).
                 </Text>
               )}
-            </View>
+            </Card>
           )}
           {!isAnonymous && (
             <Pressable
-              style={[styles.secondaryBtn, { backgroundColor: colors.surface }]}
+              style={[
+                styles.secondaryBtn,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
               onPress={handleRestore}
               disabled={restoring}
             >
               {restoring ? (
                 <ActivityIndicator color={colors.text} />
               ) : (
-                <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Restore purchases</Text>
+                <Text style={[typography.button, { color: colors.text }]}>Restore purchases</Text>
               )}
             </Pressable>
           )}
           {showGrantProTesting && (
             <View style={[styles.devSection, { borderColor: colors.border }]}>
-              <Text style={[styles.devLabel, { color: colors.textMuted }]}>Testing</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.sm }]}>
+                Testing
+              </Text>
               {!pro ? (
-                <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={handleGrantProTesting}>
-                  <Text style={[styles.devBtnText, { color: colors.primary }]}>Grant Pro (testing)</Text>
+                <Pressable
+                  style={[styles.devBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={handleGrantProTesting}
+                >
+                  <Text style={[typography.label, { color: colors.primary }]}>Grant Pro (testing)</Text>
                 </Pressable>
               ) : (
-                <Pressable style={[styles.devBtn, { backgroundColor: colors.surface }]} onPress={() => setFree()}>
-                  <Text style={[styles.devBtnText, { color: colors.textMuted }]}>Reset to Free (testing)</Text>
+                <Pressable
+                  style={[styles.devBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={() => setFree()}
+                >
+                  <Text style={[typography.label, { color: colors.textMuted }]}>Reset to Free (testing)</Text>
                 </Pressable>
               )}
             </View>
@@ -175,27 +209,34 @@ export default function SubscriptionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 8 },
-  back: { marginBottom: 8 },
-  backText: { fontSize: 16 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 4 },
-  placeholder: { flex: 1, padding: 20, justifyContent: 'center' },
-  placeholderText: { fontSize: 15, textAlign: 'center' },
-  scroll: { padding: 20, paddingBottom: 40 },
-  card: { padding: 20, borderRadius: 16, marginBottom: 16 },
-  tierLabel: { fontSize: 13, marginBottom: 4 },
-  tierValue: { fontSize: 22, fontWeight: '700' },
-  expiry: { fontSize: 13, marginTop: 4 },
-  cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  bullet: { fontSize: 15, marginBottom: 4 },
-  primaryBtn: { padding: 16, borderRadius: 12, marginTop: 16, alignItems: 'center' },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  hint: { fontSize: 12, marginTop: 12 },
-  secondaryBtn: { padding: 16, borderRadius: 12, marginTop: 8, alignItems: 'center' },
-  secondaryBtnText: { fontSize: 16, fontWeight: '500', textAlign: 'center' },
-  devSection: { marginTop: 24, paddingTop: 16, borderTopWidth: 1 },
-  devLabel: { fontSize: 12, marginBottom: 8 },
-  devBtn: { padding: 12, borderRadius: 10, alignSelf: 'flex-start' },
-  devBtnText: { fontSize: 14 },
+  header: { padding: spacing.lg + 4, paddingBottom: spacing.sm },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing.sm },
+  subtitle: { marginTop: spacing.sm },
+  scroll: { padding: spacing.lg + 4, paddingBottom: 40 },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  primaryBtn: {
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    marginTop: spacing.lg,
+    alignItems: 'center',
+  },
+  secondaryBtn: {
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  devSection: { marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1 },
+  devBtn: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+  },
 });

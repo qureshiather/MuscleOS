@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -19,6 +21,9 @@ import type { MuscleId } from '@muscleos/types';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import { Ionicons } from '@expo/vector-icons';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { Card } from '@/components/ui/Card';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
 export default function CreateTemplateScreen() {
   const { colors } = useTheme();
@@ -109,25 +114,19 @@ export default function CreateTemplateScreen() {
   }
 
   const templateMuscleIds: MuscleId[] = useMemo(
-    () =>
-      Array.from(
-        new Set(selectedIds.flatMap((id) => getExercise(id)?.muscles ?? []))
-      ),
+    () => Array.from(new Set(selectedIds.flatMap((id) => getExercise(id)?.muscles ?? []))),
     [selectedIds, getExercise]
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerBack}>
-          <Text style={[styles.backText, { color: colors.primary }]}>Cancel</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: colors.text }]} pointerEvents="none">
-          {isEditMode ? 'Edit template' : 'Create template'}
-        </Text>
-      </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.form}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Template name</Text>
+      <ScreenHeader
+        title={isEditMode ? 'Edit template' : 'New template'}
+        onBack={() => router.back()}
+        backIcon="close"
+      />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Template name</Text>
         <TextInput
           style={[
             styles.input,
@@ -137,7 +136,7 @@ export default function CreateTemplateScreen() {
               borderColor: showErrors && !name.trim() ? colors.danger : colors.border,
             },
           ]}
-          placeholder="e.g. My Push Day"
+          placeholder="e.g. Push A"
           placeholderTextColor={colors.textMuted}
           value={name}
           onChangeText={(text) => {
@@ -145,22 +144,28 @@ export default function CreateTemplateScreen() {
             if (showErrors) setShowErrors(false);
           }}
         />
-        {showErrors && !name.trim() && (
-          <Text style={[styles.errorText, { color: colors.danger }]}>Template name is required</Text>
-        )}
+        {showErrors && !name.trim() ? (
+          <Text style={[typography.caption, styles.errorText, { color: colors.danger }]}>
+            Name is required
+          </Text>
+        ) : null}
+
         {folders.length > 0 && (
           <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Folder</Text>
+            <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Folder</Text>
             <View style={styles.folderRow}>
               <Pressable
                 style={[
                   styles.folderChip,
-                  { borderColor: colors.border, backgroundColor: !folderId ? colors.primary : colors.surface },
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: !folderId ? colors.primary : colors.surface,
+                  },
                 ]}
                 onPress={() => setFolderId(undefined)}
               >
                 <Text
-                  style={[styles.folderChipText, { color: !folderId ? '#fff' : colors.textSecondary }]}
+                  style={[typography.label, { color: !folderId ? '#fff' : colors.textSecondary }]}
                 >
                   None
                 </Text>
@@ -170,12 +175,15 @@ export default function CreateTemplateScreen() {
                   key={f.id}
                   style={[
                     styles.folderChip,
-                    { borderColor: colors.border, backgroundColor: folderId === f.id ? colors.primary : colors.surface },
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: folderId === f.id ? colors.primary : colors.surface,
+                    },
                   ]}
                   onPress={() => setFolderId(f.id)}
                 >
                   <Text
-                    style={[styles.folderChipText, { color: folderId === f.id ? '#fff' : colors.text }]}
+                    style={[typography.label, { color: folderId === f.id ? '#fff' : colors.text }]}
                   >
                     {f.name}
                   </Text>
@@ -184,65 +192,85 @@ export default function CreateTemplateScreen() {
             </View>
           </>
         )}
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Exercises</Text>
-        <View
+
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
+          Exercises · {selectedIds.length}
+        </Text>
+        <Card
+          elevated
           style={[
-            styles.selectedRow,
-            showErrors && selectedIds.length === 0 && { borderWidth: 1, borderColor: colors.danger, borderRadius: 12, padding: 12 },
+            styles.selectedCard,
+            showErrors && selectedIds.length === 0 ? { borderColor: colors.danger } : null,
           ]}
         >
           {selectedIds.length === 0 ? (
-            <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-              No exercises added
-            </Text>
+            <Text style={[typography.body, { color: colors.textMuted }]}>No exercises yet</Text>
           ) : (
-            selectedIds.map((id) => {
+            selectedIds.map((id, index) => {
               const ex = getExercise(id);
               return (
                 <View
                   key={id}
-                  style={[styles.selectedChip, { backgroundColor: colors.surfaceElevated }]}
+                  style={[
+                    styles.selectedRow,
+                    index < selectedIds.length - 1 && {
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: colors.border,
+                    },
+                  ]}
                 >
-                  <Text style={[styles.selectedChipText, { color: colors.text }]} numberOfLines={1}>
+                  <Text style={[typography.data, styles.index, { color: colors.textMuted }]}>
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                  <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>
                     {ex?.name ?? id}
                   </Text>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => removeExerciseId(id)}
-                    style={styles.removeChip}
-                  >
-                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                  <Pressable hitSlop={8} onPress={() => removeExerciseId(id)}>
+                    <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                   </Pressable>
                 </View>
               );
             })
           )}
-        </View>
-        {showErrors && selectedIds.length === 0 && (
-          <Text style={[styles.errorText, { color: colors.danger }]}>Add at least one exercise</Text>
-        )}
+        </Card>
+        {showErrors && selectedIds.length === 0 ? (
+          <Text style={[typography.caption, styles.errorText, { color: colors.danger }]}>
+            Add at least one exercise
+          </Text>
+        ) : null}
+
         <Pressable
-          style={[styles.addExercisesBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+          style={({ pressed }) => [
+            styles.addExercisesBtn,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
           onPress={() => setShowPicker(true)}
         >
           <Ionicons name="add" size={20} color={colors.primary} />
-          <Text style={[styles.addExercisesBtnText, { color: colors.primary }]}>Add exercises</Text>
+          <Text style={[typography.button, { color: colors.primary }]}>Add exercises</Text>
         </Pressable>
+
         {templateMuscleIds.length > 0 && (
-          <View style={[styles.musclesSection, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Muscles used</Text>
+          <Card style={styles.musclesSection}>
+            <Text style={[typography.caption, styles.sectionLabel, { color: colors.textMuted }]}>
+              Muscles used
+            </Text>
             <MuscleDiagram muscleIds={templateMuscleIds} size={0.85} />
-            <Text style={[styles.muscleNames, { color: colors.textSecondary }]}>
+            <Text style={[typography.caption, styles.muscleNames, { color: colors.textSecondary }]}>
               {templateMuscleIds.map((id) => MUSCLE_GROUPS[id].name).join(', ')}
             </Text>
-          </View>
+          </Card>
         )}
-        <Pressable
-          style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+
+        <PrimaryButton
+          label={isEditMode ? 'Save changes' : 'Save template'}
           onPress={handleSave}
-        >
-          <Text style={styles.saveBtnText}>{isEditMode ? 'Save changes' : 'Save template'}</Text>
-        </Pressable>
+          style={{ marginTop: spacing.sm }}
+        />
       </ScrollView>
 
       <Modal visible={showPicker} animationType="slide" transparent>
@@ -251,10 +279,10 @@ export default function CreateTemplateScreen() {
             style={[styles.pickerContent, { backgroundColor: colors.surface }]}
             onStartShouldSetResponder={() => true}
           >
-            <View style={styles.pickerHeader}>
-              <Text style={[styles.pickerTitle, { color: colors.text }]}>Add exercise</Text>
-              <Pressable onPress={() => setShowPicker(false)}>
-                <Text style={[styles.pickerDone, { color: colors.primary }]}>Done</Text>
+            <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[typography.sectionTitle, { color: colors.text }]}>Add exercise</Text>
+              <Pressable onPress={() => setShowPicker(false)} hitSlop={8}>
+                <Text style={[typography.label, { color: colors.accent }]}>Done</Text>
               </Pressable>
             </View>
             <TextInput
@@ -271,15 +299,26 @@ export default function CreateTemplateScreen() {
               data={pickerExercises}
               keyExtractor={(item) => item.id}
               style={styles.pickerList}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable
                   style={[styles.pickerRow, { borderBottomColor: colors.border }]}
                   onPress={() => addExerciseId(item.id)}
                 >
-                  <Text style={[styles.pickerRowText, { color: colors.text }]}>{item.name}</Text>
-                  <Ionicons name="add" size={20} color={colors.accent} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[typography.bodyMedium, { color: colors.text }]}>{item.name}</Text>
+                    <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+                      {item.muscles.map((m) => MUSCLE_GROUPS[m].name).join(' · ')}
+                    </Text>
+                  </View>
+                  <Ionicons name="add-circle" size={22} color={colors.primary} />
                 </Pressable>
               )}
+              ListEmptyComponent={
+                <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg, textAlign: 'center' }]}>
+                  No matching exercises
+                </Text>
+              }
             />
           </View>
         </Pressable>
@@ -290,56 +329,61 @@ export default function CreateTemplateScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  headerBack: { position: 'absolute', left: 20, zIndex: 1 },
-  backText: { fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '600' },
   scroll: { flex: 1 },
-  form: { padding: 20, paddingBottom: 40 },
-  label: { fontSize: 14, marginBottom: 8 },
-  input: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 8 },
-  errorText: { fontSize: 13, marginBottom: 12 },
-  placeholderText: { fontSize: 14, marginBottom: 8 },
-  selectedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  selectedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 12,
-    paddingVertical: 8,
-    paddingRight: 4,
-    borderRadius: 20,
-    maxWidth: '100%',
+  form: { padding: spacing.lg + 4, paddingBottom: 40 },
+  label: { marginBottom: spacing.sm, marginTop: spacing.sm },
+  input: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    fontSize: 16,
+    fontFamily: typography.body.fontFamily,
+    marginBottom: spacing.sm,
   },
-  selectedChipText: { fontSize: 14, maxWidth: 140 },
-  removeChip: { marginLeft: 4 },
-  folderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  errorText: { marginBottom: spacing.md },
+  folderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   folderChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
-  folderChipText: { fontSize: 14, fontWeight: '500' },
+  selectedCard: { marginBottom: spacing.md, paddingVertical: spacing.sm },
+  selectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  index: { width: 28 },
   addExercisesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 12,
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
-  addExercisesBtnText: { fontSize: 16, fontWeight: '500' },
-  saveBtn: { padding: 16, borderRadius: 12 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  musclesSection: {
+    marginBottom: spacing.lg,
+    alignItems: 'center',
+  },
+  sectionLabel: {
+    fontFamily: typography.label.fontFamily,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: spacing.md,
+  },
+  muscleNames: { marginTop: spacing.sm, textAlign: 'center' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   pickerContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radius.lg + 8,
+    borderTopRightRadius: radius.lg + 8,
     maxHeight: '80%',
     paddingBottom: 40,
   },
@@ -347,36 +391,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    padding: spacing.lg + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  pickerTitle: { fontSize: 18, fontWeight: '600' },
-  pickerDone: { fontSize: 16 },
   pickerSearch: {
-    marginHorizontal: 20,
-    marginVertical: 12,
-    padding: 12,
-    borderRadius: 12,
+    marginHorizontal: spacing.lg + 4,
+    marginVertical: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
     fontSize: 16,
+    fontFamily: typography.body.fontFamily,
   },
   pickerList: { maxHeight: 400 },
   pickerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.md,
   },
-  pickerRowText: { fontSize: 16 },
-  musclesSection: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  sectionLabel: { fontSize: 12, marginBottom: 12, textAlign: 'center' },
-  muscleNames: { fontSize: 13, marginTop: 8, textAlign: 'center' },
 });

@@ -23,7 +23,13 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { formatRelative } from '@/utils/relativeTime';
-import type { WorkoutTemplate, TemplateFolder, WorkoutSession } from '@muscleos/types';
+import { RecoverySnapshot } from '@/components/RecoverySnapshot';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonCard } from '@/components/ui/Skeleton';
+import { RecentWorkoutsRow, QuickStartGrid } from '@/components/workouts/WorkoutHomeSections';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
+import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
 
 const UNCATEGORIZED = '_uncategorized';
 const ARCHIVED_SECTION = '_archived';
@@ -52,7 +58,6 @@ export default function WorkoutsScreen() {
 
   const [builtInExpanded, setBuiltInExpanded] = useState(false);
   const [customExpanded, setCustomExpanded] = useState(true);
-  const [recentExpanded, setRecentExpanded] = useState(true);
   const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>({});
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -141,12 +146,22 @@ export default function WorkoutsScreen() {
     const templateMap = new Map(templates.map((t) => [t.id, t]));
     return completed
       .filter((s) => templateMap.has(s.templateId))
-      .slice(0, 5)
+      .slice(0, 8)
       .map((s) => ({
         session: s,
         template: templateMap.get(s.templateId)!,
       }));
   }, [sessions, templates]);
+
+  const quickStartTemplates = useMemo(() => {
+    const pinned = custom.filter((t) => {
+      if (!t.folderId) return false;
+      const folder = folders.find((f) => f.id === t.folderId);
+      return folder?.favorite && !folder.archived;
+    });
+    const rest = custom.filter((t) => !pinned.some((p) => p.id === t.id)).slice(0, Math.max(0, 6 - pinned.length));
+    return [...pinned, ...rest].slice(0, 6);
+  }, [custom, folders]);
 
   const lastDoneByTemplate = useMemo(() => {
     const completed = sessions.filter((s) => s.completedAt != null);
@@ -243,40 +258,6 @@ export default function WorkoutsScreen() {
     return last ? formatRelative(last) : null;
   }
 
-  function renderRecentWorkoutCard(
-    session: WorkoutSession,
-    template: WorkoutTemplate,
-    cardStyle: StyleProp<ViewStyle>
-  ) {
-    const completedAgo = session.completedAt ? formatRelative(session.completedAt) : null;
-    return (
-      <Pressable
-        key={session.id}
-        style={({ pressed }) => [cardStyle, pressed && styles.templateCardPressed]}
-        onPress={() => handleStartTemplate(template)}
-      >
-        <View style={styles.templateCardHeader}>
-          <View style={styles.templateCardTitleRow}>
-            <Text
-              style={[styles.templateName, { color: colors.accent }]}
-              numberOfLines={1}
-            >
-              {template.name}
-            </Text>
-          </View>
-          {completedAgo && (
-            <Text style={[styles.lastDoneText, { color: colors.textMuted }]}>
-              Done {completedAgo}
-            </Text>
-          )}
-          <Text style={[styles.exerciseCount, { color: colors.textMuted }]}>
-            {template.exerciseIds.length} exercises
-          </Text>
-        </View>
-      </Pressable>
-    );
-  }
-
   function isFolderExpanded(folderId: string): boolean {
     return folderExpanded[folderId] ?? true;
   }
@@ -308,7 +289,7 @@ export default function WorkoutsScreen() {
             <Text
               style={[
                 styles.templateName,
-                { color: colors.accent },
+                { color: colors.text },
                 !hasDescription && styles.templateNameNoDesc,
               ]}
               numberOfLines={1}
@@ -607,10 +588,12 @@ export default function WorkoutsScreen() {
         <View style={screenHeaderStyles.headerInScroll}>
           <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Workouts</Text>
           <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-            Start empty or pick a template
+            Pick a template or start from scratch
           </Text>
 
-          {/* Start Empty Workout - distinctive card-style CTA */}
+          <RecoverySnapshot />
+
+          {/* Start Empty Workout - hero CTA */}
           <Pressable
             style={({ pressed }) => [
               styles.startEmptyCard,
@@ -648,22 +631,27 @@ export default function WorkoutsScreen() {
                   color={isPro ? '#fff' : colors.primary}
                 />
               </View>
-              <View style={styles.startEmptyTextWrap}>
-                <Text
-                  style={[
-                    styles.startEmptyCardTitle,
-                    { color: isPro ? '#fff' : colors.text },
-                  ]}
-                >
-                  {isPro ? 'Start Empty Workout' : 'Pro: Start Empty Workout'}
-                </Text>
+                <View style={styles.startEmptyTextWrap}>
+                <View style={styles.startEmptyTitleRow}>
+                  <Text
+                    style={[
+                      styles.startEmptyCardTitle,
+                      { color: isPro ? '#fff' : colors.text },
+                    ]}
+                  >
+                    Empty workout
+                  </Text>
+                  {!isPro && (
+                    <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
+                  )}
+                </View>
                 <Text
                   style={[
                     styles.startEmptyCardSubtitle,
                     { color: isPro ? 'rgba(255,255,255,0.85)' : colors.textMuted },
                   ]}
                 >
-                  {isPro ? 'Add exercises as you go' : 'Upgrade to unlock'}
+                  {isPro ? 'Add exercises as you go' : 'Included with Pro'}
                 </Text>
               </View>
               <Ionicons
@@ -676,53 +664,55 @@ export default function WorkoutsScreen() {
         </View>
 
         <View style={styles.templatesSection}>
+          {recentWorkouts.length > 0 && (
+            <View style={styles.homeSection}>
+              <SectionHeader title="Recent" />
+              <RecentWorkoutsRow
+                items={recentWorkouts}
+                onPress={handleStartTemplate}
+                formatRelative={formatRelative}
+              />
+            </View>
+          )}
+
+          {quickStartTemplates.length > 0 && (
+            <View style={styles.homeSection}>
+              <SectionHeader
+                title="Quick start"
+                actionLabel="New template"
+                onAction={() => router.push('/create-template')}
+              />
+              <QuickStartGrid templates={quickStartTemplates} onPress={handleStartTemplate} />
+            </View>
+          )}
+
           <View style={styles.templatesSectionRow}>
-            <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>Templates</Text>
-            <Pressable
-              style={[styles.addBtn, { borderColor: colors.border }]}
-              onPress={() => router.push('/create-template')}
-            >
-              <Ionicons name="add" size={18} color={colors.primary} />
-              <Text style={[styles.addBtnText, { color: colors.primary }]}>New template</Text>
-            </Pressable>
+            <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
+            <View style={styles.templatesSectionActions}>
+              <Pressable
+                style={[styles.addBtn, { borderColor: colors.border }]}
+                onPress={() => setShowFolderModal(true)}
+              >
+                <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={[styles.addBtn, { borderColor: colors.border }]}
+                onPress={() => router.push('/create-template')}
+              >
+                <Ionicons name="add" size={18} color={colors.primary} />
+                <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
+              </Pressable>
+            </View>
           </View>
 
           {isLoading ? (
-            <View style={styles.placeholder}>
-              <Text style={[styles.placeholderText, { color: colors.textMuted }]}>Loading…</Text>
+            <View>
+              <SkeletonCard lines={2} />
+              <SkeletonCard lines={3} />
+              <SkeletonCard lines={2} />
             </View>
           ) : (
             <>
-              {/* Recent workouts section */}
-              {recentWorkouts.length > 0 && (
-                <View style={sectionStyle}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.sectionHeader,
-                      styles.sectionHeaderLeft,
-                      { opacity: pressed ? 0.85 : 1 },
-                    ]}
-                    onPress={() => setRecentExpanded((e) => !e)}
-                  >
-                    <Ionicons
-                      name={recentExpanded ? 'chevron-down' : 'chevron-forward'}
-                      size={18}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                      Recent Workouts
-                    </Text>
-                  </Pressable>
-                  {recentExpanded && (
-                    <View style={styles.sectionContent}>
-                      {recentWorkouts.map(({ session, template }) =>
-                        renderRecentWorkoutCard(session, template, templateCardStyle)
-                      )}
-                    </View>
-                  )}
-                </View>
-              )}
-
               {/* Custom section with folders */}
               <View style={sectionStyle}>
                 <Pressable
@@ -739,19 +729,6 @@ export default function WorkoutsScreen() {
                     color={colors.textSecondary}
                   />
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom</Text>
-                  <Pressable
-                    hitSlop={8}
-                    style={({ pressed: p2 }) => [
-                      styles.folderAddBtn,
-                      { backgroundColor: colors.surfaceElevated, opacity: p2 ? 0.8 : 1 },
-                    ]}
-                    onPress={() => setShowFolderModal(true)}
-                  >
-                    <Ionicons name="folder-open-outline" size={16} color={colors.primary} />
-                    <Text style={[styles.folderAddBtnText, { color: colors.primary }]}>
-                      New folder
-                    </Text>
-                  </Pressable>
                 </Pressable>
                 {customExpanded && (
                   <View style={styles.sectionContent}>
@@ -819,7 +796,7 @@ export default function WorkoutsScreen() {
                     {custom.length === 0 && (
                       <View style={styles.emptySectionRow}>
                         <Text style={[styles.emptySectionText, styles.emptySectionTextInRow, { color: colors.textMuted }]}>
-                          No custom templates yet.
+                          No templates yet.
                         </Text>
                         <Pressable
                           onPress={() => router.push('/create-template')}
@@ -827,7 +804,7 @@ export default function WorkoutsScreen() {
                           style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                         >
                           <Text style={[styles.emptySectionLink, { color: colors.primary }]}>
-                            Create one
+                            Create template
                           </Text>
                         </Pressable>
                       </View>
@@ -1331,17 +1308,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   startEmptyTextWrap: { flex: 1 },
-  startEmptyCardTitle: { fontSize: 16, fontWeight: '700' },
-  startEmptyCardSubtitle: { fontSize: 12, marginTop: 2 },
-  templatesSection: { marginTop: 12 },
+  startEmptyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+  startEmptyCardTitle: { ...typography.bodyMedium, fontFamily: typography.screenTitle.fontFamily, fontSize: 17 },
+  startEmptyCardSubtitle: { ...typography.caption, marginTop: 2 },
+  templatesSection: { marginTop: spacing.sm },
+  homeSection: { marginBottom: spacing.lg },
   templatesSectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    gap: 10,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
-  templatesSectionTitle: { fontSize: 18, fontWeight: '700' },
+  templatesSectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  templatesSectionTitle: { ...typography.sectionTitle, flex: 1 },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1467,7 +1451,7 @@ const styles = StyleSheet.create({
   },
   templateMoveLabel: { fontSize: 13, fontWeight: '600' },
   lastDoneText: { fontSize: 11, marginTop: 2 },
-  templateName: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+  templateName: { ...typography.bodyMedium, marginBottom: 2 },
   templateNameNoDesc: { marginBottom: 6 },
   templateDesc: { fontSize: 13, marginBottom: 6, lineHeight: 18 },
   exerciseCount: { fontSize: 11, marginTop: 4 },

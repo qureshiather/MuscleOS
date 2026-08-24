@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
+import { typography } from '@/theme/typography';
+import { spacing } from '@/theme/tokens';
 
 /** Content height of the tab bar (without safe area). Matches default tab bar so pill sits flush. */
 const TAB_BAR_CONTENT_HEIGHT = 49;
@@ -36,10 +38,11 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
+            paddingTop: spacing.xs,
           },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: { fontSize: 12, fontWeight: '500' },
+          tabBarLabelStyle: { ...typography.caption, fontFamily: typography.label.fontFamily },
         }}
       >
       <Tabs.Screen

@@ -1,5 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { getPlatesForWeight, BAR_WEIGHT_KG } from '@/utils/plateCalculator';
 import { formatWeight } from '@/utils/weightUnits';
 import type { WeightUnit } from '@/utils/weightUnits';
@@ -14,12 +16,12 @@ export function PlateCalculator({ totalKg, unit = 'kg' }: PlateCalculatorProps) 
   const load = totalKg > BAR_WEIGHT_KG ? getPlatesForWeight(totalKg) : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surfaceElevated }]}>
+    <View style={[styles.container, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
       <View style={styles.header}>
-        <Text style={[styles.weightLabel, { color: colors.textSecondary }]}>
+        <Text style={[typography.dataLarge, styles.weightLabel, { color: colors.text }]}>
           {formatWeight(totalKg, unit)}
         </Text>
-        <Text style={[styles.barLabel, { color: colors.textMuted }]}>
+        <Text style={[typography.caption, { color: colors.textMuted }]}>
           {BAR_WEIGHT_KG} kg bar
         </Text>
       </View>
@@ -40,7 +42,7 @@ export function PlateCalculator({ totalKg, unit = 'kg' }: PlateCalculatorProps) 
             ))}
           </View>
           <View style={[styles.bar, { backgroundColor: colors.border }]}>
-            <Text style={[styles.barText, { color: colors.textMuted }]}>bar</Text>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>bar</Text>
           </View>
           <View style={styles.side}>
             {load.platesPerSide.map(({ kg, count }) => (
@@ -58,7 +60,7 @@ export function PlateCalculator({ totalKg, unit = 'kg' }: PlateCalculatorProps) 
           </View>
         </View>
       ) : (
-        <Text style={[styles.hint, { color: colors.textMuted }]}>
+        <Text style={[typography.caption, { color: colors.textMuted }]}>
           Enter weight above bar ({BAR_WEIGHT_KG} kg)
         </Text>
       )}
@@ -68,37 +70,34 @@ export function PlateCalculator({ totalKg, unit = 'kg' }: PlateCalculatorProps) 
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 12,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: spacing.md,
   },
-  header: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 12 },
-  weightLabel: { fontSize: 18, fontWeight: '700' },
-  barLabel: { fontSize: 13 },
+  header: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.md },
+  weightLabel: { fontSize: 18 },
   platesRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: spacing.sm,
   },
   side: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   plateGroup: { flexDirection: 'row', gap: 2 },
   plate: {
     width: 28,
-    height: 36,
+    height: 48,
     borderRadius: 4,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  plateText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  plateText: { color: '#fff', fontSize: 10, fontFamily: typography.data.fontFamily },
   bar: {
-    width: 48,
+    width: 36,
     height: 12,
-    borderRadius: 2,
-    justifyContent: 'center',
+    borderRadius: 6,
     alignItems: 'center',
-    marginHorizontal: 4,
+    justifyContent: 'center',
   },
-  barText: { fontSize: 10 },
-  hint: { fontSize: 14 },
 });

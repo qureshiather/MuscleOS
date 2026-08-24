@@ -1,12 +1,13 @@
 import 'react-native-gesture-handler';
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { View } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
 import { LinkPreviewContextProvider } from 'expo-router/build/link/preview/LinkPreviewContext';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
+import { useAppFonts } from '@/theme/useAppFonts';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -51,6 +52,7 @@ function ThemedStack() {
 }
 
 export default function RootLayout() {
+  const { loaded: fontsLoaded } = useAppFonts();
   const [mountNotifications, setMountNotifications] = useState(false);
   const initAuth = useAuthStore((s) => s.init);
   const loadSubscription = useSubscriptionStore((s) => s.load);
@@ -78,6 +80,14 @@ export default function RootLayout() {
     const t = setTimeout(() => setMountNotifications(true), NOTIFICATION_HANDLER_DELAY_MS);
     return () => clearTimeout(t);
   }, []);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0E0E0F' }}>
+        <ActivityIndicator size="large" color="#C45C26" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider>

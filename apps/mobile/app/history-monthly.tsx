@@ -1,16 +1,19 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Card } from '@/components/ui/Card';
 import type { WorkoutSession } from '@muscleos/types';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-/** Set of YYYY-MM-DD for days that have at least one workout. */
 function workoutDaysSet(sessions: WorkoutSession[]): Set<string> {
   const set = new Set<string>();
   for (const s of sessions) {
@@ -41,12 +44,11 @@ function getSessionDuration(session: WorkoutSession): string | null {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-/** Build calendar grid for a month: 0 = empty, 1-31 = day of month. */
 function monthGrid(year: number, month: number): (number | null)[][] {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
   const daysInMonth = last.getDate();
-  const startWeekday = first.getDay(); // 0 = Sun
+  const startWeekday = first.getDay();
 
   const flat: (number | null)[] = [];
   for (let i = 0; i < startWeekday; i++) flat.push(null);
@@ -63,6 +65,7 @@ function monthGrid(year: number, month: number): (number | null)[][] {
 export default function HistoryMonthlyScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { load: loadSessions, completedSessions } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const [viewDate, setViewDate] = useState(() => new Date());
@@ -95,11 +98,17 @@ export default function HistoryMonthlyScreen() {
   const grid = useMemo(() => monthGrid(year, month), [year, month]);
   const monthLabel = viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
+  const contentPad = spacing.lg + 4;
+  const cardPad = spacing.md;
+  const cellSize = Math.floor((width - contentPad * 2 - cardPad * 2) / 7);
+
   function goPrevMonth() {
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
+    setSelectedDayKey(null);
   }
   function goNextMonth() {
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1));
+    setSelectedDayKey(null);
   }
 
   function dayKey(day: number | null): string {
@@ -109,46 +118,38 @@ export default function HistoryMonthlyScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
-          hitSlop={8}
-        >
-          <Ionicons name="close" size={26} color={colors.text} />
-        </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>Calendar</Text>
-        <View style={styles.iconButton} />
-      </View>
+      <ScreenHeader title="Calendar" onBack={() => router.back()} backIcon="close" />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.monthNav}>
           <Pressable
             onPress={goPrevMonth}
-            style={({ pressed }) => [styles.navButton, pressed && styles.navButtonPressed]}
+            style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
             hitSlop={8}
           >
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
-          <Text style={[styles.monthLabel, { color: colors.text }]}>{monthLabel}</Text>
+          <Text style={[typography.sectionTitle, { color: colors.text }]}>{monthLabel}</Text>
           <Pressable
             onPress={goNextMonth}
-            style={({ pressed }) => [styles.navButton, pressed && styles.navButtonPressed]}
+            style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
             hitSlop={8}
           >
             <Ionicons name="chevron-forward" size={24} color={colors.text} />
           </Pressable>
         </View>
 
-        <View style={styles.weekdayRow}>
-          {WEEKDAY_LABELS.map((label, i) => (
-            <View key={i} style={styles.weekdayCell}>
-              <Text style={[styles.weekdayLabel, { color: colors.textSecondary }]}>{label}</Text>
-            </View>
-          ))}
-        </View>
+        <Card style={{ padding: cardPad }}>
+          <View style={styles.weekdayRow}>
+            {WEEKDAY_LABELS.map((label, i) => (
+              <View key={i} style={[styles.weekdayCell, { width: cellSize }]}>
+                <Text style={[typography.caption, styles.weekdayLabel, { color: colors.textMuted }]}>
+                  {label}
+                </Text>
+              </View>
+            ))}
+          </View>
 
-        <View style={[styles.calendarCard, { backgroundColor: colors.surface }]}>
           {grid.map((row, rowIndex) => (
             <View key={rowIndex} style={styles.calendarRow}>
               {row.map((day, colIndex) => {
@@ -156,33 +157,34 @@ export default function HistoryMonthlyScreen() {
                 const hasWorkout = day != null && workoutDays.has(key);
                 const isSelected = key === selectedDayKey;
                 return (
-                  <View key={colIndex} style={styles.dayCell}>
+                  <View key={colIndex} style={[styles.dayCell, { width: cellSize, height: cellSize }]}>
                     {day != null ? (
                       <Pressable
                         onPress={() => setSelectedDayKey(isSelected ? null : key)}
                         style={({ pressed }) => [
                           styles.dayInner,
+                          {
+                            width: cellSize - 6,
+                            height: cellSize - 6,
+                            borderRadius: (cellSize - 6) / 2,
+                          },
                           hasWorkout && { backgroundColor: colors.primary },
                           isSelected && {
                             borderWidth: 2,
-                            borderColor: colors.accent,
+                            borderColor: hasWorkout ? '#fff' : colors.primary,
                           },
                           pressed && { opacity: 0.8 },
                         ]}
                       >
                         <Text
                           style={[
+                            typography.data,
                             styles.dayText,
                             { color: hasWorkout ? '#fff' : colors.text },
                           ]}
                         >
                           {day}
                         </Text>
-                        {hasWorkout && (
-                          <View style={styles.checkmark}>
-                            <Ionicons name="checkmark" size={10} color="#fff" />
-                          </View>
-                        )}
                       </Pressable>
                     ) : null}
                   </View>
@@ -190,125 +192,67 @@ export default function HistoryMonthlyScreen() {
               })}
             </View>
           ))}
-        </View>
+        </Card>
 
         {selectedDayKey != null && (
-          <View style={[styles.dayDetailCard, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.dayDetailTitle, { color: colors.text }]}>
+          <Card style={styles.dayDetailCard}>
+            <Text style={[typography.label, { color: colors.text, marginBottom: spacing.md }]}>
               {formatDayLabel(selectedDayKey)}
             </Text>
             {sessionsForSelectedDay.length === 0 ? (
-              <Text style={[styles.dayDetailEmpty, { color: colors.textMuted }]}>
-                No workouts this day
-              </Text>
+              <Text style={[typography.body, { color: colors.textMuted }]}>No workouts this day</Text>
             ) : (
-              <View style={styles.dayDetailList}>
-                {sessionsForSelectedDay.map((s, idx) => (
-                  <View
-                    key={s.id}
-                    style={[
-                      styles.dayDetailRow,
-                      { borderBottomColor: colors.border },
-                      idx === sessionsForSelectedDay.length - 1 && styles.dayDetailRowLast,
-                    ]}
-                  >
-                    <Text style={[styles.dayDetailName, { color: colors.text }]}>
-                      {getTemplateName(s.templateId)}
+              sessionsForSelectedDay.map((s, idx) => (
+                <View
+                  key={s.id}
+                  style={[
+                    styles.dayDetailRow,
+                    idx < sessionsForSelectedDay.length - 1 && {
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]}>
+                    {getTemplateName(s.templateId)}
+                  </Text>
+                  {getSessionDuration(s) ? (
+                    <Text style={[typography.data, { color: colors.textSecondary }]}>
+                      {getSessionDuration(s)}
                     </Text>
-                    {getSessionDuration(s) && (
-                      <Text style={[styles.dayDetailDuration, { color: colors.textSecondary }]}>
-                        {getSessionDuration(s)}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
+                  ) : null}
+                </View>
+              ))
             )}
-          </View>
+          </Card>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const CELL_SIZE = 40;
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    paddingBottom: 16,
-  },
-  iconButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  iconButtonPressed: { opacity: 0.7 },
-  title: { fontSize: 18, fontWeight: '600' },
-  scroll: { padding: 20, paddingBottom: 40 },
+  scroll: { padding: spacing.lg + 4, paddingBottom: 40 },
   monthNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
-  navButton: { padding: 8 },
-  navButtonPressed: { opacity: 0.7 },
-  monthLabel: { fontSize: 18, fontWeight: '600' },
-  weekdayRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekdayCell: {
-    width: CELL_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekdayLabel: { fontSize: 12, fontWeight: '600' },
-  calendarCard: {
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 16,
-  },
+  navButton: { padding: spacing.sm },
+  weekdayRow: { flexDirection: 'row', marginBottom: spacing.sm },
+  weekdayCell: { alignItems: 'center', justifyContent: 'center' },
+  weekdayLabel: { fontFamily: typography.label.fontFamily },
   calendarRow: { flexDirection: 'row' },
-  dayCell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: 2,
-  },
-  dayInner: {
-    width: CELL_SIZE - 4,
-    height: CELL_SIZE - 4,
-    borderRadius: (CELL_SIZE - 4) / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayText: { fontSize: 15, fontWeight: '500' },
-  checkmark: { position: 'absolute', bottom: 1 },
-  dayDetailCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 8,
-  },
-  dayDetailTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  dayDetailEmpty: {
-    fontSize: 14,
-  },
-  dayDetailList: { gap: 0 },
+  dayCell: { alignItems: 'center', justifyContent: 'center' },
+  dayInner: { alignItems: 'center', justifyContent: 'center' },
+  dayText: { fontSize: 14 },
+  dayDetailCard: { marginTop: spacing.md },
   dayDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.sm + 2,
   },
-  dayDetailRowLast: { borderBottomWidth: 0 },
-  dayDetailName: { fontSize: 15, fontWeight: '500' },
-  dayDetailDuration: { fontSize: 13 },
 });

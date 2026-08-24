@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,11 +41,13 @@ export function ResumeWorkoutPill() {
   }
 
   return (
-    <View style={[styles.pill, { backgroundColor: colors.surfaceElevated, borderBottomColor: colors.border }]}>
+    <View style={[styles.pill, { backgroundColor: colors.primary + '18', borderBottomColor: colors.border }]}>
       <Pressable style={styles.main} onPress={handleResume}>
-        <Ionicons name="barbell" size={18} color={colors.primary} />
-        <Text style={[styles.label, { color: colors.text }]}>Resume workout</Text>
-        <Text style={[styles.time, { color: colors.textMuted }]}>{formatElapsed(elapsedMs)}</Text>
+        <View style={[styles.iconDot, { backgroundColor: colors.primary }]}>
+          <Ionicons name="barbell" size={14} color="#FFFFFF" />
+        </View>
+        <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>Resume workout</Text>
+        <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatElapsed(elapsedMs)}</Text>
       </Pressable>
       <Pressable onPress={handleCancel} hitSlop={12} style={styles.cancelBtn}>
         <Ionicons name="close" size={22} color={colors.textMuted} />
@@ -57,12 +61,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
   },
-  main: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  label: { fontSize: 15, fontWeight: '600' },
-  time: { fontSize: 14 },
-  cancelBtn: { padding: 4 },
+  main: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, flex: 1 },
+  iconDot: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: { flex: 1 },
+  time: {},
+  cancelBtn: { padding: spacing.xs },
 });

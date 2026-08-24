@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler'
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -29,8 +30,9 @@ import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { playWorkoutSound } from '@/utils/workoutSounds';
 import { WorkoutConfetti } from '@/components/WorkoutConfetti';
+import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
-import type { SessionExercise } from '@muscleos/types';
+import type { MuscleId, SessionExercise } from '@muscleos/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -57,6 +59,13 @@ const REST_BETWEEN_SETS_CHOICES = [
   { label: '3:00', seconds: 180 },
 ] as const;
 
+const REST_GAP_HEIGHT = 26;
+const SET_COMPLETE_LAYOUT = LayoutAnimation.create(
+  320,
+  LayoutAnimation.Types.easeInEaseOut,
+  LayoutAnimation.Properties.opacity
+);
+
 function SetDonePressable({
   completed,
   disabled,
@@ -71,43 +80,166 @@ function SetDonePressable({
   onPress: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
+
   const handlePress = () => {
     if (disabled) return;
     if (!completed) {
-      LayoutAnimation.configureNext(
-        LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
-      );
+      LayoutAnimation.configureNext(SET_COMPLETE_LAYOUT);
       Animated.sequence([
         Animated.spring(scale, {
-          toValue: 1.2,
+          toValue: 1.12,
           friction: 5,
-          tension: 220,
+          tension: 280,
           useNativeDriver: true,
         }),
         Animated.spring(scale, {
           toValue: 1,
           friction: 7,
-          tension: 200,
+          tension: 220,
           useNativeDriver: true,
         }),
       ]).start();
     }
     onPress();
   };
+
   return (
     <Animated.View style={{ transform: [{ scale }], opacity: disabled && !completed ? 0.45 : 1 }}>
-      <Pressable
-        style={[
-          styles.doneBtn,
-          completed
-            ? { backgroundColor: colors.primary }
-            : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
-        ]}
-        onPress={handlePress}
-        disabled={disabled && !completed}
-      >
-        <Ionicons name="checkmark" size={16} color={completed ? '#fff' : colors.textMuted} />
+      <Pressable onPress={handlePress} disabled={disabled && !completed}>
+        <View
+          style={[
+            styles.doneBtn,
+            completed
+              ? { backgroundColor: colors.primary }
+              : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons name="checkmark" size={16} color={completed ? '#fff' : colors.textMuted} />
+        </View>
       </Pressable>
+    </Animated.View>
+  );
+}
+
+function SetRowSwipeable({
+  onDelete,
+  dangerColor,
+  children,
+}: {
+  onDelete: () => void;
+  dangerColor: string;
+  children: ReactNode;
+}) {
+  const swipeableRef = useRef<Swipeable>(null);
+  const deletingRef = useRef(false);
+
+  const handleDelete = () => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+    );
+    swipeableRef.current?.close();
+    onDelete();
+  };
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      overshootRight={false}
+      friction={2}
+      rightThreshold={48}
+      onSwipeableWillOpen={(direction) => {
+        if (direction === 'right') handleDelete();
+      }}
+      renderRightActions={(progress) => (
+        <View style={[styles.swipeDeleteAction, { backgroundColor: dangerColor }]}>
+          <Animated.View style={{ opacity: progress }}>
+            <Ionicons name="trash-outline" size={22} color="#fff" />
+          </Animated.View>
+        </View>
+      )}
+    >
+      {children}
+    </Swipeable>
+  );
+}
+
+function ActiveRestGap({
+  visible,
+  restSecondsLeft,
+  restTotalSeconds,
+  colors,
+  isDark,
+}: {
+  visible: boolean;
+  restSecondsLeft: number;
+  restTotalSeconds: number;
+  colors: { accent: string };
+  isDark: boolean;
+}) {
+  const anim = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const [mounted, setMounted] = useState(visible);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      Animated.spring(anim, {
+        toValue: 1,
+        friction: 9,
+        tension: 110,
+        useNativeDriver: false,
+      }).start();
+      return;
+    }
+    if (!mounted) return;
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) setMounted(false);
+    });
+  }, [visible, anim, mounted]);
+
+  if (!mounted) return null;
+
+  const height = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, REST_GAP_HEIGHT],
+  });
+  const progress =
+    restTotalSeconds > 0
+      ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100)
+      : 0;
+
+  return (
+    <Animated.View style={[styles.restGapBlock, { height, opacity: anim, overflow: 'hidden' }]}>
+      <View style={styles.restTrackWrap}>
+        <View
+          style={[
+            styles.restTrack,
+            {
+              backgroundColor: isDark ? 'rgba(196, 92, 38, 0.18)' : 'rgba(196, 92, 38, 0.12)',
+              borderWidth: isDark ? 0 : 1,
+              borderColor: isDark ? 'transparent' : 'rgba(196, 92, 38, 0.25)',
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.restTrackFill,
+              {
+                width: `${progress}%`,
+                backgroundColor: colors.accent,
+              },
+            ]}
+          />
+          <Text style={[styles.restTrackCenterTime, { color: isDark ? '#fff' : colors.accent }]}>
+            {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+          </Text>
+        </View>
+      </View>
     </Animated.View>
   );
 }
@@ -115,6 +247,7 @@ function SetDonePressable({
 type FinishedSummary = {
   name: string;
   durationMs: number;
+  muscleIds: MuscleId[];
   exercises: {
     name: string;
     completed: number;
@@ -324,9 +457,17 @@ export default function ActiveWorkoutScreen() {
       });
     }
 
+    const muscleIdSet = new Set<MuscleId>();
+    for (const se of session.exercises) {
+      if (!se.sets.some((s) => s.completed)) continue;
+      const exercise = getExercise(se.exerciseId);
+      exercise?.muscles.forEach((m) => muscleIdSet.add(m));
+    }
+
     const summary: FinishedSummary = {
       name: template?.name ?? (session.templateId === '_empty' ? 'Empty workout' : 'Workout'),
       durationMs: elapsedMs,
+      muscleIds: [...muscleIdSet],
       exercises: session.exercises
         .map((se) => ({
           name: getExercise(se.exerciseId)?.name ?? se.exerciseId,
@@ -420,6 +561,20 @@ export default function ActiveWorkoutScreen() {
               <Text style={[styles.finishedStatLabel, { color: colors.textMuted }]}>Sets</Text>
             </View>
           </View>
+
+          {finishedSummary.muscleIds.length > 0 ? (
+            <View style={[styles.finishedDiagramCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.finishedSectionLabel, { color: colors.textMuted, marginBottom: 8 }]}>
+                Muscles trained
+              </Text>
+              <MuscleDiagram
+                muscleIds={finishedSummary.muscleIds}
+                recoveringMuscleIds={finishedSummary.muscleIds}
+                justTrainedMuscleIds={finishedSummary.muscleIds}
+                size={0.72}
+              />
+            </View>
+          ) : null}
 
           <Text style={[styles.finishedSectionLabel, { color: colors.textMuted }]}>Summary</Text>
           <View style={[styles.finishedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -518,7 +673,7 @@ export default function ActiveWorkoutScreen() {
             <Pressable
               onPress={() => setShowRestControls(true)}
               hitSlop={6}
-              style={[styles.headerRestChip, { backgroundColor: colors.accent }]}
+              style={[styles.headerRestChip, { backgroundColor: colors.primary }]}
             >
               <Ionicons name="timer" size={13} color="#fff" />
               <Text style={styles.headerRestChipText}>
@@ -531,7 +686,7 @@ export default function ActiveWorkoutScreen() {
               hitSlop={8}
               style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
-              <Ionicons name="timer-outline" size={14} color={colors.accent} />
+              <Ionicons name="timer-outline" size={14} color={colors.primary} />
             </Pressable>
           )}
         </View>
@@ -551,10 +706,19 @@ export default function ActiveWorkoutScreen() {
             <Pressable
               onPress={() => setShowFinishSummary(true)}
               disabled={!hasAtLeastOneSet}
-              style={[styles.finishHeaderBtn, !hasAtLeastOneSet && styles.finishHeaderBtnDisabled]}
+              style={[
+                styles.finishHeaderBtn,
+                hasAtLeastOneSet && { backgroundColor: colors.primary },
+                !hasAtLeastOneSet && styles.finishHeaderBtnDisabled,
+              ]}
             >
-              <Text style={[styles.finishHeaderText, { color: hasAtLeastOneSet ? colors.accent : colors.textMuted }]}>
-                FINISH
+              <Text
+                style={[
+                  styles.finishHeaderText,
+                  { color: hasAtLeastOneSet ? '#fff' : colors.textMuted },
+                ]}
+              >
+                Finish
               </Text>
             </Pressable>
           )}
@@ -672,8 +836,6 @@ export default function ActiveWorkoutScreen() {
             );
           }
 
-          const lastCompletedSetIndex = se.sets.reduce((last, s, i) => (s.completed ? i : last), -1);
-
           const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
 
           return (
@@ -687,7 +849,7 @@ export default function ActiveWorkoutScreen() {
               <View style={styles.exerciseCardHeaderWrap}>
                 <View style={styles.exerciseCardHeader}>
                   <Pressable
-                    style={{ flex: 1 }}
+                    style={styles.exerciseTitlePressable}
                     onLongPress={() => {
                       if (session.exercises.length < 2) return;
                       setExerciseMenuExIdx(null);
@@ -695,10 +857,16 @@ export default function ActiveWorkoutScreen() {
                     }}
                     delayLongPress={280}
                   >
-                    <Text style={[styles.exerciseName, { color: colors.accent }]} numberOfLines={2}>
-                      {exercise?.name ?? se.exerciseId}
-                      {exercise?.equipment?.[0] ? ` (${exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)})` : ''}
-                    </Text>
+                    <View style={styles.exerciseTitleBlock}>
+                      <Text style={[styles.exerciseName, { color: colors.text }]} numberOfLines={2}>
+                        {exercise?.name ?? se.exerciseId}
+                      </Text>
+                      {exercise?.equipment?.[0] ? (
+                        <Text style={[styles.exerciseEquipment, { color: colors.textMuted }]}>
+                          {exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)}
+                        </Text>
+                      ) : null}
+                    </View>
                   </Pressable>
                   <View style={styles.exerciseCardActions}>
                     <Pressable
@@ -797,9 +965,13 @@ export default function ActiveWorkoutScreen() {
                 const isFutureSet =
                   firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
                 const isCurrentSet = firstIncompleteIdx === setIdx && !set.completed;
-                /** Rest row after each completed set so earlier rests stay visible, not only under the latest completed set. */
-                const showRestGap = set.completed;
-                const isCurrentRestGap = setIdx === lastCompletedSetIndex;
+                const restDurationKey = `${exIdx}-${setIdx}`;
+                const recordedRestSec = restDurationsBetweenSets[restDurationKey];
+                const isActiveRestGap =
+                  restAfter?.exIdx === exIdx &&
+                  restAfter?.setIdx === setIdx &&
+                  restSecondsLeft != null &&
+                  restSecondsLeft > 0;
 
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
@@ -878,6 +1050,11 @@ export default function ActiveWorkoutScreen() {
                         >
                           {setIdx + 1}
                         </Text>
+                        {set.completed && recordedRestSec != null ? (
+                          <Text style={[styles.setRestDuration, { color: colors.textMuted }]}>
+                            {formatElapsed(recordedRestSec * 1000)}
+                          </Text>
+                        ) : null}
                       </View>
                       <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
                         {prevLabel}
@@ -972,83 +1149,27 @@ export default function ActiveWorkoutScreen() {
                 return (
                   <View key={setIdx}>
                     {canDeleteSet ? (
-                      <Swipeable
-                        overshootRight={false}
-                        friction={2}
-                        renderRightActions={() => (
-                          <Pressable
-                            style={[styles.swipeDeleteAction, { backgroundColor: colors.danger }]}
-                            onPress={() => {
-                              if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                                clearRestTimer();
-                              }
-                              removeSet(exIdx, setIdx);
-                            }}
-                          >
-                            <Ionicons name="trash-outline" size={20} color="#fff" />
-                          </Pressable>
-                        )}
+                      <SetRowSwipeable
+                        dangerColor={colors.danger}
+                        onDelete={() => {
+                          if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
+                            clearRestTimer();
+                          }
+                          removeSet(exIdx, setIdx);
+                        }}
                       >
                         {setRow}
-                      </Swipeable>
+                      </SetRowSwipeable>
                     ) : (
                       setRow
                     )}
-                    {showRestGap && (
-                      <View style={styles.restGapBlock}>
-                        {restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx && restSecondsLeft != null && restSecondsLeft > 0 ? (
-                          <View style={styles.restTrackWrap}>
-                            <View
-                              style={[
-                                styles.restTrack,
-                                {
-                                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.22)' : '#dbeafe',
-                                  borderWidth: isDark ? 0 : 1,
-                                  borderColor: isDark ? 'transparent' : '#bfdbfe',
-                                },
-                              ]}
-                            >
-                              <View
-                                style={[
-                                  styles.restTrackFill,
-                                  {
-                                    width: `${restTotalSeconds > 0 ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100) : 0}%`,
-                                    backgroundColor: colors.accent,
-                                  },
-                                ]}
-                              />
-                              <Text style={[styles.restTrackCenterTime, { color: '#fff' }]}>
-                                {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
-                              </Text>
-                            </View>
-                          </View>
-                        ) : (
-                          <View style={styles.restGapIdle}>
-                            <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
-                            <Text
-                              style={[
-                                styles.restBetweenText,
-                                {
-                                  color:
-                                    restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null || isCurrentRestGap
-                                      ? colors.accent
-                                      : colors.textMuted,
-                                },
-                              ]}
-                            >
-                              {restDurationsBetweenSets[`${exIdx}-${setIdx}`] != null
-                                ? formatElapsed(restDurationsBetweenSets[`${exIdx}-${setIdx}`] * 1000)
-                                : isCurrentRestGap
-                                  ? formatElapsed(
-                                      (se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS) * 1000
-                                    )
-                                  : '—'}
-                            </Text>
-                            <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
-                          </View>
-                        )}
-                      </View>
-                    )}
+                    <ActiveRestGap
+                      visible={isActiveRestGap}
+                      restSecondsLeft={restSecondsLeft ?? 0}
+                      restTotalSeconds={restTotalSeconds}
+                      colors={colors}
+                      isDark={isDark}
+                    />
                   </View>
                 );
               })}
@@ -1069,17 +1190,23 @@ export default function ActiveWorkoutScreen() {
 
       <Modal visible={showRestPicker} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setShowRestPicker(false)}>
-          <View style={[styles.restPickerCard, { backgroundColor: colors.surface }]} onStartShouldSetResponder={() => true}>
-            <Text style={[styles.restPickerTitle, { color: colors.text }]}>Start rest timer</Text>
+          <View
+            style={[styles.restPickerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.restPickerTitle, { color: colors.text }]}>Start rest</Text>
+            <Text style={[styles.restPickerHint, { color: colors.textMuted }]}>
+              Quick timer — tap a duration
+            </Text>
             <View style={styles.restPickerOptions}>
               {[60, 120, 180].map((sec) => (
                 <Pressable
                   key={sec}
-                  style={[styles.restPickerOption, { backgroundColor: colors.surfaceElevated }]}
+                  style={[styles.restPickerOption, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                   onPress={() => handleStartManualRest(sec)}
                 >
-                  <Text style={[styles.restPickerOptionText, { color: colors.accent }]}>
-                    {sec === 60 ? '1 min' : sec === 120 ? '2 min' : '3 min'}
+                  <Text style={[styles.restPickerOptionText, { color: colors.primary }]}>
+                    {sec === 60 ? '1:00' : sec === 120 ? '2:00' : '3:00'}
                   </Text>
                 </Pressable>
               ))}
@@ -1163,10 +1290,13 @@ export default function ActiveWorkoutScreen() {
       <Modal visible={showRestControls && restSecondsLeft != null && restSecondsLeft > 0} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setShowRestControls(false)}>
           <View
-            style={[styles.restControlsCard, { backgroundColor: colors.surface }]}
+            style={[styles.restControlsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.restControlsLabel, { color: colors.textMuted }]}>Rest</Text>
+            <View style={[styles.restControlsBadge, { backgroundColor: colors.primary + '22' }]}>
+              <Ionicons name="timer" size={18} color={colors.primary} />
+            </View>
+            <Text style={[styles.restControlsLabel, { color: colors.textMuted }]}>Rest remaining</Text>
             {restSecondsLeft != null && (
               <Text style={[styles.restControlsTimer, { color: colors.text }]}>
                 {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
@@ -1174,13 +1304,13 @@ export default function ActiveWorkoutScreen() {
             )}
             <View style={styles.restControlsRow}>
               <Pressable
-                style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated }]}
+                style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                 onPress={subtract30SecondsRest}
               >
                 <Text style={[styles.restControlsAdjText, { color: colors.text }]}>−30</Text>
               </Pressable>
               <Pressable
-                style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated }]}
+                style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                 onPress={add30SecondsRest}
               >
                 <Text style={[styles.restControlsAdjText, { color: colors.text }]}>+30</Text>
@@ -1200,7 +1330,7 @@ export default function ActiveWorkoutScreen() {
       <Modal visible={restTimersExIdx !== null} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setRestTimersExIdx(null)}>
           <View
-            style={[styles.restTimersCard, { backgroundColor: colors.surface }]}
+            style={[styles.restTimersCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onStartShouldSetResponder={() => true}
           >
             {restTimersExIdx !== null && session?.exercises[restTimersExIdx] && (() => {
@@ -1419,7 +1549,7 @@ export default function ActiveWorkoutScreen() {
               <View style={styles.addExerciseModalHeader}>
                 <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
                 <Pressable onPress={() => setShowAddExerciseModal(false)}>
-                  <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
+                  <Text style={[styles.addExerciseModalClose, { color: colors.accent }]}>Done</Text>
                 </Pressable>
               </View>
               <TextInput
@@ -1526,8 +1656,8 @@ const styles = StyleSheet.create({
   headerRestChipText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
+    fontFamily: typography.data.fontFamily,
+    fontWeight: '600',
   },
   headerRestContainer: {
     paddingHorizontal: 6,
@@ -1538,7 +1668,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerRestTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  headerRestTime: { fontSize: 12, fontWeight: '700' },
+  headerRestTime: { fontSize: 12, fontFamily: typography.data.fontFamily, fontWeight: '600' },
   headerCenter: {
     position: 'absolute',
     left: 0,
@@ -1546,40 +1676,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 56 },
-  elapsed: { fontSize: 17, fontWeight: '700' },
-  finishHeaderBtn: { minWidth: 48, alignItems: 'flex-end' },
-  finishHeaderBtnDisabled: { opacity: 0.7 },
-  finishHeaderText: { fontSize: 14, fontWeight: '700' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 72 },
+  elapsed: { ...typography.dataLarge, fontSize: 17 },
+  finishHeaderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    minWidth: 64,
+    alignItems: 'center',
+  },
+  finishHeaderBtnDisabled: { opacity: 0.55 },
+  finishHeaderText: { fontSize: 14, fontFamily: typography.button.fontFamily },
   workoutTitle: {
+    ...typography.screenTitle,
     fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
     marginBottom: 10,
     marginTop: 4,
   },
   reorderHintInline: {
-    fontSize: 13,
-    fontWeight: '500',
+    ...typography.caption,
     marginBottom: 10,
   },
   restControlsCard: {
     marginHorizontal: 28,
     borderRadius: 16,
-    padding: 20,
+    borderWidth: 1,
+    padding: 24,
     alignItems: 'center',
     gap: 12,
   },
+  restControlsBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   restControlsLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.caption,
+    fontFamily: typography.label.fontFamily,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   restControlsTimer: {
-    fontSize: 40,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
+    ...typography.dataLarge,
+    fontSize: 44,
   },
   restControlsRow: {
     flexDirection: 'row',
@@ -1589,11 +1730,12 @@ const styles = StyleSheet.create({
     minWidth: 88,
     paddingVertical: 12,
     borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
   },
   restControlsAdjText: {
+    ...typography.data,
     fontSize: 16,
-    fontWeight: '700',
   },
   restControlsSkip: {
     alignSelf: 'stretch',
@@ -1605,7 +1747,7 @@ const styles = StyleSheet.create({
   restControlsSkipText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: typography.button.fontFamily,
   },
   swipeDeleteAction: {
     width: 72,
@@ -1622,10 +1764,11 @@ const styles = StyleSheet.create({
   },
   emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 10,
     overflow: 'visible',
     borderWidth: 1,
   },
@@ -1641,10 +1784,16 @@ const styles = StyleSheet.create({
   },
   exerciseCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 4,
-    gap: 6,
+    marginBottom: 10,
+    gap: 8,
+  },
+  exerciseTitlePressable: {
+    flex: 1,
+  },
+  exerciseTitleBlock: {
+    gap: 3,
   },
   restBanner: {
     flexDirection: 'row',
@@ -1743,14 +1892,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
-  exerciseName: { fontSize: 15, fontWeight: '700', flex: 1 },
+  exerciseName: {
+    ...typography.sectionTitle,
+    fontSize: 16,
+    lineHeight: 21,
+  },
+  exerciseEquipment: {
+    ...typography.caption,
+    fontSize: 12,
+    lineHeight: 16,
+  },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  exerciseHeaderIcon: { padding: 6 },
+  exerciseHeaderIcon: { padding: 4, marginTop: 1 },
   tableInset: {
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    marginTop: 2,
   },
   tableHeaderStrip: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -1779,12 +1936,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   setLabel: { fontSize: 13, textAlign: 'center' },
+  setRestDuration: {
+    fontSize: 9,
+    fontFamily: typography.data.fontFamily,
+    textAlign: 'center',
+    marginTop: 1,
+  },
   prevCell: { flex: 1, minWidth: 56, fontSize: 9, textAlign: 'center' },
   setCellText: {
     flex: 1,
     minWidth: 44,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: typography.data.fontFamily,
+    fontWeight: '500',
     textAlign: 'center',
     paddingVertical: 2,
   },
@@ -1805,7 +1969,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     borderRadius: 6,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: typography.data.fontFamily,
+    fontWeight: '500',
     textAlign: 'center',
     overflow: 'hidden',
   },
@@ -1930,18 +2095,21 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     borderRadius: 16,
+    borderWidth: 1,
     padding: 24,
   },
-  restPickerTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
+  restPickerTitle: { ...typography.sectionTitle, marginBottom: 4, textAlign: 'center' },
+  restPickerHint: { ...typography.caption, marginBottom: 16, textAlign: 'center' },
   restPickerOptions: { gap: 10, marginBottom: 16 },
   restPickerOption: {
     padding: 16,
     borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
   },
-  restPickerOptionText: { fontSize: 16, fontWeight: '600' },
+  restPickerOptionText: { ...typography.dataLarge, fontSize: 20 },
   restPickerCancel: { alignItems: 'center', padding: 8 },
-  restPickerCancelText: { fontSize: 15 },
+  restPickerCancelText: { ...typography.caption },
   exerciseDropdown: {
     position: 'absolute',
     top: '100%',
@@ -2010,26 +2178,27 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     borderRadius: 16,
+    borderWidth: 1,
     padding: 20,
   },
-  restTimersTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  restTimersSubtitle: { fontSize: 14, marginBottom: 6 },
-  restTimersHint: { fontSize: 13, marginBottom: 16 },
+  restTimersTitle: { ...typography.sectionTitle, marginBottom: 4 },
+  restTimersSubtitle: { ...typography.caption, marginBottom: 6 },
+  restTimersHint: { ...typography.caption, marginBottom: 16 },
   restTimersOptions: { gap: 10, marginBottom: 16 },
   restTimerChoiceBtn: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
-    alignItems: 'center',
     borderWidth: 1,
+    alignItems: 'center',
   },
-  restTimerChoiceBtnText: { fontSize: 17, fontWeight: '700' },
+  restTimerChoiceBtnText: { ...typography.data, fontSize: 17 },
   restTimersDoneBtn: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
   },
-  restTimersDoneBtnText: { fontSize: 16, fontWeight: '600' },
+  restTimersDoneBtnText: { ...typography.button },
   addSetBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -2113,7 +2282,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   summaryLabel: { fontSize: 15 },
-  summaryValue: { fontSize: 15, fontWeight: '600' },
+  summaryValue: { ...typography.data, fontFamily: typography.data.fontFamily },
   summaryExercises: { marginTop: 8, marginBottom: 20 },
   summarySectionLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   summaryExerciseRow: {
@@ -2165,14 +2334,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   finishedTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.4,
+    ...typography.screenTitle,
     marginBottom: 6,
   },
   finishedSubtitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    ...typography.body,
     textAlign: 'center',
   },
   finishedStatsRow: {
@@ -2188,25 +2354,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   finishedStatValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
+    ...typography.dataLarge,
     marginBottom: 2,
   },
   finishedStatLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.caption,
+    fontFamily: typography.label.fontFamily,
   },
   finishedStatDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
   },
   finishedSectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...typography.caption,
+    fontFamily: typography.label.fontFamily,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginBottom: 8,
+  },
+  finishedDiagramCard: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 22,
+    alignItems: 'center',
   },
   finishedCard: {
     borderRadius: 14,

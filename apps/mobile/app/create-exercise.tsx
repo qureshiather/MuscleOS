@@ -6,14 +6,19 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
-import type { Exercise, MuscleId, Equipment } from '@muscleos/types';
+import type { MuscleId, Equipment } from '@muscleos/types';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { Card } from '@/components/ui/Card';
 
 const EQUIPMENT_OPTIONS: Equipment[] = [
   'barbell',
@@ -51,15 +56,11 @@ export default function CreateExerciseScreen() {
   const [instructions, setInstructions] = useState('');
 
   function toggleMuscle(id: MuscleId) {
-    setMuscles((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
+    setMuscles((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
   }
 
   function toggleEquip(eq: Equipment) {
-    setEquipment((prev) =>
-      prev.includes(eq) ? prev.filter((e) => e !== eq) : [...prev, eq]
-    );
+    setEquipment((prev) => (prev.includes(eq) ? prev.filter((e) => e !== eq) : [...prev, eq]));
   }
 
   async function handleSave() {
@@ -78,93 +79,100 @@ export default function CreateExerciseScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.primary }]}>Cancel</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: colors.text }]}>New exercise</Text>
-      </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Name</Text>
+      <ScreenHeader title="New exercise" onBack={() => router.back()} backIcon="close" />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Name</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-          placeholder="e.g. My Cable Row"
+          style={[
+            styles.input,
+            { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
+          ]}
+          placeholder="e.g. Cable row"
           placeholderTextColor={colors.textMuted}
           value={name}
           onChangeText={setName}
         />
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Muscles (tap to select)</Text>
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
+          Muscles · {muscles.length}
+        </Text>
         <View style={styles.chipsRow}>
-          {MUSCLE_IDS.map((id) => (
-            <Pressable
-              key={id}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: muscles.includes(id) ? colors.primary : colors.surface,
-                },
-              ]}
-              onPress={() => toggleMuscle(id)}
-            >
-              <Text
+          {MUSCLE_IDS.map((id) => {
+            const selected = muscles.includes(id);
+            return (
+              <Pressable
+                key={id}
                 style={[
-                  styles.chipText,
-                  { color: muscles.includes(id) ? '#fff' : colors.textSecondary },
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.surface,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
                 ]}
+                onPress={() => toggleMuscle(id)}
               >
-                {MUSCLE_GROUPS[id].name}
-              </Text>
-            </Pressable>
-          ))}
+                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                  {MUSCLE_GROUPS[id].name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Equipment (tap to select)</Text>
+        {muscles.length > 0 && (
+          <Card style={styles.diagramCard}>
+            <MuscleDiagram muscleIds={muscles} size={0.7} />
+          </Card>
+        )}
+
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
+          Equipment · {equipment.length}
+        </Text>
         <View style={styles.chipsRow}>
-          {EQUIPMENT_OPTIONS.map((eq) => (
-            <Pressable
-              key={eq}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: equipment.includes(eq) ? colors.primary : colors.surface,
-                },
-              ]}
-              onPress={() => toggleEquip(eq)}
-            >
-              <Text
+          {EQUIPMENT_OPTIONS.map((eq) => {
+            const selected = equipment.includes(eq);
+            return (
+              <Pressable
+                key={eq}
                 style={[
-                  styles.chipText,
-                  { color: equipment.includes(eq) ? '#fff' : colors.textSecondary },
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.surface,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
                 ]}
+                onPress={() => toggleEquip(eq)}
               >
-                {EQUIPMENT_LABELS[eq]}
-              </Text>
-            </Pressable>
-          ))}
+                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                  {EQUIPMENT_LABELS[eq]}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Instructions (optional)</Text>
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
+          Instructions (optional)
+        </Text>
         <TextInput
           style={[
             styles.input,
             styles.inputMulti,
             { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
           ]}
-          placeholder="How to perform the exercise..."
+          placeholder="Cues, setup, tempo…"
           placeholderTextColor={colors.textMuted}
           value={instructions}
           onChangeText={setInstructions}
           multiline
         />
 
-        <Pressable
-          style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+        <PrimaryButton
+          label="Save exercise"
           onPress={handleSave}
           disabled={!canSave}
-        >
-          <Text style={styles.saveBtnText}>Save exercise</Text>
-        </Pressable>
+          style={{ marginTop: spacing.sm, opacity: canSave ? 1 : 0.5 }}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -172,17 +180,28 @@ export default function CreateExerciseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  backText: { fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '600' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  label: { fontSize: 14, marginBottom: 8 },
-  input: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 16 },
-  inputMulti: { minHeight: 80, textAlignVertical: 'top' },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 22 },
-  chipText: { fontSize: 14, fontWeight: '500' },
-  saveBtn: { padding: 16, borderRadius: 12, marginTop: 8 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  scrollContent: { padding: spacing.lg + 4, paddingBottom: 40 },
+  label: { marginBottom: spacing.sm, marginTop: spacing.sm },
+  input: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    fontSize: 16,
+    fontFamily: typography.body.fontFamily,
+    marginBottom: spacing.md,
+  },
+  inputMulti: { minHeight: 88, textAlignVertical: 'top' },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  diagramCard: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingVertical: spacing.md,
+  },
 });

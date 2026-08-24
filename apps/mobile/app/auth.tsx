@@ -3,13 +3,15 @@ import { View, Text, StyleSheet, Pressable, Platform, Image } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
 
 export default function AuthScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { signInWithApple, signInWithGoogle, signInWithEmail } = useSignIn();
+  const { signInWithApple, signInWithGoogle } = useSignIn();
   const [loading, setLoading] = useState(false);
 
   async function handleApple() {
@@ -30,18 +32,23 @@ export default function AuthScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.logoContainer}>
         <Image source={require('../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={[typography.screenTitle, { color: colors.text, marginTop: spacing.md }]}>MuscleOS</Text>
       </View>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Sign in</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Link account to subscribe and restore on any device
+        <Text style={[typography.sectionTitle, { color: colors.text }]}>Sign in</Text>
+        <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
+          Link an account to subscribe and restore Pro on any device.
         </Text>
       </View>
       {Platform.OS === 'ios' && (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-          cornerRadius={12}
+          buttonStyle={
+            isDark
+              ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+              : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+          }
+          cornerRadius={radius.md}
           style={styles.appleButton}
           onPress={handleApple}
         />
@@ -50,51 +57,53 @@ export default function AuthScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
           ]}
           onPress={handleApple}
           disabled={loading}
         >
-          <Text style={[styles.buttonText, { color: colors.text }]}>Continue with Apple (iOS only)</Text>
+          <Text style={[typography.button, { color: colors.text }]}>Continue with Apple (iOS only)</Text>
         </Pressable>
       )}
       <Pressable
         style={({ pressed }) => [
           styles.button,
-          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+          { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
         ]}
         onPress={handleGoogle}
         disabled={loading}
       >
-        <Text style={[styles.buttonText, { color: colors.text }]}>Continue with Google</Text>
+        <Text style={[typography.button, { color: colors.text }]}>Continue with Google</Text>
       </Pressable>
       <Pressable
         style={({ pressed }) => [
           styles.button,
-          { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+          { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
         ]}
         onPress={() => router.push('/auth-email')}
         disabled={loading}
       >
-        <Text style={[styles.buttonText, { color: colors.text }]}>Email / local account</Text>
+        <Text style={[typography.button, { color: colors.text }]}>Email / local account</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={styles.skip} disabled={loading}>
-        <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip for now</Text>
+        <Text style={[typography.caption, { color: colors.textMuted }]}>Skip for now</Text>
       </Pressable>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  logoContainer: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 88, height: 88 },
-  header: { marginBottom: 32 },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15, marginTop: 8 },
-  appleButton: { height: 50, marginBottom: 12 },
-  button: { padding: 16, borderRadius: 12, marginBottom: 12 },
-  buttonText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  skip: { marginTop: 24, alignSelf: 'center' },
-  skipText: { fontSize: 14 },
+  container: { flex: 1, padding: spacing.lg + 4 },
+  logoContainer: { alignItems: 'center', marginBottom: spacing.xl },
+  logo: { width: 80, height: 80, borderRadius: radius.lg },
+  header: { marginBottom: spacing.xl },
+  subtitle: { marginTop: spacing.sm },
+  appleButton: { height: 50, marginBottom: spacing.md },
+  button: {
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+  },
+  skip: { marginTop: spacing.xl, alignSelf: 'center' },
 });

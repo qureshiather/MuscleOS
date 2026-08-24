@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { Exercise, MuscleId } from '@muscleos/types';
@@ -98,7 +100,7 @@ export default function ExercisesScreen() {
       <View style={screenHeaderStyles.headerFixed}>
         <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Exercises</Text>
         <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-          {allExercises.length} exercises · tap for muscles
+          {allExercises.length} movements · tap for muscle map
         </Text>
       </View>
       <TextInput
@@ -274,7 +276,11 @@ export default function ExercisesScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.card,
-              { backgroundColor: colors.surface, opacity: pressed ? 0.9 : 1 },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                opacity: pressed ? 0.9 : 1,
+              },
             ]}
             onPress={() => setSelected(item)}
           >
@@ -307,10 +313,10 @@ export default function ExercisesScreen() {
           <Pressable style={[styles.modalContent, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
             {selected && (
               <>
-                <View style={styles.modalHeader}>
+                <View style={[styles.modalHeader, { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
                   <Text style={[styles.modalTitle, { color: colors.text }]}>{selected.name}</Text>
                   <Pressable onPress={() => setSelected(null)}>
-                    <Text style={[styles.modalClose, { color: colors.primary }]}>Close</Text>
+                    <Text style={[styles.modalClose, { color: colors.accent }]}>Close</Text>
                   </Pressable>
                 </View>
                 <MuscleDiagram muscleIds={selected.muscles} showLabels size={0.9} />
@@ -344,71 +350,73 @@ export default function ExercisesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   search: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
     fontSize: 16,
+    fontFamily: typography.body.fontFamily,
   },
-  filterWrapper: { marginHorizontal: 16, marginBottom: 16 },
+  filterWrapper: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
   filterToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 10,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    gap: spacing.sm + 2,
   },
-  filterToggleTitle: { fontSize: 16, fontWeight: '600' },
-  filterSummaryInline: { fontSize: 14, flex: 1, textAlign: 'right' },
-  filterExpandedContent: { paddingTop: 16 },
-  filterSection: { marginBottom: 20 },
+  filterToggleTitle: { ...typography.bodyMedium },
+  filterSummaryInline: { ...typography.caption, flex: 1, textAlign: 'right' },
+  filterExpandedContent: { paddingTop: spacing.lg },
+  filterSection: { marginBottom: spacing.lg },
   filterLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.caption,
+    fontFamily: typography.label.fontFamily,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 10,
-    paddingHorizontal: 16,
+    marginBottom: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
   },
   chipsScroll: { flexGrow: 0 },
   chipsContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingRight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 22,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
     flexShrink: 0,
   },
-  chipText: { fontSize: 15, fontWeight: '500' },
-  listHeader: { paddingHorizontal: 16, marginBottom: 8 },
-  listCount: { fontSize: 13 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  chipText: { ...typography.label },
+  listHeader: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  listCount: { ...typography.caption },
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
   card: {
-    padding: 18,
-    borderRadius: 16,
-    marginBottom: 12,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
   },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  cardTitle: { fontSize: 17, fontWeight: '600', flex: 1 },
-  customBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  customBadgeText: { fontSize: 11, fontWeight: '600' },
-  cardMeta: { fontSize: 13, marginTop: 4 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  cardTitle: { ...typography.bodyMedium, flex: 1 },
+  customBadge: { paddingHorizontal: spacing.sm - 2, paddingVertical: 2, borderRadius: radius.sm - 2 },
+  customBadgeText: { ...typography.caption, fontFamily: typography.label.fontFamily },
+  cardMeta: { ...typography.caption, marginTop: spacing.xs },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radius.lg + 8,
+    borderTopRightRadius: radius.lg + 8,
     maxHeight: '90%',
     paddingBottom: 40,
   },
@@ -416,13 +424,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    padding: spacing.lg + 4,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', flex: 1 },
-  modalClose: { fontSize: 16 },
-  modalBody: { padding: 20 },
-  sectionLabel: { fontSize: 12, fontWeight: '600', marginTop: 16, marginBottom: 4 },
-  bodyText: { fontSize: 15 },
+  modalTitle: { ...typography.sectionTitle, flex: 1 },
+  modalClose: { ...typography.label },
+  modalBody: { padding: spacing.lg + 4 },
+  sectionLabel: { ...typography.caption, fontFamily: typography.label.fontFamily, marginTop: spacing.lg, marginBottom: spacing.xs },
+  bodyText: { ...typography.body },
 });

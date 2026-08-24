@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Body from 'react-native-body-highlighter';
 import type { Slug } from 'react-native-body-highlighter';
 import type { MuscleId } from '@muscleos/types';
-import { useTheme } from '@/theme/ThemeContext';
+import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 
 /** Map our MuscleId to the body-highlighter library's Slug (one or more muscles can map to same slug). */
@@ -32,29 +32,25 @@ const ALL_SLUGS = new Set<Slug>(Object.values(MUSCLE_ID_TO_SLUG));
 
 export type DiagramVariant = 'male' | 'female';
 
-const HIGHLIGHT_RED = ['#dc2626', '#b91c1c'];
-const HIGHLIGHT_YELLOW = ['#eab308', '#ca8a04'];
-const HIGHLIGHT_ORANGE = ['#ea580c', '#c2410c'];
-const HIGHLIGHT_GREEN = ['#22c55e', '#16a34a'];
-const BODY_BORDER = '#4b5563';
-const BODY_FILL = '#6b7280';
+function getHighlightGradient(colors: ThemeColors, mode: 'green' | 'orange'): [string, string] {
+  if (mode === 'green') {
+    return [colors.recoveryReady, colors.muscleHighlight];
+  }
+  return [colors.primary, colors.primaryDim];
+}
 
 export function MuscleDiagram({
   muscleIds = [],
   showLabels = false,
   size = 1,
   variant,
-  /** Green when "all ready" (e.g. recovery); yellow when targeted/recovering */
   highlightColor,
-  /** When set, show these in yellow (recovering) and all other muscles in green (ready to train). */
   recoveringMuscleIds,
-  /** When set with recoveringMuscleIds, these show as RED (just trained); rest of recovering show yellow. */
   justTrainedMuscleIds,
 }: {
   muscleIds?: MuscleId[];
   showLabels?: boolean;
   size?: number;
-  /** Override gender; if not set, uses user profile sex (male/female only). */
   variant?: DiagramVariant;
   highlightColor?: 'green' | 'orange';
   recoveringMuscleIds?: MuscleId[];
@@ -98,12 +94,8 @@ export function MuscleDiagram({
 
   const useGreen = highlightColor === 'green';
   const colorPalette = isRecoveryMode
-    ? useThreeStates
-      ? [HIGHLIGHT_RED[0], HIGHLIGHT_YELLOW[0], HIGHLIGHT_GREEN[0]]
-      : [HIGHLIGHT_YELLOW[0], HIGHLIGHT_GREEN[0]]
-    : useGreen
-      ? HIGHLIGHT_GREEN
-      : HIGHLIGHT_ORANGE;
+    ? getRecoveryPalette(colors, useThreeStates)
+    : getHighlightGradient(colors, useGreen ? 'green' : 'orange');
 
   return (
     <View style={styles.wrapper}>
@@ -114,8 +106,8 @@ export function MuscleDiagram({
           side="front"
           scale={size}
           colors={colorPalette}
-          border={BODY_BORDER}
-          defaultFill={BODY_FILL}
+          border={colors.bodyDiagramBorder}
+          defaultFill={colors.bodyDiagramFill}
         />
         <Body
           data={data}
@@ -123,8 +115,8 @@ export function MuscleDiagram({
           side="back"
           scale={size}
           colors={colorPalette}
-          border={BODY_BORDER}
-          defaultFill={BODY_FILL}
+          border={colors.bodyDiagramBorder}
+          defaultFill={colors.bodyDiagramFill}
         />
       </View>
       {showLabels && muscleIds.length > 0 && (

@@ -5,10 +5,14 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { screenHeaderStyles } from '@/theme/screenHeader';
+import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { Card } from '@/components/ui/Card';
+import { StatChip } from '@/components/ui/StatChip';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
 
 function formatSessionDate(isoDate: string): string {
@@ -22,9 +26,8 @@ function formatSessionDate(isoDate: string): string {
 
 function formatSet(set: SetRecord): string {
   const reps = set.reps != null ? `${set.reps}` : '?';
-  const weight = set.weightKg != null && set.weightKg > 0
-    ? ` @ ${Number(set.weightKg).toFixed(1)} kg`
-    : '';
+  const weight =
+    set.weightKg != null && set.weightKg > 0 ? ` @ ${Number(set.weightKg).toFixed(1)} kg` : '';
   return `${reps}${weight}`;
 }
 
@@ -76,8 +79,8 @@ export default function HistoryScreen() {
 
   function handleDeleteSession(session: WorkoutSession) {
     Alert.alert(
-      'Delete Workout',
-      'This will remove the workout from history and its impact on muscle recovery. This cannot be undone.',
+      'Delete workout',
+      'Removes this session from history and its recovery impact. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -99,39 +102,45 @@ export default function HistoryScreen() {
           <View style={styles.headerTextBlock}>
             <Text style={[screenHeaderStyles.title, { color: colors.text }]}>History</Text>
             <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-              Completed workouts
+              Past sessions & volume
             </Text>
           </View>
           <View style={styles.headerButtons}>
             <Pressable
               onPress={() => router.push('/personal-records')}
               style={({ pressed }) => [
-                styles.calendarButton,
-                { backgroundColor: colors.surface },
-                pressed && styles.calendarButtonPressed,
+                styles.iconButton,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                pressed && styles.iconButtonPressed,
               ]}
               hitSlop={8}
             >
-              <Ionicons name="trophy-outline" size={24} color={colors.primary} />
+              <Ionicons name="trophy-outline" size={22} color={colors.primary} />
             </Pressable>
             <Pressable
               onPress={() => router.push('/history-monthly')}
               style={({ pressed }) => [
-                styles.calendarButton,
-                { backgroundColor: colors.surface },
-                pressed && styles.calendarButtonPressed,
+                styles.iconButton,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                pressed && styles.iconButtonPressed,
               ]}
               hitSlop={8}
             >
-              <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+              <Ionicons name="calendar-outline" size={22} color={colors.primary} />
             </Pressable>
           </View>
         </View>
       </View>
       {completed.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            No workouts yet. Complete a workout to see it here.
+          <View style={[styles.emptyIcon, { backgroundColor: colors.surface }]}>
+            <Ionicons name="time-outline" size={28} color={colors.textMuted} />
+          </View>
+          <Text style={[typography.sectionTitle, { color: colors.text, marginTop: spacing.md }]}>
+            No sessions yet
+          </Text>
+          <Text style={[typography.body, styles.emptyText, { color: colors.textMuted }]}>
+            Finish a workout and it will show up here with duration, volume, and sets.
           </Text>
         </View>
       ) : (
@@ -142,52 +151,34 @@ export default function HistoryScreen() {
           <View style={styles.cardsContainer}>
             {completed.map((s) => {
               const exercises = exercisesWithCompletedSets(s);
-              const hasStats = getSessionDuration(s) || getSessionVolume(s) > 0;
+              const duration = getSessionDuration(s);
+              const volume = getSessionVolume(s);
               return (
-                <Pressable
-                  key={s.id}
-                  style={({ pressed }) => [
-                    styles.workoutCard,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                    pressed && styles.workoutCardPressed,
-                  ]}
-                >
+                <Card key={s.id} style={styles.workoutCard}>
                   <View style={styles.cardHeader}>
-                    <Text style={[styles.cardDate, { color: colors.textSecondary }]}>
+                    <Text style={[typography.caption, styles.cardDate, { color: colors.textSecondary }]}>
                       {s.completedAt ? formatSessionDate(s.completedAt) : ''}
                     </Text>
                     <Pressable
                       onPress={() => handleDeleteSession(s)}
                       hitSlop={8}
-                      style={({ pressed: delPressed }) => [
-                        styles.deleteButton,
-                        delPressed && styles.deleteButtonPressed,
-                      ]}
+                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: spacing.xs }]}
                     >
-                      <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
+                      <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
                     </Pressable>
                   </View>
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  <Text style={[typography.bodyMedium, styles.cardTitle, { color: colors.text }]}>
                     {getTemplateName(s.templateId)}
                   </Text>
-                  {hasStats && (
+                  {(duration || volume > 0) && (
                     <View style={styles.statsRow}>
-                      {getSessionDuration(s) && (
-                        <View style={[styles.statChip, { backgroundColor: colors.surfaceElevated }]}>
-                          <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
-                          <Text style={[styles.statChipText, { color: colors.textSecondary }]}>
-                            {getSessionDuration(s)}
-                          </Text>
-                        </View>
-                      )}
-                      {getSessionVolume(s) > 0 && (
-                        <View style={[styles.statChip, { backgroundColor: colors.surfaceElevated }]}>
-                          <Ionicons name="barbell-outline" size={12} color={colors.textSecondary} />
-                          <Text style={[styles.statChipText, { color: colors.textSecondary }]}>
-                            {getSessionVolume(s).toLocaleString(undefined, { maximumFractionDigits: 0 })} kg
-                          </Text>
-                        </View>
-                      )}
+                      {duration ? <StatChip icon="time-outline" label={duration} /> : null}
+                      {volume > 0 ? (
+                        <StatChip
+                          icon="barbell-outline"
+                          label={`${volume.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg`}
+                        />
+                      ) : null}
                     </View>
                   )}
                   {exercises.length > 0 && (
@@ -195,7 +186,7 @@ export default function HistoryScreen() {
                       style={[
                         styles.exerciseList,
                         {
-                          borderLeftColor: colors.primary + '40',
+                          borderLeftColor: colors.primary + '55',
                           backgroundColor: colors.background,
                         },
                       ]}
@@ -205,8 +196,14 @@ export default function HistoryScreen() {
                         const exerciseName = getExercise(se.exerciseId)?.name ?? se.exerciseId;
                         const isLast = idx === exercises.length - 1;
                         return (
-                          <View key={se.exerciseId} style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}>
-                            <Text style={[styles.exerciseName, { color: colors.text }]} numberOfLines={1}>
+                          <View
+                            key={se.exerciseId}
+                            style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}
+                          >
+                            <Text
+                              style={[typography.label, { color: colors.text }]}
+                              numberOfLines={1}
+                            >
                               {exerciseName}
                             </Text>
                             <View style={styles.setsRow}>
@@ -216,7 +213,7 @@ export default function HistoryScreen() {
                                   style={[styles.setChip, { backgroundColor: colors.surfaceElevated }]}
                                 >
                                   <Text
-                                    style={[styles.setChipText, { color: colors.textSecondary }]}
+                                    style={[typography.caption, styles.setChipText, { color: colors.textSecondary }]}
                                     numberOfLines={1}
                                   >
                                     {formatSet(set)}
@@ -229,7 +226,7 @@ export default function HistoryScreen() {
                       })}
                     </View>
                   )}
-                </Pressable>
+                </Card>
               );
             })}
           </View>
@@ -248,74 +245,71 @@ const styles = StyleSheet.create({
   },
   headerTextBlock: {
     flex: 1,
-    marginRight: 8,
+    marginRight: spacing.sm,
     minWidth: 0,
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
-  calendarButton: {
+  iconButton: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calendarButtonPressed: { opacity: 0.8 },
-  empty: { flex: 1, justifyContent: 'center', padding: 20 },
-  emptyText: { fontSize: 16, textAlign: 'center' },
-  cardsContainer: { gap: 16 },
-  workoutCard: {
-    borderRadius: 16,
-    padding: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
+  iconButtonPressed: { opacity: 0.8 },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
   },
-  workoutCardPressed: { opacity: 0.96 },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: { textAlign: 'center', marginTop: spacing.sm },
+  cardsContainer: { gap: spacing.md },
+  workoutCard: {
+    padding: spacing.md + 2,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs / 2,
   },
-  cardDate: { fontSize: 12, textTransform: 'capitalize', letterSpacing: 0.3 },
-  deleteButton: {
-    padding: 6,
-  },
-  deleteButtonPressed: { opacity: 0.6 },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 10 },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  statChipText: { fontSize: 11, fontWeight: '500' },
+  cardDate: { textTransform: 'capitalize', letterSpacing: 0.2 },
+  cardTitle: { marginBottom: spacing.sm },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
   exerciseList: {
-    marginTop: 4,
-    paddingLeft: 12,
-    paddingRight: 10,
-    paddingVertical: 10,
-    borderRadius: 10,
+    marginTop: spacing.xs,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm + 2,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.sm,
     borderLeftWidth: 3,
   },
-  exerciseRow: { marginBottom: 8 },
+  exerciseRow: { marginBottom: spacing.sm },
   exerciseRowLast: { marginBottom: 0 },
-  exerciseName: { fontSize: 13, fontWeight: '600' },
   setsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
+    gap: spacing.xs + 2,
+    marginTop: spacing.xs,
   },
   setChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm - 2,
   },
-  setChipText: { fontSize: 11 },
+  setChipText: {
+    fontFamily: typography.data.fontFamily,
+  },
 });
