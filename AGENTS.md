@@ -15,6 +15,7 @@ MuscleOS/
 ├── apps/
 │   ├── mobile/      # Expo React Native app (main product)
 │   └── landing/     # Next.js marketing site (privacy, terms)
+├── docs/            # Product & engineering specs (source of truth)
 ├── packages/
 │   └── types/       # @muscleos/types — shared TypeScript types & domain models
 ├── package.json     # Root: pnpm workspaces + Turbo
@@ -58,6 +59,8 @@ MuscleOS/
 ---
 
 ## Conventions & Patterns
+
+**Specs:** Product and engineering documentation lives in [`docs/`](../docs/). Do not add spec READMEs under `apps/` or other code directories.
 
 ### 1. Shared Types (`packages/types`)
 
@@ -139,7 +142,7 @@ apps/mobile/
 - **Feature list:** `src/subscription/features.ts` — single source for paywall copy and gate keys.
 - **Pro gates:** custom templates/exercises, empty workout, add exercise mid-workout, save-as-template, PRs, progression charts, monthly calendar.
 - **Basic includes:** built-in templates, workout logging, recovery, history list, exercise library, export.
-- **Setup:** See `apps/mobile/REVENUECAT_SETUP.md` for store + RevenueCat dashboard steps.
+- **Setup:** See [`docs/monetization/revenuecat-setup.md`](../docs/monetization/revenuecat-setup.md) for store + RevenueCat dashboard steps.
 
 ---
 

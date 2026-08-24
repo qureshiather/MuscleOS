@@ -102,4 +102,4 @@ Not required for launch.
 | Dev build + sandbox | Real IAP with test Apple/Google accounts |
 | Env flag | `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true` |
 
-See [`apps/mobile/REVENUECAT_SETUP.md`](../../apps/mobile/REVENUECAT_SETUP.md) for dashboard setup steps.
+See [revenuecat-setup.md](revenuecat-setup.md) for dashboard setup steps.

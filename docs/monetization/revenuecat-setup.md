@@ -1,8 +1,8 @@
 # RevenueCat & Store Product Setup
 
-Manual steps required before real IAP works in production. Product IDs must match [`src/utils/revenueCat.ts`](src/utils/revenueCat.ts).
+Manual steps required before real IAP works in production. Product IDs must match [`apps/mobile/src/utils/revenueCat.ts`](../../apps/mobile/src/utils/revenueCat.ts).
 
-**Full specs:** [`../../docs/monetization/`](../../docs/monetization/)
+**Full specs:** [monetization docs](./overview.md)
 
 ## Entitlement
 
@@ -57,7 +57,7 @@ Create a subscription group for monthly + annual on iOS. Attach lifetime as a se
 - In dev, enable **Grant Pro (testing)** on the Subscription screen, or set `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true`.
 - Verify: monthly purchase, annual purchase, lifetime purchase, restore, and lapse after sandbox expiry.
 
-See [`../../docs/monetization/launch-checklist.md`](../../docs/monetization/launch-checklist.md) for the full checklist.
+See [launch-checklist.md](launch-checklist.md) for the full checklist.
 
 ## Phase 2 (optional)
 

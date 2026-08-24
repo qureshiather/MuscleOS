@@ -3,6 +3,7 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import { createSupabaseFetch } from '@/lib/supabaseFetch';
 
 // Prefer extra (from app.config.js at build time), then process.env (inlined by Metro when bundling).
 // Both are set when .env is loaded in app.config.js and metro.config.js.
@@ -24,6 +25,9 @@ export const supabase = createClient(
   hasConfig ? supabaseUrl : 'https://placeholder.supabase.co',
   hasConfig ? supabaseAnonKey : 'placeholder-anon-key',
   {
+    global: {
+      fetch: createSupabaseFetch(),
+    },
     auth: {
       ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
       autoRefreshToken: true,

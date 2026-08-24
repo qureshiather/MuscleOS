@@ -309,7 +309,7 @@ export default function SubscriptionScreen() {
                 )}
                 {!hasRevenueCatApiKey() && (
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
-                    Set platform RevenueCat keys in .env and use a development build. See REVENUECAT_SETUP.md.
+                    Set platform RevenueCat keys in .env and use a development build. See docs/monetization/revenuecat-setup.md.
                   </Text>
                 )}
               </Card>

@@ -1,33 +1,70 @@
+# MuscleOS
 
-Login with Expo Credentials
+Fitness/workout tracking app (Expo React Native) with a Next.js landing site. Monorepo managed with pnpm + Turborepo.
 
-## Subscriptions (RevenueCat) & local testing
+## Prerequisites
 
-MuscleOS has **Basic** (free) and **Pro** tiers. Pro is available as monthly ($2.99), annual ($19.99), or lifetime ($39.99).
+- Node.js ≥ 20
+- pnpm 9.x
 
-Full specs: [`docs/monetization/`](docs/monetization/)
+## Quick start
 
-- **Entitlement:** `MuscleOS Pro` (single entitlement for all paid plans)
-- **Product IDs:** `muscleos_pro_monthly`, `muscleos_pro_annual`, `muscleos_pro_lifetime`
-- **Setup guide:** [`apps/mobile/REVENUECAT_SETUP.md`](apps/mobile/REVENUECAT_SETUP.md)
-- **Testing:** Dev builds show **Grant Pro (testing)** on the Subscription screen. Use it to test Pro gates without IAP.
-- **Real IAP:** Set `EXPO_PUBLIC_REVENUECAT_API_KEY` in `apps/mobile/.env`. Use an **Expo development build** (not Expo Go) with Apple/Google sandbox accounts.
-- **Account required to purchase:** Link an account (Supabase) before subscribing; Pro restores via RevenueCat on any device when signed in.
+```bash
+pnpm install
+pnpm dev          # mobile + landing
+pnpm dev:landing  # landing only (port 3001)
+```
 
-## Set up Expo MCP
+Mobile app: `cd apps/mobile && pnpm dev`
 
-1. `cd apps/mobile`
-2. `pnpx expo login`
+## Expo login
 
-Enter In the Credentials
-username: twaxter
-password: (The usual)
+```bash
+cd apps/mobile
+pnpx expo login
+```
 
-3. Start the Dev Server with MCP Capabilities
+Credentials: username `twaxter` (password in team vault).
 
-`EXPO_UNSTABLE_MCP_SERVER=1 npx expo start`
+## Expo MCP (optional)
 
-## Start Dev Server
+```bash
+cd apps/mobile
+EXPO_UNSTABLE_MCP_SERVER=1 npx expo start
+```
 
-Start the Expo Dev Server
-`pnpm dev`
+## Environment variables
+
+| App | File | Docs |
+|-----|------|------|
+| Mobile | `apps/mobile/.env` | [Supabase setup](docs/supabase/setup.md), [RevenueCat setup](docs/monetization/revenuecat-setup.md) |
+| Supabase CLI | `supabase/.env` | [Supabase setup](docs/supabase/setup.md) |
+
+Copy from each directory's `.env.example` where present.
+
+## Specs & docs
+
+Product and engineering specs live in [`docs/`](docs/). That folder is the source of truth — not scattered READMEs in app directories.
+
+| Area | Path |
+|------|------|
+| Monetization | [`docs/monetization/`](docs/monetization/) |
+| EAS builds | [`docs/mobile/eas-build.md`](docs/mobile/eas-build.md) |
+| Supabase / sync | [`docs/supabase/setup.md`](docs/supabase/setup.md) |
+
+## Troubleshooting
+
+### Sign-in times out on Android emulator
+
+If email sign-in hangs ~15s then fails, the emulator often has broken DNS (IPs work but hostnames do not).
+
+1. **Device Manager** → emulator dropdown → **Cold Boot Now**
+2. Or wipe emulator data and restart
+3. Or start the AVD with explicit DNS: `emulator -avd YOUR_AVD -dns-server 8.8.8.8,8.8.4.4`
+4. Or test auth on **iOS simulator** or a **physical device** on the same Wi‑Fi
+
+Verify: host machine can reach Supabase (`curl https://YOUR_PROJECT.supabase.co/auth/v1/health` should return quickly).
+
+## Agent guide
+
+Code conventions and monorepo patterns: [`AGENTS.md`](AGENTS.md)

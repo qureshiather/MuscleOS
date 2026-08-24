@@ -3,17 +3,9 @@ import type { AuthChangeEvent, User } from '@supabase/supabase-js';
 import type { UserProfile, AuthProvider } from '@muscleos/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { revenueCatLogOut, revenueCatLogIn } from '@/utils/revenueCat';
+import { withTimeout } from '@/lib/withTimeout';
 
 const AUTH_INIT_TIMEOUT_MS = 10_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), ms);
-    }),
-  ]);
-}
 
 function userToProfile(user: User): UserProfile | null {
   if (user.is_anonymous) return null;
@@ -148,6 +140,10 @@ if (isSupabaseConfigured()) {
     if (!session?.user) return;
     const u = session.user;
     const prev = useAuthStore.getState();
+
+    // Stale INITIAL_SESSION from a timed-out getSession() must not revert a linked login.
+    if (!prev.isAnonymous && (u.is_anonymous ?? false)) return;
+
     const nextAnonymous = u.is_anonymous ?? false;
     if (prev.user?.id === u.id && prev.isAnonymous === nextAnonymous) return;
     applyAuthUser(u, event, prev.isAnonymous);

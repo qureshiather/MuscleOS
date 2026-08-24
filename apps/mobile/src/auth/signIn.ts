@@ -2,6 +2,19 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform, Alert } from 'react-native';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { applyAuthUser, useAuthStore } from '@/store/authStore';
+import { withTimeout } from '@/lib/withTimeout';
+
+const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+function authTimeoutMessage(): string {
+  if (Platform.OS === 'android') {
+    return (
+      'Request timed out. The Android emulator often loses DNS — try Cold Boot Now in Device Manager, ' +
+      'restart the emulator, or test on iOS simulator / a physical device. Also check your internet connection.'
+    );
+  }
+  return 'Request timed out. Check your internet connection on this device and try again.';
+}
 
 export function useSignIn() {
   async function linkWithApple(): Promise<boolean> {
@@ -108,7 +121,15 @@ export function useSignIn() {
       return false;
     }
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const result = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        AUTH_REQUEST_TIMEOUT_MS
+      );
+      if (!result) {
+        Alert.alert('Sign in failed', authTimeoutMessage());
+        return false;
+      }
+      const { data, error } = result;
       if (error) {
         const msg = error.message.toLowerCase();
         if (msg.includes('email not confirmed') || msg.includes('confirm your email')) {
@@ -123,7 +144,12 @@ export function useSignIn() {
       }
       return true;
     } catch (e) {
-      Alert.alert('Sign in failed', (e as Error).message);
+      const msg = (e as Error).message ?? '';
+      if (msg.includes('timed out')) {
+        Alert.alert('Sign in failed', authTimeoutMessage());
+      } else {
+        Alert.alert('Sign in failed', msg || 'Something went wrong.');
+      }
       return false;
     }
   }

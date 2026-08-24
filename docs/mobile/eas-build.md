@@ -6,7 +6,7 @@ To run a build on your phone:
 eas build --platform android --profile preview
 ```
 
-Your local `.env` is **not** uploaded (it’s gitignored). For the built app to have Supabase (and “link account”) working, set the same variables in EAS for the **preview** environment.
+Your local `.env` is **not** uploaded (it's gitignored). For the built app to have Supabase (and "link account") working, set the same variables in EAS for the **preview** environment.
 
 ## Set env vars for preview builds
 
@@ -41,14 +41,14 @@ The build will use those values and the installed app will have Supabase configu
 
 ---
 
-## RevenueCat: stop “prepare for release / use production key” on preview
+## RevenueCat: stop "prepare for release / use production key" on preview
 
 Preview builds are **release** builds. RevenueCat shows that dialog when you use a **Test Store** API key in a release build.
 
 **Fix:** Use your **Android (platform) API key** for preview, not the Test Store key.
 
 1. In [RevenueCat](https://app.revenuecat.com) go to **Project** → **API keys**.
-2. Under your **Android** app, copy the **Public API key** (the real Android key, not “Test Store”).
+2. Under your **Android** app, copy the **Public API key** (the real Android key, not "Test Store").
 3. Set that as `EXPO_PUBLIC_REVENUECAT_API_KEY` in EAS for the **preview** environment.
 4. Rebuild: `eas build --platform android --profile preview`.
 
@@ -60,7 +60,7 @@ Purchases on your device stay in **sandbox** as long as your Google account is a
 
 ### Installing the app
 
-After the build finishes, open the build on [expo.dev](https://expo.dev), use **Download** or the build link, and open it on your Android phone to install. You don’t need to “add” the device in EAS for internal distribution.
+After the build finishes, open the build on [expo.dev](https://expo.dev), use **Download** or the build link, and open it on your Android phone to install. You don't need to "add" the device in EAS for internal distribution.
 
 ### Testing in-app purchases (no real charges)
 
