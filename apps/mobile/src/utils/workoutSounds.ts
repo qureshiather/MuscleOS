@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
 export type WorkoutSoundKind = 'restTick' | 'restEnd' | 'setComplete' | 'workoutComplete';
 
@@ -10,36 +10,37 @@ const SOURCES: Record<WorkoutSoundKind, number> = {
 };
 
 let audioModeReady = false;
-const loaded: Partial<Record<WorkoutSoundKind, Audio.Sound>> = {};
+const loaded: Partial<Record<WorkoutSoundKind, AudioPlayer>> = {};
 
 async function ensureAudioMode(): Promise<void> {
   if (audioModeReady) return;
-  await Audio.setAudioModeAsync({
-    playsInSilentModeIOS: true,
-    allowsRecordingIOS: false,
-    staysActiveInBackground: false,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
+  await setAudioModeAsync({
+    playsInSilentMode: true,
+    allowsRecording: false,
+    shouldPlayInBackground: false,
+    shouldRouteThroughEarpiece: false,
+    interruptionMode: 'mixWithOthers',
+    interruptionModeAndroid: 'duckOthers',
   });
   audioModeReady = true;
 }
 
-async function getSound(kind: WorkoutSoundKind): Promise<Audio.Sound> {
-  await ensureAudioMode();
-  let sound = loaded[kind];
-  if (!sound) {
-    const created = await Audio.Sound.createAsync(SOURCES[kind], { shouldPlay: false });
-    loaded[kind] = created.sound;
-    sound = created.sound;
+function getPlayer(kind: WorkoutSoundKind): AudioPlayer {
+  let player = loaded[kind];
+  if (!player) {
+    player = createAudioPlayer(SOURCES[kind]);
+    loaded[kind] = player;
   }
-  return sound;
+  return player;
 }
 
 /** Short UI sounds during an active workout (rest timer, set done, finish). */
 export async function playWorkoutSound(kind: WorkoutSoundKind): Promise<void> {
   try {
-    const sound = await getSound(kind);
-    await sound.replayAsync();
+    await ensureAudioMode();
+    const player = getPlayer(kind);
+    await player.seekTo(0);
+    player.play();
   } catch {
     // Ignore missing audio session / unload races
   }

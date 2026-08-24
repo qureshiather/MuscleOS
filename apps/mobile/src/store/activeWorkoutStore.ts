@@ -5,12 +5,13 @@ import {
   setSessions,
   getExercisePrevious,
   setExercisePrevious,
-  type ExercisePrevious,
 } from '@/storage/localStorage';
 import { getRecovery, setRecovery } from '@/storage/localStorage';
-import { getRecoveryHoursForMuscle, getRecoveryUntil } from '@muscleos/types';
+import { getRecoveryUntil } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useSessionsStore } from '@/store/sessionsStore';
+import { useRecoveryStore } from '@/store/recoveryStore';
 
 const DEFAULT_SETS_PER_EXERCISE = 3;
 
@@ -19,6 +20,35 @@ export const DEFAULT_REST_SECONDS = 120;
 export interface RestAfter {
   exIdx: number;
   setIdx: number;
+}
+
+function restKey(exIdx: number, setIdx: number): string {
+  return `${exIdx}-${setIdx}`;
+}
+
+/** Remap "exIdx-setIdx" rest duration keys after exercises move. */
+function remapRestDurations(
+  durations: Record<string, number>,
+  oldToNew: number[]
+): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [key, seconds] of Object.entries(durations)) {
+    const [exStr, setStr] = key.split('-');
+    const oldEx = parseInt(exStr, 10);
+    const setIdx = parseInt(setStr, 10);
+    if (Number.isNaN(oldEx) || Number.isNaN(setIdx)) continue;
+    const newEx = oldToNew[oldEx];
+    if (newEx == null) continue;
+    next[restKey(newEx, setIdx)] = seconds;
+  }
+  return next;
+}
+
+function remapRestAfter(restAfter: RestAfter | null, oldToNew: number[]): RestAfter | null {
+  if (!restAfter) return null;
+  const newEx = oldToNew[restAfter.exIdx];
+  if (newEx == null) return null;
+  return { exIdx: newEx, setIdx: restAfter.setIdx };
 }
 
 export interface ActiveWorkoutState {
@@ -41,6 +71,8 @@ export interface ActiveWorkoutState {
   removeExercise: (exerciseIndex: number) => void;
   moveExerciseUp: (exerciseIndex: number) => void;
   moveExerciseDown: (exerciseIndex: number) => void;
+  /** Drag-and-drop reorder; remaps rest timer indices. */
+  reorderExercises: (fromIndex: number, toIndex: number) => void;
   /** Switch session to a new custom template and add an exercise (used when adding to built-in). */
   replaceTemplateAndAddExercise: (newTemplateId: string, exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
@@ -184,26 +216,55 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   },
 
   removeExercise: (exerciseIndex) => {
-    const { session } = get();
+    const { session, restAfter, restDurationsBetweenSets } = get();
     if (!session) return;
     const exercises = session.exercises.filter((_, i) => i !== exerciseIndex);
-    set({ session: { ...session, exercises } });
+    const oldToNew = session.exercises.map((_, i) => (i < exerciseIndex ? i : i === exerciseIndex ? -1 : i - 1));
+    const remappedDurations = remapRestDurations(restDurationsBetweenSets, oldToNew);
+    const clearRest = restAfter?.exIdx === exerciseIndex;
+    set({
+      session: { ...session, exercises },
+      restDurationsBetweenSets: remappedDurations,
+      ...(clearRest
+        ? { restEndTime: null, restAfter: null }
+        : { restAfter: remapRestAfter(restAfter, oldToNew) }),
+    });
   },
 
   moveExerciseUp: (exerciseIndex) => {
-    const { session } = get();
-    if (!session || exerciseIndex <= 0) return;
-    const exercises = [...session.exercises];
-    [exercises[exerciseIndex - 1], exercises[exerciseIndex]] = [exercises[exerciseIndex], exercises[exerciseIndex - 1]];
-    set({ session: { ...session, exercises } });
+    get().reorderExercises(exerciseIndex, exerciseIndex - 1);
   },
 
   moveExerciseDown: (exerciseIndex) => {
-    const { session } = get();
-    if (!session || exerciseIndex >= session.exercises.length - 1) return;
+    get().reorderExercises(exerciseIndex, exerciseIndex + 1);
+  },
+
+  reorderExercises: (fromIndex, toIndex) => {
+    const { session, restAfter, restDurationsBetweenSets } = get();
+    if (!session) return;
+    if (fromIndex === toIndex) return;
+    if (fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex >= session.exercises.length || toIndex >= session.exercises.length) return;
+
     const exercises = [...session.exercises];
-    [exercises[exerciseIndex], exercises[exerciseIndex + 1]] = [exercises[exerciseIndex + 1], exercises[exerciseIndex]];
-    set({ session: { ...session, exercises } });
+    const [moved] = exercises.splice(fromIndex, 1);
+    exercises.splice(toIndex, 0, moved);
+
+    const oldToNew = session.exercises.map((_, oldIdx) => {
+      if (oldIdx === fromIndex) return toIndex;
+      if (fromIndex < toIndex) {
+        if (oldIdx > fromIndex && oldIdx <= toIndex) return oldIdx - 1;
+      } else {
+        if (oldIdx >= toIndex && oldIdx < fromIndex) return oldIdx + 1;
+      }
+      return oldIdx;
+    });
+
+    set({
+      session: { ...session, exercises },
+      restDurationsBetweenSets: remapRestDurations(restDurationsBetweenSets, oldToNew),
+      restAfter: remapRestAfter(restAfter, oldToNew),
+    });
   },
 
   replaceTemplateAndAddExercise: (newTemplateId, exerciseId) => {
@@ -232,11 +293,11 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const sessions = await getSessions();
     await setSessions([...sessions, completed]);
 
-    // Update previous weight/reps per exercise (best set by weight, then reps)
+    // Update previous weight/reps per exercise (best completed set by weight, then reps)
     const prev = await getExercisePrevious();
     for (const se of completed.exercises) {
       const best = se.sets
-        .filter((s) => s.weightKg != null && s.weightKg > 0)
+        .filter((s) => s.completed && s.weightKg != null && s.weightKg > 0)
         .sort((a, b) => (b.weightKg ?? 0) - (a.weightKg ?? 0) || (b.reps ?? 0) - (a.reps ?? 0))[0];
       if (best) {
         prev[se.exerciseId] = {
@@ -271,6 +332,12 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       restAfter: null,
       restDurationsBetweenSets: {},
     });
+
+    // Keep peer stores in sync so home/history/recovery update without waiting for focus
+    await Promise.all([
+      useSessionsStore.getState().load(),
+      useRecoveryStore.getState().load(),
+    ]);
   },
 
   discardWorkout: () =>
@@ -300,15 +367,16 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   skipRest: () => {
     const { restAfter, restTotalSeconds, restEndTime } = get();
     if (restAfter !== null && restTotalSeconds > 0 && restEndTime !== null) {
-      const taken = Math.max(0, restTotalSeconds - Math.ceil((restEndTime - Date.now()) / 1000));
-      if (taken > 0) {
-        set((s) => ({
-          restDurationsBetweenSets: {
-            ...s.restDurationsBetweenSets,
-            [`${restAfter.exIdx}-${restAfter.setIdx}`]: taken,
-          },
-        }));
-      }
+      const taken = Math.max(
+        0,
+        restTotalSeconds - Math.ceil((restEndTime - Date.now()) / 1000)
+      );
+      set((s) => ({
+        restDurationsBetweenSets: {
+          ...s.restDurationsBetweenSets,
+          [`${restAfter.exIdx}-${restAfter.setIdx}`]: taken,
+        },
+      }));
     }
     set({ restEndTime: null, restAfter: null });
   },

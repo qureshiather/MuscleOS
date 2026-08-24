@@ -15,6 +15,8 @@ import {
   LayoutAnimation,
   UIManager,
 } from 'react-native';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -26,7 +28,9 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { playWorkoutSound } from '@/utils/workoutSounds';
+import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { Ionicons } from '@expo/vector-icons';
+import type { SessionExercise } from '@muscleos/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -55,17 +59,20 @@ const REST_BETWEEN_SETS_CHOICES = [
 
 function SetDonePressable({
   completed,
+  disabled,
   mutedFill,
   colors,
   onPress,
 }: {
   completed: boolean;
+  disabled?: boolean;
   mutedFill: string;
   colors: { primary: string; border: string; textMuted: string };
   onPress: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
+    if (disabled) return;
     if (!completed) {
       LayoutAnimation.configureNext(
         LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
@@ -88,7 +95,7 @@ function SetDonePressable({
     onPress();
   };
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={{ transform: [{ scale }], opacity: disabled && !completed ? 0.45 : 1 }}>
       <Pressable
         style={[
           styles.doneBtn,
@@ -97,12 +104,23 @@ function SetDonePressable({
             : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
         ]}
         onPress={handlePress}
+        disabled={disabled && !completed}
       >
         <Ionicons name="checkmark" size={16} color={completed ? '#fff' : colors.textMuted} />
       </Pressable>
     </Animated.View>
   );
 }
+
+type FinishedSummary = {
+  name: string;
+  durationMs: number;
+  exercises: {
+    name: string;
+    completed: number;
+    sets: { weightKg?: number; reps?: number }[];
+  }[];
+};
 
 export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
@@ -122,11 +140,9 @@ export default function ActiveWorkoutScreen() {
   const removeSet = useActiveWorkoutStore((s) => s.removeSet);
   const addExercise = useActiveWorkoutStore((s) => s.addExercise);
   const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
-  const moveExerciseUp = useActiveWorkoutStore((s) => s.moveExerciseUp);
-  const moveExerciseDown = useActiveWorkoutStore((s) => s.moveExerciseDown);
+  const reorderExercises = useActiveWorkoutStore((s) => s.reorderExercises);
   const replaceTemplateAndAddExercise = useActiveWorkoutStore((s) => s.replaceTemplateAndAddExercise);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
-  const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
   const restEndTime = useActiveWorkoutStore((s) => s.restEndTime);
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
   const restAfter = useActiveWorkoutStore((s) => s.restAfter);
@@ -136,7 +152,6 @@ export default function ActiveWorkoutScreen() {
   const skipRest = useActiveWorkoutStore((s) => s.skipRest);
   const add30SecondsRest = useActiveWorkoutStore((s) => s.add30SecondsRest);
   const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
-  const resetRest = useActiveWorkoutStore((s) => s.resetRest);
   const clearRestTimer = useActiveWorkoutStore((s) => s.clearRestTimer);
   const recordRestDuration = useActiveWorkoutStore((s) => s.recordRestDuration);
   const subscriptionState = useSubscriptionStore((s) => s.state);
@@ -153,7 +168,8 @@ export default function ActiveWorkoutScreen() {
   // Rest timer state lives in store so it survives addSet/session updates
   const [restTick, setRestTick] = useState(0); // force re-render every second so derived restSecondsLeft updates
   const [showRestPicker, setShowRestPicker] = useState(false);
-  const [showRestControlSheet, setShowRestControlSheet] = useState(false);
+  const [showRestControls, setShowRestControls] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
 
   // Derive remaining seconds from end time so timer is correct after returning from background
   const restSecondsLeft: number | null =
@@ -170,13 +186,16 @@ export default function ActiveWorkoutScreen() {
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
   const [dropdownLayout, setDropdownLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const dropdownMeasureRef = useRef<View>(null);
-  const [editSetsExIdx, setEditSetsExIdx] = useState<number | null>(null);
-  const [setsToDelete, setSetsToDelete] = useState<Set<number>>(new Set());
   const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [finishedSummary, setFinishedSummary] = useState<FinishedSummary | null>(null);
 
   const prevRestSecondsLeftRef = useRef<number | null>(null);
+  /** Prevents re-starting a workout from URL params after finish/discard clears session. */
+  const startedFromParamsRef = useRef(false);
+  const leavingWorkoutRef = useRef(false);
 
   // Clear dropdown layout when menu closes so we re-measure next open
   useEffect(() => {
@@ -184,17 +203,19 @@ export default function ActiveWorkoutScreen() {
   }, [exerciseMenuExIdx]);
 
   useEffect(() => {
-    if (params.templateId && !session) {
-      const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
-      const defaultSets =
-        params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
-      const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
-      startWorkout(params.templateId, ids, sets);
+    if (!params.templateId || session || startedFromParamsRef.current || leavingWorkoutRef.current) {
+      return;
     }
+    startedFromParamsRef.current = true;
+    const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
+    const defaultSets =
+      params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
+    const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
+    startWorkout(params.templateId, ids, sets);
   }, [params.templateId, params.exerciseIds, params.defaultSets, session, startWorkout]);
 
-  // Redirect to tabs when no session and no params to start one. We're already on active-workout screen. Use delay so Android navigator is mounted (avoids "Attempted to navigate before mounting" and black screen).
-  const shouldRedirectToTabs = !session && !params.templateId;
+  // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page).
+  const shouldRedirectToTabs = !session && !params.templateId && !finishedSummary;
   useEffect(() => {
     if (!shouldRedirectToTabs) return;
     const id = setTimeout(() => {
@@ -263,7 +284,6 @@ export default function ActiveWorkoutScreen() {
       recordRestDuration(restAfter.exIdx, restAfter.setIdx, restTotalSeconds);
     }
     clearRestTimer();
-    setShowRestControlSheet(false);
   }, [
     restEndTime,
     restTick,
@@ -281,41 +301,59 @@ export default function ActiveWorkoutScreen() {
 
   function handleSkipRest() {
     skipRest();
-    setShowRestControlSheet(false);
+    setShowRestControls(false);
   }
 
-  function handleResetRest() {
-    let secs = DEFAULT_REST_SECONDS;
-    if (restAfter && session?.exercises[restAfter.exIdx]) {
-      secs =
-        session.exercises[restAfter.exIdx].restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+  // Close rest controls when rest ends
+  useEffect(() => {
+    if (restSecondsLeft == null || restSecondsLeft <= 0) {
+      setShowRestControls(false);
     }
-    resetRest(secs);
-  }
+  }, [restSecondsLeft]);
 
   async function handleFinish(updateCustomTemplate?: boolean) {
+    if (!session) return;
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
-    if (updateCustomTemplate && session) {
-      const template = allTemplates().find((t) => t.id === session.templateId);
-      if (template && !template.isBuiltIn) {
-        await updateTemplate(session.templateId, {
-          exerciseIds: session.exercises.map((e) => e.exerciseId),
-        });
-      }
+    leavingWorkoutRef.current = true;
+
+    const template = allTemplates().find((t) => t.id === session.templateId);
+    if (updateCustomTemplate && template && !template.isBuiltIn) {
+      await updateTemplate(session.templateId, {
+        exerciseIds: session.exercises.map((e) => e.exerciseId),
+      });
     }
+
+    const summary: FinishedSummary = {
+      name: template?.name ?? (session.templateId === '_empty' ? 'Empty workout' : 'Workout'),
+      durationMs: elapsedMs,
+      exercises: session.exercises
+        .map((se) => ({
+          name: getExercise(se.exerciseId)?.name ?? se.exerciseId,
+          completed: se.sets.filter((s) => s.completed).length,
+          sets: se.sets.filter((s) => s.completed),
+        }))
+        .filter((ex) => ex.completed > 0),
+    };
+
     if (workoutSoundsEnabled) {
       void playWorkoutSound('workoutComplete');
     }
+    setFinishedSummary(summary);
+    setShowConfetti(true);
     await finishWorkout();
-    router.replace('/(tabs)');
+  }
+
+  function leaveFinishedWorkout() {
+    router.replace('/(tabs)?discardWorkout=1');
   }
 
   function handleDiscardOnly() {
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
-    discardWorkout();
-    router.replace('/(tabs)');
+    leavingWorkoutRef.current = true;
+    // Clear on tabs mount so the resume pill never flashes
+    router.replace('/(tabs)?discardWorkout=1');
   }
 
   async function handleSaveAsTemplate() {
@@ -338,8 +376,101 @@ export default function ActiveWorkoutScreen() {
   }
 
   function handleCancel() {
-    discardWorkout();
-    router.replace('/(tabs)');
+    leavingWorkoutRef.current = true;
+    router.replace('/(tabs)?discardWorkout=1');
+  }
+
+  if (finishedSummary) {
+    const totalSets = finishedSummary.exercises.reduce((n, ex) => n + ex.completed, 0);
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <WorkoutConfetti visible={showConfetti} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.finishedScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.finishedHero}>
+            <View style={[styles.finishedBadge, { backgroundColor: colors.primary }]}>
+              <Ionicons name="checkmark" size={28} color="#fff" />
+            </View>
+            <Text style={[styles.finishedTitle, { color: colors.text }]}>Good work</Text>
+            <Text style={[styles.finishedSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
+              {finishedSummary.name}
+            </Text>
+          </View>
+
+          <View style={[styles.finishedStatsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.finishedStat}>
+              <Text style={[styles.finishedStatValue, { color: colors.text }]}>
+                {formatElapsed(finishedSummary.durationMs)}
+              </Text>
+              <Text style={[styles.finishedStatLabel, { color: colors.textMuted }]}>Duration</Text>
+            </View>
+            <View style={[styles.finishedStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.finishedStat}>
+              <Text style={[styles.finishedStatValue, { color: colors.text }]}>
+                {finishedSummary.exercises.length}
+              </Text>
+              <Text style={[styles.finishedStatLabel, { color: colors.textMuted }]}>Exercises</Text>
+            </View>
+            <View style={[styles.finishedStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.finishedStat}>
+              <Text style={[styles.finishedStatValue, { color: colors.text }]}>{totalSets}</Text>
+              <Text style={[styles.finishedStatLabel, { color: colors.textMuted }]}>Sets</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.finishedSectionLabel, { color: colors.textMuted }]}>Summary</Text>
+          <View style={[styles.finishedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {finishedSummary.exercises.map((item, idx) => (
+              <View
+                key={`${item.name}-${idx}`}
+                style={[
+                  styles.finishedExerciseRow,
+                  idx < finishedSummary.exercises.length - 1 && {
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                    borderBottomColor: colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.finishedExerciseTop}>
+                  <Text style={[styles.finishedExerciseName, { color: colors.text }]} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.finishedExerciseSets, { color: colors.textSecondary }]}>
+                    {item.completed} set{item.completed !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                {item.sets.some((s) => s.weightKg != null || s.reps != null) ? (
+                  <Text style={[styles.finishedExerciseDetail, { color: colors.textMuted }]} numberOfLines={2}>
+                    {item.sets
+                      .map((s) => {
+                        const w =
+                          s.weightKg != null && s.weightKg > 0
+                            ? `${kgToDisplay(s.weightKg, weightUnit)} ${weightUnit}`
+                            : '';
+                        const r = s.reps != null ? `${s.reps} reps` : '';
+                        return w && r ? `${w} × ${r}` : w || r || '—';
+                      })
+                      .join('  ·  ')}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+
+        <View style={[styles.finishedFooter, { borderTopColor: colors.border }]}>
+          <Pressable
+            style={[styles.finishedDoneBtn, { backgroundColor: colors.primary }]}
+            onPress={leaveFinishedWorkout}
+          >
+            <Text style={styles.finishedDoneBtnText}>Done</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (!session) {
@@ -375,8 +506,9 @@ export default function ActiveWorkoutScreen() {
   }));
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header: Back + (Rest timer | Timer icon) | Time (center, absolute) | Finish */}
+      {/* Header: Back + rest chip | Time | Done/Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -384,15 +516,14 @@ export default function ActiveWorkoutScreen() {
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (
             <Pressable
-              onPress={() => setShowRestControlSheet(true)}
-              style={[styles.headerRestContainer, { backgroundColor: colors.surfaceElevated }]}
+              onPress={() => setShowRestControls(true)}
+              hitSlop={6}
+              style={[styles.headerRestChip, { backgroundColor: colors.accent }]}
             >
-              <View style={styles.headerRestTop}>
-                <Ionicons name="timer-outline" size={12} color={colors.accent} />
-                <Text style={[styles.headerRestTime, { color: colors.accent }]}>
-                  {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
-                </Text>
-              </View>
+              <Ionicons name="timer" size={13} color="#fff" />
+              <Text style={styles.headerRestChipText}>
+                {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+              </Text>
             </Pressable>
           ) : (
             <Pressable
@@ -400,7 +531,7 @@ export default function ActiveWorkoutScreen() {
               hitSlop={8}
               style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
-              <Ionicons name="timer-outline" size={12} color={colors.accent} />
+              <Ionicons name="timer-outline" size={14} color={colors.accent} />
             </Pressable>
           )}
         </View>
@@ -408,35 +539,138 @@ export default function ActiveWorkoutScreen() {
           <Text style={[styles.elapsed, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
         </View>
         <View style={styles.headerRight}>
-          <Pressable
-            onPress={() => setShowFinishSummary(true)}
-            disabled={!hasAtLeastOneSet}
-            style={[styles.finishHeaderBtn, !hasAtLeastOneSet && styles.finishHeaderBtnDisabled]}
-          >
-            <Text style={[styles.finishHeaderText, { color: hasAtLeastOneSet ? colors.accent : colors.textMuted }]}>
-              FINISH
-            </Text>
-          </Pressable>
+          {reorderMode ? (
+            <Pressable
+              onPress={() => setReorderMode(false)}
+              hitSlop={8}
+              style={styles.headerReorderBtn}
+            >
+              <Text style={[styles.headerReorderText, { color: colors.primary }]}>Done</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => setShowFinishSummary(true)}
+              disabled={!hasAtLeastOneSet}
+              style={[styles.finishHeaderBtn, !hasAtLeastOneSet && styles.finishHeaderBtnDisabled]}
+            >
+              <Text style={[styles.finishHeaderText, { color: hasAtLeastOneSet ? colors.accent : colors.textMuted }]}>
+                FINISH
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
+      <DraggableFlatList
+        data={session.exercises}
+        keyExtractor={(item, index) => `${item.exerciseId}-${index}`}
+        onDragEnd={({ from, to }) => {
+          if (from !== to) reorderExercises(from, to);
+        }}
+        activationDistance={reorderMode ? 8 : 9999}
+        containerStyle={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      >
-        {session.exercises.length === 0 && (
-          <View style={[styles.emptyWorkoutBlock, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.emptyWorkoutText, { color: colors.textSecondary }]}>
-              No exercises yet. Tap Add Exercise below to build your workout.
+        ListHeaderComponent={
+          <View>
+            <Text style={[styles.workoutTitle, { color: colors.text }]} numberOfLines={2}>
+              {currentTemplate?.name ??
+                (isNoTemplateWorkout ? 'Empty workout' : 'Workout')}
             </Text>
+            {reorderMode ? (
+              <Text style={[styles.reorderHintInline, { color: colors.textMuted }]}>
+                Hold and drag to rearrange
+              </Text>
+            ) : null}
+            {session.exercises.length === 0 ? (
+              <View style={[styles.emptyWorkoutBlock, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.emptyWorkoutText, { color: colors.textSecondary }]}>
+                  No exercises yet. Tap Add Exercise below to build your workout.
+                </Text>
+              </View>
+            ) : null}
           </View>
-        )}
-        {session.exercises.map((se, exIdx) => {
+        }
+        ListFooterComponent={
+          reorderMode ? (
+            <View style={{ height: 24 }} />
+          ) : (
+          <View>
+            <Pressable
+              style={[
+                styles.addExerciseBtn,
+                { backgroundColor: isPro ? colors.primary : colors.surfaceElevated, borderColor: colors.border },
+              ]}
+              onPress={() => {
+                if (isPro) {
+                  setShowAddExerciseModal(true);
+                } else {
+                  router.push('/subscription');
+                }
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={22} color={isPro ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.addExerciseBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}>
+                {isPro ? 'Add Exercise' : 'Pro: Add Exercise'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.cancelWorkoutBtn}
+              onPress={() => {
+                Alert.alert(
+                  'Cancel workout',
+                  'This workout will not be saved. Are you sure?',
+                  [
+                    { text: 'Keep', style: 'cancel' },
+                    {
+                      text: 'Cancel workout',
+                      style: 'destructive',
+                      onPress: () => {
+                        leavingWorkoutRef.current = true;
+                        router.replace('/(tabs)?discardWorkout=1');
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>Cancel workout</Text>
+            </Pressable>
+          </View>
+          )
+        }
+        renderItem={({ item: se, getIndex, drag, isActive }: RenderItemParams<SessionExercise>) => {
+          const exIdx = getIndex() ?? 0;
           const exercise = getExercise(se.exerciseId);
-          const isBarbell = exercise?.equipment.includes('barbell');
-          const currentWeightKg =
-            se.sets.find((s) => s.weightKg != null && s.weightKg > 0)?.weightKg ?? 0;
+
+          if (reorderMode) {
+            const completedCount = se.sets.filter((s) => s.completed).length;
+            return (
+              <ScaleDecorator>
+                <Pressable
+                  onLongPress={drag}
+                  delayLongPress={120}
+                  style={[
+                    styles.reorderRow,
+                    {
+                      backgroundColor: isActive ? colors.surfaceElevated : colors.surface,
+                      borderColor: colors.border,
+                    },
+                    isActive && styles.reorderRowActive,
+                  ]}
+                >
+                  <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
+                  <Text style={[styles.reorderRowTitle, { color: colors.text }]} numberOfLines={1}>
+                    {exercise?.name ?? se.exerciseId}
+                  </Text>
+                  <Text style={[styles.reorderRowMeta, { color: colors.textMuted }]}>
+                    {completedCount}/{se.sets.length}
+                  </Text>
+                </Pressable>
+              </ScaleDecorator>
+            );
+          }
 
           const lastCompletedSetIndex = se.sets.reduce((last, s, i) => (s.completed ? i : last), -1);
 
@@ -444,7 +678,6 @@ export default function ActiveWorkoutScreen() {
 
           return (
             <View
-              key={se.exerciseId + exIdx}
               style={[
                 styles.exerciseCard,
                 { backgroundColor: colors.surface, borderColor: colors.border },
@@ -453,14 +686,21 @@ export default function ActiveWorkoutScreen() {
             >
               <View style={styles.exerciseCardHeaderWrap}>
                 <View style={styles.exerciseCardHeader}>
-                  <Text style={[styles.exerciseName, { color: colors.accent }]}>
-                    {exercise?.name ?? se.exerciseId}
-                    {exercise?.equipment?.[0] ? ` (${exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)})` : ''}
-                  </Text>
+                  <Pressable
+                    style={{ flex: 1 }}
+                    onLongPress={() => {
+                      if (session.exercises.length < 2) return;
+                      setExerciseMenuExIdx(null);
+                      setReorderMode(true);
+                    }}
+                    delayLongPress={280}
+                  >
+                    <Text style={[styles.exerciseName, { color: colors.accent }]} numberOfLines={2}>
+                      {exercise?.name ?? se.exerciseId}
+                      {exercise?.equipment?.[0] ? ` (${exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)})` : ''}
+                    </Text>
+                  </Pressable>
                   <View style={styles.exerciseCardActions}>
-                    <Pressable hitSlop={8} style={styles.exerciseHeaderIcon}>
-                      <Ionicons name="link-outline" size={18} color={colors.accent} />
-                    </Pressable>
                     <Pressable
                       hitSlop={8}
                       onPress={() => setExerciseMenuExIdx(exerciseMenuExIdx === exIdx ? null : exIdx)}
@@ -487,18 +727,11 @@ export default function ActiveWorkoutScreen() {
                     collapsable={false}
                   >
                     <Pressable
-                      style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                      onPress={() => {
-                        setEditSetsExIdx(exIdx);
-                        setSetsToDelete(new Set());
-                        setExerciseMenuExIdx(null);
-                      }}
-                    >
-                      <Ionicons name="list-outline" size={18} color={colors.text} />
-                      <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                      style={[
+                        styles.exerciseDropdownItem,
+                        !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
+                        { borderBottomColor: colors.border },
+                      ]}
                       onPress={() => {
                         setRestTimersExIdx(exIdx);
                         setExerciseMenuExIdx(null);
@@ -507,30 +740,6 @@ export default function ActiveWorkoutScreen() {
                       <Ionicons name="timer-outline" size={18} color={colors.text} />
                       <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Rest timers</Text>
                     </Pressable>
-                    {session.exercises.length >= 2 && exIdx > 0 && (
-                      <Pressable
-                        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                        onPress={() => {
-                          moveExerciseUp(exIdx);
-                          setExerciseMenuExIdx(null);
-                        }}
-                      >
-                        <Ionicons name="chevron-up-outline" size={18} color={colors.text} />
-                        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move up</Text>
-                      </Pressable>
-                    )}
-                    {session.exercises.length >= 2 && exIdx < session.exercises.length - 1 && (
-                      <Pressable
-                        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                        onPress={() => {
-                          moveExerciseDown(exIdx);
-                          setExerciseMenuExIdx(null);
-                        }}
-                      >
-                        <Ionicons name="chevron-down-outline" size={18} color={colors.text} />
-                        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move down</Text>
-                      </Pressable>
-                    )}
                     {!isBuiltInWorkout && (
                       <Pressable
                         style={styles.exerciseDropdownItem}
@@ -645,9 +854,9 @@ export default function ActiveWorkoutScreen() {
                 const weightStr =
                   set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : '—';
                 const repsStr = set.reps !== undefined ? String(set.reps) : '—';
+                const canDeleteSet = se.sets.length > 1;
 
-                return (
-                  <View key={setIdx}>
+                const setRow = (
                     <View
                       style={[
                         styles.setRow,
@@ -734,6 +943,7 @@ export default function ActiveWorkoutScreen() {
                       )}
                       <SetDonePressable
                         completed={set.completed}
+                        disabled={!set.completed && !(set.reps != null && set.reps > 0)}
                         mutedFill={mutedFill}
                         colors={colors}
                         onPress={() => {
@@ -741,9 +951,9 @@ export default function ActiveWorkoutScreen() {
                             uncompleteSet(exIdx, setIdx);
                             if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
                               clearRestTimer();
-                              setShowRestControlSheet(false);
                             }
                           } else {
+                            if (!(set.reps != null && set.reps > 0)) return;
                             completeSet(exIdx, setIdx);
                             if (workoutSoundsEnabled) {
                               void playWorkoutSound('setComplete');
@@ -757,13 +967,37 @@ export default function ActiveWorkoutScreen() {
                         }}
                       />
                     </View>
+                );
+
+                return (
+                  <View key={setIdx}>
+                    {canDeleteSet ? (
+                      <Swipeable
+                        overshootRight={false}
+                        friction={2}
+                        renderRightActions={() => (
+                          <Pressable
+                            style={[styles.swipeDeleteAction, { backgroundColor: colors.danger }]}
+                            onPress={() => {
+                              if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
+                                clearRestTimer();
+                              }
+                              removeSet(exIdx, setIdx);
+                            }}
+                          >
+                            <Ionicons name="trash-outline" size={20} color="#fff" />
+                          </Pressable>
+                        )}
+                      >
+                        {setRow}
+                      </Swipeable>
+                    ) : (
+                      setRow
+                    )}
                     {showRestGap && (
                       <View style={styles.restGapBlock}>
                         {restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx && restSecondsLeft != null && restSecondsLeft > 0 ? (
-                          <Pressable
-                            onPress={() => setShowRestControlSheet(true)}
-                            style={styles.restTrackWrap}
-                          >
+                          <View style={styles.restTrackWrap}>
                             <View
                               style={[
                                 styles.restTrack,
@@ -787,7 +1021,7 @@ export default function ActiveWorkoutScreen() {
                                 {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
                               </Text>
                             </View>
-                          </Pressable>
+                          </View>
                         ) : (
                           <View style={styles.restGapIdle}>
                             <View style={[styles.restIdleLine, { backgroundColor: isDark ? colors.border : '#e2e8f0' }]} />
@@ -830,50 +1064,8 @@ export default function ActiveWorkoutScreen() {
               </View>
             </View>
           );
-        })}
-
-        <Pressable
-          style={[
-            styles.addExerciseBtn,
-            { backgroundColor: isPro ? colors.primary : colors.surfaceElevated, borderColor: colors.border },
-          ]}
-          onPress={() => {
-            if (isPro) {
-              setShowAddExerciseModal(true);
-            } else {
-              router.push('/subscription');
-            }
-          }}
-        >
-          <Ionicons name="add-circle-outline" size={22} color={isPro ? '#fff' : colors.textSecondary} />
-          <Text style={[styles.addExerciseBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}>
-            {isPro ? 'Add Exercise' : 'Pro: Add Exercise'}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.cancelWorkoutBtn}
-          onPress={() => {
-            Alert.alert(
-              'Cancel workout',
-              'This workout will not be saved. Are you sure?',
-              [
-                { text: 'Keep', style: 'cancel' },
-                {
-                  text: 'Cancel workout',
-                  style: 'destructive',
-                  onPress: () => {
-                    // Navigate with param so tabs layout clears session when it mounts; avoids pill staying visible due to render timing
-                    router.replace('/(tabs)?discardWorkout=1');
-                  },
-                },
-              ]
-            );
-          }}
-        >
-          <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>Cancel workout</Text>
-        </Pressable>
-      </ScrollView>
+        }}
+      />
 
       <Modal visible={showRestPicker} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setShowRestPicker(false)}>
@@ -929,18 +1121,11 @@ export default function ActiveWorkoutScreen() {
                 onStartShouldSetResponder={() => true}
               >
                 <Pressable
-                  style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    setEditSetsExIdx(exIdx);
-                    setSetsToDelete(new Set());
-                    setExerciseMenuExIdx(null);
-                  }}
-                >
-                  <Ionicons name="list-outline" size={18} color={colors.text} />
-                  <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit sets</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+                  style={[
+                    styles.exerciseDropdownItem,
+                    !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
+                    { borderBottomColor: colors.border },
+                  ]}
                   onPress={() => {
                     setRestTimersExIdx(exIdx);
                     setExerciseMenuExIdx(null);
@@ -950,30 +1135,6 @@ export default function ActiveWorkoutScreen() {
                   <Ionicons name="timer-outline" size={18} color={colors.text} />
                   <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Rest timers</Text>
                 </Pressable>
-                {session.exercises.length >= 2 && exIdx > 0 && (
-                  <Pressable
-                    style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      moveExerciseUp(exIdx);
-                      setExerciseMenuExIdx(null);
-                    }}
-                  >
-                    <Ionicons name="chevron-up-outline" size={18} color={colors.text} />
-                    <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move up</Text>
-                  </Pressable>
-                )}
-                {session.exercises.length >= 2 && exIdx < session.exercises.length - 1 && (
-                  <Pressable
-                    style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      moveExerciseDown(exIdx);
-                      setExerciseMenuExIdx(null);
-                    }}
-                  >
-                    <Ionicons name="chevron-down-outline" size={18} color={colors.text} />
-                    <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Move down</Text>
-                  </Pressable>
-                )}
                 {!isBuiltInWorkout && (
                   <Pressable
                     style={styles.exerciseDropdownItem}
@@ -999,135 +1160,43 @@ export default function ActiveWorkoutScreen() {
         );
       })()}
 
-      <Modal visible={showRestControlSheet && restSecondsLeft != null} transparent animationType="slide">
-        <Pressable style={styles.restControlOverlay} onPress={() => setShowRestControlSheet(false)}>
+      <Modal visible={showRestControls && restSecondsLeft != null && restSecondsLeft > 0} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowRestControls(false)}>
           <View
-            style={[styles.restControlSheet, { backgroundColor: colors.surface }]}
+            style={[styles.restControlsCard, { backgroundColor: colors.surface }]}
             onStartShouldSetResponder={() => true}
           >
-            <View style={[styles.restControlSheetHandle, { backgroundColor: colors.textMuted }]} />
-            <Text style={[styles.restControlLabel, { color: colors.textMuted }]}>Pause</Text>
+            <Text style={[styles.restControlsLabel, { color: colors.textMuted }]}>Rest</Text>
             {restSecondsLeft != null && (
-              <Text style={[styles.restControlTimer, { color: colors.text }]}>
+              <Text style={[styles.restControlsTimer, { color: colors.text }]}>
                 {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
               </Text>
             )}
-            <View style={styles.restControlActions}>
+            <View style={styles.restControlsRow}>
               <Pressable
-                style={[styles.restControlBtnCircle, { backgroundColor: colors.surfaceElevated }]}
+                style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated }]}
                 onPress={subtract30SecondsRest}
               >
-                <Ionicons name="remove" size={24} color={colors.text} />
+                <Text style={[styles.restControlsAdjText, { color: colors.text }]}>−30</Text>
               </Pressable>
               <Pressable
-                style={[styles.restControlBtnCircle, { backgroundColor: colors.surfaceElevated }]}
+                style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated }]}
                 onPress={add30SecondsRest}
               >
-                <Ionicons name="add" size={24} color={colors.text} />
+                <Text style={[styles.restControlsAdjText, { color: colors.text }]}>+30</Text>
               </Pressable>
             </View>
-            <View style={styles.restControlBottomActions}>
-              <Pressable
-                style={[styles.restControlBtnRect, { backgroundColor: colors.danger }]}
-                onPress={handleResetRest}
-              >
-                <Text style={[styles.restControlBtnText, { color: '#fff' }]}>RESET</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.restControlBtnRect, { backgroundColor: colors.primary }]}
-                onPress={handleSkipRest}
-              >
-                <Text style={[styles.restControlBtnText, { color: '#fff' }]}>SKIP</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={[styles.restControlsSkip, { backgroundColor: colors.primary }]}
+              onPress={handleSkipRest}
+            >
+              <Text style={styles.restControlsSkipText}>Skip rest</Text>
+            </Pressable>
           </View>
         </Pressable>
       </Modal>
 
-      {/* Edit sets: select sets to delete */}
-      <Modal visible={editSetsExIdx !== null} transparent animationType="fade">
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => {
-            setEditSetsExIdx(null);
-            setSetsToDelete(new Set());
-          }}
-        >
-          <View
-            style={[styles.editSetsCard, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
-          >
-            {editSetsExIdx !== null && session?.exercises[editSetsExIdx] && (() => {
-              const ex = session.exercises[editSetsExIdx];
-              const exerciseName = getExercise(ex.exerciseId)?.name ?? ex.exerciseId;
-              const numSets = ex.sets.length;
-              const canDeleteSelected = setsToDelete.size > 0 && setsToDelete.size < numSets;
-              const toggleSet = (setIdx: number) => {
-                setSetsToDelete((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(setIdx)) next.delete(setIdx);
-                  else next.add(setIdx);
-                  return next;
-                });
-              };
-              const handleDeleteSelected = () => {
-                if (!canDeleteSelected) return;
-                const indices = Array.from(setsToDelete).sort((a, b) => b - a);
-                indices.forEach((setIdx) => removeSet(editSetsExIdx, setIdx));
-                setEditSetsExIdx(null);
-                setSetsToDelete(new Set());
-              };
-              return (
-                <>
-                  <Text style={[styles.editSetsTitle, { color: colors.text }]}>Edit sets</Text>
-                  <Text style={[styles.editSetsSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
-                    {exerciseName}
-                  </Text>
-                  <Text style={[styles.editSetsHint, { color: colors.textMuted }]}>
-                    Select sets to remove. At least one set must remain.
-                  </Text>
-                  <ScrollView style={styles.editSetsList}>
-                    {ex.sets.map((_, setIdx) => (
-                      <Pressable
-                        key={setIdx}
-                        style={[styles.editSetsRow, { borderBottomColor: colors.border }]}
-                        onPress={() => toggleSet(setIdx)}
-                      >
-                        <View style={[styles.editSetsCheckbox, { borderColor: colors.border, backgroundColor: setsToDelete.has(setIdx) ? colors.primary : 'transparent' }]}>
-                          {setsToDelete.has(setIdx) && <Ionicons name="checkmark" size={16} color="#fff" />}
-                        </View>
-                        <Text style={[styles.editSetsRowLabel, { color: colors.text }]}>Set {setIdx + 1}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                  <View style={styles.editSetsActions}>
-                    <Pressable
-                      style={[styles.editSetsDeleteBtn, { backgroundColor: canDeleteSelected ? colors.danger : colors.surfaceElevated, opacity: canDeleteSelected ? 1 : 0.6 }]}
-                      onPress={handleDeleteSelected}
-                      disabled={!canDeleteSelected}
-                    >
-                      <Text style={[styles.editSetsDeleteBtnText, { color: canDeleteSelected ? '#fff' : colors.textMuted }]}>
-                        Delete selected ({setsToDelete.size})
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.editSetsDoneBtn, { borderColor: colors.border }]}
-                      onPress={() => {
-                        setEditSetsExIdx(null);
-                        setSetsToDelete(new Set());
-                      }}
-                    >
-                      <Text style={[styles.editSetsDoneBtnText, { color: colors.text }]}>Done</Text>
-                    </Pressable>
-                  </View>
-                </>
-              );
-            })()}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Rest after each set for this exercise (same duration for all sets, including after the last). */}
+      {/* Rest after each set for this exercise */}
       <Modal visible={restTimersExIdx !== null} transparent animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setRestTimersExIdx(null)}>
           <View
@@ -1422,6 +1491,7 @@ export default function ActiveWorkoutScreen() {
         </Pressable>
       </Modal>
     </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -1438,11 +1508,26 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 56 },
   headerTimerBtn: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerRestChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    minHeight: 28,
+  },
+  headerRestChipText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   headerRestContainer: {
     paddingHorizontal: 6,
@@ -1466,6 +1551,67 @@ const styles = StyleSheet.create({
   finishHeaderBtn: { minWidth: 48, alignItems: 'flex-end' },
   finishHeaderBtnDisabled: { opacity: 0.7 },
   finishHeaderText: { fontSize: 14, fontWeight: '700' },
+  workoutTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  reorderHintInline: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  restControlsCard: {
+    marginHorizontal: 28,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    gap: 12,
+  },
+  restControlsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  restControlsTimer: {
+    fontSize: 40,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  restControlsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  restControlsAdj: {
+    minWidth: 88,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  restControlsAdjText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  restControlsSkip: {
+    alignSelf: 'stretch',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  restControlsSkipText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  swipeDeleteAction: {
+    width: 72,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 28 },
   emptyWorkoutBlock: {
@@ -1498,6 +1644,104 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
+    gap: 6,
+  },
+  restBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  restBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+  },
+  restBannerTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  restBannerTime: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  restBannerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  restBannerAdj: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  restBannerAdjText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  restBannerSkip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  restBannerSkipText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  headerReorderBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  headerReorderText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reorderHint: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  reorderHintText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  reorderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  reorderRowActive: {
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  reorderRowTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  reorderRowMeta: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   exerciseName: { fontSize: 15, fontWeight: '700', flex: 1 },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -1580,8 +1824,8 @@ const styles = StyleSheet.create({
   restTrackWrap: { alignSelf: 'stretch' },
   restTrack: {
     alignSelf: 'stretch',
-    height: 22,
-    borderRadius: 11,
+    height: 20,
+    borderRadius: 4,
     overflow: 'hidden',
     justifyContent: 'center',
     position: 'relative',
@@ -1591,7 +1835,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 11,
+    borderRadius: 0,
   },
   restTrackCenterTime: {
     width: '100%',
@@ -1606,12 +1850,20 @@ const styles = StyleSheet.create({
   restGapIdle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 2,
-    paddingHorizontal: 0,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    width: '100%',
   },
   restIdleLine: { flex: 1, height: StyleSheet.hairlineWidth, opacity: 0.9 },
-  restBetweenText: { fontSize: 11, fontWeight: '600' },
+  restBetweenText: {
+    fontSize: 11,
+    fontWeight: '600',
+    minWidth: 36,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
   restControlOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1895,4 +2147,110 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelWorkoutText: { fontSize: 15 },
+  finishedScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 24,
+  },
+  finishedHero: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  finishedBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  finishedTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginBottom: 6,
+  },
+  finishedSubtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  finishedStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 16,
+    marginBottom: 22,
+  },
+  finishedStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  finishedStatValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    marginBottom: 2,
+  },
+  finishedStatLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  finishedStatDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+  },
+  finishedSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  finishedCard: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  finishedExerciseRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  finishedExerciseTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  finishedExerciseName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  finishedExerciseSets: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  finishedExerciseDetail: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  finishedFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  finishedDoneBtn: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  finishedDoneBtnText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+  },
 });

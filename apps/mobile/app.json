@@ -17,7 +17,6 @@
     "icon": "./assets/icon.png",
     "scheme": "muscleos",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
@@ -26,6 +25,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "expo-audio",
       [
         "expo-notifications",
         {
