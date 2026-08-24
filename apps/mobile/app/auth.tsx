@@ -71,7 +71,7 @@ export default function AuthScreen() {
         onPress={() => router.push('/auth-email')}
         disabled={loading}
       >
-        <Text style={[typography.button, { color: colors.text }]}>Email / local account</Text>
+        <Text style={[typography.button, { color: colors.text }]}>Continue with Email</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={styles.skip} disabled={loading}>
         <Text style={[typography.caption, { color: colors.textMuted }]}>Skip for now</Text>
