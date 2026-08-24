@@ -25,7 +25,7 @@ export function PrimaryButton({ label, variant = 'filled', style, disabled, ...r
       disabled={disabled}
       {...rest}
     >
-      <Text style={[typography.button, { color: isFilled ? '#FFFFFF' : colors.text }]}>{label}</Text>
+      <Text style={[typography.button, { color: isFilled ? colors.primaryOn : colors.text }]}>{label}</Text>
     </Pressable>
   );
 }

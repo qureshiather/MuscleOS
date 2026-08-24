@@ -41,10 +41,10 @@ export function ResumeWorkoutPill() {
   }
 
   return (
-    <View style={[styles.pill, { backgroundColor: colors.primary + '18', borderBottomColor: colors.border }]}>
+    <View style={[styles.pill, { backgroundColor: colors.primarySurface, borderBottomColor: colors.border }]}>
       <Pressable style={styles.main} onPress={handleResume}>
         <View style={[styles.iconDot, { backgroundColor: colors.primary }]}>
-          <Ionicons name="barbell" size={14} color="#FFFFFF" />
+          <Ionicons name="barbell" size={14} color={colors.primaryOn} />
         </View>
         <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>Resume workout</Text>
         <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatElapsed(elapsedMs)}</Text>

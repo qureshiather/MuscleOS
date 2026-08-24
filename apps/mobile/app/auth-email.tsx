@@ -50,8 +50,8 @@ export default function AuthEmailScreen() {
         style={styles.keyboard}
       >
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
-          <Ionicons name="chevron-back" size={22} color={colors.accent} />
-          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
 
         <Text style={[typography.screenTitle, { color: colors.text }]}>

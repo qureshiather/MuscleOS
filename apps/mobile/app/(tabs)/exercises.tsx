@@ -162,7 +162,7 @@ export default function ExercisesScreen() {
                   <Text
                     style={[
                       styles.chipText,
-                      { color: typeFilter === null ? '#fff' : colors.textSecondary },
+                      { color: typeFilter === null ? colors.primaryOn : colors.textSecondary },
                     ]}
                     numberOfLines={1}
                   >
@@ -181,7 +181,7 @@ export default function ExercisesScreen() {
                     <Text
                       style={[
                         styles.chipText,
-                        { color: typeFilter === key ? '#fff' : colors.textSecondary },
+                        { color: typeFilter === key ? colors.primaryOn : colors.textSecondary },
                       ]}
                       numberOfLines={1}
                     >
@@ -211,7 +211,7 @@ export default function ExercisesScreen() {
                   <Text
                     style={[
                       styles.chipText,
-                      { color: muscleFilter === null ? '#fff' : colors.textSecondary },
+                      { color: muscleFilter === null ? colors.primaryOn : colors.textSecondary },
                     ]}
                     numberOfLines={1}
                   >
@@ -230,7 +230,7 @@ export default function ExercisesScreen() {
                     <Text
                       style={[
                         styles.chipText,
-                        { color: muscleFilter === key ? '#fff' : colors.textSecondary },
+                        { color: muscleFilter === key ? colors.primaryOn : colors.textSecondary },
                       ]}
                       numberOfLines={1}
                     >
@@ -250,7 +250,7 @@ export default function ExercisesScreen() {
                     <Text
                       style={[
                         styles.chipText,
-                        { color: muscleFilter === m.id ? '#fff' : colors.textSecondary },
+                        { color: muscleFilter === m.id ? colors.primaryOn : colors.textSecondary },
                       ]}
                       numberOfLines={1}
                     >
@@ -309,14 +309,14 @@ export default function ExercisesScreen() {
         transparent
         onRequestClose={() => setSelected(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setSelected(null)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setSelected(null)}>
           <Pressable style={[styles.modalContent, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
             {selected && (
               <>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
                   <Text style={[styles.modalTitle, { color: colors.text }]}>{selected.name}</Text>
                   <Pressable onPress={() => setSelected(null)}>
-                    <Text style={[styles.modalClose, { color: colors.accent }]}>Close</Text>
+                    <Text style={[styles.modalClose, { color: colors.primary }]}>Close</Text>
                   </Pressable>
                 </View>
                 <MuscleDiagram muscleIds={selected.muscles} showLabels size={0.9} />
@@ -411,7 +411,6 @@ const styles = StyleSheet.create({
   cardMeta: { ...typography.caption, marginTop: spacing.xs },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {

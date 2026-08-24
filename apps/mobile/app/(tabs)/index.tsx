@@ -452,7 +452,7 @@ export default function WorkoutsScreen() {
           <Ionicons
             name={folder.favorite ? 'star' : 'star-outline'}
             size={18}
-            color={folder.favorite ? colors.accent : colors.text}
+            color={folder.favorite ? colors.warning : colors.text}
           />
           <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
             {folder.favorite ? 'Unpin from top' : 'Pin to top'}
@@ -549,7 +549,7 @@ export default function WorkoutsScreen() {
               />
               <Ionicons name="folder-outline" size={18} color={iconColor} />
               {folder.favorite && !isArchived && (
-                <Ionicons name="star" size={14} color={colors.accent} style={styles.folderStar} />
+                <Ionicons name="star" size={14} color={colors.warning} style={styles.folderStar} />
               )}
               <Text style={[styles.sectionTitle, { color: titleColor }]}>{folder.name}</Text>
             </Pressable>
@@ -628,7 +628,7 @@ export default function WorkoutsScreen() {
                 <Ionicons
                   name="add-circle-outline"
                   size={28}
-                  color={isPro ? '#fff' : colors.primary}
+                  color={isPro ? colors.primaryOn : colors.primary}
                 />
               </View>
                 <View style={styles.startEmptyTextWrap}>
@@ -636,7 +636,7 @@ export default function WorkoutsScreen() {
                   <Text
                     style={[
                       styles.startEmptyCardTitle,
-                      { color: isPro ? '#fff' : colors.text },
+                      { color: isPro ? colors.primaryOn : colors.text },
                     ]}
                   >
                     Empty workout
@@ -648,7 +648,7 @@ export default function WorkoutsScreen() {
                 <Text
                   style={[
                     styles.startEmptyCardSubtitle,
-                    { color: isPro ? 'rgba(255,255,255,0.85)' : colors.textMuted },
+                    { color: isPro ? 'rgba(255,255,255,0.88)' : colors.textMuted },
                   ]}
                 >
                   {isPro ? 'Add exercises as you go' : 'Included with Pro'}
@@ -657,7 +657,7 @@ export default function WorkoutsScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={22}
-                color={isPro ? 'rgba(255,255,255,0.8)' : colors.textMuted}
+                color={isPro ? 'rgba(255,255,255,0.88)' : colors.textMuted}
               />
             </View>
           </Pressable>
@@ -880,7 +880,7 @@ export default function WorkoutsScreen() {
 
       <Modal visible={showFolderModal} animationType="slide" transparent>
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setShowFolderModal(false)}
         >
           <View
@@ -926,7 +926,7 @@ export default function WorkoutsScreen() {
 
       <Modal visible={!!editingFolder} animationType="slide" transparent>
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setEditingFolder(null)}
         >
           <View
@@ -1031,7 +1031,7 @@ export default function WorkoutsScreen() {
                   <Ionicons
                     name={folder.favorite ? 'star' : 'star-outline'}
                     size={18}
-                    color={folder.favorite ? colors.accent : colors.text}
+                    color={folder.favorite ? colors.warning : colors.text}
                   />
                   <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
                     {folder.favorite ? 'Unpin from top' : 'Pin to top'}
@@ -1079,7 +1079,7 @@ export default function WorkoutsScreen() {
 
       <Modal visible={!!templateMenuTarget} animationType="fade" transparent>
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setTemplateMenuTarget(null)}
         >
           <View
@@ -1130,7 +1130,7 @@ export default function WorkoutsScreen() {
 
       <Modal visible={!!editingTemplateName} animationType="slide" transparent>
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => setEditingTemplateName(null)}
         >
           <View
@@ -1176,7 +1176,7 @@ export default function WorkoutsScreen() {
 
       <Modal visible={!!moveTemplateModal} animationType="slide" transparent>
         <Pressable
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
           onPress={() => {
             setMoveTemplateModal(null);
             setShowCreateFolderInMoveModal(false);
@@ -1457,7 +1457,6 @@ const styles = StyleSheet.create({
   exerciseCount: { fontSize: 11, marginTop: 4 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     padding: 24,
   },

@@ -17,7 +17,7 @@ export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderPro
       <Text style={[typography.sectionTitle, { color: colors.text }]}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} hitSlop={8} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
-          <Text style={[typography.label, { color: colors.accent }]}>{actionLabel}</Text>
+          <Text style={[typography.label, { color: colors.primary }]}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>

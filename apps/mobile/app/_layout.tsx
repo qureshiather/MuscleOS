@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import { LinkPreviewContextProvider } from 'expo-router/build/link/preview/LinkPreviewContext';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
+import { ThemeProvider, useTheme, brandColors } from '@/theme/ThemeContext';
 import { useAppFonts } from '@/theme/useAppFonts';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -83,8 +83,8 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0E0E0F' }}>
-        <ActivityIndicator size="large" color="#C45C26" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: brandColors.background }}>
+        <ActivityIndicator size="large" color={brandColors.primary} />
       </View>
     );
   }

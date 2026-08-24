@@ -274,7 +274,7 @@ export default function CreateTemplateScreen() {
       </ScrollView>
 
       <Modal visible={showPicker} animationType="slide" transparent>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowPicker(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowPicker(false)}>
           <View
             style={[styles.pickerContent, { backgroundColor: colors.surface }]}
             onStartShouldSetResponder={() => true}
@@ -282,7 +282,7 @@ export default function CreateTemplateScreen() {
             <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[typography.sectionTitle, { color: colors.text }]}>Add exercise</Text>
               <Pressable onPress={() => setShowPicker(false)} hitSlop={8}>
-                <Text style={[typography.label, { color: colors.accent }]}>Done</Text>
+                <Text style={[typography.label, { color: colors.primary }]}>Done</Text>
               </Pressable>
             </View>
             <TextInput
@@ -378,7 +378,6 @@ const styles = StyleSheet.create({
   muscleNames: { marginTop: spacing.sm, textAlign: 'center' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   pickerContent: {

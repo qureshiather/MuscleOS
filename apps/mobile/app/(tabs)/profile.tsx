@@ -184,7 +184,7 @@ export default function ProfileScreen() {
           animationType="fade"
           onRequestClose={() => setProfileModalVisible(false)}
         >
-          <Pressable style={styles.modalOverlay} onPress={() => setProfileModalVisible(false)}>
+          <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setProfileModalVisible(false)}>
             <Pressable
               style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={(e) => e.stopPropagation()}
@@ -317,7 +317,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,

@@ -74,8 +74,8 @@ export default function SubscriptionScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.back} hitSlop={8}>
-          <Ionicons name="chevron-back" size={22} color={colors.accent} />
-          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
         <Text style={[typography.screenTitle, { color: colors.text }]}>Subscription</Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>

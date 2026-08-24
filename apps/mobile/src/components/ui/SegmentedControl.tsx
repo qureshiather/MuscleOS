@@ -36,7 +36,7 @@ export function SegmentedControl<T extends string>({
             ]}
             onPress={() => onChange(opt.value)}
           >
-            <Text style={[typography.label, { color: selected ? '#fff' : colors.text }]}>
+            <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.text }]}>
               {opt.label}
             </Text>
           </Pressable>

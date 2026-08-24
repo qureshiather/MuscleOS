@@ -33,7 +33,7 @@ export function ScreenHeader({
           <Ionicons
             name={backIcon === 'close' ? 'close' : 'chevron-back'}
             size={backIcon === 'close' ? 26 : 28}
-            color={colors.accent}
+            color={colors.primary}
           />
         </Pressable>
       ) : (

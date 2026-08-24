@@ -1,4 +1,4 @@
-/** Spacing scale (4pt grid) */
+/** Spacing scale (4pt grid). Colors: see `palette.ts`. */
 export const spacing = {
   xs: 4,
   sm: 8,

@@ -120,7 +120,7 @@ function SetDonePressable({
   completed: boolean;
   disabled?: boolean;
   mutedFill: string;
-  colors: { primary: string; border: string; textMuted: string };
+  colors: { primary: string; border: string; textMuted: string; success: string; successOn: string };
   onPress: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -154,11 +154,11 @@ function SetDonePressable({
           style={[
             styles.doneBtn,
             completed
-              ? { backgroundColor: colors.primary }
+              ? { backgroundColor: colors.success }
               : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
           ]}
         >
-          <Ionicons name="checkmark" size={16} color={completed ? '#fff' : colors.textMuted} />
+          <Ionicons name="checkmark" size={16} color={completed ? colors.successOn : colors.textMuted} />
         </View>
       </Pressable>
     </Animated.View>
@@ -214,13 +214,11 @@ function ActiveRestGap({
   restSecondsLeft,
   restTotalSeconds,
   colors,
-  isDark,
 }: {
   visible: boolean;
   restSecondsLeft: number;
   restTotalSeconds: number;
-  colors: { primary: string; text: string; textMuted: string; border: string };
-  isDark: boolean;
+  colors: { primary: string; text: string; textSecondary: string; textMuted: string; primarySurface: string; border: string };
 }) {
   const anim = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -257,17 +255,16 @@ function ActiveRestGap({
       ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100)
       : 0;
   const timeLabel = `${Math.floor(restSecondsLeft / 60)}:${(restSecondsLeft % 60).toString().padStart(2, '0')}`;
-  const trackBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
   return (
     <Animated.View style={[styles.restGapBlock, { height, opacity: anim, overflow: 'hidden' }]}>
       <View style={styles.restGapInner}>
         <View style={styles.restGapTimeRow}>
-          <Ionicons name="timer-outline" size={12} color={colors.primary} />
+          <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
           <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
           <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
         </View>
-        <View style={[styles.restGapTrack, { backgroundColor: trackBg }]}>
+        <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
           <View
             style={[
               styles.restGapFill,
@@ -734,16 +731,23 @@ export default function ActiveWorkoutScreen() {
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="chevron-down" size={28} color={colors.primary} />
+            <Ionicons name="chevron-down" size={28} color={colors.textSecondary} />
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (
             <Pressable
               onPress={() => setShowRestControls(true)}
               hitSlop={6}
-              style={[styles.headerRestChip, { backgroundColor: colors.primary }]}
+              style={[
+                styles.headerRestChip,
+                {
+                  backgroundColor: colors.primarySurface,
+                  borderWidth: 1,
+                  borderColor: colors.primaryBorder,
+                },
+              ]}
             >
-              <Ionicons name="timer" size={13} color="#fff" />
-              <Text style={styles.headerRestChipText}>
+              <Ionicons name="timer" size={13} color={colors.primary} />
+              <Text style={[styles.headerRestChipText, { color: colors.primary }]}>
                 {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
               </Text>
             </Pressable>
@@ -753,7 +757,7 @@ export default function ActiveWorkoutScreen() {
               hitSlop={8}
               style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
-              <Ionicons name="timer-outline" size={14} color={colors.primary} />
+              <Ionicons name="timer-outline" size={14} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
@@ -782,7 +786,7 @@ export default function ActiveWorkoutScreen() {
               <Text
                 style={[
                   styles.finishHeaderText,
-                  { color: hasAtLeastOneSet ? '#fff' : colors.textMuted },
+                  { color: hasAtLeastOneSet ? colors.primaryOn : colors.textMuted },
                 ]}
               >
                 Finish
@@ -830,7 +834,12 @@ export default function ActiveWorkoutScreen() {
             <Pressable
               style={[
                 styles.addExerciseBtn,
-                { backgroundColor: isPro ? colors.primary : colors.surfaceElevated, borderColor: colors.border },
+                isPro
+                  ? {
+                      backgroundColor: colors.primarySurface,
+                      borderColor: colors.primaryBorder,
+                    }
+                  : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
               ]}
               onPress={() => {
                 if (isPro) {
@@ -840,8 +849,8 @@ export default function ActiveWorkoutScreen() {
                 }
               }}
             >
-              <Ionicons name="add-circle-outline" size={22} color={isPro ? '#fff' : colors.textSecondary} />
-              <Text style={[styles.addExerciseBtnText, { color: isPro ? '#fff' : colors.textSecondary }]}>
+              <Ionicons name="add-circle-outline" size={22} color={isPro ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.addExerciseBtnText, { color: isPro ? colors.primary : colors.textSecondary }]}>
                 {isPro ? 'Add Exercise' : 'Pro: Add Exercise'}
               </Text>
             </Pressable>
@@ -939,8 +948,8 @@ export default function ActiveWorkoutScreen() {
                         style={[
                           styles.exerciseRestChip,
                           {
-                            backgroundColor: isDark ? 'rgba(196, 92, 38, 0.14)' : 'rgba(196, 92, 38, 0.08)',
-                            borderColor: isDark ? 'rgba(196, 92, 38, 0.28)' : 'rgba(196, 92, 38, 0.18)',
+                            backgroundColor: colors.primarySurface,
+                            borderColor: colors.primaryBorder,
                           },
                         ]}
                       >
@@ -975,7 +984,7 @@ export default function ActiveWorkoutScreen() {
                   styles.tableInset,
                   {
                     borderColor: colors.border,
-                    backgroundColor: isDark ? colors.surfaceElevated : '#ffffff',
+                    backgroundColor: colors.surface,
                   },
                 ]}
               >
@@ -983,7 +992,7 @@ export default function ActiveWorkoutScreen() {
                 style={[
                   styles.tableHeaderStrip,
                   {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9',
+                    backgroundColor: colors.tableHeader,
                     borderBottomColor: colors.border,
                   },
                 ]}
@@ -1026,22 +1035,18 @@ export default function ActiveWorkoutScreen() {
                   ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
                   : '—';
 
-                const completedRowTint = isDark
-                  ? 'rgba(20, 83, 45, 0.22)'
-                  : '#f0fdf4';
-                const warmUpRowTint = isDark ? 'rgba(255,255,255,0.04)' : '#faf8f6';
+                const completedRowTint = isDark ? colors.surfaceElevated : colors.successSurface;
+                const warmUpRowTint = colors.rowWarmUp;
                 const rowBg = set.completed
                   ? completedRowTint
                   : isWarmUp
                     ? warmUpRowTint
                     : isFutureSet
-                      ? isDark
-                        ? 'rgba(255,255,255,0.03)'
-                        : '#f8fafc'
+                      ? colors.rowFuture
                       : isDark
                         ? colors.surface
-                        : '#ffffff';
-                const mutedFill = isDark ? colors.surfaceElevated : '#f1f5f9';
+                        : colors.surface;
+                const mutedFill = colors.surfaceElevated;
 
                 let kgBorderW = 0;
                 let kgBorderColor = 'transparent';
@@ -1058,17 +1063,17 @@ export default function ActiveWorkoutScreen() {
                     if (isKgFocused) {
                       kgFill = colors.surface;
                       kgBorderW = 1.5;
-                      kgBorderColor = colors.accent;
+                      kgBorderColor = colors.primary;
                       repsFill = mutedFill;
                     } else if (isRepsFocused) {
                       kgFill = mutedFill;
                       repsFill = colors.surface;
                       repsBorderW = 1.5;
-                      repsBorderColor = colors.accent;
+                      repsBorderColor = colors.primary;
                     } else {
                       kgFill = colors.surface;
                       kgBorderW = 1;
-                      kgBorderColor = isDark ? colors.border : '#cbd5e1';
+                      kgBorderColor = isDark ? colors.border : colors.inputBorder;
                       repsFill = mutedFill;
                     }
                   }
@@ -1226,17 +1231,16 @@ export default function ActiveWorkoutScreen() {
                       restSecondsLeft={restSecondsLeft ?? 0}
                       restTotalSeconds={restTotalSeconds}
                       colors={colors}
-                      isDark={isDark}
                     />
                   </View>
                 );
               })}
 
               <Pressable
-                style={[styles.addSetBtn, { borderColor: colors.accent }]}
+                style={[styles.addSetBtn, { borderColor: colors.border }]}
                 onPress={() => addSet(exIdx)}
               >
-                <Text style={[styles.addSetBtnText, { color: colors.accent }]}>
+                <Text style={[styles.addSetBtnText, { color: colors.textSecondary }]}>
                   + ADD SET ({formatRestDurationLabel(restPresetSec)})
                 </Text>
               </Pressable>
@@ -1247,7 +1251,7 @@ export default function ActiveWorkoutScreen() {
       />
 
       <Modal visible={showRestPicker} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowRestPicker(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowRestPicker(false)}>
           <View
             style={[styles.restPickerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onStartShouldSetResponder={() => true}
@@ -1357,12 +1361,12 @@ export default function ActiveWorkoutScreen() {
       })()}
 
       <Modal visible={showRestControls && restSecondsLeft != null && restSecondsLeft > 0} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowRestControls(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowRestControls(false)}>
           <View
             style={[styles.restControlsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onStartShouldSetResponder={() => true}
           >
-            <View style={[styles.restControlsBadge, { backgroundColor: colors.primary + '22' }]}>
+            <View style={[styles.restControlsBadge, { backgroundColor: colors.primarySurface }]}>
               <Ionicons name="timer" size={18} color={colors.primary} />
             </View>
             <Text style={[styles.restControlsLabel, { color: colors.textMuted }]}>Rest remaining</Text>
@@ -1389,7 +1393,7 @@ export default function ActiveWorkoutScreen() {
               style={[styles.restControlsSkip, { backgroundColor: colors.primary }]}
               onPress={handleSkipRest}
             >
-              <Text style={styles.restControlsSkipText}>Skip rest</Text>
+              <Text style={[styles.restControlsSkipText, { color: colors.primaryOn }]}>Skip rest</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -1397,7 +1401,7 @@ export default function ActiveWorkoutScreen() {
 
       {/* Rest after each set for this exercise */}
       <Modal visible={restTimersExIdx !== null} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setRestTimersExIdx(null)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setRestTimersExIdx(null)}>
           <View
             style={[styles.restTimersCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onStartShouldSetResponder={() => true}
@@ -1436,7 +1440,7 @@ export default function ActiveWorkoutScreen() {
                           <Text
                             style={[
                               styles.restTimerChoiceBtnText,
-                              { color: selected ? '#fff' : colors.text },
+                              { color: selected ? colors.primaryOn : colors.text },
                             ]}
                           >
                             {opt.label}
@@ -1459,7 +1463,7 @@ export default function ActiveWorkoutScreen() {
       </Modal>
 
       <Modal visible={showFinishSummary} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowFinishSummary(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowFinishSummary(false)}>
           <View
             style={[styles.summaryCard, { backgroundColor: colors.surface }]}
             onStartShouldSetResponder={() => true}
@@ -1569,7 +1573,7 @@ export default function ActiveWorkoutScreen() {
       </Modal>
 
       <Modal visible={showSaveAsTemplateModal} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowSaveAsTemplateModal(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowSaveAsTemplateModal(false)}>
           <View
             style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
             onStartShouldSetResponder={() => true}
@@ -1605,7 +1609,7 @@ export default function ActiveWorkoutScreen() {
       </Modal>
 
       <Modal visible={showAddExerciseModal} animationType="slide" transparent>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowAddExerciseModal(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowAddExerciseModal(false)}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.addExerciseKeyboardAvoid}
@@ -1618,7 +1622,7 @@ export default function ActiveWorkoutScreen() {
               <View style={styles.addExerciseModalHeader}>
                 <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
                 <Pressable onPress={() => setShowAddExerciseModal(false)}>
-                  <Text style={[styles.addExerciseModalClose, { color: colors.accent }]}>Done</Text>
+                  <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
                 </Pressable>
               </View>
               <TextInput
@@ -1681,7 +1685,7 @@ export default function ActiveWorkoutScreen() {
                   }}
                 >
                   <Text style={[styles.addExerciseRowText, { color: colors.text }]}>{item.name}</Text>
-                  <Ionicons name="add" size={20} color={colors.accent} />
+                  <Ionicons name="add" size={20} color={colors.primary} />
                 </Pressable>
               )}
               />
@@ -1723,7 +1727,6 @@ const styles = StyleSheet.create({
     minHeight: 28,
   },
   headerRestChipText: {
-    color: '#fff',
     fontSize: 12,
     fontFamily: typography.data.fontFamily,
     fontWeight: '600',
@@ -1814,7 +1817,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   restControlsSkipText: {
-    color: '#fff',
     fontSize: 16,
     fontFamily: typography.button.fontFamily,
   },
@@ -2118,7 +2120,6 @@ const styles = StyleSheet.create({
   },
   restControlOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   restControlSheet: {
@@ -2173,7 +2174,6 @@ const styles = StyleSheet.create({
   restControlBtnText: { fontSize: 16, fontWeight: '700' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,

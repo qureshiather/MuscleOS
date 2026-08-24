@@ -107,8 +107,10 @@ apps/mobile/
 ### 6. Theming
 
 - `ThemeProvider` + `useTheme()` — provides `colors` and `isDark`.
-- Color palette: `background`, `surface`, `surfaceElevated`, `border`, `text`, `textSecondary`, `textMuted`, `primary`, `accent`, `danger`, `warning`, `muscleHighlight`, `muscleRecovering`.
-- Use `useTheme().colors` for styles; avoid hardcoded hex values.
+- **Palette config**: edit hex values in `apps/mobile/src/theme/palette.ts` (`paletteConfig`). Derived tokens (`primarySurface`, `primaryBorder`, `successSurface`, table/row tints, overlays) are built automatically via `buildThemeColors()`.
+- **Use `useTheme().colors` in components** — do not hardcode hex/rgba in screens. Import theme utilities from `@/theme` when needed.
+- Color roles: `primary` (CTAs/links), `success` (completed sets), `warning` (favorites), `danger` (delete/errors), `surface*` / `border` / `text*`, plus UI tokens (`tableHeader`, `rowWarmUp`, `overlay`, etc.).
+- `getRecoveryPalette()` for muscle diagram heat colors.
 
 ### 7. Routing (expo-router)
 

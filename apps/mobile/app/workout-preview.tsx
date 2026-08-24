@@ -71,8 +71,8 @@ export default function WorkoutPreviewScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
-          <Ionicons name="chevron-back" size={22} color={colors.accent} />
-          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
         <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg }]}>
           Missing workout details
@@ -85,8 +85,8 @@ export default function WorkoutPreviewScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
-          <Ionicons name="chevron-back" size={22} color={colors.accent} />
-          <Text style={[typography.label, { color: colors.accent }]}>Back</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
         <View style={styles.headerTitleRow}>
           <Text style={[typography.screenTitle, styles.templateTitle, { color: colors.text }]} numberOfLines={2}>
@@ -149,8 +149,8 @@ export default function WorkoutPreviewScreen() {
                     style={[
                       styles.restBadge,
                       {
-                        backgroundColor: `${colors.primary}14`,
-                        borderColor: `${colors.primary}33`,
+                        backgroundColor: colors.primarySurface,
+                        borderColor: colors.primaryBorder,
                       },
                     ]}
                   >
