@@ -53,18 +53,6 @@ export default function AuthScreen() {
           onPress={handleApple}
         />
       )}
-      {Platform.OS !== 'ios' && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
-          ]}
-          onPress={handleApple}
-          disabled={loading}
-        >
-          <Text style={[typography.button, { color: colors.text }]}>Continue with Apple (iOS only)</Text>
-        </Pressable>
-      )}
       <Pressable
         style={({ pressed }) => [
           styles.button,
