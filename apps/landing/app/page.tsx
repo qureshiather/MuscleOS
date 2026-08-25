@@ -21,29 +21,34 @@ function GooglePlayIcon({ className }: { className?: string }) {
   );
 }
 
-/** Store listings are not live yet — keep CTAs honest. */
-function ComingSoonStores({ className = '', dark = false }: { className?: string; dark?: boolean }) {
-  const shell = dark
-    ? 'border-white/15 bg-white/5 text-white'
-    : 'border-border bg-surface text-ink';
-  const muted = dark ? 'text-white/50' : 'text-ink-muted';
+function StoreButtons({ className = '', dark = false }: { className?: string; dark?: boolean }) {
+  const secondary = dark
+    ? 'border border-white/20 bg-white/10 text-white hover:bg-white/15'
+    : 'border border-border bg-surface text-ink hover:bg-surface/90';
+  const primary = dark
+    ? 'bg-white text-ink hover:bg-white/90'
+    : 'bg-primary text-white hover:bg-primary-dim';
 
   return (
-    <div className={`flex flex-col gap-3 sm:flex-row sm:items-stretch ${className}`}>
-      <div className={`inline-flex min-w-[11.5rem] items-center gap-2.5 rounded-xl border px-5 py-3.5 ${shell}`}>
+    <div className={`flex flex-col gap-3 sm:flex-row sm:items-center ${className}`}>
+      <a
+        href="https://apps.apple.com/app/muscleos"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-[15px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${secondary}`}
+      >
         <AppStoreIcon className="h-5 w-5 shrink-0" />
-        <span className="flex flex-col leading-tight">
-          <span className={`text-[11px] ${muted}`}>iPhone</span>
-          <span className="text-[15px] font-medium">Coming soon</span>
-        </span>
-      </div>
-      <div className={`inline-flex min-w-[11.5rem] items-center gap-2.5 rounded-xl border px-5 py-3.5 ${shell}`}>
+        <span>App Store</span>
+      </a>
+      <a
+        href="https://play.google.com/store/apps/details?id=com.muscleos.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-[15px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${primary}`}
+      >
         <GooglePlayIcon className="h-5 w-5 shrink-0" />
-        <span className="flex flex-col leading-tight">
-          <span className={`text-[11px] ${muted}`}>Android</span>
-          <span className="text-[15px] font-medium">Coming soon</span>
-        </span>
-      </div>
+        <span>Google Play</span>
+      </a>
     </div>
   );
 }
@@ -103,7 +108,7 @@ function SiteFooter() {
             <span className="font-display font-medium text-ink">MuscleOS</span>
           </div>
           <p className="mt-2 max-w-xs text-sm text-ink-muted">
-            Log workouts. See recovery. Keep it simple.
+            Workout logging for people who actually train.
           </p>
           <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
         </div>
@@ -146,37 +151,24 @@ function SiteFooter() {
 
 const PROBLEMS = [
   {
-    pain: 'Guessing which muscles need rest',
-    fix: 'A body map shows what’s still recovering after you log a session.',
+    pain: 'Logging that gets in the way',
+    fix: 'Templates, sets, reps, rest timer — fast enough to use between sets.',
   },
   {
-    pain: 'Apps that bury logging behind fluff',
-    fix: 'Start a template, log sets and reps, rest timer included — that’s the core loop.',
+    pain: 'Programs that aren’t yours',
+    fix: 'Start on built-ins, then build custom templates and exercises when you’re ready.',
   },
   {
-    pain: 'Paying before you know if it fits',
-    fix: 'Basic is a real gym log: built-in programs, recovery, history, and export stay free.',
+    pain: 'No sense of whether you’re progressing',
+    fix: 'History, PRs, and progression charts show what the numbers are doing over time.',
   },
 ] as const;
 
+/** Equal-weight features — no “hero feature” hierarchy. */
 const FEATURES = [
   {
-    id: 'recovery',
-    label: 'Recovery',
-    title: 'See what’s ready before you train',
-    body: 'After a workout, MuscleOS updates a front-and-back muscle map. Ready groups show green; recovering groups warm up toward hot — so the next session isn’t a guess.',
-    points: [
-      'Front and back body diagram',
-      'Built from the sessions you actually logged',
-      'Included on Basic — not gated',
-    ],
-    src: '/screens/recovery.png',
-    alt: 'MuscleOS Recovery screen with green ready muscle highlights',
-    tilt: 'left' as const,
-  },
-  {
-    id: 'logging',
-    label: 'Logging',
+    id: 'workouts',
+    label: 'Workouts',
     title: 'Templates, sets, and rest — without the clutter',
     body: 'Pick a built-in program (PPL, Upper/Lower, 5×5, Arnold, and more), run the session, and log weight and reps as you go. Plate calculator and workout sounds are there when you need them.',
     points: [
@@ -186,40 +178,80 @@ const FEATURES = [
     ],
     src: '/screens/workouts.png',
     alt: 'MuscleOS Workouts screen',
-    tilt: 'right' as const,
+    tilt: 'left' as const,
   },
   {
-    id: 'library',
-    label: 'Library & history',
-    title: 'Find the movement. Keep the record.',
-    body: 'Browse a few hundred built-in exercises by muscle and equipment. After sessions finish, history is there to review — and you can export your data as JSON anytime.',
+    id: 'exercises',
+    label: 'Exercises',
+    title: 'A library you can search and filter',
+    body: 'Browse hundreds of built-in movements by muscle and equipment. Add your own on Pro when the defaults aren’t enough.',
     points: [
-      'Search and filter the exercise library',
-      'Workout history list and detail',
-      'Export your data',
+      'Search by name, muscle, or equipment',
+      'Muscle map on each exercise',
+      'Custom exercises on Pro',
     ],
     src: '/screens/exercises.png',
     alt: 'MuscleOS exercise library',
+    tilt: 'right' as const,
+  },
+  {
+    id: 'recovery',
+    label: 'Recovery',
+    title: 'Muscle readiness on a body map',
+    body: 'After you log a session, MuscleOS updates which muscle groups are still recovering. Same app, same data — just another tab when you want it.',
+    points: [
+      'Front and back diagram',
+      'Updates from logged workouts',
+      'Included on Basic',
+    ],
+    src: '/screens/recovery.png',
+    alt: 'MuscleOS Recovery screen',
     tilt: 'left' as const,
+  },
+  {
+    id: 'history',
+    label: 'History',
+    title: 'What you did, when you did it',
+    body: 'Review past sessions, dig into details, and export everything as JSON. Pro adds personal records, progression charts, and a monthly calendar.',
+    points: [
+      'Session list and detail',
+      'JSON export anytime',
+      'PRs, charts, and calendar on Pro',
+    ],
+    src: undefined,
+    alt: 'MuscleOS history (screenshot coming)',
+    labelFallback: 'History',
+    tilt: 'right' as const,
   },
 ] as const;
 
 const STEPS = [
   {
     n: '1',
-    title: 'Open the app',
-    body: 'Start logging right away — no account required for local use.',
+    title: 'Download',
+    body: 'Get MuscleOS on iPhone or Android.',
   },
   {
     n: '2',
-    title: 'Run a template',
-    body: 'Choose a built-in program and log sets as you train.',
+    title: 'Start a workout',
+    body: 'Use a built-in template or build your own on Pro.',
   },
   {
     n: '3',
-    title: 'Check recovery',
-    body: 'See which muscle groups are ready for the next session.',
+    title: 'Keep logging',
+    body: 'Sets, history, recovery, and progress stay in one place.',
   },
+] as const;
+
+const PRO_POINTS = [
+  'Custom workout templates & folders',
+  'Custom exercises',
+  'Empty / ad-hoc workouts',
+  'Add exercises mid-session',
+  'Save a finished workout as a template',
+  'Personal records & estimated 1RM',
+  'Exercise progression charts',
+  'Monthly training calendar',
 ] as const;
 
 export default function Home() {
@@ -228,7 +260,6 @@ export default function Home() {
       <div className="bg-grain pointer-events-none absolute inset-0 opacity-40" aria-hidden />
       <SiteHeader />
 
-      {/* Hero */}
       <section className="relative mx-auto grid min-h-[100svh] max-w-site grid-cols-1 items-center gap-12 px-6 pb-16 pt-28 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:pb-24 lg:pt-24">
         <div className="relative z-10 max-w-xl animate-rise">
           <p className="font-mono-label mb-5 text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
@@ -238,14 +269,14 @@ export default function Home() {
             MuscleOS
           </h1>
           <p className="mt-5 max-w-md text-xl leading-snug text-ink-secondary text-balance sm:text-2xl">
-            Train hard. Recover on schedule.
+            Log workouts. Track progress. Train your way.
           </p>
           <p className="mt-4 max-w-md text-base leading-relaxed text-ink-muted sm:text-lg">
-            A gym log with a recovery map — built-in programs, set tracking, and a clear view of which muscles are ready next.
+            Built-in programs to start fast. Custom templates, PRs, and progression when you want the full system.
           </p>
-          <ComingSoonStores className="mt-9 animate-rise-delay-1" />
+          <StoreButtons className="mt-9 animate-rise-delay-1" />
           <p className="mt-4 text-sm text-ink-muted animate-rise-delay-1">
-            Free Basic tier. No credit card. Store pages go live when the apps ship.
+            Free to start. Pro from $2.99/mo.
           </p>
         </div>
 
@@ -256,22 +287,21 @@ export default function Home() {
           />
           <div className="animate-float relative">
             <PhoneFrame
-              src="/screens/recovery.png"
-              alt="MuscleOS Recovery screen showing front and back muscle maps"
+              src="/screens/workouts.png"
+              alt="MuscleOS Workouts screen"
               priority
             />
           </div>
         </div>
       </section>
 
-      {/* Problem */}
       <section className="relative border-t border-border/70 bg-surface/50">
         <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
           <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-            The real problem
+            Why MuscleOS
           </p>
           <h2 className="font-display mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink sm:text-4xl text-balance">
-            You don’t need another social feed. You need a log that respects recovery.
+            A gym log that stays out of your way — and grows with how you train.
           </h2>
 
           <ul className="mt-12 grid gap-6 sm:grid-cols-3">
@@ -285,18 +315,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features */}
       <section id="features" className="relative border-t border-border/70">
         <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
           <div className="max-w-2xl">
             <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-              What you get
+              Features
             </p>
             <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl text-balance">
-              Three things the app actually does.
+              Everything you need in the gym and after.
             </h2>
             <p className="mt-4 text-lg text-ink-secondary">
-              No XP, no leaderboards, no fake social layer — just logging, recovery, and history.
+              Workouts, exercises, recovery, and history — one app, no social feed.
             </p>
           </div>
 
@@ -310,7 +339,7 @@ export default function Home() {
                   className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16"
                 >
                   <div className={phoneFirst ? 'lg:order-2' : undefined}>
-                    <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ready">
+                    <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
                       {feature.label}
                     </p>
                     <h3 className="font-display mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl text-balance">
@@ -328,13 +357,16 @@ export default function Home() {
                       ))}
                     </ul>
                   </div>
-                  <div className={`flex justify-center ${phoneFirst ? 'lg:order-1 lg:justify-start' : 'lg:justify-end'}`}>
+                  <div
+                    className={`flex justify-center ${phoneFirst ? 'lg:order-1 lg:justify-start' : 'lg:justify-end'}`}
+                  >
                     <div className={i % 2 === 0 ? 'animate-float' : 'animate-float-slow'}>
                       <PhoneFrame
-                        src={feature.src}
+                        src={'src' in feature ? feature.src : undefined}
                         alt={feature.alt}
-                        label={feature.label}
+                        label={'labelFallback' in feature ? feature.labelFallback : feature.label}
                         tilt={feature.tilt}
+                        priority={i === 0}
                       />
                     </div>
                   </div>
@@ -345,7 +377,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing — honest */}
       <section id="pricing" className="relative border-t border-border/70 bg-surface/50">
         <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
           <div className="mx-auto max-w-2xl text-center">
@@ -353,52 +384,61 @@ export default function Home() {
               Pricing
             </p>
             <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl text-balance">
-              Basic is a real gym log. Pro is optional.
+              Free to start. Pro to train on your terms.
             </h2>
             <p className="mt-4 text-lg text-ink-secondary">
-              Upgrade when you outgrow built-in programs — not to unlock the basics.
+              Basic covers solid built-in programs and full logging. Pro is the upgrade for your own programs, flexible sessions, and progress tools.
             </p>
           </div>
 
-          <div className="mx-auto mt-14 grid max-w-3xl gap-6 sm:grid-cols-2">
+          <div className="mx-auto mt-14 grid max-w-4xl gap-6 lg:grid-cols-[1fr_1.15fr]">
             <div className="rounded-2xl border border-border bg-surface p-7 sm:p-8">
               <p className="font-display text-xl font-semibold text-ink">Basic</p>
               <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
+              <p className="mt-2 text-sm text-ink-muted">Forever — no trial wall</p>
               <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
                 <li>11 built-in programs</li>
                 <li>Full set logging &amp; rest timers</li>
-                <li>Exercise library &amp; recovery map</li>
+                <li>Exercise library</li>
+                <li>Recovery map</li>
                 <li>History &amp; JSON export</li>
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-primary/30 bg-primary/[0.04] p-7 sm:p-8">
+            <div className="relative rounded-2xl border-2 border-primary bg-primary/[0.06] p-7 shadow-[0_20px_50px_-28px_rgba(37,99,235,0.45)] sm:p-8">
+              <p className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+                Recommended
+              </p>
               <p className="font-display text-xl font-semibold text-ink">Pro</p>
               <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
-                $2.99<span className="text-lg font-medium text-ink-muted">/mo</span>
+                $19.99<span className="text-lg font-medium text-ink-muted">/yr</span>
               </p>
               <p className="mt-2 text-sm text-ink-muted">
-                or $19.99/yr · $39.99 lifetime (USD)
+                Best value · also $2.99/mo or $39.99 lifetime
               </p>
-              <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
-                <li>Custom templates &amp; exercises</li>
-                <li>Empty / ad-hoc workouts</li>
-                <li>Personal records &amp; progression charts</li>
-                <li>Monthly training calendar</li>
+              <p className="mt-5 text-sm font-medium text-ink">
+                Everything in Basic, plus the tools serious lifters actually use:
+              </p>
+              <ul className="mt-4 grid gap-2.5 text-sm text-ink-secondary sm:grid-cols-2">
+                {PRO_POINTS.map((point) => (
+                  <li key={point} className="flex gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                    {point}
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
       <section id="how" className="relative border-t border-border/70">
         <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
           <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
             How it works
           </p>
           <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl text-balance">
-            Three steps. No onboarding maze.
+            Download. Log. Repeat.
           </h2>
           <ol className="mt-12 grid gap-8 sm:grid-cols-3">
             {STEPS.map((step) => (
@@ -412,18 +452,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Closing */}
       <section className="relative border-t border-border/70 bg-ink text-white">
         <div className="mx-auto flex max-w-site flex-col items-start gap-8 px-6 py-16 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-20">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              MuscleOS is almost here.
+              Get MuscleOS
             </h2>
             <p className="mt-3 max-w-md text-lg text-white/65">
-              iOS and Android builds are in progress. This site will link to the stores when they’re live — no fake download buttons in the meantime.
+              Free on Basic. Unlock Pro when you want your own programs and progress tools.
             </p>
           </div>
-          <ComingSoonStores dark />
+          <StoreButtons dark />
         </div>
       </section>
 

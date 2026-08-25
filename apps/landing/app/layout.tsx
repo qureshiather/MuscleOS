@@ -22,12 +22,12 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'MuscleOS — Train hard. Recover on schedule.',
+  title: 'MuscleOS — Log workouts. Track progress.',
   description:
-    'A gym log with a recovery map. Built-in programs, set tracking, and a clear view of which muscles are ready — free Basic tier, optional Pro.',
+    'Workout logging with built-in programs, custom templates, recovery, PRs, and progression. Free Basic tier. Pro from $2.99/mo.',
   openGraph: {
     title: 'MuscleOS',
-    description: 'Train hard. Recover on schedule.',
+    description: 'Log workouts. Track progress. Train your way.',
     type: 'website',
   },
 };
