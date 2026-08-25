@@ -220,7 +220,7 @@ export default function WorkoutsScreen() {
         }
         return muscles;
       },
-      limit: 4,
+      limit: 2,
     });
   }, [
     templates,
