@@ -24,7 +24,7 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: 'MuscleOS — Train hard. Recover on schedule.',
   description:
-    'Log workouts, follow built-in programs, and see which muscles are ready with MuscleOS — a recovery-aware training companion.',
+    'A gym log with a recovery map. Built-in programs, set tracking, and a clear view of which muscles are ready — free Basic tier, optional Pro.',
   openGraph: {
     title: 'MuscleOS',
     description: 'Train hard. Recover on schedule.',
