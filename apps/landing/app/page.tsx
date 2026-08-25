@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import Image from 'next/image';
+import { PhoneFrame } from './components/PhoneFrame';
 
 function AppStoreIcon({ className }: { className?: string }) {
   return (
@@ -19,73 +21,206 @@ function GooglePlayIcon({ className }: { className?: string }) {
   );
 }
 
+function StoreButtons({ className = '' }: { className?: string }) {
+  return (
+    <div className={`flex flex-col gap-3 sm:flex-row sm:items-center ${className}`}>
+      <a
+        href="https://apps.apple.com/app/muscleos/id000000000"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-ink px-5 py-3.5 text-[15px] font-medium text-white transition hover:bg-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <AppStoreIcon className="h-5 w-5 shrink-0" />
+        <span>App Store</span>
+      </a>
+      <a
+        href="https://play.google.com/store/apps/details?id=com.muscleos.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-primary px-5 py-3.5 text-[15px] font-medium text-white transition hover:bg-primary-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <GooglePlayIcon className="h-5 w-5 shrink-0" />
+        <span>Google Play</span>
+      </a>
+    </div>
+  );
+}
+
+function SiteHeader() {
+  return (
+    <header className="absolute inset-x-0 top-0 z-20">
+      <div className="mx-auto flex max-w-site items-center justify-between px-6 py-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          <Image
+            src="/icon.png"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-[10px]"
+            priority
+          />
+          <span className="font-display text-lg font-semibold tracking-tight text-ink">
+            MuscleOS
+          </span>
+        </Link>
+        <nav className="flex items-center gap-5 text-sm text-ink-muted">
+          <a href="#recovery" className="transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            Recovery
+          </a>
+          <a href="#training" className="hidden transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:inline">
+            Training
+          </a>
+          <Link href="/privacy" className="transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            Privacy
+          </Link>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="border-t border-border/80 bg-surface/60">
+      <div className="mx-auto flex max-w-site flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-ink-muted sm:flex-row sm:px-8">
+        <div className="flex items-center gap-2.5">
+          <Image src="/icon.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+          <span className="font-display font-medium text-ink">MuscleOS</span>
+          <span className="text-ink-muted">· © {new Date().getFullYear()}</span>
+        </div>
+        <p className="flex gap-4">
+          <Link href="/privacy" className="transition hover:text-ink">
+            Privacy
+          </Link>
+          <Link href="/terms" className="transition hover:text-ink">
+            Terms
+          </Link>
+        </p>
+      </div>
+    </footer>
+  );
+}
+
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 sm:py-24">
-        {/* Hero */}
-        <img src="/icon.png" alt="" className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl mb-6" />
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-center">
-          MuscleOS
-        </h1>
-        <p className="mt-4 text-lg sm:text-xl text-text-secondary text-center max-w-md">
-          Your workout companion. Track exercises, run workouts, and see your progress.
-        </p>
+    <div className="bg-atmosphere relative min-h-screen overflow-x-hidden">
+      <div className="bg-grain pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+      <SiteHeader />
 
-        {/* Features */}
-        <ul className="mt-12 sm:mt-16 grid gap-6 sm:grid-cols-3 max-w-2xl text-center">
-          <li className="rounded-xl bg-surface px-6 py-5 border border-[var(--color-text-muted)]/20">
-            <span className="text-primary font-semibold">Exercise library</span>
-            <p className="mt-2 text-sm text-text-secondary">
-              Browse by muscle group and equipment. Find the right move for every goal.
-            </p>
-          </li>
-          <li className="rounded-xl bg-surface px-6 py-5 border border-[var(--color-text-muted)]/20">
-            <span className="text-primary font-semibold">Workout tracking</span>
-            <p className="mt-2 text-sm text-text-secondary">
-              Log sets and reps as you go. Simple, fast, no clutter.
-            </p>
-          </li>
-          <li className="rounded-xl bg-surface px-6 py-5 border border-[var(--color-text-muted)]/20">
-            <span className="text-primary font-semibold">Progress over time</span>
-            <p className="mt-2 text-sm text-text-secondary">
-              Review history and see how your numbers improve.
-            </p>
-          </li>
-        </ul>
-
-        {/* CTAs */}
-        <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <a
-            href="https://apps.apple.com/app/muscleos/id000000000"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-surface border border-[var(--color-text-muted)]/30 px-6 py-3 text-text hover:bg-surface/90 transition-colors"
-          >
-            <AppStoreIcon className="h-6 w-6 shrink-0" />
-            <span>Download on the App Store</span>
-          </a>
-          <a
-            href="https://play.google.com/store/apps/details?id=com.muscleos.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-background px-6 py-3 font-medium hover:opacity-90 transition-opacity"
-          >
-            <GooglePlayIcon className="h-6 w-6 shrink-0" />
-            <span>Get it on Google Play</span>
-          </a>
+      {/* Hero — brand + one line + CTAs + product visual */}
+      <section className="relative mx-auto grid min-h-[100svh] max-w-site grid-cols-1 items-center gap-10 px-6 pb-16 pt-28 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:pb-20 lg:pt-24">
+        <div className="relative z-10 max-w-xl animate-rise">
+          <p className="font-mono-label mb-5 text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
+            Workout companion
+          </p>
+          <h1 className="font-display text-[clamp(3.25rem,9vw,5.5rem)] font-extrabold leading-[0.92] tracking-tight text-ink">
+            MuscleOS
+          </h1>
+          <p className="mt-6 max-w-md text-xl leading-snug text-ink-secondary text-balance sm:text-2xl">
+            Train hard. Recover on schedule.
+          </p>
+          <p className="mt-4 max-w-md text-base leading-relaxed text-ink-muted sm:text-lg">
+            Log sets from built-in programs, then see which muscle groups are ready for the next session.
+          </p>
+          <StoreButtons className="mt-9 animate-rise-delay-1" />
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="py-6 text-center text-sm text-text-muted border-t border-[var(--color-text-muted)]/20">
-        <p>© {new Date().getFullYear()} MuscleOS</p>
-        <p className="mt-1">
-          <Link href="/privacy" className="hover:text-text-secondary">Privacy</Link>
-          {' · '}
-          <Link href="/terms" className="hover:text-text-secondary">Terms</Link>
-        </p>
-      </footer>
+        <div className="relative flex justify-center lg:justify-end animate-rise-delay-2">
+          {/* Soft stage behind the phone */}
+          <div
+            className="absolute -inset-8 top-10 rounded-[3rem] bg-gradient-to-br from-primary/10 via-ready/5 to-transparent blur-2xl lg:-inset-12"
+            aria-hidden
+          />
+          <div className="animate-float relative">
+            <PhoneFrame
+              src="/screens/recovery.png"
+              alt="MuscleOS Recovery screen showing front and back muscle maps highlighted when ready"
+              priority
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Recovery — one job */}
+      <section
+        id="recovery"
+        className="relative border-t border-border/70 bg-surface/40"
+      >
+        <div className="mx-auto grid max-w-site grid-cols-1 items-center gap-12 px-6 py-20 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:py-28">
+          <div className="order-2 lg:order-1">
+            <div className="animate-float-slow relative mx-auto w-fit lg:mx-0">
+              <PhoneFrame
+                src="/screens/recovery.png"
+                alt="Muscle recovery map with ready muscles in green"
+                tilt="left"
+              />
+            </div>
+          </div>
+          <div className="order-1 lg:order-2">
+            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ready">
+              Recovery map
+            </p>
+            <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl text-balance">
+              See what&apos;s ready before you train.
+            </h2>
+            <p className="mt-5 max-w-md text-lg leading-relaxed text-ink-secondary">
+              After you log a session, MuscleOS tracks muscle recovery on a front-and-back body map.
+              Green means ready. Warm and hot tones show groups still recovering — so you plan the next workout with your body, not a guess.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Training — templates + library */}
+      <section id="training" className="relative border-t border-border/70">
+        <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-28">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
+              Training
+            </p>
+            <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl text-balance">
+              Templates and a library that stay out of the way.
+            </h2>
+            <p className="mt-5 text-lg leading-relaxed text-ink-secondary">
+              Start from built-in programs like PPL, Upper/Lower, and 5×5. Browse hundreds of movements by muscle and equipment. Log reps and weight as you go — Basic includes the full gym-log loop.
+            </p>
+          </div>
+
+          <div className="mt-14 flex flex-col items-center justify-center gap-8 sm:mt-16 sm:flex-row sm:items-end sm:gap-6 lg:gap-10">
+            <div className="animate-float relative z-10">
+              <PhoneFrame
+                src="/screens/workouts.png"
+                alt="Workouts screen with empty workout and template folders"
+                tilt="left"
+              />
+            </div>
+            <div className="animate-float-slow relative sm:mb-8">
+              <PhoneFrame
+                src="/screens/exercises.png"
+                alt="Exercise library with search, filters, and 394 movements"
+                tilt="right"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Closing CTA */}
+      <section className="relative border-t border-border/70 bg-ink text-white">
+        <div className="mx-auto flex max-w-site flex-col items-start gap-8 px-6 py-16 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-20">
+          <div>
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              Get MuscleOS
+            </h2>
+            <p className="mt-3 max-w-md text-lg text-white/65">
+              Free to start with built-in programs, recovery, and history. Pro unlocks custom templates and progress tools when you outgrow the defaults.
+            </p>
+          </div>
+          <StoreButtons />
+        </div>
+      </section>
+
+      <SiteFooter />
     </div>
   );
 }
