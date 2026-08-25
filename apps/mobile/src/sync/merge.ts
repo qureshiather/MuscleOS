@@ -27,14 +27,40 @@ import {
   type ExercisePrevious,
   type SyncedAppSettings,
 } from '@/storage/localStorage';
-import type { RemoteSyncRecord, SyncEntityType } from './types';
+import { getOutboxMap, outboxEntryKey, setOutbox } from './outbox';
+import {
+  bumpUpdatedAtIfNeeded,
+  decideEntityApply,
+  mergeAppSettingsPreferLocal,
+  mergeExercisePreviousMap,
+  mergeStringMap,
+} from './mergePolicy';
+import type { OutboxEntry, RemoteSyncRecord, SyncEntityType } from './types';
 
 function sessionUpdatedAt(session: WorkoutSession): string {
   return session.completedAt ?? session.startedAt;
 }
 
-function pickNewerSession(a: WorkoutSession, b: WorkoutSession): WorkoutSession {
-  return sessionUpdatedAt(b) >= sessionUpdatedAt(a) ? b : a;
+function dirtyEntry(
+  outboxMap: Map<string, OutboxEntry>,
+  entityType: SyncEntityType,
+  entityId: string
+): OutboxEntry | undefined {
+  return outboxMap.get(outboxEntryKey(entityType, entityId));
+}
+
+function touchDirtyOutbox(
+  outboxMap: Map<string, OutboxEntry>,
+  entry: OutboxEntry,
+  remoteUpdatedAt: string,
+  payload?: unknown
+): void {
+  const updatedAt = bumpUpdatedAtIfNeeded(entry.updatedAt, remoteUpdatedAt);
+  outboxMap.set(outboxEntryKey(entry.entityType, entry.entityId), {
+    ...entry,
+    updatedAt,
+    ...(payload !== undefined ? { payload } : {}),
+  });
 }
 
 /** Apply remote sync records onto local state. Returns true if any records were applied. */
@@ -50,6 +76,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     exercisePrevious,
     exerciseNotes,
     appSettings,
+    outboxMap,
   ] = await Promise.all([
     getSessions(),
     getTemplates(),
@@ -59,6 +86,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     getExercisePrevious(),
     getExerciseNotes(),
     getAppSettings(),
+    getOutboxMap(),
   ]);
 
   const sessionMap = new Map(sessions.map((s) => [s.id, s]));
@@ -66,55 +94,99 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
   const folderMap = new Map(folders.map((f) => [f.id, f]));
   const exerciseMap = new Map(customExercises.map((e) => [e.id, e]));
   let recoveryData = recovery;
-  let recoveryUpdatedAt = recovery.at(-1)?.trainedAt ?? '';
   let previousData = exercisePrevious;
-  let previousUpdatedAt = '';
   let notesData = exerciseNotes;
-  let notesUpdatedAt = '';
   let settingsData = appSettings;
-  let settingsUpdatedAt = '';
+  let changed = false;
 
   for (const record of records) {
-    const updatedAt = record.updated_at;
+    const remoteUpdatedAt = record.updated_at;
+    const pending = dirtyEntry(outboxMap, record.entity_type, record.entity_id);
+    const isDirty = !!pending;
 
     if (record.deleted_at) {
       switch (record.entity_type) {
-        case 'session':
-          sessionMap.delete(record.entity_id);
+        case 'session': {
+          const local = sessionMap.get(record.entity_id);
+          const decision = decideEntityApply({
+            hasLocal: !!local,
+            isDirty,
+            localUpdatedAt: pending?.updatedAt ?? (local ? sessionUpdatedAt(local) : null),
+            remoteUpdatedAt,
+          });
+          if (decision === 'take_remote') {
+            if (sessionMap.delete(record.entity_id)) changed = true;
+          } else if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt);
+          }
           break;
-        case 'template':
-          templateMap.delete(record.entity_id);
+        }
+        case 'template': {
+          const local = templateMap.get(record.entity_id);
+          const decision = decideEntityApply({
+            hasLocal: !!local,
+            isDirty,
+            localUpdatedAt: pending?.updatedAt ?? null,
+            remoteUpdatedAt,
+          });
+          if (decision === 'take_remote') {
+            if (templateMap.delete(record.entity_id)) changed = true;
+          } else if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt);
+          }
           break;
-        case 'template_folder':
-          folderMap.delete(record.entity_id);
+        }
+        case 'template_folder': {
+          const local = folderMap.get(record.entity_id);
+          const decision = decideEntityApply({
+            hasLocal: !!local,
+            isDirty,
+            localUpdatedAt: pending?.updatedAt ?? null,
+            remoteUpdatedAt,
+          });
+          if (decision === 'take_remote') {
+            if (folderMap.delete(record.entity_id)) changed = true;
+          } else if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt);
+          }
           break;
-        case 'custom_exercise':
-          exerciseMap.delete(record.entity_id);
+        }
+        case 'custom_exercise': {
+          const local = exerciseMap.get(record.entity_id);
+          const decision = decideEntityApply({
+            hasLocal: !!local,
+            isDirty,
+            localUpdatedAt: pending?.updatedAt ?? null,
+            remoteUpdatedAt,
+          });
+          if (decision === 'take_remote') {
+            if (exerciseMap.delete(record.entity_id)) changed = true;
+          } else if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt);
+          }
           break;
+        }
         case 'recovery':
-          if (updatedAt >= recoveryUpdatedAt) {
-            recoveryData = [];
-            recoveryUpdatedAt = updatedAt;
-          }
-          break;
         case 'exercise_previous':
-          if (updatedAt >= previousUpdatedAt) {
-            previousData = {};
-            previousUpdatedAt = updatedAt;
-          }
-          break;
         case 'exercise_note':
-          if (updatedAt >= notesUpdatedAt) {
-            notesData = {};
-            notesUpdatedAt = updatedAt;
+        case 'app_settings': {
+          const decision = decideEntityApply({
+            hasLocal: true,
+            isDirty,
+            localUpdatedAt: pending?.updatedAt ?? null,
+            remoteUpdatedAt,
+          });
+          if (decision === 'take_remote') {
+            if (record.entity_type === 'recovery') recoveryData = [];
+            if (record.entity_type === 'exercise_previous') previousData = {};
+            if (record.entity_type === 'exercise_note') notesData = {};
+            if (record.entity_type === 'app_settings') settingsData = defaultAppSettings();
+            changed = true;
+          } else if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt);
           }
           break;
-        case 'app_settings':
-          if (updatedAt >= settingsUpdatedAt) {
-            settingsData = defaultAppSettings();
-            settingsUpdatedAt = updatedAt;
-          }
-          break;
+        }
       }
       continue;
     }
@@ -123,49 +195,158 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
       case 'session': {
         const remote = record.payload as WorkoutSession;
         const local = sessionMap.get(record.entity_id);
-        sessionMap.set(record.entity_id, local ? pickNewerSession(local, remote) : remote);
+        const decision = decideEntityApply({
+          hasLocal: !!local,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? (local ? sessionUpdatedAt(local) : null),
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          sessionMap.set(record.entity_id, remote);
+          changed = true;
+        } else if (pending) {
+          touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, local ?? pending.payload);
+        }
         break;
       }
       case 'template': {
-        templateMap.set(record.entity_id, record.payload as WorkoutTemplate);
+        const remote = record.payload as WorkoutTemplate;
+        const local = templateMap.get(record.entity_id);
+        const decision = decideEntityApply({
+          hasLocal: !!local,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? null,
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          templateMap.set(record.entity_id, remote);
+          changed = true;
+        } else if (pending) {
+          touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, local ?? pending.payload);
+        }
         break;
       }
       case 'template_folder': {
-        folderMap.set(record.entity_id, record.payload as TemplateFolder);
+        const remote = record.payload as TemplateFolder;
+        const local = folderMap.get(record.entity_id);
+        const decision = decideEntityApply({
+          hasLocal: !!local,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? null,
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          folderMap.set(record.entity_id, remote);
+          changed = true;
+        } else if (pending) {
+          touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, local ?? pending.payload);
+        }
         break;
       }
       case 'custom_exercise': {
-        exerciseMap.set(record.entity_id, record.payload as Exercise);
+        const remote = record.payload as Exercise;
+        const local = exerciseMap.get(record.entity_id);
+        const decision = decideEntityApply({
+          hasLocal: !!local,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? null,
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          exerciseMap.set(record.entity_id, remote);
+          changed = true;
+        } else if (pending) {
+          touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, local ?? pending.payload);
+        }
         break;
       }
       case 'recovery': {
-        if (updatedAt >= recoveryUpdatedAt) {
-          recoveryData = record.payload as MuscleRecovery[];
-          recoveryUpdatedAt = updatedAt;
+        const remote = (record.payload as MuscleRecovery[]) ?? [];
+        const decision = decideEntityApply({
+          hasLocal: recoveryData.length > 0 || isDirty,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? (recoveryData.at(-1)?.trainedAt ?? null),
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          recoveryData = remote;
+          changed = true;
+        } else if (pending) {
+          touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, recoveryData);
         }
         break;
       }
       case 'exercise_previous': {
-        if (updatedAt >= previousUpdatedAt) {
-          previousData = record.payload as Record<string, ExercisePrevious>;
-          previousUpdatedAt = updatedAt;
+        const remote = (record.payload as Record<string, ExercisePrevious>) ?? {};
+        const decision = decideEntityApply({
+          hasLocal: Object.keys(previousData).length > 0 || isDirty,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? null,
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          previousData = remote;
+          changed = true;
+        } else {
+          // Local wins conflicts; empty local keys fill from remote (net-new + gaps)
+          const merged = mergeExercisePreviousMap(previousData, remote);
+          if (JSON.stringify(merged) !== JSON.stringify(previousData)) {
+            previousData = merged;
+            changed = true;
+          }
+          if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, previousData);
+          }
         }
         break;
       }
       case 'exercise_note': {
-        if (updatedAt >= notesUpdatedAt) {
-          notesData = (record.payload as Record<string, string>) ?? {};
-          notesUpdatedAt = updatedAt;
+        const remote = (record.payload as Record<string, string>) ?? {};
+        const decision = decideEntityApply({
+          hasLocal: Object.keys(notesData).length > 0 || isDirty,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? null,
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          notesData = remote;
+          changed = true;
+        } else {
+          const merged = mergeStringMap(notesData, remote);
+          if (JSON.stringify(merged) !== JSON.stringify(notesData)) {
+            notesData = merged;
+            changed = true;
+          }
+          if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, notesData);
+          }
         }
         break;
       }
       case 'app_settings': {
-        if (updatedAt >= settingsUpdatedAt) {
-          settingsData = normalizeAppSettings(
-            record.payload as Partial<SyncedAppSettings> | null,
-            settingsData
-          );
-          settingsUpdatedAt = updatedAt;
+        const remote = normalizeAppSettings(
+          record.payload as Partial<SyncedAppSettings> | null,
+          defaultAppSettings()
+        );
+        const decision = decideEntityApply({
+          hasLocal: true,
+          isDirty,
+          localUpdatedAt: pending?.updatedAt ?? null,
+          remoteUpdatedAt,
+        });
+        if (decision === 'take_remote') {
+          settingsData = remote;
+          changed = true;
+        } else {
+          // Prefer local non-empty fields; fill empty local slots from remote
+          const merged = mergeAppSettingsPreferLocal(settingsData, remote);
+          if (JSON.stringify(merged) !== JSON.stringify(settingsData)) {
+            settingsData = merged;
+            changed = true;
+          }
+          if (pending) {
+            touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, settingsData);
+          }
         }
         break;
       }
@@ -181,9 +362,10 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     setExercisePrevious(previousData),
     setExerciseNotes(notesData),
     setAppSettings(settingsData),
+    setOutbox(Array.from(outboxMap.values())),
   ]);
 
-  return true;
+  return changed || records.length > 0;
 }
 
 /** Snapshot of all local user data for initial account link upload. */

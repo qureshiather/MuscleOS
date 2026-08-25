@@ -26,12 +26,10 @@ export function schedulePush(delayMs = 2000): void {
 export async function pushNow(): Promise<void> {
   if (!isCloudSyncEnabled()) return;
 
-  const userId = useAuthStore.getState().user!.id;
   const outbox = await getOutbox();
   if (outbox.length === 0) return;
 
-  const rows = outbox.map((entry) => ({
-    user_id: userId,
+  const records = outbox.map((entry) => ({
     entity_type: entry.entityType,
     entity_id: entry.entityId,
     payload: entry.op === 'delete' ? null : entry.payload ?? null,
@@ -39,13 +37,24 @@ export async function pushNow(): Promise<void> {
     deleted_at: entry.op === 'delete' ? entry.updatedAt : null,
   }));
 
-  const { error } = await supabase.from('sync_records').upsert(rows, {
-    onConflict: 'user_id,entity_type,entity_id',
-  });
+  const { error } = await supabase.rpc('upsert_sync_records', { records });
 
   if (error) {
-    if (__DEV__) console.warn('[sync] push failed:', error.message);
-    throw new Error(error.message);
+    // Fallback for projects that have not applied the LWW RPC migration yet.
+    if (error.message?.includes('upsert_sync_records') || error.code === 'PGRST202') {
+      const userId = useAuthStore.getState().user!.id;
+      const rows = records.map((r) => ({ ...r, user_id: userId }));
+      const { error: upsertError } = await supabase.from('sync_records').upsert(rows, {
+        onConflict: 'user_id,entity_type,entity_id',
+      });
+      if (upsertError) {
+        if (__DEV__) console.warn('[sync] push failed:', upsertError.message);
+        throw new Error(upsertError.message);
+      }
+    } else {
+      if (__DEV__) console.warn('[sync] push failed:', error.message);
+      throw new Error(error.message);
+    }
   }
 
   await clearOutbox();

@@ -4,6 +4,20 @@
 
 MuscleOS syncs workout history, templates, custom exercises, exercise notes, settings (units, sounds, theme, biodata), and derived data to Supabase for **linked accounts only**. Reads are always local-first (AsyncStorage); sync runs in the background.
 
+### Merge policy
+
+Sync is **entity-level** (sessions, templates, etc.), with field-aware merges for map/settings snapshots.
+
+| Case | Result |
+|------|--------|
+| Missing locally | Take remote (server fills gaps) |
+| Net-new locally | Keep local; push via outbox |
+| Conflict, local dirty (pending outbox) | **Local wins**; outbox `updated_at` is bumped if remote is newer so push lands |
+| Conflict, local clean | **Last-write-wins** by `updated_at`; ties keep local |
+| Notes / previous / settings while keeping local | Union keys; empty local slots fill from remote; non-empty conflicts prefer local |
+
+Push uses `upsert_sync_records`, which only overwrites the server when incoming `updated_at` is **≥** the stored value (equal timestamps → incoming/local wins).
+
 ### 1. Run migrations (Supabase CLI)
 
 We use the [official Supabase CLI](https://supabase.com/docs/guides/cli) — it handles IPv4 pooler connections, migration history, and remote push.

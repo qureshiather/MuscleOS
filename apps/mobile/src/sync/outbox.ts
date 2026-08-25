@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '@/storage/keys';
 import type { OutboxEntry, SyncEntityType } from './types';
 
-function entryKey(entityType: SyncEntityType, entityId: string): string {
+export function outboxEntryKey(entityType: SyncEntityType, entityId: string): string {
   return `${entityType}:${entityId}`;
 }
 
@@ -16,10 +16,15 @@ export async function getOutbox(): Promise<OutboxEntry[]> {
   }
 }
 
+export async function getOutboxMap(): Promise<Map<string, OutboxEntry>> {
+  const outbox = await getOutbox();
+  return new Map(outbox.map((entry) => [outboxEntryKey(entry.entityType, entry.entityId), entry]));
+}
+
 export async function enqueueOutbox(entry: OutboxEntry): Promise<void> {
   const outbox = await getOutbox();
-  const key = entryKey(entry.entityType, entry.entityId);
-  const next = [...outbox.filter((e) => entryKey(e.entityType, e.entityId) !== key), entry];
+  const key = outboxEntryKey(entry.entityType, entry.entityId);
+  const next = [...outbox.filter((e) => outboxEntryKey(e.entityType, e.entityId) !== key), entry];
   await AsyncStorage.setItem(STORAGE_KEYS.syncOutbox, JSON.stringify(next));
 }
 
