@@ -59,74 +59,20 @@
     font-family: var(--font-mono), ui-monospace, monospace;
   }
 
-  .font-mega {
-    font-family: var(--font-mega), var(--font-display), system-ui, sans-serif;
-  }
-
   .text-balance {
     text-wrap: balance;
   }
 
-  /* Soft mesh atmosphere — not flat, not purple glow */
   .bg-atmosphere {
     background-color: var(--color-background);
     background-image:
-      radial-gradient(ellipse 80% 60% at 12% 8%, rgba(37, 99, 235, 0.12), transparent 55%),
-      radial-gradient(ellipse 70% 50% at 88% 18%, rgba(5, 150, 105, 0.1), transparent 50%),
-      radial-gradient(ellipse 60% 40% at 50% 100%, rgba(37, 99, 235, 0.06), transparent 55%),
-      linear-gradient(180deg, #f5f7fc 0%, var(--color-background) 40%, var(--color-background-deep) 100%);
+      radial-gradient(ellipse 80% 55% at 10% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 100% 10%, rgba(5, 150, 105, 0.06), transparent 50%),
+      linear-gradient(180deg, #f5f7fc 0%, var(--color-background) 45%, var(--color-background-deep) 100%);
   }
 
   .bg-grain {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-  }
-
-  .animate-rise {
-    animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .animate-rise-delay-1 {
-    animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
-  }
-
-  .animate-rise-delay-2 {
-    animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
-  }
-
-  .animate-float {
-    animation: float 7s ease-in-out infinite;
-  }
-
-  .animate-float-slow {
-    animation: float 9s ease-in-out 0.8s infinite;
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-float,
-  .animate-float-slow {
-    animation: none;
   }
 }
 

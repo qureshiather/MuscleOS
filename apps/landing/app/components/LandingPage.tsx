@@ -1,19 +1,7 @@
-'use client';
-
 import Image from 'next/image';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
-import NumberFlow from '@number-flow/react';
-import { useSpring } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
 
-import BlurText from '@/components/BlurText';
-import GradientText from '@/components/GradientText';
-import SpotlightCard from '@/components/SpotlightCard';
 import { PhoneFrame } from './PhoneFrame';
-
-const Aurora = dynamic(() => import('@/components/Aurora'), { ssr: false });
 
 function AppStoreIcon({ className }: { className?: string }) {
   return (
@@ -68,8 +56,8 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
 
 function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-site items-center justify-between px-6 py-4 sm:px-8">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-site items-center justify-between px-5 py-4 sm:px-8">
         <Link
           href="/"
           className="flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -87,7 +75,7 @@ function SiteHeader() {
             MuscleOS
           </span>
         </Link>
-        <nav className="flex items-center gap-6 text-sm font-medium leading-none text-ink">
+        <nav className="flex items-center gap-5 text-sm font-medium leading-none text-ink sm:gap-6">
           <Link
             href="#features"
             className="hidden transition hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:inline"
@@ -109,42 +97,6 @@ function SiteHeader() {
         </nav>
       </div>
     </header>
-  );
-}
-
-function StatBurst({
-  value,
-  label,
-  prefix = '',
-  suffix = '',
-}: {
-  value: number;
-  label: string;
-  prefix?: string;
-  suffix?: string;
-}) {
-  const spring = useSpring(0, { bounce: 0, duration: 1000 });
-  const [display, setDisplay] = useState(0);
-  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.4 });
-
-  useEffect(() => {
-    const unsub = spring.on('change', (v) => setDisplay(Math.round(v)));
-    return () => unsub();
-  }, [spring]);
-
-  useEffect(() => {
-    if (inView) spring.set(value);
-  }, [inView, spring, value]);
-
-  return (
-    <div ref={ref} className="text-center">
-      <p className="font-mega text-[clamp(2.75rem,7vw,4.5rem)] leading-none tracking-tight text-ink">
-        <NumberFlow value={display} prefix={prefix} suffix={suffix} />
-      </p>
-      <p className="mt-2 font-mono-label text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-        {label}
-      </p>
-    </div>
   );
 }
 
@@ -176,7 +128,6 @@ const FEATURES = [
     ],
     src: '/screens/workouts.png',
     alt: 'MuscleOS Workouts screen',
-    tilt: 'left' as const,
   },
   {
     id: 'exercises',
@@ -190,7 +141,6 @@ const FEATURES = [
     ],
     src: '/screens/exercises.png',
     alt: 'MuscleOS exercise library',
-    tilt: 'right' as const,
   },
   {
     id: 'recovery',
@@ -204,7 +154,6 @@ const FEATURES = [
     ],
     src: '/screens/recovery.png',
     alt: 'MuscleOS Recovery screen',
-    tilt: 'left' as const,
   },
   {
     id: 'history',
@@ -219,7 +168,6 @@ const FEATURES = [
     src: undefined,
     alt: 'MuscleOS history (screenshot coming)',
     labelFallback: 'History',
-    tilt: 'right' as const,
   },
 ] as const;
 
@@ -252,306 +200,289 @@ const PRO_POINTS = [
   'Monthly training calendar',
 ] as const;
 
+const STATS = [
+  { value: '5', label: 'Built-in programs' },
+  { value: '$0', label: 'Cost to start' },
+  { value: '100%', label: 'Your data' },
+] as const;
+
 export function LandingPage() {
   return (
     <>
       <SiteHeader />
-      <div className="bg-atmosphere relative min-h-screen overflow-x-hidden">
-        <div className="bg-grain pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+      <div className="bg-atmosphere relative min-h-screen">
+        <div className="bg-grain pointer-events-none absolute inset-0 opacity-30" aria-hidden />
 
-      {/* Hero — aurora full-bleed, content constrained */}
-      <section className="relative min-h-[100svh]">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-[min(100svh,820px)] opacity-60"
-          aria-hidden
-        >
-          <Aurora
-            colorStops={['#2563eb', '#059669', '#3b82f6']}
-            amplitude={0.85}
-            blend={0.55}
-            speed={0.55}
-          />
-        </div>
+        {/* Hero */}
+        <section className="relative">
+          <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-8 px-5 pb-12 pt-8 sm:gap-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-24 lg:pt-16">
+            <div className="max-w-xl">
+              <p className="font-mono-label mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-primary sm:mb-4">
+                Workout companion
+              </p>
 
-        <div className="relative z-10 mx-auto grid min-h-[100svh] max-w-site grid-cols-1 items-center gap-12 px-6 pb-16 pt-16 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:pb-24 lg:pt-12">
-          <div className="max-w-xl">
-            <p className="font-mono-label mb-5 text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-              Workout companion
-            </p>
+              <h1 className="font-display text-[clamp(2.5rem,9vw,5rem)] font-extrabold leading-[0.95] tracking-tight text-ink">
+                MuscleOS
+              </h1>
 
-            <BlurText
-              text="MuscleOS"
-              delay={40}
-              animateBy="letters"
-              direction="top"
-              className="font-display text-[clamp(3.25rem,9vw,5.5rem)] font-extrabold leading-[0.92] tracking-tight text-ink"
-            />
-
-            <div className="mt-5">
-              <GradientText
-                colors={['#1d4ed8', '#059669', '#2563eb', '#1d4ed8']}
-                animationSpeed={10}
-                className="!mx-0 !max-w-none !justify-start text-left text-xl font-semibold leading-snug sm:text-2xl"
-              >
+              <p className="mt-3 text-lg font-semibold leading-snug text-primary sm:mt-4 sm:text-2xl">
                 Log workouts. Track progress. Train your way.
-              </GradientText>
+              </p>
+
+              <p className="mt-3 max-w-md text-base leading-relaxed text-ink-secondary sm:mt-4 sm:text-lg">
+                Five built-in workouts across PPL and Strong Lifts to start fast. Custom templates,
+                PRs, and progression when you want the full system.
+              </p>
+
+              <div className="mt-6 sm:mt-8">
+                <StoreButtons />
+              </div>
+              <p className="mt-3 text-sm text-ink-muted sm:mt-4">Free to start. Pro from $2.99/mo.</p>
             </div>
 
-            <p className="mt-4 max-w-md text-base leading-relaxed text-ink-muted sm:text-lg">
-              Five built-in workouts across PPL and Strong Lifts to start fast. Custom templates, PRs,
-              and progression when you want the full system.
-            </p>
-
-            <div className="mt-9">
-              <StoreButtons />
-            </div>
-            <p className="mt-4 text-sm text-ink-muted">Free to start. Pro from $2.99/mo.</p>
-          </div>
-
-          <div className="relative flex justify-center lg:justify-end">
-            <div
-              className="absolute -inset-8 top-10 rounded-[3rem] bg-gradient-to-br from-primary/10 via-ready/5 to-transparent blur-2xl lg:-inset-12"
-              aria-hidden
-            />
-            <div className="animate-float relative">
+            <div className="flex justify-center lg:justify-end">
               <PhoneFrame src="/screens/workouts.png" alt="MuscleOS Workouts screen" priority />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Why */}
-      <section className="relative border-t border-border/70 bg-surface/50">
-        <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
-          <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-            Why MuscleOS
-          </p>
-          <h2 className="font-display mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-            A gym log that stays out of your way — and grows with how you train.
-          </h2>
+        {/* Why */}
+        <section className="relative border-t border-border/70 bg-surface/50">
+          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
+            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
+              Why MuscleOS
+            </p>
+            <h2 className="font-display mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
+              A gym log that stays out of your way — and grows with how you train.
+            </h2>
 
-          <ul className="mt-12 grid gap-5 sm:grid-cols-3">
-            {PROBLEMS.map((item) => (
-              <li key={item.pain}>
-                <SpotlightCard
-                  className="!rounded-2xl !border-border !bg-surface !p-6 h-full"
-                  spotlightColor="rgba(37, 99, 235, 0.14)"
+            <ul className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-5">
+              {PROBLEMS.map((item) => (
+                <li
+                  key={item.pain}
+                  className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
                 >
                   <p className="font-medium text-ink">{item.pain}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">→ {item.fix}</p>
-                </SpotlightCard>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="relative border-t border-border/70">
-        <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
-          <div className="max-w-2xl">
-            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-              Features
-            </p>
-            <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-              Everything you need in the gym and after.
-            </h2>
-            <p className="mt-4 text-lg text-ink-secondary">
-              Workouts, exercises, recovery, and history — one app, no social feed.
-            </p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">→ {item.fix}</p>
+                </li>
+              ))}
+            </ul>
           </div>
+        </section>
 
-          <div className="mt-16 space-y-24 lg:mt-20 lg:space-y-28">
-            {FEATURES.map((feature, i) => {
-              const phoneFirst = i % 2 === 1;
-              return (
-                <article
-                  key={feature.id}
-                  id={feature.id}
-                  className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16"
-                >
-                  <div className={phoneFirst ? 'lg:order-2' : undefined}>
-                    <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-                      {feature.label}
-                    </p>
-                    <h3 className="font-display mt-3 text-2xl font-bold tracking-tight text-ink text-balance sm:text-3xl">
-                      {feature.title}
-                    </h3>
-                    <p className="mt-4 max-w-md text-base leading-relaxed text-ink-secondary sm:text-lg">
-                      {feature.body}
-                    </p>
-                    <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
-                      {feature.points.map((point) => (
-                        <li key={point} className="flex gap-2.5">
-                          <span
-                            className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                            aria-hidden
-                          />
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div
-                    className={`flex justify-center ${phoneFirst ? 'lg:order-1 lg:justify-start' : 'lg:justify-end'}`}
+        {/* Features */}
+        <section id="features" className="relative border-t border-border/70">
+          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
+            <div className="max-w-2xl">
+              <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
+                Features
+              </p>
+              <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
+                Everything you need in the gym and after.
+              </h2>
+              <p className="mt-4 text-lg text-ink-secondary">
+                Workouts, exercises, recovery, and history — one app, no social feed.
+              </p>
+            </div>
+
+            <div className="mt-14 space-y-16 sm:mt-16 lg:mt-20 lg:space-y-24">
+              {FEATURES.map((feature, i) => {
+                const phoneFirst = i % 2 === 1;
+                return (
+                  <article
+                    key={feature.id}
+                    id={feature.id}
+                    className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16"
                   >
-                    <div className={i % 2 === 0 ? 'animate-float' : 'animate-float-slow'}>
+                    <div className={phoneFirst ? 'lg:order-2' : undefined}>
+                      <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
+                        {feature.label}
+                      </p>
+                      <h3 className="font-display mt-3 text-2xl font-bold tracking-tight text-ink text-balance sm:text-3xl">
+                        {feature.title}
+                      </h3>
+                      <p className="mt-4 max-w-md text-base leading-relaxed text-ink-secondary sm:text-lg">
+                        {feature.body}
+                      </p>
+                      <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
+                        {feature.points.map((point) => (
+                          <li key={point} className="flex gap-2.5">
+                            <span
+                              className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                              aria-hidden
+                            />
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div
+                      className={`flex justify-center ${phoneFirst ? 'lg:order-1 lg:justify-start' : 'lg:justify-end'}`}
+                    >
                       <PhoneFrame
                         src={'src' in feature ? feature.src : undefined}
                         alt={feature.alt}
                         label={'labelFallback' in feature ? feature.labelFallback : feature.label}
-                        tilt={feature.tilt}
                         priority={i === 0}
                       />
                     </div>
-                  </div>
-                </article>
-              );
-            })}
+                  </article>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Stats */}
-      <section className="border-y border-border/70 bg-surface/60 py-14 sm:py-16">
-        <div className="mx-auto grid max-w-site gap-10 px-6 sm:grid-cols-3 sm:px-8">
-          <StatBurst value={5} label="Built-in programs" />
-          <StatBurst value={0} label="Cost to start" prefix="$" />
-          <StatBurst value={100} label="Your data" suffix="%" />
-        </div>
-      </section>
+        {/* Stats */}
+        <section className="border-y border-border/70 bg-surface/60 py-12 sm:py-16">
+          <div className="mx-auto grid max-w-site gap-8 px-5 sm:grid-cols-3 sm:gap-10 sm:px-8">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
+                  {stat.value}
+                </p>
+                <p className="mt-2 font-mono-label text-[11px] uppercase tracking-[0.18em] text-ink-muted">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="relative border-t border-border/70 bg-surface/50">
-        <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-              Pricing
+        {/* Pricing */}
+        <section id="pricing" className="relative border-t border-border/70 bg-surface/50">
+          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
+                Pricing
+              </p>
+              <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
+                Free to start. Pro to train on your terms.
+              </h2>
+              <p className="mt-4 text-lg text-ink-secondary">
+                Basic covers solid built-in programs and full logging. Pro is the upgrade for your
+                own programs, flexible sessions, and progress tools.
+              </p>
+            </div>
+
+            <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:mt-14 sm:gap-6 lg:grid-cols-[1fr_1.15fr]">
+              <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
+                <p className="font-display text-xl font-semibold text-ink">Basic</p>
+                <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
+                <p className="mt-2 text-sm text-ink-muted">Forever — no trial wall</p>
+                <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
+                  <li>5 built-in programs (PPL &amp; Strong Lifts)</li>
+                  <li>Full set logging &amp; rest timers</li>
+                  <li>Exercise library</li>
+                  <li>Recovery map</li>
+                  <li>History &amp; JSON export</li>
+                </ul>
+              </div>
+
+              <div className="relative rounded-2xl border-2 border-primary bg-primary/[0.06] p-6 sm:p-8">
+                <p className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+                  Recommended
+                </p>
+                <p className="font-display text-xl font-semibold text-ink">Pro</p>
+                <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
+                  $19.99<span className="text-lg font-medium text-ink-muted">/yr</span>
+                </p>
+                <p className="mt-2 text-sm text-ink-muted">
+                  Best value · also $2.99/mo or $39.99 lifetime
+                </p>
+                <p className="mt-5 text-sm font-medium text-ink">
+                  Everything in Basic, plus the tools serious lifters actually use:
+                </p>
+                <ul className="mt-4 grid gap-2.5 text-sm text-ink-secondary sm:grid-cols-2">
+                  {PRO_POINTS.map((point) => (
+                    <li key={point} className="flex gap-2">
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                        aria-hidden
+                      />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* How + close */}
+        <section id="how" className="relative border-t border-border/70">
+          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
+            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
+              How it works
             </p>
             <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-              Free to start. Pro to train on your terms.
+              Download. Log. Repeat.
             </h2>
-            <p className="mt-4 text-lg text-ink-secondary">
-              Basic covers solid built-in programs and full logging. Pro is the upgrade for your own
-              programs, flexible sessions, and progress tools.
-            </p>
-          </div>
+            <ol className="mt-10 grid gap-8 sm:mt-12 sm:grid-cols-3">
+              {STEPS.map((step) => (
+                <li key={step.n} className="relative">
+                  <span className="font-display text-4xl font-bold text-primary/25">{step.n}</span>
+                  <h3 className="font-display mt-2 text-xl font-semibold text-ink">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.body}</p>
+                </li>
+              ))}
+            </ol>
 
-          <div className="mx-auto mt-14 grid max-w-4xl gap-6 lg:grid-cols-[1fr_1.15fr]">
-            <div className="rounded-2xl border border-border bg-surface p-7 sm:p-8">
-              <p className="font-display text-xl font-semibold text-ink">Basic</p>
-              <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
-              <p className="mt-2 text-sm text-ink-muted">Forever — no trial wall</p>
-              <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
-                <li>5 built-in programs (PPL &amp; Strong Lifts)</li>
-                <li>Full set logging &amp; rest timers</li>
-                <li>Exercise library</li>
-                <li>Recovery map</li>
-                <li>History &amp; JSON export</li>
-              </ul>
+            <div className="mt-12 flex flex-col gap-5 border-t border-border/80 pt-10 sm:mt-14 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-md text-base text-ink-secondary sm:text-lg">
+                Free on Basic. Pro from $2.99/mo when you want your own programs and progress tools.
+              </p>
+              <StoreButtons />
             </div>
+          </div>
+        </section>
 
-            <div className="relative rounded-2xl border-2 border-primary bg-primary/[0.06] p-7 shadow-[0_20px_50px_-28px_rgba(37,99,235,0.35)] sm:p-8">
-              <p className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
-                Recommended
+        <footer className="border-t border-border/80 bg-background">
+          <div className="mx-auto flex max-w-site flex-col gap-8 px-5 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-8">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <Image src="/icon.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+                <span className="font-display font-medium text-ink">MuscleOS</span>
+              </div>
+              <p className="mt-2 max-w-xs text-sm text-ink-secondary">
+                Workout logging for people who actually train.
               </p>
-              <p className="font-display text-xl font-semibold text-ink">Pro</p>
-              <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
-                $19.99<span className="text-lg font-medium text-ink-muted">/yr</span>
-              </p>
-              <p className="mt-2 text-sm text-ink-muted">
-                Best value · also $2.99/mo or $39.99 lifetime
-              </p>
-              <p className="mt-5 text-sm font-medium text-ink">
-                Everything in Basic, plus the tools serious lifters actually use:
-              </p>
-              <ul className="mt-4 grid gap-2.5 text-sm text-ink-secondary sm:grid-cols-2">
-                {PRO_POINTS.map((point) => (
-                  <li key={point} className="flex gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                    {point}
+              <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
+            </div>
+            <div className="flex gap-12 text-sm">
+              <div>
+                <p className="font-medium text-ink">Product</p>
+                <ul className="mt-3 space-y-2">
+                  <li>
+                    <Link href="#features" className="text-ink-secondary transition hover:text-ink">
+                      Features
+                    </Link>
                   </li>
-                ))}
-              </ul>
+                  <li>
+                    <Link href="#pricing" className="text-ink-secondary transition hover:text-ink">
+                      Pricing
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-ink">Legal</p>
+                <ul className="mt-3 space-y-2">
+                  <li>
+                    <Link href="/privacy" className="text-ink-secondary transition hover:text-ink">
+                      Privacy
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/terms" className="text-ink-secondary transition hover:text-ink">
+                      Terms
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* How + close */}
-      <section id="how" className="relative border-t border-border/70 bg-surface/50">
-        <div className="mx-auto max-w-site px-6 py-20 sm:px-8 lg:py-24">
-          <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-            How it works
-          </p>
-          <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-            Download. Log. Repeat.
-          </h2>
-          <ol className="mt-12 grid gap-8 sm:grid-cols-3">
-            {STEPS.map((step) => (
-              <li key={step.n} className="relative">
-                <span className="font-display text-4xl font-bold text-primary/20">{step.n}</span>
-                <h3 className="font-display mt-2 text-xl font-semibold text-ink">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-14 flex flex-col gap-5 border-t border-border/80 pt-10 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-md text-base text-ink-secondary sm:text-lg">
-              Free on Basic. Pro from $2.99/mo when you want your own programs and progress tools.
-            </p>
-            <StoreButtons />
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-border/80 bg-background">
-        <div className="mx-auto flex max-w-site flex-col gap-8 px-6 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-8">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <Image src="/icon.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
-              <span className="font-display font-medium text-ink">MuscleOS</span>
-            </div>
-            <p className="mt-2 max-w-xs text-sm text-ink-secondary">
-              Workout logging for people who actually train.
-            </p>
-            <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
-          </div>
-          <div className="flex gap-12 text-sm">
-            <div>
-              <p className="font-medium text-ink">Product</p>
-              <ul className="mt-3 space-y-2">
-                <li>
-                  <Link href="#features" className="text-ink-secondary transition hover:text-ink">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#pricing" className="text-ink-secondary transition hover:text-ink">
-                    Pricing
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-medium text-ink">Legal</p>
-              <ul className="mt-3 space-y-2">
-                <li>
-                  <Link href="/privacy" className="text-ink-secondary transition hover:text-ink">
-                    Privacy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/terms" className="text-ink-secondary transition hover:text-ink">
-                    Terms
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
       </div>
     </>
   );
