@@ -24,6 +24,7 @@ import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
 import { recommendTemplates } from '@/utils/recommendTemplates';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -63,6 +64,7 @@ export default function WorkoutsScreen() {
   const loadRecovery = useRecoveryStore((s) => s.load);
   const recoveryItems = useRecoveryStore((s) => s.items);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
+  const notNatty = useSettingsStore((s) => !!s.profile.notNatty);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
@@ -243,6 +245,7 @@ export default function WorkoutsScreen() {
   }, [
     templates,
     recoveryItems,
+    notNatty,
     sessions,
     lastDoneByTemplate,
     hiddenBuiltInIds,

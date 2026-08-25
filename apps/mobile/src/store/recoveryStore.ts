@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { MuscleRecovery } from '@muscleos/types';
-import { getRecoveryUntil } from '@muscleos/types';
 import { getRecovery } from '@/storage/localStorage';
+import { getRecoveryUntil } from '@/utils/recovery';
 
 export interface RecoveryState {
   items: MuscleRecovery[];

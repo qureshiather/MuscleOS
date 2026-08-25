@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,7 @@ export default function ProfileScreen() {
   const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
   const setProfile = useSettingsStore((s) => s.setProfile);
+  const setNotNatty = useSettingsStore((s) => s.setNotNatty);
   const isLinked = !useAuthStore((s) => s.isAnonymous);
   const authProfile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
@@ -234,18 +235,33 @@ export default function ProfileScreen() {
               ['Age', ageDisplay],
               ['Gender', sexDisplay],
             ] as const
-          ).map(([label, value], i, arr) => (
+          ).map(([label, value]) => (
             <View
               key={label}
               style={[
                 styles.readOnlyRow,
-                i < arr.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+                { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
               ]}
             >
               <Text style={[typography.body, { color: colors.textMuted }]}>{label}</Text>
               <Text style={[typography.data, { color: colors.text }]}>{value}</Text>
             </View>
           ))}
+          <View style={styles.notNattyRow}>
+            <View style={styles.notNattyCopy}>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>Not natty</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+                Halves recovery time. These anabolic substances be crazy.
+              </Text>
+            </View>
+            <Switch
+              value={!!profile.notNatty}
+              onValueChange={(v) => void setNotNatty(v)}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#fff"
+              ios_backgroundColor={colors.border}
+            />
+          </View>
         </Card>
 
         <Modal
@@ -396,6 +412,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
   },
+  notNattyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingTop: spacing.md,
+    minHeight: 44,
+  },
+  notNattyCopy: { flex: 1, minWidth: 0, paddingRight: spacing.sm },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',

@@ -32,6 +32,8 @@ export interface UserAppProfile {
   weightKg?: number;
   age?: number;
   sex?: 'male' | 'female';
+  /** Enhanced protocol: halves recovery estimates. */
+  notNatty?: boolean;
 }
 
 /** Synced snapshot: units, sounds, theme, and biodata. */

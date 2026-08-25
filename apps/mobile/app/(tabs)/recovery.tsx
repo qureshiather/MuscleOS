@@ -8,12 +8,13 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { MUSCLE_GROUPS, getRecoveryUntil } from '@muscleos/types';
+import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRecoveryReady } from '@/utils/relativeTime';
+import { getRecoveryUntil } from '@/utils/recovery';
 
 const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 

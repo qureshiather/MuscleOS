@@ -35,6 +35,7 @@ export interface SettingsState {
   setBodyWeightUnit: (unit: WeightUnit) => Promise<void>;
   setWorkoutSoundsEnabled: (enabled: boolean) => Promise<void>;
   setProfile: (profile: UserAppProfile) => Promise<void>;
+  setNotNatty: (notNatty: boolean) => Promise<void>;
 }
 
 async function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<void> {
@@ -44,7 +45,7 @@ async function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<vo
   notifyAppSettingsSnapshot(next);
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export const useSettingsStore = create<SettingsState>((set, get) => ({
   heightUnit: 'cm',
   weightUnit: 'kg',
   bodyWeightUnit: 'kg',
@@ -108,6 +109,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   setProfile: async (profile) => {
+    set({ profile });
+    await persistAndNotify({ profile });
+  },
+
+  setNotNatty: async (notNatty) => {
+    const profile = { ...get().profile, notNatty };
     set({ profile });
     await persistAndNotify({ profile });
   },

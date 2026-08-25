@@ -7,7 +7,7 @@ import {
   setExercisePrevious,
 } from '@/storage/localStorage';
 import { getRecovery, setRecovery } from '@/storage/localStorage';
-import { getRecoveryUntil } from '@muscleos/types';
+import { getRecoveryUntil } from '@/utils/recovery';
 import type { MuscleId } from '@muscleos/types';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
