@@ -10,7 +10,8 @@ create table if not exists public.sync_records (
       'template_folder',
       'custom_exercise',
       'recovery',
-      'exercise_previous'
+      'exercise_previous',
+      'exercise_note'
     )
   ),
   entity_id text not null,

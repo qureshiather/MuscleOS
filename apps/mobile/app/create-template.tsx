@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ export default function CreateTemplateScreen() {
   const loadTemplates = useTemplatesStore((s) => s.load);
   const userTemplates = useTemplatesStore((s) => s.userTemplates);
   const folders = useTemplatesStore((s) => s.folders);
+  const savingRef = useRef(false);
 
   const isEditMode = Boolean(editTemplateId?.trim());
   const existingTemplate = useMemo(
@@ -64,6 +65,7 @@ export default function CreateTemplateScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [showErrors, setShowErrors] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const pickerExercises = useMemo(() => {
     let list = allExercises;
@@ -88,7 +90,8 @@ export default function CreateTemplateScreen() {
     setSelectedIds((prev) => prev.filter((x) => x !== id));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (savingRef.current) return;
     const missingName = !name.trim();
     const missingExercises = selectedIds.length === 0;
     if (missingName || missingExercises) {
@@ -96,23 +99,30 @@ export default function CreateTemplateScreen() {
       return;
     }
     setShowErrors(false);
-    if (isEditMode && existingTemplate) {
-      updateTemplate(existingTemplate.id, {
-        name: name.trim(),
-        exerciseIds: selectedIds,
-        ...(folderId !== undefined && { folderId }),
-      });
-    } else {
-      const template: WorkoutTemplate = {
-        id: 'tpl_' + Date.now(),
-        name: name.trim(),
-        exerciseIds: selectedIds,
-        isBuiltIn: false,
-        ...(folderId && { folderId }),
-      };
-      addTemplate(template);
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      if (isEditMode && existingTemplate) {
+        await updateTemplate(existingTemplate.id, {
+          name: name.trim(),
+          exerciseIds: selectedIds,
+          ...(folderId !== undefined && { folderId }),
+        });
+      } else {
+        const template: WorkoutTemplate = {
+          id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          name: name.trim(),
+          exerciseIds: selectedIds,
+          isBuiltIn: false,
+          ...(folderId && { folderId }),
+        };
+        await addTemplate(template);
+      }
+      router.back();
+    } catch {
+      savingRef.current = false;
+      setSaving(false);
     }
-    router.back();
   }
 
   const templateMuscleIds: MuscleId[] = useMemo(
@@ -271,8 +281,15 @@ export default function CreateTemplateScreen() {
         )}
 
         <PrimaryButton
-          label={isEditMode ? 'Save changes' : 'Save template'}
+          label={
+            saving
+              ? 'Saving…'
+              : isEditMode
+                ? 'Save changes'
+                : 'Save template'
+          }
           onPress={handleSave}
+          disabled={saving}
           style={{ marginTop: spacing.sm }}
         />
       </ScrollView>

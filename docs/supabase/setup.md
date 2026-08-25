@@ -2,7 +2,7 @@
 
 ## Cloud sync (Strong-style)
 
-MuscleOS syncs workout history, templates, custom exercises, and derived data to Supabase for **linked accounts only**. Reads are always local-first (AsyncStorage); sync runs in the background.
+MuscleOS syncs workout history, templates, custom exercises, exercise notes, settings (units, sounds, theme, biodata), and derived data to Supabase for **linked accounts only**. Reads are always local-first (AsyncStorage); sync runs in the background.
 
 ### 1. Run migrations (Supabase CLI)
 
@@ -46,7 +46,7 @@ pnpm supabase migration new my_change   # scaffold a new migration
 
 **Alternative — SQL editor**
 
-Paste `supabase/migrations/20260824120000_sync_records.sql` into the [Supabase SQL editor](https://supabase.com/dashboard) and run it manually.
+Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabase.com/dashboard) in order and run them manually.
 
 ### 2. App behavior
 

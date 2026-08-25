@@ -18,7 +18,14 @@ import {
   setRecovery,
   getExercisePrevious,
   setExercisePrevious,
+  getExerciseNotes,
+  setExerciseNotes,
+  getAppSettings,
+  setAppSettings,
+  defaultAppSettings,
+  normalizeAppSettings,
   type ExercisePrevious,
+  type SyncedAppSettings,
 } from '@/storage/localStorage';
 import type { RemoteSyncRecord, SyncEntityType } from './types';
 
@@ -34,15 +41,25 @@ function pickNewerSession(a: WorkoutSession, b: WorkoutSession): WorkoutSession 
 export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<boolean> {
   if (records.length === 0) return false;
 
-  const [sessions, templates, folders, customExercises, recovery, exercisePrevious] =
-    await Promise.all([
-      getSessions(),
-      getTemplates(),
-      getTemplateFolders(),
-      getCustomExercises(),
-      getRecovery(),
-      getExercisePrevious(),
-    ]);
+  const [
+    sessions,
+    templates,
+    folders,
+    customExercises,
+    recovery,
+    exercisePrevious,
+    exerciseNotes,
+    appSettings,
+  ] = await Promise.all([
+    getSessions(),
+    getTemplates(),
+    getTemplateFolders(),
+    getCustomExercises(),
+    getRecovery(),
+    getExercisePrevious(),
+    getExerciseNotes(),
+    getAppSettings(),
+  ]);
 
   const sessionMap = new Map(sessions.map((s) => [s.id, s]));
   const templateMap = new Map(templates.map((t) => [t.id, t]));
@@ -52,6 +69,10 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
   let recoveryUpdatedAt = recovery.at(-1)?.trainedAt ?? '';
   let previousData = exercisePrevious;
   let previousUpdatedAt = '';
+  let notesData = exerciseNotes;
+  let notesUpdatedAt = '';
+  let settingsData = appSettings;
+  let settingsUpdatedAt = '';
 
   for (const record of records) {
     const updatedAt = record.updated_at;
@@ -80,6 +101,18 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
           if (updatedAt >= previousUpdatedAt) {
             previousData = {};
             previousUpdatedAt = updatedAt;
+          }
+          break;
+        case 'exercise_note':
+          if (updatedAt >= notesUpdatedAt) {
+            notesData = {};
+            notesUpdatedAt = updatedAt;
+          }
+          break;
+        case 'app_settings':
+          if (updatedAt >= settingsUpdatedAt) {
+            settingsData = defaultAppSettings();
+            settingsUpdatedAt = updatedAt;
           }
           break;
       }
@@ -119,6 +152,23 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
         }
         break;
       }
+      case 'exercise_note': {
+        if (updatedAt >= notesUpdatedAt) {
+          notesData = (record.payload as Record<string, string>) ?? {};
+          notesUpdatedAt = updatedAt;
+        }
+        break;
+      }
+      case 'app_settings': {
+        if (updatedAt >= settingsUpdatedAt) {
+          settingsData = normalizeAppSettings(
+            record.payload as Partial<SyncedAppSettings> | null,
+            settingsData
+          );
+          settingsUpdatedAt = updatedAt;
+        }
+        break;
+      }
     }
   }
 
@@ -129,6 +179,8 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     setCustomExercises(Array.from(exerciseMap.values())),
     setRecovery(recoveryData),
     setExercisePrevious(previousData),
+    setExerciseNotes(notesData),
+    setAppSettings(settingsData),
   ]);
 
   return true;
@@ -143,15 +195,25 @@ export async function collectFullLocalSnapshot(): Promise<
     updatedAt: string;
   }>
 > {
-  const [sessions, templates, folders, customExercises, recovery, exercisePrevious] =
-    await Promise.all([
-      getSessions(),
-      getTemplates(),
-      getTemplateFolders(),
-      getCustomExercises(),
-      getRecovery(),
-      getExercisePrevious(),
-    ]);
+  const [
+    sessions,
+    templates,
+    folders,
+    customExercises,
+    recovery,
+    exercisePrevious,
+    exerciseNotes,
+    appSettings,
+  ] = await Promise.all([
+    getSessions(),
+    getTemplates(),
+    getTemplateFolders(),
+    getCustomExercises(),
+    getRecovery(),
+    getExercisePrevious(),
+    getExerciseNotes(),
+    getAppSettings(),
+  ]);
 
   const now = new Date().toISOString();
   const items: Array<{
@@ -194,6 +256,20 @@ export async function collectFullLocalSnapshot(): Promise<
       updatedAt: now,
     });
   }
+  if (Object.keys(exerciseNotes).length) {
+    items.push({
+      entityType: 'exercise_note',
+      entityId: 'default',
+      payload: exerciseNotes,
+      updatedAt: now,
+    });
+  }
+  items.push({
+    entityType: 'app_settings',
+    entityId: 'default',
+    payload: appSettings,
+    updatedAt: now,
+  });
 
   return items;
 }
@@ -203,11 +279,15 @@ export async function reloadSyncedStores(): Promise<void> {
   const { useTemplatesStore } = await import('@/store/templatesStore');
   const { useExercisesStore } = await import('@/store/exercisesStore');
   const { useRecoveryStore } = await import('@/store/recoveryStore');
+  const { useExerciseNotesStore } = await import('@/store/exerciseNotesStore');
+  const { useSettingsStore } = await import('@/store/settingsStore');
 
   await Promise.all([
     useSessionsStore.getState().load(),
     useTemplatesStore.getState().load(),
     useExercisesStore.getState().load(),
     useRecoveryStore.getState().load(),
+    useExerciseNotesStore.getState().load(),
+    useSettingsStore.getState().load(),
   ]);
 }

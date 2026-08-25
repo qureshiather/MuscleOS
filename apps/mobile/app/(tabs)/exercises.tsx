@@ -18,6 +18,7 @@ import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useProGate } from '@/hooks/useProGate';
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import type { Exercise, MuscleId } from '@muscleos/types';
@@ -66,10 +67,13 @@ export default function ExercisesScreen() {
   const router = useRouter();
   const { isPro, gatePro } = useProGate();
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
+  const notes = useExerciseNotesStore((s) => s.notes);
+  const setNote = useExerciseNotesStore((s) => s.setNote);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<EquipmentTypeKey | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const allExercises = getAllExercises();
@@ -306,7 +310,10 @@ export default function ExercisesScreen() {
                 opacity: pressed ? 0.9 : 1,
               },
             ]}
-            onPress={() => setSelected(item)}
+            onPress={() => {
+              setNoteDraft(notes[item.id] ?? '');
+              setSelected(item);
+            }}
           >
             <View style={styles.cardTitleRow}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
@@ -331,20 +338,34 @@ export default function ExercisesScreen() {
         visible={selected !== null}
         animationType="slide"
         transparent
-        onRequestClose={() => setSelected(null)}
+        onRequestClose={() => {
+          if (selected) void setNote(selected.id, noteDraft);
+          setSelected(null);
+        }}
       >
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setSelected(null)}>
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => {
+            if (selected) void setNote(selected.id, noteDraft);
+            setSelected(null);
+          }}
+        >
           <Pressable style={[styles.modalContent, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
             {selected && (
               <>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
                   <Text style={[styles.modalTitle, { color: colors.text }]}>{selected.name}</Text>
-                  <Pressable onPress={() => setSelected(null)}>
+                  <Pressable
+                    onPress={() => {
+                      void setNote(selected.id, noteDraft);
+                      setSelected(null);
+                    }}
+                  >
                     <Text style={[styles.modalClose, { color: colors.primary }]}>Close</Text>
                   </Pressable>
                 </View>
                 <MuscleDiagram muscleIds={selected.muscles} showLabels size={0.9} />
-                <ScrollView style={styles.modalBody}>
+                <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Muscles</Text>
                   <Text style={[styles.bodyText, { color: colors.text }]}>
                     {selected.muscles.map((id) => MUSCLE_GROUPS[id].name).join(', ')}
@@ -361,6 +382,27 @@ export default function ExercisesScreen() {
                       </Text>
                     </>
                   )}
+                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Your notes</Text>
+                  <Text style={[styles.noteHint, { color: colors.textMuted }]}>
+                    Seat height, lever settings, and other personal adjustments. Synced to your account.
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.noteInput,
+                      {
+                        backgroundColor: colors.background,
+                        color: colors.text,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    placeholder="e.g. seat 4 · lever underneath on 3"
+                    placeholderTextColor={colors.textMuted}
+                    value={noteDraft}
+                    onChangeText={setNoteDraft}
+                    onEndEditing={() => void setNote(selected.id, noteDraft)}
+                    multiline
+                    textAlignVertical="top"
+                  />
                 </ScrollView>
               </>
             )}
@@ -469,4 +511,13 @@ const styles = StyleSheet.create({
   modalBody: { padding: spacing.lg + 4 },
   sectionLabel: { ...typography.caption, fontFamily: typography.label.fontFamily, marginTop: spacing.lg, marginBottom: spacing.xs },
   bodyText: { ...typography.body },
+  noteHint: { ...typography.caption, marginBottom: spacing.sm },
+  noteInput: {
+    ...typography.body,
+    minHeight: 88,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
 });

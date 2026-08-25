@@ -15,6 +15,8 @@ export interface ExportData {
   templateFolders?: TemplateFolder[];
   sessions: WorkoutSession[];
   recovery: MuscleRecovery[];
+  /** User notes keyed by exercise id (seat height, lever settings, etc.) */
+  exerciseNotes?: Record<string, string>;
   health?: {
     macroTargets?: MacroTargets;
     metabolism?: MetabolismInfo;

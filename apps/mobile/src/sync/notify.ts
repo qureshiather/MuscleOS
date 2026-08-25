@@ -1,5 +1,5 @@
 import type { WorkoutSession, WorkoutTemplate, TemplateFolder, Exercise, MuscleRecovery } from '@muscleos/types';
-import type { ExercisePrevious } from '@/storage/localStorage';
+import type { ExercisePrevious, SyncedAppSettings } from '@/storage/localStorage';
 import { enqueueOutbox } from './outbox';
 import { isCloudSyncEnabled, schedulePush } from './syncEngine';
 
@@ -119,6 +119,30 @@ export function notifyExercisePreviousSnapshot(previous: Record<string, Exercise
     entityId: 'default',
     op: 'upsert',
     payload: previous,
+    updatedAt: new Date().toISOString(),
+  });
+  touch();
+}
+
+export function notifyExerciseNotesSnapshot(notes: Record<string, string>): void {
+  if (!isCloudSyncEnabled()) return;
+  void enqueueOutbox({
+    entityType: 'exercise_note',
+    entityId: 'default',
+    op: 'upsert',
+    payload: notes,
+    updatedAt: new Date().toISOString(),
+  });
+  touch();
+}
+
+export function notifyAppSettingsSnapshot(settings: SyncedAppSettings): void {
+  if (!isCloudSyncEnabled()) return;
+  void enqueueOutbox({
+    entityType: 'app_settings',
+    entityId: 'default',
+    op: 'upsert',
+    payload: settings,
     updatedAt: new Date().toISOString(),
   });
   touch();

@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { syncNow } from '@/sync';
 import { useSyncStore } from '@/store/syncStore';
 
@@ -60,6 +61,7 @@ export default function RootLayout() {
   const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
   const loadCustomExercises = useExercisesStore((s) => s.load);
+  const loadExerciseNotes = useExerciseNotesStore((s) => s.load);
 
   useEffect(() => {
     (async () => {
@@ -68,6 +70,7 @@ export default function RootLayout() {
         await loadSubscription(userId);
         loadSettings();
         loadCustomExercises();
+        loadExerciseNotes();
         void useSyncStore.getState().loadStatus();
         void syncNow();
       } catch (e) {
@@ -77,7 +80,7 @@ export default function RootLayout() {
         }
       }
     })();
-  }, [initAuth, loadSubscription, loadSettings, loadCustomExercises]);
+  }, [initAuth, loadSubscription, loadSettings, loadCustomExercises, loadExerciseNotes]);
 
   useEffect(() => {
     if (isExpoGo) return;

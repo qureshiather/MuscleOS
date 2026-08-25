@@ -11,14 +11,170 @@ import type {
   UserProfile,
   Exercise,
 } from '@muscleos/types';
+import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
 import { STORAGE_KEYS } from './keys';
+
+const APP_SETTINGS_KEYS = {
+  unitSystem: 'muscleos_unit_system',
+  profile: 'muscleos_profile',
+  weightUnitLegacy: 'muscleos_weight_unit',
+  heightUnit: 'muscleos_height_unit',
+  exerciseWeightUnit: 'muscleos_exercise_weight_unit',
+  bodyWeightUnit: 'muscleos_body_weight_unit',
+  workoutSounds: 'muscleos_workout_sounds',
+  theme: 'muscleos_theme',
+} as const;
+
+export type ThemePreference = 'auto' | 'dark' | 'light';
+
+export interface UserAppProfile {
+  heightCm?: number;
+  weightKg?: number;
+  age?: number;
+  sex?: 'male' | 'female';
+}
+
+/** Synced snapshot: units, sounds, theme, and biodata. */
+export interface SyncedAppSettings {
+  heightUnit: HeightUnit;
+  weightUnit: WeightUnit;
+  bodyWeightUnit: WeightUnit;
+  workoutSoundsEnabled: boolean;
+  themePreference: ThemePreference;
+  profile: UserAppProfile;
+}
+
+const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
+  heightUnit: 'cm',
+  weightUnit: 'kg',
+  bodyWeightUnit: 'kg',
+  workoutSoundsEnabled: true,
+  themePreference: 'auto',
+  profile: {},
+};
+
+function parseHeightUnit(s: string | null): HeightUnit | null {
+  if (s === 'cm' || s === 'in') return s;
+  return null;
+}
+
+function parseWeightUnit(s: string | null): WeightUnit | null {
+  if (s === 'kg' || s === 'lb') return s;
+  return null;
+}
+
+export function parseThemePreference(s: string | null | undefined): ThemePreference | null {
+  if (s === 'auto' || s === 'dark' || s === 'light') return s;
+  return null;
+}
+
+export async function getAppSettings(): Promise<SyncedAppSettings> {
+  const [
+    systemStored,
+    profileRaw,
+    legacyWeight,
+    heightRaw,
+    exerciseStored,
+    bodyStored,
+    workoutSoundsRaw,
+    themeRaw,
+  ] = await Promise.all([
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.profile),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.weightUnitLegacy),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.heightUnit),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.exerciseWeightUnit),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.bodyWeightUnit),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.theme),
+  ]);
+
+  const unitSystem = systemStored === 'imperial' ? 'imperial' : 'metric';
+  const defaultHeight: HeightUnit = unitSystem === 'imperial' ? 'in' : 'cm';
+  const defaultWeight: WeightUnit = unitSystem === 'imperial' ? 'lb' : 'kg';
+
+  let profile: UserAppProfile = {};
+  if (profileRaw) {
+    try {
+      profile = JSON.parse(profileRaw) as UserAppProfile;
+    } catch {
+      // ignore
+    }
+  }
+
+  const heightUnit = parseHeightUnit(heightRaw) ?? defaultHeight;
+  const weightUnit =
+    parseWeightUnit(exerciseStored) ?? parseWeightUnit(legacyWeight) ?? defaultWeight;
+  const bodyWeightUnit = parseWeightUnit(bodyStored) ?? weightUnit;
+
+  let workoutSoundsEnabled = true;
+  if (workoutSoundsRaw === '0' || workoutSoundsRaw === 'false') workoutSoundsEnabled = false;
+  if (workoutSoundsRaw === '1' || workoutSoundsRaw === 'true') workoutSoundsEnabled = true;
+
+  return {
+    heightUnit,
+    weightUnit,
+    bodyWeightUnit,
+    workoutSoundsEnabled,
+    themePreference: parseThemePreference(themeRaw) ?? 'auto',
+    profile,
+  };
+}
+
+const themeStorageListeners = new Set<() => void>();
+
+/** ThemeProvider subscribes so pull/merge can refresh UI after writing AsyncStorage. */
+export function onThemeStorageChanged(listener: () => void): () => void {
+  themeStorageListeners.add(listener);
+  return () => {
+    themeStorageListeners.delete(listener);
+  };
+}
+
+function emitThemeStorageChanged(): void {
+  themeStorageListeners.forEach((listener) => listener());
+}
+
+export async function setAppSettings(settings: SyncedAppSettings): Promise<void> {
+  const themePreference = parseThemePreference(settings.themePreference) ?? 'auto';
+  await AsyncStorage.multiSet([
+    [APP_SETTINGS_KEYS.heightUnit, settings.heightUnit],
+    [APP_SETTINGS_KEYS.exerciseWeightUnit, settings.weightUnit],
+    [APP_SETTINGS_KEYS.bodyWeightUnit, settings.bodyWeightUnit],
+    [APP_SETTINGS_KEYS.workoutSounds, settings.workoutSoundsEnabled ? '1' : '0'],
+    [APP_SETTINGS_KEYS.theme, themePreference],
+    [APP_SETTINGS_KEYS.profile, JSON.stringify(settings.profile ?? {})],
+  ]);
+  emitThemeStorageChanged();
+}
+
+export function defaultAppSettings(): SyncedAppSettings {
+  return { ...DEFAULT_APP_SETTINGS, profile: {} };
+}
+
+/** Normalize remote/local payloads that may predate themePreference. */
+export function normalizeAppSettings(
+  payload: Partial<SyncedAppSettings> | null | undefined,
+  fallback: SyncedAppSettings = defaultAppSettings()
+): SyncedAppSettings {
+  const base = { ...fallback, ...(payload ?? {}) };
+  return {
+    heightUnit: parseHeightUnit(base.heightUnit ?? null) ?? fallback.heightUnit,
+    weightUnit: parseWeightUnit(base.weightUnit ?? null) ?? fallback.weightUnit,
+    bodyWeightUnit: parseWeightUnit(base.bodyWeightUnit ?? null) ?? fallback.bodyWeightUnit,
+    workoutSoundsEnabled: base.workoutSoundsEnabled ?? fallback.workoutSoundsEnabled,
+    themePreference:
+      parseThemePreference(base.themePreference) ?? fallback.themePreference,
+    profile: base.profile ?? {},
+  };
+}
 
 /** Legacy shape: template had days[] instead of exerciseIds */
 function migrateTemplateFromDays(t: Record<string, unknown>): WorkoutTemplate {
   const days = t.days as Array<{ exerciseIds?: string[]; defaultSets?: number }> | undefined;
   if (days?.length) {
     const first = days[0];
-    const { id, name, description, isBuiltIn, folderId } = t;
+    const { id, name, description, isBuiltIn, folderId, hidden } = t;
     return {
       id: id as string,
       name: name as string,
@@ -27,6 +183,7 @@ function migrateTemplateFromDays(t: Record<string, unknown>): WorkoutTemplate {
       ...(first.defaultSets != null && { defaultSets: first.defaultSets }),
       ...(isBuiltIn !== undefined && { isBuiltIn: isBuiltIn as boolean }),
       ...(folderId != null && { folderId: folderId as string }),
+      ...(hidden === true && { hidden: true }),
     };
   }
   return t as unknown as WorkoutTemplate;
@@ -68,6 +225,22 @@ export async function setTemplateFolders(folders: TemplateFolder[]): Promise<voi
   await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify(folders));
 }
 
+export async function getHiddenBuiltInTemplateIds(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.hiddenBuiltInTemplateIds);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === 'string');
+  } catch {
+    return [];
+  }
+}
+
+export async function setHiddenBuiltInTemplateIds(ids: string[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInTemplateIds, JSON.stringify(ids));
+}
+
 export async function getSessions(): Promise<WorkoutSession[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.sessions);
   if (!raw) return [];
@@ -99,6 +272,26 @@ export async function getExercisePrevious(): Promise<Record<string, ExercisePrev
 
 export async function setExercisePrevious(prev: Record<string, ExercisePrevious>): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.exercisePrevious, JSON.stringify(prev));
+}
+
+/** Personal notes keyed by exercise id (seat height, lever settings, etc.). */
+export async function getExerciseNotes(): Promise<Record<string, string>> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.exerciseNotes);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const [id, value] of Object.entries(parsed)) {
+      if (typeof value === 'string' && value.trim()) out[id] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export async function setExerciseNotes(notes: Record<string, string>): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.exerciseNotes, JSON.stringify(notes));
 }
 
 export async function getCustomExercises(): Promise<Exercise[]> {
@@ -184,21 +377,23 @@ export async function setSubscription(state: SubscriptionState): Promise<void> {
 const ALL_APP_KEYS = [
   STORAGE_KEYS.templates,
   STORAGE_KEYS.templateFolders,
+  STORAGE_KEYS.hiddenBuiltInTemplateIds,
   STORAGE_KEYS.sessions,
   STORAGE_KEYS.recovery,
   STORAGE_KEYS.health,
   STORAGE_KEYS.subscription,
   STORAGE_KEYS.exercisePrevious,
+  STORAGE_KEYS.exerciseNotes,
   STORAGE_KEYS.customExercises,
   STORAGE_KEYS.devProOverride,
-  'muscleos_unit_system',
-  'muscleos_profile',
-  'muscleos_weight_unit',
-  'muscleos_height_unit',
-  'muscleos_exercise_weight_unit',
-  'muscleos_body_weight_unit',
-  'muscleos_workout_sounds',
-  'muscleos_theme',
+  APP_SETTINGS_KEYS.unitSystem,
+  APP_SETTINGS_KEYS.profile,
+  APP_SETTINGS_KEYS.weightUnitLegacy,
+  APP_SETTINGS_KEYS.heightUnit,
+  APP_SETTINGS_KEYS.exerciseWeightUnit,
+  APP_SETTINGS_KEYS.bodyWeightUnit,
+  APP_SETTINGS_KEYS.workoutSounds,
+  APP_SETTINGS_KEYS.theme,
 ] as const;
 
 /** Clears all app data from AsyncStorage: workouts, sessions, recovery, health, settings, theme. Does not clear auth (SecureStore). */
@@ -207,7 +402,7 @@ export async function clearAllData(): Promise<void> {
 }
 
 export async function buildExportData(profile?: UserProfile | null): Promise<ExportData> {
-  const [templates, templateFolders, sessions, recovery, health, subscription] =
+  const [templates, templateFolders, sessions, recovery, health, subscription, exerciseNotes] =
     await Promise.all([
       getTemplates(),
       getTemplateFolders(),
@@ -215,6 +410,7 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
       getRecovery(),
       getHealth(),
       getSubscription(),
+      getExerciseNotes(),
     ]);
   return {
     version: 1,
@@ -225,6 +421,7 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     templateFolders: templateFolders.length ? templateFolders : undefined,
     sessions,
     recovery,
+    exerciseNotes: Object.keys(exerciseNotes).length ? exerciseNotes : undefined,
     health: Object.keys(health).length ? health : undefined,
   };
 }

@@ -1,21 +1,22 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
+import {
+  getAppSettings,
+  setAppSettings,
+  type UserAppProfile,
+  type SyncedAppSettings,
+  type ThemePreference,
+} from '@/storage/localStorage';
+import { notifyAppSettingsSnapshot } from '@/sync';
+
+export type { UserAppProfile, SyncedAppSettings, ThemePreference };
 
 const UNIT_SYSTEM_KEY = 'muscleos_unit_system';
-const PROFILE_KEY = 'muscleos_profile';
-const WEIGHT_UNIT_KEY_LEGACY = 'muscleos_weight_unit';
 const HEIGHT_UNIT_KEY = 'muscleos_height_unit';
 const EXERCISE_WEIGHT_UNIT_KEY = 'muscleos_exercise_weight_unit';
 const BODY_WEIGHT_UNIT_KEY = 'muscleos_body_weight_unit';
-const WORKOUT_SOUNDS_KEY = 'muscleos_workout_sounds';
-
-export interface UserAppProfile {
-  heightCm?: number;
-  weightKg?: number;
-  age?: number;
-  sex?: 'male' | 'female';
-}
+const WEIGHT_UNIT_KEY_LEGACY = 'muscleos_weight_unit';
 
 export interface SettingsState {
   /** Stored height display (profile, etc.) */
@@ -36,23 +37,11 @@ export interface SettingsState {
   setProfile: (profile: UserAppProfile) => Promise<void>;
 }
 
-type UnitSystem = 'metric' | 'imperial';
-
-function unitSystemToWeight(s: UnitSystem): WeightUnit {
-  return s === 'imperial' ? 'lb' : 'kg';
-}
-function unitSystemToHeight(s: UnitSystem): HeightUnit {
-  return s === 'imperial' ? 'in' : 'cm';
-}
-
-function parseHeightUnit(s: string | null): HeightUnit | null {
-  if (s === 'cm' || s === 'in') return s;
-  return null;
-}
-
-function parseWeightUnit(s: string | null): WeightUnit | null {
-  if (s === 'kg' || s === 'lb') return s;
-  return null;
+async function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<void> {
+  const current = await getAppSettings();
+  const next: SyncedAppSettings = { ...current, ...partial };
+  await setAppSettings(next);
+  notifyAppSettingsSnapshot(next);
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -65,58 +54,32 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   load: async () => {
     try {
-      const [systemStored, profileRaw, legacyWeight, heightRaw, exerciseStored, bodyStored, workoutSoundsRaw] =
-        await Promise.all([
-          AsyncStorage.getItem(UNIT_SYSTEM_KEY),
-          AsyncStorage.getItem(PROFILE_KEY),
-          AsyncStorage.getItem(WEIGHT_UNIT_KEY_LEGACY),
-          AsyncStorage.getItem(HEIGHT_UNIT_KEY),
-          AsyncStorage.getItem(EXERCISE_WEIGHT_UNIT_KEY),
-          AsyncStorage.getItem(BODY_WEIGHT_UNIT_KEY),
-          AsyncStorage.getItem(WORKOUT_SOUNDS_KEY),
-        ]);
-      let unitSystem: UnitSystem = systemStored === 'imperial' ? 'imperial' : 'metric';
+      const [systemStored, legacyWeight, heightRaw, exerciseStored, bodyStored] = await Promise.all([
+        AsyncStorage.getItem(UNIT_SYSTEM_KEY),
+        AsyncStorage.getItem(WEIGHT_UNIT_KEY_LEGACY),
+        AsyncStorage.getItem(HEIGHT_UNIT_KEY),
+        AsyncStorage.getItem(EXERCISE_WEIGHT_UNIT_KEY),
+        AsyncStorage.getItem(BODY_WEIGHT_UNIT_KEY),
+      ]);
+
       if (!systemStored && (legacyWeight === 'lb' || heightRaw === 'in')) {
-        unitSystem = 'imperial';
         await AsyncStorage.setItem(UNIT_SYSTEM_KEY, 'imperial');
       }
-      let profile: UserAppProfile = {};
-      if (profileRaw) {
-        try {
-          profile = JSON.parse(profileRaw);
-        } catch {
-          // ignore
-        }
-      }
 
-      const heightUnit =
-        parseHeightUnit(heightRaw) ?? unitSystemToHeight(unitSystem);
-      const weightUnit =
-        parseWeightUnit(exerciseStored) ??
-        parseWeightUnit(legacyWeight) ??
-        unitSystemToWeight(unitSystem);
-      const bodyWeightUnit = parseWeightUnit(bodyStored) ?? weightUnit;
-
-      let workoutSoundsEnabled = true;
-      if (workoutSoundsRaw === '0' || workoutSoundsRaw === 'false') workoutSoundsEnabled = false;
-      if (workoutSoundsRaw === '1' || workoutSoundsRaw === 'true') workoutSoundsEnabled = true;
+      const settings = await getAppSettings();
 
       const needsPersist =
         heightRaw == null || exerciseStored == null || bodyStored == null;
       if (needsPersist) {
-        await AsyncStorage.multiSet([
-          [HEIGHT_UNIT_KEY, heightUnit],
-          [EXERCISE_WEIGHT_UNIT_KEY, weightUnit],
-          [BODY_WEIGHT_UNIT_KEY, bodyWeightUnit],
-        ]);
+        await setAppSettings(settings);
       }
 
       set({
-        heightUnit,
-        weightUnit,
-        bodyWeightUnit,
-        workoutSoundsEnabled,
-        profile,
+        heightUnit: settings.heightUnit,
+        weightUnit: settings.weightUnit,
+        bodyWeightUnit: settings.bodyWeightUnit,
+        workoutSoundsEnabled: settings.workoutSoundsEnabled,
+        profile: settings.profile,
         isLoading: false,
       });
     } catch {
@@ -126,26 +89,26 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   setHeightUnit: async (heightUnit) => {
     set({ heightUnit });
-    await AsyncStorage.setItem(HEIGHT_UNIT_KEY, heightUnit);
+    await persistAndNotify({ heightUnit });
   },
 
   setWeightUnit: async (weightUnit) => {
     set({ weightUnit });
-    await AsyncStorage.setItem(EXERCISE_WEIGHT_UNIT_KEY, weightUnit);
+    await persistAndNotify({ weightUnit });
   },
 
   setBodyWeightUnit: async (bodyWeightUnit) => {
     set({ bodyWeightUnit });
-    await AsyncStorage.setItem(BODY_WEIGHT_UNIT_KEY, bodyWeightUnit);
+    await persistAndNotify({ bodyWeightUnit });
   },
 
   setWorkoutSoundsEnabled: async (workoutSoundsEnabled) => {
     set({ workoutSoundsEnabled });
-    await AsyncStorage.setItem(WORKOUT_SOUNDS_KEY, workoutSoundsEnabled ? '1' : '0');
+    await persistAndNotify({ workoutSoundsEnabled });
   },
 
   setProfile: async (profile) => {
     set({ profile });
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    await persistAndNotify({ profile });
   },
 }));

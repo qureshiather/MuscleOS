@@ -25,6 +25,7 @@ import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorko
 import { useSettingsStore } from '@/store/settingsStore';
 import { useProGate } from '@/hooks/useProGate';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
@@ -62,12 +63,14 @@ function ExerciseMenuContent({
   colors,
   onAddWarmUp,
   onEditRest,
+  onEditNote,
   onRemove,
 }: {
   isBuiltInWorkout: boolean;
   colors: { text: string; danger: string; border: string };
   onAddWarmUp: () => void;
   onEditRest: () => void;
+  onEditNote: () => void;
   onRemove: () => void;
 }) {
   return (
@@ -80,15 +83,22 @@ function ExerciseMenuContent({
         <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Add warm-up set</Text>
       </Pressable>
       <Pressable
+        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+        onPress={onEditRest}
+      >
+        <Ionicons name="timer-outline" size={18} color={colors.text} />
+        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit rest timer</Text>
+      </Pressable>
+      <Pressable
         style={[
           styles.exerciseDropdownItem,
           !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
           { borderBottomColor: colors.border },
         ]}
-        onPress={onEditRest}
+        onPress={onEditNote}
       >
-        <Ionicons name="timer-outline" size={18} color={colors.text} />
-        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit rest timer</Text>
+        <Ionicons name="create-outline" size={18} color={colors.text} />
+        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit note</Text>
       </Pressable>
       {!isBuiltInWorkout ? (
         <Pressable style={styles.exerciseDropdownItem} onPress={onRemove}>
@@ -321,6 +331,8 @@ export default function ActiveWorkoutScreen() {
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
+  const exerciseNotes = useExerciseNotesStore((s) => s.notes);
+  const setExerciseNote = useExerciseNotesStore((s) => s.setNote);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
@@ -349,8 +361,11 @@ export default function ActiveWorkoutScreen() {
   const dropdownMeasureRef = useRef<View>(null);
   const menuAnchorRefs = useRef<Record<number, View | null>>({});
   const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
+  const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [finishedSummary, setFinishedSummary] = useState<FinishedSummary | null>(null);
 
@@ -358,6 +373,7 @@ export default function ActiveWorkoutScreen() {
   /** Prevents re-starting a workout from URL params after finish/discard clears session. */
   const startedFromParamsRef = useRef(false);
   const leavingWorkoutRef = useRef(false);
+  const savingAsTemplateRef = useRef(false);
 
   // Clear dropdown layout when menu closes so we re-measure next open
   useEffect(() => {
@@ -465,10 +481,13 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [restEndTime]);
 
-  // When end time has passed, save duration and clear rest
+  // When end time has passed, save duration and clear rest.
+  // Skip in-app sound if we're catching up after background — the OS
+  // rest-complete notification already alerted (see useWorkoutNotification).
   useEffect(() => {
     if (restEndTime === null || Date.now() < restEndTime) return;
-    if (workoutSoundsEnabled) {
+    const justEnded = Date.now() - restEndTime < 1500;
+    if (workoutSoundsEnabled && justEnded) {
       void playWorkoutSound('restEnd');
     }
     if (restAfter !== null) {
@@ -560,16 +579,23 @@ export default function ActiveWorkoutScreen() {
   }
 
   async function handleSaveAsTemplate() {
-    if (!session || !gatePro('save_as_template')) return;
-    const name = saveAsTemplateName.trim() || 'Workout';
-    await addTemplate({
-      id: 'tpl_' + Date.now(),
-      name,
-      exerciseIds: session.exercises.map((e) => e.exerciseId),
-      isBuiltIn: false,
-    });
-    setSaveAsTemplateName('');
-    await handleFinish(false);
+    if (!session || !gatePro('save_as_template') || savingAsTemplateRef.current) return;
+    savingAsTemplateRef.current = true;
+    setSavingAsTemplate(true);
+    try {
+      const name = saveAsTemplateName.trim() || 'Workout';
+      await addTemplate({
+        id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        name,
+        exerciseIds: session.exercises.map((e) => e.exerciseId),
+        isBuiltIn: false,
+      });
+      setSaveAsTemplateName('');
+      await handleFinish(false);
+    } catch {
+      savingAsTemplateRef.current = false;
+      setSavingAsTemplate(false);
+    }
   }
 
   function openSaveAsTemplateModal() {
@@ -588,7 +614,6 @@ export default function ActiveWorkoutScreen() {
     const totalSets = finishedSummary.exercises.reduce((n, ex) => n + ex.completed, 0);
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-        <WorkoutConfetti visible={showConfetti} />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.finishedScrollContent}
@@ -687,6 +712,7 @@ export default function ActiveWorkoutScreen() {
             <Text style={styles.finishedDoneBtnText}>Done</Text>
           </Pressable>
         </View>
+        <WorkoutConfetti visible={showConfetti} />
       </SafeAreaView>
     );
   }
@@ -910,6 +936,7 @@ export default function ActiveWorkoutScreen() {
           }
 
           const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+          const exerciseNote = exerciseNotes[se.exerciseId];
 
           return (
             <View
@@ -938,6 +965,19 @@ export default function ActiveWorkoutScreen() {
                         <Text style={[styles.exerciseEquipment, { color: colors.textMuted }]}>
                           {exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)}
                         </Text>
+                      ) : null}
+                      {exerciseNote ? (
+                        <Pressable
+                          onPress={() => {
+                            setNoteDraft(exerciseNote);
+                            setNoteEditExIdx(exIdx);
+                          }}
+                          hitSlop={4}
+                        >
+                          <Text style={[styles.exerciseNote, { color: colors.textSecondary }]} numberOfLines={2}>
+                            {exerciseNote}
+                          </Text>
+                        </Pressable>
                       ) : null}
                       <Pressable
                         onPress={() => setRestTimersExIdx(exIdx)}
@@ -1052,33 +1092,26 @@ export default function ActiveWorkoutScreen() {
                 let kgFill: string = colors.surface;
                 let repsFill: string = mutedFill;
 
-                if (!set.completed) {
-                  if (isFutureSet) {
-                    kgFill = mutedFill;
-                    repsFill = mutedFill;
-                  } else if (isCurrentSet) {
-                    if (isKgFocused) {
-                      kgFill = colors.surface;
-                      kgBorderW = 1.5;
-                      kgBorderColor = colors.primary;
-                      repsFill = mutedFill;
-                    } else if (isRepsFocused) {
-                      kgFill = mutedFill;
-                      repsFill = colors.surface;
-                      repsBorderW = 1.5;
-                      repsBorderColor = colors.primary;
-                    } else {
-                      kgFill = colors.surface;
-                      kgBorderW = 1;
-                      kgBorderColor = isDark ? colors.border : colors.inputBorder;
-                      repsFill = mutedFill;
-                    }
-                  }
+                if (isFutureSet && !set.completed) {
+                  kgFill = mutedFill;
+                  repsFill = mutedFill;
+                } else if (isKgFocused) {
+                  kgFill = colors.surface;
+                  kgBorderW = 1.5;
+                  kgBorderColor = colors.primary;
+                  repsFill = mutedFill;
+                } else if (isRepsFocused) {
+                  kgFill = mutedFill;
+                  repsFill = colors.surface;
+                  repsBorderW = 1.5;
+                  repsBorderColor = colors.primary;
+                } else if (isCurrentSet || set.completed) {
+                  kgFill = colors.surface;
+                  kgBorderW = 1;
+                  kgBorderColor = isDark ? colors.border : colors.inputBorder;
+                  repsFill = mutedFill;
                 }
 
-                const weightStr =
-                  set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : '—';
-                const repsStr = set.reps !== undefined ? String(set.reps) : '—';
                 const canDeleteSet = se.sets.length > 1;
 
                 const setRow = (
@@ -1119,65 +1152,56 @@ export default function ActiveWorkoutScreen() {
                       <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
                         {prevLabel}
                       </Text>
-                      {set.completed ? (
-                        <>
-                          <Text style={[styles.setCellText, { color: colors.text }]}>{weightStr}</Text>
-                          <Text style={[styles.setCellText, { color: colors.text }]}>{repsStr}</Text>
-                        </>
-                      ) : (
-                        <>
-                          <TextInput
-                            style={[
-                              styles.setInput,
-                              {
-                                backgroundColor: kgFill,
-                                color: colors.text,
-                                borderColor: kgBorderColor,
-                                borderWidth: kgBorderW,
-                              },
-                            ]}
-                            placeholder="0"
-                            placeholderTextColor={colors.textMuted}
-                            keyboardType="decimal-pad"
-                            value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
-                            onChangeText={(t) =>
-                              setSetRecord(exIdx, setIdx, {
-                                weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
-                              })
-                            }
-                            onFocus={() => {
-                              setFocusedCell({ exIdx, setIdx, field: 'kg' });
-                              setEditingWeightExIdx(exIdx);
-                            }}
-                            onBlur={() => {
-                              setFocusedCell(null);
-                              setEditingWeightExIdx(null);
-                            }}
-                          />
-                          <TextInput
-                            style={[
-                              styles.setInput,
-                              {
-                                backgroundColor: repsFill,
-                                color: colors.text,
-                                borderColor: repsBorderColor,
-                                borderWidth: repsBorderW,
-                              },
-                            ]}
-                            placeholder="0"
-                            placeholderTextColor={colors.textMuted}
-                            keyboardType="number-pad"
-                            value={set.reps !== undefined ? String(set.reps) : ''}
-                            onChangeText={(t) =>
-                              setSetRecord(exIdx, setIdx, {
-                                reps: t === '' ? undefined : parseInt(t, 10),
-                              })
-                            }
-                            onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
-                            onBlur={() => setFocusedCell(null)}
-                          />
-                        </>
-                      )}
+                      <TextInput
+                        style={[
+                          styles.setInput,
+                          {
+                            backgroundColor: kgFill,
+                            color: colors.text,
+                            borderColor: kgBorderColor,
+                            borderWidth: kgBorderW,
+                          },
+                        ]}
+                        placeholder="0"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="decimal-pad"
+                        value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
+                        onChangeText={(t) =>
+                          setSetRecord(exIdx, setIdx, {
+                            weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
+                          })
+                        }
+                        onFocus={() => {
+                          setFocusedCell({ exIdx, setIdx, field: 'kg' });
+                          setEditingWeightExIdx(exIdx);
+                        }}
+                        onBlur={() => {
+                          setFocusedCell(null);
+                          setEditingWeightExIdx(null);
+                        }}
+                      />
+                      <TextInput
+                        style={[
+                          styles.setInput,
+                          {
+                            backgroundColor: repsFill,
+                            color: colors.text,
+                            borderColor: repsBorderColor,
+                            borderWidth: repsBorderW,
+                          },
+                        ]}
+                        placeholder="0"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="number-pad"
+                        value={set.reps !== undefined ? String(set.reps) : ''}
+                        onChangeText={(t) =>
+                          setSetRecord(exIdx, setIdx, {
+                            reps: t === '' ? undefined : parseInt(t, 10),
+                          })
+                        }
+                        onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                        onBlur={() => setFocusedCell(null)}
+                      />
                       <SetDonePressable
                         completed={set.completed}
                         disabled={!set.completed && !(set.reps != null && set.reps > 0)}
@@ -1299,6 +1323,7 @@ export default function ActiveWorkoutScreen() {
             colors={colors}
             onAddWarmUp={() => {}}
             onEditRest={() => {}}
+            onEditNote={() => {}}
             onRemove={() => {}}
           />
         </View>
@@ -1339,6 +1364,11 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onEditRest={() => {
                     setRestTimersExIdx(exIdx);
+                    closeExerciseMenu();
+                  }}
+                  onEditNote={() => {
+                    setNoteDraft(exerciseNotes[se.exerciseId] ?? '');
+                    setNoteEditExIdx(exIdx);
                     closeExerciseMenu();
                   }}
                   onRemove={() => {
@@ -1458,6 +1488,78 @@ export default function ActiveWorkoutScreen() {
               );
             })()}
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* Personal exercise note (synced) */}
+      <Modal visible={noteEditExIdx !== null} transparent animationType="fade">
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => setNoteEditExIdx(null)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.noteEditAvoid}
+          >
+            <View
+              style={[styles.restTimersCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onStartShouldSetResponder={() => true}
+            >
+              {noteEditExIdx !== null && session?.exercises[noteEditExIdx] && (() => {
+                const ex = session.exercises[noteEditExIdx];
+                const exerciseName = getExercise(ex.exerciseId)?.name ?? ex.exerciseId;
+                return (
+                  <>
+                    <Text style={[styles.restTimersTitle, { color: colors.text }]}>Exercise note</Text>
+                    <Text style={[styles.restTimersSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
+                      {exerciseName}
+                    </Text>
+                    <Text style={[styles.restTimersHint, { color: colors.textMuted }]}>
+                      Seat height, lever settings, and other personal adjustments. Synced to your account.
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.noteEditInput,
+                        {
+                          backgroundColor: colors.background,
+                          color: colors.text,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                      placeholder="e.g. seat 4 · lever underneath on 3"
+                      placeholderTextColor={colors.textMuted}
+                      value={noteDraft}
+                      onChangeText={setNoteDraft}
+                      multiline
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                    <View style={styles.noteEditActions}>
+                      <Pressable
+                        style={[styles.restTimersDoneBtn, styles.noteEditActionBtn, { borderColor: colors.border }]}
+                        onPress={() => setNoteEditExIdx(null)}
+                      >
+                        <Text style={[styles.restTimersDoneBtnText, { color: colors.text }]}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.restTimersDoneBtn,
+                          styles.noteEditActionBtn,
+                          { backgroundColor: colors.primary, borderColor: colors.primary },
+                        ]}
+                        onPress={() => {
+                          void setExerciseNote(ex.exerciseId, noteDraft);
+                          setNoteEditExIdx(null);
+                        }}
+                      >
+                        <Text style={[styles.restTimersDoneBtnText, { color: colors.primaryOn }]}>Save</Text>
+                      </Pressable>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
@@ -1596,12 +1698,22 @@ export default function ActiveWorkoutScreen() {
             />
             <View style={styles.summaryActions}>
               <Pressable
-                style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                onPress={() => handleSaveAsTemplate()}
+                style={[
+                  styles.summarySaveBtn,
+                  { backgroundColor: colors.primary, opacity: savingAsTemplate ? 0.5 : 1 },
+                ]}
+                onPress={() => void handleSaveAsTemplate()}
+                disabled={savingAsTemplate}
               >
-                <Text style={styles.summarySaveBtnText}>Save</Text>
+                <Text style={styles.summarySaveBtnText}>
+                  {savingAsTemplate ? 'Saving…' : 'Save'}
+                </Text>
               </Pressable>
-              <Pressable onPress={() => setShowSaveAsTemplateModal(false)} style={styles.summaryCancelBtn}>
+              <Pressable
+                onPress={() => setShowSaveAsTemplateModal(false)}
+                style={styles.summaryCancelBtn}
+                disabled={savingAsTemplate}
+              >
                 <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Cancel</Text>
               </Pressable>
             </View>
@@ -1974,6 +2086,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
+  exerciseNote: {
+    ...typography.caption,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   exerciseRestChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2032,15 +2151,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   prevCell: { flex: 1, minWidth: 56, fontSize: 9, textAlign: 'center' },
-  setCellText: {
-    flex: 1,
-    minWidth: 44,
-    fontSize: 14,
-    fontFamily: typography.data.fontFamily,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingVertical: 2,
-  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2290,6 +2400,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   restTimersDoneBtnText: { ...typography.button },
+  noteEditAvoid: {
+    width: '100%',
+    justifyContent: 'center',
+  },
+  noteEditInput: {
+    ...typography.body,
+    minHeight: 96,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  noteEditActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  noteEditActionBtn: {
+    flex: 1,
+    marginTop: 12,
+  },
   addSetBtn: {
     alignItems: 'center',
     justifyContent: 'center',

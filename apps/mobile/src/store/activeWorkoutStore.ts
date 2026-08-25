@@ -158,6 +158,19 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const sets = [...ex.sets];
     if (!sets[setIndex]) return;
     sets[setIndex] = { ...sets[setIndex], ...record };
+    // Carry weight forward to the next empty set (same warm-up/working kind).
+    if (record.weightKg != null) {
+      const nextIdx = setIndex + 1;
+      const current = sets[setIndex];
+      const next = sets[nextIdx];
+      if (
+        next &&
+        next.weightKg == null &&
+        (current.isWarmUp === true) === (next.isWarmUp === true)
+      ) {
+        sets[nextIdx] = { ...next, weightKg: record.weightKg };
+      }
+    }
     exercises[exerciseIndex] = { ...ex, sets };
     set({ session: { ...session, exercises } });
   },
@@ -180,7 +193,19 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     if (!ex) return;
     const sets = [...ex.sets];
     if (!sets[setIndex]) return;
-    sets[setIndex] = { ...sets[setIndex], completed: true };
+    const completed = { ...sets[setIndex], completed: true };
+    sets[setIndex] = completed;
+    // Auto-fill next set weight from this set when empty (same warm-up/working kind).
+    const nextIdx = setIndex + 1;
+    const next = sets[nextIdx];
+    if (
+      next &&
+      next.weightKg == null &&
+      completed.weightKg != null &&
+      (completed.isWarmUp === true) === (next.isWarmUp === true)
+    ) {
+      sets[nextIdx] = { ...next, weightKg: completed.weightKg };
+    }
     exercises[exerciseIndex] = { ...ex, sets };
     set({ session: { ...session, exercises } });
   },

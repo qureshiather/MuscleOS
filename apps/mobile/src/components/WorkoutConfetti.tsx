@@ -81,7 +81,7 @@ export function WorkoutConfetti({ visible, pieceCount = 48 }: { visible: boolean
   if (!visible) return null;
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="none" style={styles.overlay}>
       {pieces.map((piece, i) => (
         <ConfettiPiece key={i} piece={piece} />
       ))}
@@ -90,6 +90,11 @@ export function WorkoutConfetti({ visible, pieceCount = 48 }: { visible: boolean
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   piece: {
     position: 'absolute',
     top: 0,

@@ -10,4 +10,6 @@ export {
   notifyCustomExerciseDelete,
   notifyRecoverySnapshot,
   notifyExercisePreviousSnapshot,
+  notifyExerciseNotesSnapshot,
+  notifyAppSettingsSnapshot,
 } from './notify';

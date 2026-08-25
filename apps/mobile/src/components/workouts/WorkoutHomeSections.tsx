@@ -97,6 +97,48 @@ export function QuickStartGrid({ templates, onPress }: QuickStartGridProps) {
   );
 }
 
+type SuggestedWorkoutsGridProps = {
+  items: { template: WorkoutTemplate; reason: string }[];
+  onPress: (template: WorkoutTemplate) => void;
+};
+
+export function SuggestedWorkoutsGrid({ items, onPress }: SuggestedWorkoutsGridProps) {
+  const { colors, isDark } = useTheme();
+
+  if (items.length === 0) return null;
+
+  return (
+    <View style={styles.grid}>
+      {items.map(({ template, reason }) => (
+        <Pressable
+          key={template.id}
+          style={({ pressed }) => [
+            styles.gridCard,
+            {
+              backgroundColor: colors.surfaceElevated,
+              borderColor: colors.border,
+              opacity: pressed ? 0.9 : 1,
+            },
+            !isDark && styles.cardLight,
+          ]}
+          onPress={() => onPress(template)}
+        >
+          <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+          <Text style={[typography.bodyMedium, styles.gridTitle, { color: colors.text }]} numberOfLines={2}>
+            {template.name}
+          </Text>
+          <Text style={[typography.caption, { color: colors.success }]} numberOfLines={1}>
+            {reason}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>
+            {template.exerciseIds.length} exercises
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { marginHorizontal: -spacing.lg },
   row: {

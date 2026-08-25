@@ -19,6 +19,8 @@ export interface WorkoutTemplate {
   isBuiltIn?: boolean;
   /** Optional folder for custom templates. Omit = no folder (shown at top of Custom). */
   folderId?: string;
+  /** Soft-hidden from main lists (custom templates). Built-ins use local prefs instead. */
+  hidden?: boolean;
 }
 
 export interface PlannedWorkout {

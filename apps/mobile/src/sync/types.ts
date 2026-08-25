@@ -4,7 +4,9 @@ export type SyncEntityType =
   | 'template_folder'
   | 'custom_exercise'
   | 'recovery'
-  | 'exercise_previous';
+  | 'exercise_previous'
+  | 'exercise_note'
+  | 'app_settings';
 
 export interface OutboxEntry {
   entityType: SyncEntityType;
