@@ -13,6 +13,7 @@ import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { formatRecoveryReady } from '@/utils/relativeTime';
 
 const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
@@ -103,13 +104,7 @@ export default function RecoveryScreen() {
                   {MUSCLE_GROUPS[r.muscleId].name}
                 </Text>
                 <Text style={[typography.caption, styles.recoveryUntil, { color: colors.textMuted }]}>
-                  Until{' '}
-                  {new Date(getRecoveryUntil(r)).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {formatRecoveryReady(getRecoveryUntil(r))}
                 </Text>
               </View>
             ))}

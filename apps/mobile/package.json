@@ -21,6 +21,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@muscleos/types": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/bottom-tabs": "~7.15.2",
     "@supabase/supabase-js": "^2.98.0",
     "expo": "~54.0.37",
     "expo-apple-authentication": "~8.0.8",

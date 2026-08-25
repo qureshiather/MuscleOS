@@ -8,7 +8,7 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 
 | Feature | Included |
 |---------|----------|
-| 11 built-in templates (PPL, Upper/Lower, 5×5, Arnold) | Yes |
+| 5 built-in templates (PPL, Strong Lifts 5×5) | Yes |
 | Start workout from template | Yes |
 | Set logging (reps, weight, complete sets) | Yes |
 | Rest timers + workout sounds | Yes |

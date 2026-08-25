@@ -10,7 +10,8 @@ export default function PrivacyPage() {
   return (
     <LegalPageLayout title="Privacy Policy">
       <p className="text-text-secondary mb-6">
-        Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+        Last updated:{' '}
+        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
 
       <section className="mb-8">
@@ -18,7 +19,8 @@ export default function PrivacyPage() {
         <p>
           MuscleOS (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy.
           This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use
-          our mobile application and related services.
+          our mobile application and related services. Your workout data is yours — we do not sell it, and we do
+          not use it for advertising.
         </p>
       </section>
 
@@ -33,7 +35,8 @@ export default function PrivacyPage() {
           <li>Device information such as device type and operating system</li>
         </ul>
         <p>
-          Workout and exercise data is stored locally on your device by default. We do not sell your personal
+          Workout and exercise data is stored locally on your device by default. If you link an account, a copy
+          may sync to our servers so you can restore it on another device. We do not sell your personal
           information to third parties.
         </p>
       </section>
@@ -58,16 +61,23 @@ export default function PrivacyPage() {
 
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-text mb-3">5. Your Rights</h2>
-        <p>
+        <p className="mb-3">
           Depending on your location, you may have rights to access, correct, delete, or export your personal
-          data. You can manage or delete your data through the app settings or by contacting us.
+          data. You can export your data from the app at any time.
+        </p>
+        <p>
+          If you choose to leave MuscleOS — by deleting your account or requesting deletion — we will fully
+          delete your personal data and synced workout history from our systems, subject only to short-term
+          backups required for security or legal compliance. Local data on your device can be removed by
+          uninstalling the app or clearing app storage.
         </p>
       </section>
 
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-text mb-3">6. Contact Us</h2>
         <p>
-          If you have questions about this Privacy Policy or our practices, please contact us at{' '}
+          If you have questions about this Privacy Policy, want to export your data, or want us to delete your
+          account and associated data, contact us at{' '}
           <a href="mailto:privacy@muscleos.app">privacy@muscleos.app</a>.
         </p>
       </section>

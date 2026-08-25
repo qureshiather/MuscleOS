@@ -18,3 +18,25 @@ export function formatRelative(isoDate: string): string {
   if (diffWeek < 4) return diffWeek === 1 ? '1 week ago' : `${diffWeek} weeks ago`;
   return date.toLocaleDateString();
 }
+
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/**
+ * Day-grain label for when a muscle should be ready again.
+ * Recovery is an estimate — avoid clock times that imply false precision.
+ */
+export function formatRecoveryReady(untilIso: string, now = new Date()): string {
+  const until = new Date(untilIso);
+  const dayDiff = Math.round(
+    (startOfLocalDay(until) - startOfLocalDay(now)) / (24 * 60 * 60 * 1000)
+  );
+
+  if (dayDiff <= 0) return 'Ready later today';
+  if (dayDiff === 1) return 'Ready tomorrow';
+  if (dayDiff < 7) {
+    return `Ready ${until.toLocaleDateString(undefined, { weekday: 'short' })}`;
+  }
+  return `Ready ${until.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}

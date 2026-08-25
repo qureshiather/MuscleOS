@@ -33,7 +33,7 @@ export const PRO_FEATURES_LIST = [
 
 /** Basic tier highlights for comparison on the paywall. */
 export const BASIC_FEATURES_LIST = [
-  '11 built-in programs (PPL, Upper/Lower, 5×5, Arnold)',
+  '5 built-in programs (PPL & Strong Lifts)',
   'Full workout logging & rest timers',
   'Exercise library & recovery tracking',
   'Workout history & data export',

@@ -41,15 +41,18 @@ export function ResumeWorkoutPill() {
   }
 
   return (
-    <View style={[styles.pill, { backgroundColor: colors.primarySurface, borderBottomColor: colors.border }]}>
-      <Pressable style={styles.main} onPress={handleResume}>
+    <View
+      testID="resume-workout-pill"
+      style={[styles.pill, { backgroundColor: colors.primarySurface, borderTopColor: colors.border }]}
+    >
+      <Pressable style={styles.main} onPress={handleResume} accessibilityRole="button" accessibilityLabel="Resume workout">
         <View style={[styles.iconDot, { backgroundColor: colors.primary }]}>
           <Ionicons name="barbell" size={14} color={colors.primaryOn} />
         </View>
         <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>Resume workout</Text>
         <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatElapsed(elapsedMs)}</Text>
       </Pressable>
-      <Pressable onPress={handleCancel} hitSlop={12} style={styles.cancelBtn}>
+      <Pressable onPress={handleCancel} hitSlop={12} style={styles.cancelBtn} accessibilityLabel="Cancel workout">
         <Ionicons name="close" size={22} color={colors.textMuted} />
       </Pressable>
     </View>
@@ -63,7 +66,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    borderTopWidth: 1,
   },
   main: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, flex: 1 },
   iconDot: {

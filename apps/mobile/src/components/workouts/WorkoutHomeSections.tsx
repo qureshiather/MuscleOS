@@ -98,7 +98,7 @@ export function QuickStartGrid({ templates, onPress }: QuickStartGridProps) {
 }
 
 type SuggestedWorkoutsGridProps = {
-  items: { template: WorkoutTemplate; reason: string }[];
+  items: { template: WorkoutTemplate }[];
   onPress: (template: WorkoutTemplate) => void;
 };
 
@@ -109,7 +109,7 @@ export function SuggestedWorkoutsGrid({ items, onPress }: SuggestedWorkoutsGridP
 
   return (
     <View style={styles.grid}>
-      {items.map(({ template, reason }) => (
+      {items.map(({ template }) => (
         <Pressable
           key={template.id}
           style={({ pressed }) => [
@@ -126,9 +126,6 @@ export function SuggestedWorkoutsGrid({ items, onPress }: SuggestedWorkoutsGridP
           <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
           <Text style={[typography.bodyMedium, styles.gridTitle, { color: colors.text }]} numberOfLines={2}>
             {template.name}
-          </Text>
-          <Text style={[typography.caption, { color: colors.success }]} numberOfLines={1}>
-            {reason}
           </Text>
           <Text style={[typography.caption, { color: colors.textMuted }]}>
             {template.exerciseIds.length} exercises

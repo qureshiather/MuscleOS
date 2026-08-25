@@ -570,6 +570,15 @@ export default function ActiveWorkoutScreen() {
     router.replace('/(tabs)?discardWorkout=1');
   }
 
+  /** Minimize active workout back to tabs (resume pill lives on the tab bar). */
+  function minimizeWorkout() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  }
+
   function handleDiscardOnly() {
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
@@ -721,7 +730,7 @@ export default function ActiveWorkoutScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={minimizeWorkout} hitSlop={12}>
             <Ionicons name="chevron-down" size={28} color={colors.primary} />
           </Pressable>
           <Text style={[styles.elapsed, { color: colors.text }]}>Loading…</Text>
@@ -755,7 +764,7 @@ export default function ActiveWorkoutScreen() {
       {/* Header: Back + rest chip | Time | Done/Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={minimizeWorkout} hitSlop={12} accessibilityLabel="Minimize workout">
             <Ionicons name="chevron-down" size={28} color={colors.textSecondary} />
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (

@@ -27,7 +27,7 @@ There is **one Pro entitlement** (`MuscleOS Pro`). Monthly, annual, and lifetime
 ### Basic user
 
 1. Opens app (anonymous Supabase session).
-2. Starts a built-in template (PPL, Upper/Lower, etc.).
+2. Starts a built-in template (PPL or Strong Lifts 5×5).
 3. Logs sets, uses rest timers, checks recovery.
 4. Hits a Pro action (e.g. create template) → paywall with context.
 

@@ -5,6 +5,10 @@ const config: NextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    // Soft crossfade between routes (Home ↔ Privacy ↔ Terms)
+    viewTransition: true,
+  },
 };
 
 export default config;

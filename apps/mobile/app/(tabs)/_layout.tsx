@@ -1,21 +1,29 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
 
-/** Content height of the tab bar (without safe area). Matches default tab bar so pill sits flush. */
-const TAB_BAR_CONTENT_HEIGHT = 49;
+function TabBarWithResumePill({
+  showPill,
+  ...props
+}: BottomTabBarProps & { showPill: boolean }) {
+  return (
+    <View>
+      {showPill ? <ResumeWorkoutPill /> : null}
+      <BottomTabBar {...props} />
+    </View>
+  );
+}
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const tabBarBottomOffset = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
   const session = useActiveWorkoutStore((s) => s.session);
   const router = useRouter();
   const params = useLocalSearchParams<{ discardWorkout?: string }>();
@@ -31,20 +39,20 @@ export default function TabsLayout() {
   const showPill = session != null && params.discardWorkout !== '1';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            paddingTop: spacing.xs,
-          },
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: { ...typography.caption, fontFamily: typography.label.fontFamily },
-        }}
-      >
+    <Tabs
+      tabBar={(props) => <TabBarWithResumePill {...props} showPill={showPill} />}
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          paddingTop: spacing.xs,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: { ...typography.caption, fontFamily: typography.label.fontFamily },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -90,10 +98,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      </Tabs>
-      <View style={{ position: 'absolute', bottom: tabBarBottomOffset, left: 0, right: 0 }}>
-        {showPill && <ResumeWorkoutPill />}
-      </View>
-    </View>
+    </Tabs>
   );
 }

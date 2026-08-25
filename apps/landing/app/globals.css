@@ -59,6 +59,10 @@
     font-family: var(--font-mono), ui-monospace, monospace;
   }
 
+  .font-mega {
+    font-family: var(--font-mega), var(--font-display), system-ui, sans-serif;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
@@ -123,5 +127,50 @@
   .animate-float,
   .animate-float-slow {
     animation: none;
+  }
+}
+
+/* Route transitions — chill crossfade, not a slide show */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(root) {
+  animation-name: vt-fade-out;
+}
+
+::view-transition-new(root) {
+  animation-name: vt-fade-in;
+}
+
+/* Keep the brand mark stable while page content crossfades */
+::view-transition-group(brand-mark) {
+  animation-duration: 280ms;
+  z-index: 10;
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(brand-mark) {
+    animation: none !important;
   }
 }

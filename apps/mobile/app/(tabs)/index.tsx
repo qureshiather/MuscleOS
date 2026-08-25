@@ -207,10 +207,28 @@ export default function WorkoutsScreen() {
     const recoveringMuscleIds = new Set(
       activeRecovery().map((r) => r.muscleId)
     );
+    const recentMuscleWindowMs = 7 * 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+    const recentlyWorkedMuscleIds = new Set<MuscleId>();
+    for (const session of sessions) {
+      if (!session.completedAt) continue;
+      if (nowMs - new Date(session.completedAt).getTime() > recentMuscleWindowMs) {
+        continue;
+      }
+      for (const sessionExercise of session.exercises) {
+        const exercise = getExercise(sessionExercise.exerciseId);
+        if (exercise) {
+          for (const muscleId of exercise.muscles) {
+            recentlyWorkedMuscleIds.add(muscleId);
+          }
+        }
+      }
+    }
     const visible = templates.filter((t) => !isTemplateHidden(t));
     return recommendTemplates({
       templates: visible,
       recoveringMuscleIds,
+      recentlyWorkedMuscleIds,
       lastDoneByTemplate,
       getTemplateMuscles: (template) => {
         const muscles: MuscleId[] = [];
@@ -225,6 +243,7 @@ export default function WorkoutsScreen() {
   }, [
     templates,
     recoveryItems,
+    sessions,
     lastDoneByTemplate,
     hiddenBuiltInIds,
     userTemplates,

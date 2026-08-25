@@ -27,6 +27,9 @@ export default {
         body: ['var(--font-body)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
+      borderRadius: {
+        '4xl': '2rem',
+      },
       maxWidth: {
         site: '1120px',
       },

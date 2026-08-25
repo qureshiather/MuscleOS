@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Bricolage_Grotesque, Source_Sans_3, IBM_Plex_Mono } from 'next/font/google';
+import { Bricolage_Grotesque, Source_Sans_3, IBM_Plex_Mono, Bebas_Neue } from 'next/font/google';
 import './globals.css';
 
 const display = Bricolage_Grotesque({
@@ -21,6 +21,13 @@ const mono = IBM_Plex_Mono({
   display: 'swap',
 });
 
+const mega = Bebas_Neue({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-mega',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'MuscleOS — Log workouts. Track progress.',
   description:
@@ -38,7 +45,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`${display.variable} ${body.variable} ${mono.variable} ${mega.variable}`}
+    >
       <body className="min-h-screen antialiased font-body">{children}</body>
     </html>
   );
