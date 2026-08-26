@@ -56,7 +56,12 @@ const REST_BETWEEN_SETS_CHOICES = [
   { label: '3:00', seconds: 180 },
 ] as const;
 
-const REST_GAP_HEIGHT = 34;
+/** Fixed slot under the active/resting set — keeps rows from jumping on complete. */
+const REST_GAP_HEIGHT = 30;
+/** Compact but still tappable during a workout. */
+const SET_ROW_MIN_HEIGHT = 40;
+const SET_INPUT_MIN_HEIGHT = 36;
+const DONE_BTN_SIZE = 36;
 
 function ExerciseMenuContent({
   isBuiltInWorkout,
@@ -109,12 +114,6 @@ function ExerciseMenuContent({
     </>
   );
 }
-const SET_COMPLETE_LAYOUT = LayoutAnimation.create(
-  320,
-  LayoutAnimation.Types.easeInEaseOut,
-  LayoutAnimation.Properties.opacity
-);
-
 function SetDonePressable({
   completed,
   disabled,
@@ -133,18 +132,18 @@ function SetDonePressable({
   const handlePress = () => {
     if (disabled) return;
     if (!completed) {
-      LayoutAnimation.configureNext(SET_COMPLETE_LAYOUT);
+      // Scale feedback only — avoid LayoutAnimation so set rows don't slide under sweaty fingers.
       Animated.sequence([
         Animated.spring(scale, {
-          toValue: 1.12,
+          toValue: 1.08,
           friction: 5,
-          tension: 280,
+          tension: 320,
           useNativeDriver: true,
         }),
         Animated.spring(scale, {
           toValue: 1,
           friction: 7,
-          tension: 220,
+          tension: 240,
           useNativeDriver: true,
         }),
       ]).start();
@@ -154,16 +153,23 @@ function SetDonePressable({
 
   return (
     <Animated.View style={{ transform: [{ scale }], opacity: disabled && !completed ? 0.45 : 1 }}>
-      <Pressable onPress={handlePress} disabled={disabled && !completed}>
+      <Pressable
+        onPress={handlePress}
+        disabled={disabled && !completed}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={completed ? 'Mark set incomplete' : 'Complete set'}
+        style={styles.doneBtnHit}
+      >
         <View
           style={[
             styles.doneBtn,
             completed
               ? { backgroundColor: colors.success }
-              : { backgroundColor: mutedFill, borderWidth: 1, borderColor: colors.border },
+              : { backgroundColor: mutedFill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
           ]}
         >
-          <Ionicons name="checkmark" size={16} color={completed ? colors.successOn : colors.textMuted} />
+          <Ionicons name="checkmark" size={17} color={completed ? colors.successOn : colors.textMuted} />
         </View>
       </Pressable>
     </Animated.View>
@@ -215,70 +221,58 @@ function SetRowSwipeable({
 }
 
 function ActiveRestGap({
-  visible,
+  active,
+  reserved,
   restSecondsLeft,
   restTotalSeconds,
   colors,
 }: {
-  visible: boolean;
+  /** Countdown is running for this set. */
+  active: boolean;
+  /** Keep a fixed-height slot so completing a set doesn't shove rows. */
+  reserved: boolean;
   restSecondsLeft: number;
   restTotalSeconds: number;
   colors: { primary: string; text: string; textSecondary: string; textMuted: string; primarySurface: string; border: string };
 }) {
-  const anim = useRef(new Animated.Value(visible ? 1 : 0)).current;
-  const [mounted, setMounted] = useState(visible);
+  const opacity = useRef(new Animated.Value(active ? 1 : 0)).current;
 
   useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      Animated.spring(anim, {
-        toValue: 1,
-        friction: 9,
-        tension: 110,
-        useNativeDriver: false,
-      }).start();
-      return;
-    }
-    if (!mounted) return;
-    Animated.timing(anim, {
-      toValue: 0,
-      duration: 220,
-      useNativeDriver: false,
-    }).start(({ finished }) => {
-      if (finished) setMounted(false);
-    });
-  }, [visible, anim, mounted]);
+    Animated.timing(opacity, {
+      toValue: active ? 1 : 0,
+      duration: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [active, opacity]);
 
-  if (!mounted) return null;
+  if (!reserved && !active) return null;
 
-  const height = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, REST_GAP_HEIGHT],
-  });
   const progress =
-    restTotalSeconds > 0
+    active && restTotalSeconds > 0
       ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100)
       : 0;
   const timeLabel = `${Math.floor(restSecondsLeft / 60)}:${(restSecondsLeft % 60).toString().padStart(2, '0')}`;
 
   return (
-    <Animated.View style={[styles.restGapBlock, { height, opacity: anim, overflow: 'hidden' }]}>
-      <View style={styles.restGapInner}>
-        <View style={styles.restGapTimeRow}>
-          <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
-          <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
-          <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
-        </View>
-        <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
-          <View
-            style={[
-              styles.restGapFill,
-              { width: `${progress}%`, backgroundColor: colors.primary },
-            ]}
-          />
-        </View>
-      </View>
-    </Animated.View>
+    <View style={[styles.restGapBlock, { height: REST_GAP_HEIGHT }]}>
+      {active ? (
+        <Animated.View style={[styles.restGapInner, { opacity }]}>
+          <View style={styles.restGapTimeRow}>
+            <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
+            <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
+            <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
+          </View>
+          <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
+            <View
+              style={[
+                styles.restGapFill,
+                { width: `${progress}%`, backgroundColor: colors.primary },
+              ]}
+            />
+          </View>
+        </Animated.View>
+      ) : null}
+    </View>
   );
 }
 
@@ -567,7 +561,8 @@ export default function ActiveWorkoutScreen() {
   }
 
   function leaveFinishedWorkout() {
-    router.replace('/(tabs)?discardWorkout=1');
+    useActiveWorkoutStore.getState().discardWorkout();
+    router.replace('/(tabs)');
   }
 
   /** Minimize active workout back to tabs (resume pill lives on the tab bar). */
@@ -583,8 +578,8 @@ export default function ActiveWorkoutScreen() {
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
     leavingWorkoutRef.current = true;
-    // Clear on tabs mount so the resume pill never flashes
-    router.replace('/(tabs)?discardWorkout=1');
+    useActiveWorkoutStore.getState().discardWorkout();
+    router.replace('/(tabs)');
   }
 
   async function handleSaveAsTemplate() {
@@ -616,7 +611,8 @@ export default function ActiveWorkoutScreen() {
 
   function handleCancel() {
     leavingWorkoutRef.current = true;
-    router.replace('/(tabs)?discardWorkout=1');
+    useActiveWorkoutStore.getState().discardWorkout();
+    router.replace('/(tabs)');
   }
 
   if (finishedSummary) {
@@ -900,7 +896,8 @@ export default function ActiveWorkoutScreen() {
                       style: 'destructive',
                       onPress: () => {
                         leavingWorkoutRef.current = true;
-                        router.replace('/(tabs)?discardWorkout=1');
+                        useActiveWorkoutStore.getState().discardWorkout();
+                        router.replace('/(tabs)');
                       },
                     },
                   ]
@@ -1094,34 +1091,46 @@ export default function ActiveWorkoutScreen() {
                         : colors.surface;
                 const mutedFill = colors.surfaceElevated;
 
-                let kgBorderW = 0;
                 let kgBorderColor = 'transparent';
-                let repsBorderW = 0;
                 let repsBorderColor = 'transparent';
+                // Completed rows use a tinted bg — avoid colors.surface (white/"cleared")
+                // punch-outs that look like empty editable fields on the green row.
+                const completedInputFill = isDark ? colors.surface : mutedFill;
                 let kgFill: string = colors.surface;
                 let repsFill: string = mutedFill;
 
                 if (isFutureSet && !set.completed) {
                   kgFill = mutedFill;
                   repsFill = mutedFill;
+                } else if (set.completed) {
+                  kgFill = completedInputFill;
+                  repsFill = completedInputFill;
+                  if (isKgFocused) {
+                    kgBorderColor = colors.primary;
+                  } else if (isRepsFocused) {
+                    repsBorderColor = colors.primary;
+                  }
                 } else if (isKgFocused) {
                   kgFill = colors.surface;
-                  kgBorderW = 1.5;
                   kgBorderColor = colors.primary;
                   repsFill = mutedFill;
                 } else if (isRepsFocused) {
                   kgFill = mutedFill;
                   repsFill = colors.surface;
-                  repsBorderW = 1.5;
                   repsBorderColor = colors.primary;
-                } else if (isCurrentSet || set.completed) {
+                } else if (isCurrentSet) {
                   kgFill = colors.surface;
-                  kgBorderW = 1;
                   kgBorderColor = isDark ? colors.border : colors.inputBorder;
                   repsFill = mutedFill;
                 }
 
                 const canDeleteSet = se.sets.length > 1;
+                const isAnyRestActive =
+                  restAfter != null && restSecondsLeft != null && restSecondsLeft > 0;
+                // One fixed slot: under the resting set, or under the current working set when idle.
+                // Completing fills the same slot — no jump. Skip warm-ups (they don't start rest).
+                const reserveRestSlot =
+                  isActiveRestGap || (isCurrentSet && !isWarmUp && !isAnyRestActive);
 
                 const setRow = (
                     <View
@@ -1152,65 +1161,81 @@ export default function ActiveWorkoutScreen() {
                         >
                           {setLabelText}
                         </Text>
-                        {set.completed && recordedRestSec != null ? (
-                          <Text style={[styles.setRestDuration, { color: colors.textMuted }]}>
-                            {formatElapsed(recordedRestSec * 1000)}
-                          </Text>
-                        ) : null}
+                        <Text
+                          style={[
+                            styles.setRestDuration,
+                            {
+                              color: colors.textMuted,
+                              opacity: set.completed && recordedRestSec != null ? 1 : 0,
+                            },
+                          ]}
+                        >
+                          {set.completed && recordedRestSec != null
+                            ? formatElapsed(recordedRestSec * 1000)
+                            : '0:00'}
+                        </Text>
                       </View>
                       <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
                         {prevLabel}
                       </Text>
-                      <TextInput
+                      <View
                         style={[
-                          styles.setInput,
+                          styles.setInputWrap,
                           {
                             backgroundColor: kgFill,
-                            color: colors.text,
                             borderColor: kgBorderColor,
-                            borderWidth: kgBorderW,
+                            borderWidth: 1,
                           },
                         ]}
-                        placeholder="0"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="decimal-pad"
-                        value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
-                        onChangeText={(t) =>
-                          setSetRecord(exIdx, setIdx, {
-                            weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
-                          })
-                        }
-                        onFocus={() => {
-                          setFocusedCell({ exIdx, setIdx, field: 'kg' });
-                          setEditingWeightExIdx(exIdx);
-                        }}
-                        onBlur={() => {
-                          setFocusedCell(null);
-                          setEditingWeightExIdx(null);
-                        }}
-                      />
-                      <TextInput
+                      >
+                        <TextInput
+                          style={[styles.setInput, { color: colors.text }]}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="decimal-pad"
+                          underlineColorAndroid="transparent"
+                          value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
+                          onChangeText={(t) =>
+                            setSetRecord(exIdx, setIdx, {
+                              weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
+                            })
+                          }
+                          onFocus={() => {
+                            setFocusedCell({ exIdx, setIdx, field: 'kg' });
+                            setEditingWeightExIdx(exIdx);
+                          }}
+                          onBlur={() => {
+                            setFocusedCell(null);
+                            setEditingWeightExIdx(null);
+                          }}
+                        />
+                      </View>
+                      <View
                         style={[
-                          styles.setInput,
+                          styles.setInputWrap,
                           {
                             backgroundColor: repsFill,
-                            color: colors.text,
                             borderColor: repsBorderColor,
-                            borderWidth: repsBorderW,
+                            borderWidth: 1,
                           },
                         ]}
-                        placeholder="0"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="number-pad"
-                        value={set.reps !== undefined ? String(set.reps) : ''}
-                        onChangeText={(t) =>
-                          setSetRecord(exIdx, setIdx, {
-                            reps: t === '' ? undefined : parseInt(t, 10),
-                          })
-                        }
-                        onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
-                        onBlur={() => setFocusedCell(null)}
-                      />
+                      >
+                        <TextInput
+                          style={[styles.setInput, { color: colors.text }]}
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="number-pad"
+                          underlineColorAndroid="transparent"
+                          value={set.reps !== undefined ? String(set.reps) : ''}
+                          onChangeText={(t) =>
+                            setSetRecord(exIdx, setIdx, {
+                              reps: t === '' ? undefined : parseInt(t, 10),
+                            })
+                          }
+                          onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                          onBlur={() => setFocusedCell(null)}
+                        />
+                      </View>
                       <SetDonePressable
                         completed={set.completed}
                         disabled={!set.completed && !(set.reps != null && set.reps > 0)}
@@ -1259,7 +1284,8 @@ export default function ActiveWorkoutScreen() {
                       setRow
                     )}
                     <ActiveRestGap
-                      visible={isActiveRestGap}
+                      active={isActiveRestGap}
+                      reserved={reserveRestSlot}
                       restSecondsLeft={restSecondsLeft ?? 0}
                       restTotalSeconds={restTotalSeconds}
                       colors={colors}
@@ -1948,7 +1974,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 8, paddingVertical: 6, paddingBottom: 28 },
+  scrollContent: { paddingHorizontal: 8, paddingVertical: 4, paddingBottom: 24 },
   emptyWorkoutBlock: {
     padding: 20,
     borderRadius: 16,
@@ -1957,11 +1983,11 @@ const styles = StyleSheet.create({
   },
   emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     overflow: 'visible',
     borderWidth: 1,
   },
@@ -1979,7 +2005,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
     gap: 8,
   },
   exerciseTitlePressable: {
@@ -2132,8 +2158,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 6,
-    paddingVertical: 6,
-    gap: 2,
+    paddingVertical: 5,
+    gap: 4,
   },
   th: {
     fontSize: 9,
@@ -2141,13 +2167,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  thSet: { width: 24, textAlign: 'center' },
+  thSet: { width: 28, textAlign: 'center' },
   thPrev: { flex: 1, minWidth: 64, textAlign: 'center' },
   thKg: { flex: 1, minWidth: 48, textAlign: 'center' },
   thReps: { flex: 1, minWidth: 48, textAlign: 'center' },
-  thActions: { width: 30 },
+  thActions: { width: DONE_BTN_SIZE },
   setLabelWrap: {
-    width: 24,
+    width: 28,
+    minHeight: SET_INPUT_MIN_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2158,44 +2185,55 @@ const styles = StyleSheet.create({
     fontFamily: typography.data.fontFamily,
     textAlign: 'center',
     marginTop: 1,
+    height: 11,
   },
-  prevCell: { flex: 1, minWidth: 56, fontSize: 9, textAlign: 'center' },
+  prevCell: { flex: 1, minWidth: 56, fontSize: 10, textAlign: 'center' },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    minHeight: 32,
+    minHeight: SET_ROW_MIN_HEIGHT,
+  },
+  setInputWrap: {
+    flex: 1,
+    minWidth: 48,
+    minHeight: SET_INPUT_MIN_HEIGHT,
+    borderRadius: 7,
+    overflow: 'hidden',
+    justifyContent: 'center',
   },
   setInput: {
-    flex: 1,
-    minWidth: 44,
-    minHeight: 30,
-    paddingVertical: 4,
+    minHeight: SET_INPUT_MIN_HEIGHT,
+    paddingVertical: 5,
     paddingHorizontal: 3,
-    borderRadius: 6,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: typography.data.fontFamily,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
-    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  doneBtnHit: {
+    width: DONE_BTN_SIZE,
+    height: DONE_BTN_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   doneBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
+    width: DONE_BTN_SIZE,
+    height: DONE_BTN_SIZE,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   restGapBlock: {
     paddingHorizontal: 2,
-    paddingTop: 2,
-    paddingBottom: 2,
+    justifyContent: 'center',
   },
   restGapInner: {
-    gap: 5,
+    gap: 4,
   },
   restGapTimeRow: {
     flexDirection: 'row',
@@ -2205,15 +2243,15 @@ const styles = StyleSheet.create({
   },
   restGapTime: {
     fontFamily: typography.data.fontFamily,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   restGapLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
   },
   restGapTrack: {
-    height: 3,
+    height: 2,
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -2221,16 +2259,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
-  restGapIdle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    width: '100%',
-  },
-  restIdleLine: { flex: 1, height: StyleSheet.hairlineWidth, opacity: 0.9 },
   restBetweenText: {
     fontSize: 11,
     fontWeight: '600',
@@ -2434,13 +2462,14 @@ const styles = StyleSheet.create({
   addSetBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     marginHorizontal: 6,
-    marginBottom: 6,
-    marginTop: 0,
+    marginBottom: 4,
+    marginTop: 2,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderRadius: 8,
+    minHeight: 40,
   },
   addSetBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   addExerciseBtn: {

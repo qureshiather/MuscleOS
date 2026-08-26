@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
@@ -54,46 +54,6 @@ export function RecentWorkoutsRow({ items, onPress, formatRelative }: RecentWork
         );
       })}
     </ScrollView>
-  );
-}
-
-type QuickStartGridProps = {
-  templates: WorkoutTemplate[];
-  onPress: (template: WorkoutTemplate) => void;
-  cardStyle?: StyleProp<ViewStyle>;
-};
-
-export function QuickStartGrid({ templates, onPress }: QuickStartGridProps) {
-  const { colors, isDark } = useTheme();
-
-  if (templates.length === 0) return null;
-
-  return (
-    <View style={styles.grid}>
-      {templates.map((template) => (
-        <Pressable
-          key={template.id}
-          style={({ pressed }) => [
-            styles.gridCard,
-            {
-              backgroundColor: colors.surfaceElevated,
-              borderColor: colors.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-            !isDark && styles.cardLight,
-          ]}
-          onPress={() => onPress(template)}
-        >
-          <Ionicons name="barbell-outline" size={18} color={colors.primary} />
-          <Text style={[typography.bodyMedium, styles.gridTitle, { color: colors.text }]} numberOfLines={2}>
-            {template.name}
-          </Text>
-          <Text style={[typography.caption, { color: colors.textMuted }]}>
-            {template.exerciseIds.length} exercises
-          </Text>
-        </Pressable>
-      ))}
-    </View>
   );
 }
 

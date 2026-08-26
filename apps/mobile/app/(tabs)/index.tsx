@@ -31,7 +31,6 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import {
   RecentWorkoutsRow,
-  QuickStartGrid,
   SuggestedWorkoutsGrid,
 } from '@/components/workouts/WorkoutHomeSections';
 import { typography } from '@/theme/typography';
@@ -167,32 +166,6 @@ export default function WorkoutsScreen() {
     [builtIn]
   );
 
-  const recentWorkouts = useMemo(() => {
-    const completed = completedSessions();
-    const templateMap = new Map(templates.map((t) => [t.id, t]));
-    return completed
-      .filter((s) => {
-        const t = templateMap.get(s.templateId);
-        return t != null && !isTemplateHidden(t);
-      })
-      .slice(0, 8)
-      .map((s) => ({
-        session: s,
-        template: templateMap.get(s.templateId)!,
-      }));
-  }, [sessions, templates, hiddenBuiltInIds, userTemplates, isTemplateHidden]);
-
-  const quickStartTemplates = useMemo(() => {
-    if (!isPro) return [];
-    const pinned = custom.filter((t) => {
-      if (!t.folderId) return false;
-      const folder = folders.find((f) => f.id === t.folderId);
-      return folder?.favorite && !folder.archived;
-    });
-    const rest = custom.filter((t) => !pinned.some((p) => p.id === t.id)).slice(0, Math.max(0, 6 - pinned.length));
-    return [...pinned, ...rest].slice(0, 6);
-  }, [custom, folders, isPro]);
-
   const lastDoneByTemplate = useMemo(() => {
     const completed = sessions.filter((s) => s.completedAt != null);
     const map: Record<string, string> = {};
@@ -253,6 +226,32 @@ export default function WorkoutsScreen() {
     isTemplateHidden,
     activeRecovery,
     getExercise,
+  ]);
+
+  /** Recent excludes Suggested so the two home launchers never repeat the same template. */
+  const recentWorkouts = useMemo(() => {
+    const suggestedIds = new Set(suggestedWorkouts.map((s) => s.template.id));
+    const completed = completedSessions();
+    const templateMap = new Map(templates.map((t) => [t.id, t]));
+    const seenTemplateIds = new Set<string>();
+    const items: { session: (typeof completed)[number]; template: WorkoutTemplate }[] = [];
+    for (const s of completed) {
+      if (suggestedIds.has(s.templateId) || seenTemplateIds.has(s.templateId)) continue;
+      const t = templateMap.get(s.templateId);
+      if (t == null || isTemplateHidden(t)) continue;
+      seenTemplateIds.add(s.templateId);
+      items.push({ session: s, template: t });
+      if (items.length >= 6) break;
+    }
+    return items;
+  }, [
+    suggestedWorkouts,
+    sessions,
+    templates,
+    hiddenBuiltInIds,
+    userTemplates,
+    isTemplateHidden,
+    completedSessions,
   ]);
 
   function handleCreateFolder() {
@@ -783,23 +782,6 @@ export default function WorkoutsScreen() {
                 onPress={handleStartTemplate}
                 formatRelative={formatRelative}
               />
-            </View>
-          )}
-
-          {quickStartTemplates.length > 0 && (
-            <View style={styles.homeSection}>
-              <SectionHeader
-                title="Quick start"
-                {...(isPro
-                  ? {
-                      actionLabel: 'New template',
-                      onAction: () => {
-                        if (gatePro('custom_templates')) router.push('/create-template');
-                      },
-                    }
-                  : {})}
-              />
-              <QuickStartGrid templates={quickStartTemplates} onPress={handleStartTemplate} />
             </View>
           )}
 

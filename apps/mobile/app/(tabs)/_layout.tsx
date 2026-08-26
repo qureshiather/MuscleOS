@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useCallback } from 'react';
 import { View } from 'react-native';
-import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,22 +25,16 @@ function TabBarWithResumePill({
 export default function TabsLayout() {
   const { colors } = useTheme();
   const session = useActiveWorkoutStore((s) => s.session);
-  const router = useRouter();
-  const params = useLocalSearchParams<{ discardWorkout?: string }>();
+  const showPill = session != null;
 
-  // When we land on tabs with ?discardWorkout=1 (after cancel in active-workout), clear session here so pill never shows
-  useEffect(() => {
-    if (params.discardWorkout === '1') {
-      useActiveWorkoutStore.getState().discardWorkout();
-      router.replace('/(tabs)');
-    }
-  }, [params.discardWorkout, router]);
-
-  const showPill = session != null && params.discardWorkout !== '1';
+  const renderTabBar = useCallback(
+    (props: BottomTabBarProps) => <TabBarWithResumePill {...props} showPill={showPill} />,
+    [showPill]
+  );
 
   return (
     <Tabs
-      tabBar={(props) => <TabBarWithResumePill {...props} showPill={showPill} />}
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {

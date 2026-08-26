@@ -3,7 +3,6 @@ import { useEffect, useState, lazy, Suspense } from 'react';
 import { View, ActivityIndicator, AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import { LinkPreviewContextProvider } from 'expo-router/build/link/preview/LinkPreviewContext';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme, brandColors } from '@/theme/ThemeContext';
@@ -32,23 +31,21 @@ function ThemedStack() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <LinkPreviewContextProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: 'slide_from_right',
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+            animation: 'slide_from_right',
+          }}
+        >
+          <Stack.Screen
+            name="active-workout"
+            options={{
+              animation: 'slide_from_bottom',
+              gestureDirection: 'vertical',
             }}
-          >
-            <Stack.Screen
-              name="active-workout"
-              options={{
-                animation: 'slide_from_bottom',
-                gestureDirection: 'vertical',
-              }}
-            />
-          </Stack>
-        </LinkPreviewContextProvider>
+          />
+        </Stack>
       </View>
     </>
   );
