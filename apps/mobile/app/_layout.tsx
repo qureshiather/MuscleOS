@@ -12,6 +12,7 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
+import { hydrateActiveWorkout } from '@/store/activeWorkoutStore';
 import { syncNow } from '@/sync';
 import { useSyncStore } from '@/store/syncStore';
 
@@ -59,6 +60,11 @@ export default function RootLayout() {
   const loadSettings = useSettingsStore((s) => s.load);
   const loadCustomExercises = useExercisesStore((s) => s.load);
   const loadExerciseNotes = useExerciseNotesStore((s) => s.load);
+
+  // Independent of auth/network so a resumed workout appears as fast as possible.
+  useEffect(() => {
+    void hydrateActiveWorkout();
+  }, []);
 
   useEffect(() => {
     (async () => {

@@ -4,7 +4,7 @@ export type WorkoutSoundKind = 'restTick' | 'restEnd' | 'setComplete' | 'workout
 
 const SOURCES: Record<WorkoutSoundKind, number> = {
   restTick: require('../../assets/sounds/rest-tick.wav'),
-  restEnd: require('../../assets/sounds/rest-end.wav'),
+  restEnd: require('../../assets/sounds/rest_end.wav'),
   setComplete: require('../../assets/sounds/set-complete.wav'),
   workoutComplete: require('../../assets/sounds/workout-complete.wav'),
 };

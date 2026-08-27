@@ -257,6 +257,35 @@ export async function setSessions(sessions: WorkoutSession[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
 }
 
+/** Snapshot of the in-progress workout, persisted so it survives process death. */
+export interface PersistedActiveWorkout {
+  session: WorkoutSession;
+  restEndTime: number | null;
+  restTotalSeconds: number;
+  restAfter: { exIdx: number; setIdx: number } | null;
+  restDurationsBetweenSets: Record<string, number>;
+}
+
+export async function getActiveWorkout(): Promise<PersistedActiveWorkout | null> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.activeWorkout);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as PersistedActiveWorkout | null;
+    if (!parsed?.session?.exercises || !Array.isArray(parsed.session.exercises)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function setActiveWorkout(state: PersistedActiveWorkout | null): Promise<void> {
+  if (!state) {
+    await AsyncStorage.removeItem(STORAGE_KEYS.activeWorkout);
+    return;
+  }
+  await AsyncStorage.setItem(STORAGE_KEYS.activeWorkout, JSON.stringify(state));
+}
+
 export interface ExercisePrevious {
   weightKg: number;
   reps?: number;

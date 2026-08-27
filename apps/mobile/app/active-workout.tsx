@@ -296,6 +296,7 @@ export default function ActiveWorkoutScreen() {
     defaultSets?: string;
   }>();
   const session = useActiveWorkoutStore((s) => s.session);
+  const hydrated = useActiveWorkoutStore((s) => s.hydrated);
   const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
   const setExerciseRestBetweenSets = useActiveWorkoutStore((s) => s.setExerciseRestBetweenSets);
@@ -415,8 +416,9 @@ export default function ActiveWorkoutScreen() {
     startWorkout(params.templateId, ids, sets);
   }, [params.templateId, params.exerciseIds, params.defaultSets, session, startWorkout]);
 
-  // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page).
-  const shouldRedirectToTabs = !session && !params.templateId && !finishedSummary;
+  // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page),
+  // and not before the persisted workout has been read back (deep link from the notification lands here first).
+  const shouldRedirectToTabs = hydrated && !session && !params.templateId && !finishedSummary;
   useEffect(() => {
     if (!shouldRedirectToTabs) return;
     const id = setTimeout(() => {

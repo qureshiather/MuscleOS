@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    Needed so the rest-over alert fires at the exact second. Without it Android 13+
+    downgrades the alarm to an inexact one that can be deferred by ~1 minute.
+    User-granted ("Alarms & reminders"); the module falls back to an inexact alarm
+    when it is not granted. Deliberately not USE_EXACT_ALARM, which is auto-granted
+    but restricted by Play policy to dedicated alarm/timer/calendar apps.
+  -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+  <application>
+    <receiver
+      android:name="expo.modules.workoutlivenotification.RestAlarmReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

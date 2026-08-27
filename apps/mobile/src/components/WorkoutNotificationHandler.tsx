@@ -49,15 +49,17 @@ export default function WorkoutNotificationHandler() {
       clearRestTimer();
     });
 
-    // Cold start: open workout if app was launched from notification tap.
-    // getLastNotificationResponseAsync is not available on iOS in some environments (e.g. Expo Go).
+    // Cold start: open workout if app was launched from notification tap. This is the
+    // iOS path; Android reaches active-workout through the native module's deep link.
+    // getLastNotificationResponseAsync is not available in some environments (e.g. Expo Go).
     if (typeof Notifications.getLastNotificationResponseAsync === 'function') {
       Notifications.getLastNotificationResponseAsync()
         .then((response) => {
           const screen = response?.notification.request.content.data?.screen;
-          if (screen === 'active-workout') {
-            router.push('/active-workout');
-          }
+          if (screen !== 'active-workout') return;
+          // Otherwise the same stale response reopens the workout on every later launch.
+          Notifications.clearLastNotificationResponse();
+          router.push('/active-workout');
         })
         .catch(() => {
           // Native module not linked or unavailable; skip cold-start handling.

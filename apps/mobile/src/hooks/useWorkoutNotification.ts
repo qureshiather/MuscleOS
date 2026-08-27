@@ -1,17 +1,40 @@
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import {
+  dismissWorkoutLiveAlert,
+  hideWorkoutLiveNotification,
+  isWorkoutLiveNotificationAvailable,
+  showWorkoutLiveNotification,
+} from '../../modules/workout-live-notification';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
 
 const WORKOUT_NOTIFICATION_ID = 'active-workout';
 const REST_COMPLETE_NOTIFICATION_ID = 'rest-complete';
-const WORKOUT_CHANNEL_ID = 'workout';
-const REST_COMPLETE_CHANNEL_ID = 'rest-complete';
-/** Custom sound registered via expo-notifications plugin (filename only). */
-const REST_END_SOUND = 'rest-end.wav';
+/**
+ * Android freezes a channel's sound, importance and vibration at creation time, so
+ * changing any of them requires a new id. Keep these versioned.
+ */
+const WORKOUT_CHANNEL_ID = 'workout_fallback_v1';
+const REST_COMPLETE_CHANNEL_ID = 'rest_complete_fallback_v1';
+/**
+ * Registered via the expo-notifications plugin, which copies it to Android's res/raw.
+ * Resource names allow only lowercase letters, digits and underscores.
+ */
+const REST_END_SOUND = 'rest_end_alert.wav';
 const FOREGROUND_REFRESH_MS = 1000;
+
+/** Android posts an ongoing notification the platform ticks itself; iOS cannot. */
+const useNativeLiveNotification = isWorkoutLiveNotificationAvailable;
+/**
+ * Fallback path only. Android replaces an ongoing notification in place, so a per-second
+ * countdown is cheap. On iOS every update rewrites the Notification Center entry, so show
+ * the clock time rest ends instead — it never goes stale and costs one write.
+ */
+const canTickTrayCountdown = Platform.OS === 'android';
 
 function formatRestCountdown(restEndTime: number): string {
   const sec = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
@@ -154,8 +177,12 @@ export function useWorkoutNotification() {
 
   useEffect(() => {
     if (!session) {
-      void dismissWorkoutNotification();
-      void cancelRestCompleteNotification();
+      if (useNativeLiveNotification) {
+        void hideWorkoutLiveNotification();
+      } else {
+        void dismissWorkoutNotification();
+        void cancelRestCompleteNotification();
+      }
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -176,6 +203,46 @@ export function useWorkoutNotification() {
       );
       if (next) return getExercise(next.exerciseId)?.name ?? next.exerciseId;
       return 'Workout';
+    }
+
+    if (useNativeLiveNotification) {
+      let disposed = false;
+
+      const resting = restEndTime != null && restEndTime > Date.now();
+
+      const syncNative = async (appState: AppStateStatus) => {
+        const granted = await requestPermission();
+        if (!granted || disposed) return;
+        if (resting) void maybePromptForExactAlarms();
+        const exerciseName = getCurrentExerciseName();
+        await showWorkoutLiveNotification({
+          restTitle: 'Resting',
+          restBody: `Next: ${exerciseName}`,
+          idleTitle: 'Workout in progress',
+          idleBody: `Next: ${exerciseName}`,
+          restEndTime: resting ? restEndTime : null,
+          alertTitle: 'Rest over',
+          alertBody: `Time for ${exerciseName}`,
+          // In the foreground the in-app sound handles it, so skip the OS alert.
+          alertEnabled: appState !== 'active',
+          alertSound: workoutSoundsEnabled,
+        });
+      };
+
+      void syncNative(appStateRef.current);
+
+      const nativeSub = AppState.addEventListener('change', (nextState) => {
+        appStateRef.current = nextState;
+        if (nextState === 'active') {
+          void dismissWorkoutLiveAlert();
+        }
+        void syncNative(nextState);
+      });
+
+      return () => {
+        disposed = true;
+        nativeSub.remove();
+      };
     }
 
     function buildNotification(preferAbsoluteRestTime: boolean) {
@@ -228,6 +295,7 @@ export function useWorkoutNotification() {
 
     function startForegroundRefresh() {
       clearRefreshInterval();
+      if (!canTickTrayCountdown) return;
       if (restEndTime == null || restEndTime <= Date.now()) return;
       intervalRef.current = setInterval(() => {
         void refresh(false);
@@ -235,7 +303,7 @@ export function useWorkoutNotification() {
     }
 
     const isActive = appStateRef.current === 'active';
-    void refresh(!isActive);
+    void refresh(!isActive || !canTickTrayCountdown);
     void syncRestCompleteSchedule(appStateRef.current);
     if (isActive) startForegroundRefresh();
 
@@ -246,7 +314,7 @@ export function useWorkoutNotification() {
       if (nextState === 'active') {
         clearRefreshInterval();
         void cancelRestCompleteNotification();
-        void refresh(false);
+        void refresh(!canTickTrayCountdown);
         startForegroundRefresh();
         return;
       }

@@ -8,10 +8,16 @@
       "android"
     ],
     "ios": {
-      "bundleIdentifier": "com.muscleos.app"
+      "bundleIdentifier": "com.muscleos.app",
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      }
     },
     "android": {
-      "package": "com.muscleos.app"
+      "package": "com.muscleos.app",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -26,17 +32,23 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
           "color": "#5694F5",
           "sounds": [
-            "./assets/sounds/rest-end.wav"
+            "./assets/sounds/rest_end_alert.wav"
           ]
         }
-      ]
+      ],
+      "./plugins/withDeepLinkOnColdStart"
     ],
     "experiments": {
       "typedRoutes": true

@@ -76,12 +76,68 @@ function writeDualToneWav(filepath, durationSec, f1, f2, opts) {
   fs.writeFileSync(filepath, buffer);
 }
 
+/**
+ * Repeated beeps for the OS notification alert. Needs to be long and loud enough
+ * to notice from across the gym while the phone is in a pocket, unlike the short
+ * in-app blip that plays when you are already looking at the screen.
+ */
+function writeBeepSequenceWav(filepath, beeps, { volume = 0.7 } = {}) {
+  const totalSec = beeps.reduce((sum, b) => sum + b.durationSec + b.gapSec, 0);
+  const numSamples = Math.floor(SAMPLE_RATE * totalSec);
+  const dataSize = numSamples * 2;
+  const buffer = Buffer.alloc(44 + dataSize);
+
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(SAMPLE_RATE, 24);
+  buffer.writeUInt32LE(SAMPLE_RATE * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataSize, 40);
+
+  let offset = 0;
+  for (const { durationSec, frequencyHz, gapSec } of beeps) {
+    const beepSamples = Math.floor(SAMPLE_RATE * durationSec);
+    for (let i = 0; i < beepSamples; i++) {
+      const t = i / SAMPLE_RATE;
+      const attack = Math.min(1, i / (SAMPLE_RATE * 0.005));
+      const release = Math.min(1, (beepSamples - i) / (SAMPLE_RATE * 0.03));
+      const env = attack * release;
+      // Square-ish tone (fundamental + odd harmonics) carries better than a pure sine.
+      const a =
+        0.7 * Math.sin(2 * Math.PI * frequencyHz * t) +
+        0.2 * Math.sin(2 * Math.PI * frequencyHz * 3 * t) +
+        0.1 * Math.sin(2 * Math.PI * frequencyHz * 5 * t);
+      const sample = a * volume * env;
+      buffer.writeInt16LE(
+        Math.max(-32768, Math.min(32767, Math.round(sample * 32767))),
+        44 + (offset + i) * 2
+      );
+    }
+    offset += beepSamples + Math.floor(SAMPLE_RATE * gapSec);
+  }
+
+  fs.writeFileSync(filepath, buffer);
+}
+
 fs.mkdirSync(outDir, { recursive: true });
 
 // Rest countdown: short tick (880 Hz, ~70ms)
 writeWav(path.join(outDir, 'rest-tick.wav'), 0.07, 880, { volume: 0.2 });
-// Rest ended: slightly lower, ~120ms
-writeWav(path.join(outDir, 'rest-end.wav'), 0.12, 660, { volume: 0.24 });
+// Rest ended, in-app: slightly lower, ~120ms
+writeWav(path.join(outDir, 'rest_end.wav'), 0.12, 660, { volume: 0.24 });
+// Rest ended, OS notification channel sound. Android resource name, so no hyphens.
+writeBeepSequenceWav(path.join(outDir, 'rest_end_alert.wav'), [
+  { durationSec: 0.16, frequencyHz: 880, gapSec: 0.1 },
+  { durationSec: 0.16, frequencyHz: 880, gapSec: 0.1 },
+  { durationSec: 0.3, frequencyHz: 1174.66, gapSec: 0.05 },
+]);
 // Set complete: pleasant ding (two partials)
 writeDualToneWav(path.join(outDir, 'set-complete.wav'), 0.18, 523.25, 784.0, { volume: 0.2 });
 // Workout complete: brighter chord-ish

@@ -1,6 +1,7 @@
 package com.muscleos.app
 
 import android.os.Build
+import android.content.Intent
 import android.os.Bundle
 
 import com.facebook.react.ReactActivity
@@ -57,5 +58,16 @@ class MainActivity : ReactActivity() {
       // Use the default back button implementation on Android S
       // because it's doing more than [Activity.moveTaskToBack] in fact.
       super.invokeDefaultOnBackPressed()
+  }
+
+  /**
+   * React Native discards an intent that arrives before the JS context exists, which is
+   * exactly what happens when tapping a notification relaunches an app the OS had killed.
+   * Recording it on the activity keeps Linking.getInitialURL() working so expo-router can
+   * still route to the deep link once JS boots.
+   */
+  override fun onNewIntent(intent: Intent) {
+    setIntent(intent)
+    super.onNewIntent(intent)
   }
 }

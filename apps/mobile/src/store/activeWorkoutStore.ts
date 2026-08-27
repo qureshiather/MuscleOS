@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
 import {
@@ -5,6 +6,8 @@ import {
   setSessions,
   getExercisePrevious,
   setExercisePrevious,
+  getActiveWorkout,
+  setActiveWorkout,
 } from '@/storage/localStorage';
 import { getRecovery, setRecovery } from '@/storage/localStorage';
 import { getRecoveryUntil } from '@/utils/recovery';
@@ -59,6 +62,8 @@ function remapRestAfter(restAfter: RestAfter | null, oldToNew: number[]): RestAf
 
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
+  /** False until the persisted workout has been read back, so screens don't bounce early. */
+  hydrated: boolean;
   /** Rest timer: end timestamp (ms) so it stays correct when app is backgrounded */
   restEndTime: number | null;
   restTotalSeconds: number;
@@ -137,6 +142,7 @@ function bumpRestKeysForInsertedSet(
 
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
+  hydrated: false,
   restEndTime: null,
   restTotalSeconds: DEFAULT_REST_SECONDS,
   restAfter: null,
@@ -487,3 +493,69 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     }));
   },
 }));
+
+/**
+ * The OS can kill the app at any point during a workout — most likely during a long
+ * rest while the user is in another app — so the session is mirrored to storage and
+ * read back on launch. Without this, reopening from the workout notification lands on
+ * an empty home screen with the workout gone.
+ */
+const PERSIST_DEBOUNCE_MS = 400;
+
+let persistEnabled = false;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+function writeSnapshot() {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  const { session, restEndTime, restTotalSeconds, restAfter, restDurationsBetweenSets } =
+    useActiveWorkoutStore.getState();
+  void setActiveWorkout(
+    session
+      ? { session, restEndTime, restTotalSeconds, restAfter, restDurationsBetweenSets }
+      : null
+  );
+}
+
+useActiveWorkoutStore.subscribe(() => {
+  if (!persistEnabled || persistTimer) return;
+  // Typing in a weight field fires a set() per keystroke, so coalesce the writes.
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    writeSnapshot();
+  }, PERSIST_DEBOUNCE_MS);
+});
+
+// Backgrounding is the last moment we're guaranteed to run before being killed.
+AppState.addEventListener('change', (state) => {
+  if (persistEnabled && state !== 'active') writeSnapshot();
+});
+
+let hydrating: Promise<void> | null = null;
+
+/** Restores an interrupted workout. Safe to call more than once; only the first runs. */
+export function hydrateActiveWorkout(): Promise<void> {
+  hydrating ??= (async () => {
+    try {
+      const saved = await getActiveWorkout();
+      // A workout started while we were reading (deep link, resume tap) wins.
+      if (saved && !useActiveWorkoutStore.getState().session) {
+        useActiveWorkoutStore.setState({
+          session: saved.session,
+          restEndTime: saved.restEndTime != null && saved.restEndTime > Date.now() ? saved.restEndTime : null,
+          restTotalSeconds: saved.restTotalSeconds ?? DEFAULT_REST_SECONDS,
+          restAfter: saved.restAfter ?? null,
+          restDurationsBetweenSets: saved.restDurationsBetweenSets ?? {},
+        });
+      }
+    } finally {
+      useActiveWorkoutStore.setState({ hydrated: true });
+      persistEnabled = true;
+      // Catches a workout started while hydration was still in flight.
+      if (useActiveWorkoutStore.getState().session) writeSnapshot();
+    }
+  })();
+  return hydrating;
+}
