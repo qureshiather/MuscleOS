@@ -8,9 +8,12 @@
       "android"
     ],
     "ios": {
-      "bundleIdentifier": "com.muscleos.app",
+      "bundleIdentifier": "com.muscle-os.app",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

@@ -62,6 +62,15 @@ const REST_GAP_HEIGHT = 30;
 const SET_ROW_MIN_HEIGHT = 40;
 const SET_INPUT_MIN_HEIGHT = 36;
 const DONE_BTN_SIZE = 36;
+const COL_SET_WIDTH = 32;
+const COL_PREV_MIN_WIDTH = 64;
+const COL_INPUT_MIN_WIDTH = 52;
+const TABLE_H_PAD = 4;
+const TABLE_COL_GAP = 4;
+
+function digitsOnly(text: string): string {
+  return text.replace(/[^\d]/g, '');
+}
 
 function ExerciseMenuContent({
   isBuiltInWorkout,
@@ -202,17 +211,18 @@ function SetRowSwipeable({
     <Swipeable
       ref={swipeableRef}
       overshootRight={false}
-      friction={2}
-      rightThreshold={48}
-      onSwipeableWillOpen={(direction) => {
-        if (direction === 'right') handleDelete();
-      }}
-      renderRightActions={(progress) => (
-        <View style={[styles.swipeDeleteAction, { backgroundColor: dangerColor }]}>
-          <Animated.View style={{ opacity: progress }}>
-            <Ionicons name="trash-outline" size={22} color="#fff" />
-          </Animated.View>
-        </View>
+      friction={1.5}
+      rightThreshold={28}
+      onSwipeableOpen={handleDelete}
+      renderRightActions={() => (
+        <Pressable
+          onPress={handleDelete}
+          accessibilityRole="button"
+          accessibilityLabel="Remove set"
+          style={[styles.swipeDeleteAction, { backgroundColor: dangerColor }]}
+        >
+          <Ionicons name="trash-outline" size={22} color="#fff" />
+        </Pressable>
       )}
     >
       {children}
@@ -1043,11 +1053,19 @@ export default function ActiveWorkoutScreen() {
                 ]}
               >
               <View style={styles.tableHeader}>
-                <Text style={[styles.th, styles.thSet, { color: colors.textMuted }]}>SET</Text>
-                <Text style={[styles.th, styles.thPrev, { color: colors.textMuted }]}>PREVIOUS</Text>
-                <Text style={[styles.th, styles.thKg, { color: colors.textMuted }]}>{weightLabel}</Text>
-                <Text style={[styles.th, styles.thReps, { color: colors.textMuted }]}>REPS</Text>
-                <View style={styles.thActions} />
+                <View style={styles.colSet}>
+                  <Text style={[styles.th, { color: colors.textMuted }]}>SET</Text>
+                </View>
+                <View style={styles.colPrev}>
+                  <Text style={[styles.th, { color: colors.textMuted }]}>PREVIOUS</Text>
+                </View>
+                <View style={styles.colInput}>
+                  <Text style={[styles.th, { color: colors.textMuted }]}>{weightLabel}</Text>
+                </View>
+                <View style={styles.colInput}>
+                  <Text style={[styles.th, { color: colors.textMuted }]}>REPS</Text>
+                </View>
+                <View style={styles.colDone} />
               </View>
               </View>
 
@@ -1127,6 +1145,12 @@ export default function ActiveWorkoutScreen() {
                 }
 
                 const canDeleteSet = se.sets.length > 1;
+                const deleteThisSet = () => {
+                  if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
+                    clearRestTimer();
+                  }
+                  removeSet(exIdx, setIdx);
+                };
                 const isAnyRestActive =
                   restAfter != null && restSecondsLeft != null && restSecondsLeft > 0;
                 // One fixed slot: under the resting set, or under the current working set when idle.
@@ -1144,7 +1168,17 @@ export default function ActiveWorkoutScreen() {
                         },
                       ]}
                     >
-                      <View style={styles.setLabelWrap}>
+                      <Pressable
+                        style={[styles.colSet, styles.setLabelCol]}
+                        onLongPress={() => {
+                          if (!canDeleteSet) return;
+                          Alert.alert('Remove set', 'Delete this set from the exercise?', [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Remove', style: 'destructive', onPress: deleteThisSet },
+                          ]);
+                        }}
+                        delayLongPress={350}
+                      >
                         <Text
                           style={[
                             styles.setLabel,
@@ -1176,10 +1210,12 @@ export default function ActiveWorkoutScreen() {
                             ? formatElapsed(recordedRestSec * 1000)
                             : '0:00'}
                         </Text>
+                      </Pressable>
+                      <View style={styles.colPrev}>
+                        <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
+                          {prevLabel}
+                        </Text>
                       </View>
-                      <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
-                        {prevLabel}
-                      </Text>
                       <View
                         style={[
                           styles.setInputWrap,
@@ -1194,14 +1230,18 @@ export default function ActiveWorkoutScreen() {
                           style={[styles.setInput, { color: colors.text }]}
                           placeholder="0"
                           placeholderTextColor={colors.textMuted}
-                          keyboardType="decimal-pad"
+                          keyboardType="number-pad"
+                          inputMode="numeric"
+                          autoCorrect={false}
+                          spellCheck={false}
                           underlineColorAndroid="transparent"
                           value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
-                          onChangeText={(t) =>
+                          onChangeText={(t) => {
+                            const digits = digitsOnly(t);
                             setSetRecord(exIdx, setIdx, {
-                              weightKg: t === '' ? undefined : displayToKg(parseFloat(t) || 0, weightUnit),
-                            })
-                          }
+                              weightKg: digits === '' ? undefined : displayToKg(parseInt(digits, 10), weightUnit),
+                            });
+                          }}
                           onFocus={() => {
                             setFocusedCell({ exIdx, setIdx, field: 'kg' });
                             setEditingWeightExIdx(exIdx);
@@ -1227,13 +1267,17 @@ export default function ActiveWorkoutScreen() {
                           placeholder="0"
                           placeholderTextColor={colors.textMuted}
                           keyboardType="number-pad"
+                          inputMode="numeric"
+                          autoCorrect={false}
+                          spellCheck={false}
                           underlineColorAndroid="transparent"
                           value={set.reps !== undefined ? String(set.reps) : ''}
-                          onChangeText={(t) =>
+                          onChangeText={(t) => {
+                            const digits = digitsOnly(t);
                             setSetRecord(exIdx, setIdx, {
-                              reps: t === '' ? undefined : parseInt(t, 10),
-                            })
-                          }
+                              reps: digits === '' ? undefined : parseInt(digits, 10),
+                            });
+                          }}
                           onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
                           onBlur={() => setFocusedCell(null)}
                         />
@@ -1273,12 +1317,7 @@ export default function ActiveWorkoutScreen() {
                     {canDeleteSet ? (
                       <SetRowSwipeable
                         dangerColor={colors.danger}
-                        onDelete={() => {
-                          if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                            clearRestTimer();
-                          }
-                          removeSet(exIdx, setIdx);
-                        }}
+                        onDelete={deleteThisSet}
                       >
                         {setRow}
                       </SetRowSwipeable>
@@ -2151,57 +2190,80 @@ const styles = StyleSheet.create({
   tableInset: {
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
   },
   tableHeaderStrip: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 5,
-    gap: 4,
+    paddingHorizontal: TABLE_H_PAD,
+    paddingVertical: 6,
+    gap: TABLE_COL_GAP,
   },
   th: {
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+    textAlign: 'center',
+    width: '100%',
   },
-  thSet: { width: 28, textAlign: 'center' },
-  thPrev: { flex: 1, minWidth: 64, textAlign: 'center' },
-  thKg: { flex: 1, minWidth: 48, textAlign: 'center' },
-  thReps: { flex: 1, minWidth: 48, textAlign: 'center' },
-  thActions: { width: DONE_BTN_SIZE },
-  setLabelWrap: {
-    width: 28,
-    minHeight: SET_INPUT_MIN_HEIGHT,
-    justifyContent: 'center',
+  colSet: {
+    width: COL_SET_WIDTH,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setLabelCol: {
+    minHeight: SET_INPUT_MIN_HEIGHT,
+    position: 'relative',
+  },
+  colPrev: {
+    flex: 1,
+    minWidth: COL_PREV_MIN_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colInput: {
+    flex: 1,
+    minWidth: COL_INPUT_MIN_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colDone: {
+    width: DONE_BTN_SIZE,
   },
   setLabel: { fontSize: 13, textAlign: 'center' },
   setLabelWarmUp: { fontSize: 11 },
   setRestDuration: {
+    position: 'absolute',
+    bottom: 1,
+    left: 0,
+    right: 0,
     fontSize: 9,
     fontFamily: typography.data.fontFamily,
     textAlign: 'center',
-    marginTop: 1,
-    height: 11,
   },
-  prevCell: { flex: 1, minWidth: 56, fontSize: 10, textAlign: 'center' },
+  prevCell: {
+    fontSize: 10,
+    textAlign: 'center',
+    width: '100%',
+  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: TABLE_COL_GAP,
     paddingVertical: 3,
-    paddingHorizontal: 2,
+    paddingHorizontal: TABLE_H_PAD,
     borderBottomWidth: StyleSheet.hairlineWidth,
     minHeight: SET_ROW_MIN_HEIGHT,
   },
   setInputWrap: {
     flex: 1,
-    minWidth: 48,
+    minWidth: COL_INPUT_MIN_WIDTH,
     minHeight: SET_INPUT_MIN_HEIGHT,
     borderRadius: 7,
     overflow: 'hidden',

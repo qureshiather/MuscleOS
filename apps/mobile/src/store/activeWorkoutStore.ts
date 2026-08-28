@@ -140,6 +140,27 @@ function bumpRestKeysForInsertedSet(
   return next;
 }
 
+function dropRestKeysForRemovedSet(
+  durations: Record<string, number>,
+  exIdx: number,
+  removedSetIdx: number
+): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [key, seconds] of Object.entries(durations)) {
+    const [exStr, setStr] = key.split('-');
+    const ex = parseInt(exStr, 10);
+    const set = parseInt(setStr, 10);
+    if (Number.isNaN(ex) || Number.isNaN(set)) continue;
+    if (ex !== exIdx) {
+      next[key] = seconds;
+      continue;
+    }
+    if (set === removedSetIdx) continue;
+    next[restKey(exIdx, set > removedSetIdx ? set - 1 : set)] = seconds;
+  }
+  return next;
+}
+
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
   hydrated: false,
@@ -258,14 +279,38 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   },
 
   removeSet: (exerciseIndex, setIndex) => {
-    const { session } = get();
+    const { session, restAfter, restDurationsBetweenSets } = get();
     if (!session) return;
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
     if (!ex || ex.sets.length <= 1) return;
+    if (setIndex < 0 || setIndex >= ex.sets.length) return;
     const sets = ex.sets.filter((_, i) => i !== setIndex);
     exercises[exerciseIndex] = { ...ex, sets };
-    set({ session: { ...session, exercises } });
+
+    const remappedDurations = dropRestKeysForRemovedSet(
+      restDurationsBetweenSets,
+      exerciseIndex,
+      setIndex
+    );
+    let nextRestAfter = restAfter;
+    let clearRest = false;
+    if (restAfter?.exIdx === exerciseIndex) {
+      if (restAfter.setIdx === setIndex) {
+        clearRest = true;
+        nextRestAfter = null;
+      } else if (restAfter.setIdx > setIndex) {
+        nextRestAfter = { exIdx: exerciseIndex, setIdx: restAfter.setIdx - 1 };
+      }
+    }
+
+    set({
+      session: { ...session, exercises },
+      restDurationsBetweenSets: remappedDurations,
+      ...(clearRest
+        ? { restEndTime: null, restAfter: null }
+        : { restAfter: nextRestAfter }),
+    });
   },
 
   addExercise: (exerciseId) => {
