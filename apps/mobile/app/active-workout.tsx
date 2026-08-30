@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler'
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { fontScaleCap, useBottomSpace, useDenseRowMetrics } from '@/theme/layout';
+import { fontScaleCap, useBottomSpace, useDenseRowMetrics, useModalMaxHeight } from '@/theme/layout';
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
@@ -302,6 +302,8 @@ export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
   const listPaddingBottom = useBottomSpace(24);
   const dense = useDenseRowMetrics();
+  const sheetMaxHeight = useModalMaxHeight();
+  const addExerciseListMaxHeight = Math.max(180, sheetMaxHeight - 180);
   const colSetStyle = [styles.colSet, { width: dense.setCol }];
   const colPrevStyle = [styles.colPrev, { minWidth: dense.prevMin }];
   const colInputStyle = [styles.colInput, { minWidth: dense.inputMin }];
@@ -348,6 +350,7 @@ export default function ActiveWorkoutScreen() {
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
+  const customExercises = useExercisesStore((s) => s.customExercises);
   const exerciseNotes = useExerciseNotesStore((s) => s.notes);
   const setExerciseNote = useExerciseNotesStore((s) => s.setNote);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
@@ -372,6 +375,12 @@ export default function ActiveWorkoutScreen() {
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
+  const addExerciseResults = useMemo(() => {
+    const all = getAllExercises();
+    const q = addExerciseSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter((e) => e.name.toLowerCase().includes(q));
+  }, [addExerciseSearch, customExercises, getAllExercises]);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
   const [dropdownLayout, setDropdownLayout] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
@@ -1824,42 +1833,41 @@ export default function ActiveWorkoutScreen() {
       </Modal>
 
       <Modal visible={showAddExerciseModal} animationType="slide" transparent>
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowAddExerciseModal(false)}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.addExerciseKeyboardAvoid}
-            keyboardVerticalOffset={0}
-          >
-            <SheetFrame
-              style={styles.addExerciseModalContent}
-              onStartShouldSetResponder={() => true}
-            >
-              <View style={styles.addExerciseModalHeader}>
-                <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
-                <Pressable onPress={() => setShowAddExerciseModal(false)}>
-                  <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
-                </Pressable>
-              </View>
-              <TextInput
-                style={[
-                  styles.addExerciseSearch,
-                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder="Search exercises..."
-                placeholderTextColor={colors.textMuted}
-                value={addExerciseSearch}
-                onChangeText={setAddExerciseSearch}
-              />
-              <FlatList
-                data={getAllExercises().filter(
-                  (e) =>
-                    !addExerciseSearch.trim() ||
-                    e.name.toLowerCase().includes(addExerciseSearch.trim().toLowerCase())
-                )}
-                keyExtractor={(item) => item.id}
-                style={styles.addExerciseList}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => (
+        <Pressable
+          style={[styles.addExerciseOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => setShowAddExerciseModal(false)}
+        >
+          <SheetFrame onStartShouldSetResponder={() => true}>
+            <View style={styles.addExerciseModalHeader}>
+              <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
+              <Pressable onPress={() => setShowAddExerciseModal(false)}>
+                <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              style={[
+                styles.addExerciseSearch,
+                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="Search exercises..."
+              placeholderTextColor={colors.textMuted}
+              value={addExerciseSearch}
+              onChangeText={setAddExerciseSearch}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            <FlatList
+              data={addExerciseResults}
+              keyExtractor={(item) => item.id}
+              style={{ maxHeight: addExerciseListMaxHeight }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              ListEmptyComponent={
+                <Text style={[styles.addExerciseEmpty, { color: colors.textMuted }]}>
+                  No matching exercises
+                </Text>
+              }
+              renderItem={({ item }) => (
                 <Pressable
                   style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
                   onPress={() => {
@@ -1903,9 +1911,8 @@ export default function ActiveWorkoutScreen() {
                   <Ionicons name="add" size={20} color={colors.primary} />
                 </Pressable>
               )}
-              />
-            </SheetFrame>
-          </KeyboardAvoidingView>
+            />
+          </SheetFrame>
         </Pressable>
       </Modal>
     </Screen>
@@ -2574,13 +2581,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   addExerciseBtnText: { fontSize: 15, fontWeight: '600' },
-  addExerciseKeyboardAvoid: {
+  addExerciseOverlay: {
     flex: 1,
-    width: '100%',
     justifyContent: 'flex-end',
-  },
-  addExerciseModalContent: {
-    flexGrow: 0,
   },
   addExerciseModalHeader: {
     flexDirection: 'row',
@@ -2602,7 +2605,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 16,
   },
-  addExerciseList: { flex: 1, minHeight: 0, maxHeight: 360 },
+  addExerciseEmpty: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    textAlign: 'center',
+    fontSize: 15,
+  },
   addExerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',

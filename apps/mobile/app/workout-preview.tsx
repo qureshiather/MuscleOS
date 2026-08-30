@@ -111,7 +111,7 @@ export default function WorkoutPreviewScreen() {
             <Text style={[typography.caption, styles.sectionLabel, { color: colors.textMuted }]}>
               Muscles used
             </Text>
-            <MuscleDiagram muscleIds={workoutMuscleIds} size={0.85} />
+            <MuscleDiagram muscleIds={workoutMuscleIds} size={0.7} />
             <Text style={[typography.caption, styles.muscleNames, { color: colors.textSecondary }]}>
               {workoutMuscleNames}
             </Text>

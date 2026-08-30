@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Body from 'react-native-body-highlighter';
 import type { Slug } from 'react-native-body-highlighter';
@@ -7,6 +7,17 @@ import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeCon
 import { useDeviceMetrics } from '@/theme/layout';
 import { spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
+
+/** Library figure size at `scale={1}`. */
+const FIGURE_BASE_WIDTH = 200;
+/** Tight enough that both views stay on one row on SE / Display Zoom. */
+const PAIR_GAP = 8;
+const PAIR_BASE_WIDTH = FIGURE_BASE_WIDTH * 2 + PAIR_GAP;
+
+function scaleToFit(availableWidth: number, size: number): number {
+  if (availableWidth <= 0) return size;
+  return Math.min(size, availableWidth / PAIR_BASE_WIDTH);
+}
 
 /** Map our MuscleId to the body-highlighter library's Slug (one or more muscles can map to same slug). */
 const MUSCLE_ID_TO_SLUG: Record<MuscleId, Slug> = {
@@ -59,7 +70,8 @@ export function MuscleDiagram({
   justTrainedMuscleIds?: MuscleId[];
 }) {
   const { colors } = useTheme();
-  const { width, isShort } = useDeviceMetrics();
+  const { width } = useDeviceMetrics();
+  const [rowWidth, setRowWidth] = useState(0);
   const profile = useSettingsStore((s) => s.profile);
   const userGender = profile?.sex === 'female' ? 'female' : 'male';
   const gender = (variant ?? userGender) as 'male' | 'female';
@@ -96,16 +108,22 @@ export function MuscleDiagram({
       })();
 
   const useGreen = highlightColor === 'green';
-  // The highlighter's `scale` is relative to a ~360pt pair of figures. Shrink on
-  // Display Zoom / SE-class widths and short phones so the pair never overflows.
-  const fit = Math.min(1, (width - spacing.xl * 2) / 360);
-  const resolvedScale = size * fit * (isShort ? 0.88 : 1);
+  // Each figure is 200pt wide at scale 1. Size the pair from the real row
+  // width so front + back never wrap — including inside padded cards.
+  const fallbackWidth = width - spacing.lg * 4;
+  const resolvedScale = scaleToFit(rowWidth > 0 ? rowWidth : fallbackWidth, size);
   const colorPalette = isRecoveryMode
     ? getRecoveryPalette(colors, useThreeStates)
     : getHighlightGradient(colors, useGreen ? 'green' : 'orange');
 
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={styles.wrapper}
+      onLayout={(event) => {
+        const next = Math.round(event.nativeEvent.layout.width);
+        setRowWidth((prev) => (prev === next ? prev : next));
+      }}
+    >
       <View style={styles.row}>
         <Body
           data={data}
@@ -138,8 +156,15 @@ export function MuscleDiagram({
 }
 
 const styles = StyleSheet.create({
-  wrapper: { alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
+  wrapper: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: PAIR_GAP,
+    width: '100%',
+  },
   labels: { width: '100%', marginTop: 8, paddingHorizontal: 8 },
   labelText: { fontSize: 12 },
 });
