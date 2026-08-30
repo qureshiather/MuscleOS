@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
+import { fontScaleCap, useClampedFontScale, useContentWidth, useScreenGutter } from '@/theme/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useSessionsStore } from '@/store/sessionsStore';
@@ -67,7 +68,9 @@ export default function HistoryMonthlyScreen() {
   const isPro = useRequirePro('monthly_calendar');
   const { colors } = useTheme();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const gutter = useScreenGutter();
+  const fontScale = useClampedFontScale(fontScaleCap.fixed);
+  const contentWidth = useContentWidth(gutter * 2);
   const { load: loadSessions, completedSessions } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const [viewDate, setViewDate] = useState(() => new Date());
@@ -100,9 +103,9 @@ export default function HistoryMonthlyScreen() {
   const grid = useMemo(() => monthGrid(year, month), [year, month]);
   const monthLabel = viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-  const contentPad = spacing.lg + 4;
   const cardPad = spacing.md;
-  const cellSize = Math.floor((width - contentPad * 2 - cardPad * 2) / 7);
+  const cellWidth = Math.floor((contentWidth - cardPad * 2) / 7);
+  const cellHeight = Math.max(cellWidth, Math.round(36 * fontScale));
 
   function goPrevMonth() {
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
@@ -121,7 +124,7 @@ export default function HistoryMonthlyScreen() {
   if (!isPro) return null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen>
       <ScreenHeader title="Calendar" onBack={() => router.back()} backIcon="close" />
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -146,8 +149,11 @@ export default function HistoryMonthlyScreen() {
         <Card style={{ padding: cardPad }}>
           <View style={styles.weekdayRow}>
             {WEEKDAY_LABELS.map((label, i) => (
-              <View key={i} style={[styles.weekdayCell, { width: cellSize }]}>
-                <Text style={[typography.caption, styles.weekdayLabel, { color: colors.textMuted }]}>
+              <View key={i} style={[styles.weekdayCell, { width: cellWidth }]}>
+                <Text
+                  style={[typography.caption, styles.weekdayLabel, { color: colors.textMuted }]}
+                  maxFontSizeMultiplier={fontScaleCap.fixed}
+                >
                   {label}
                 </Text>
               </View>
@@ -161,16 +167,16 @@ export default function HistoryMonthlyScreen() {
                 const hasWorkout = day != null && workoutDays.has(key);
                 const isSelected = key === selectedDayKey;
                 return (
-                  <View key={colIndex} style={[styles.dayCell, { width: cellSize, height: cellSize }]}>
+                  <View key={colIndex} style={[styles.dayCell, { width: cellWidth, height: cellHeight }]}>
                     {day != null ? (
                       <Pressable
                         onPress={() => setSelectedDayKey(isSelected ? null : key)}
                         style={({ pressed }) => [
                           styles.dayInner,
                           {
-                            width: cellSize - 6,
-                            height: cellSize - 6,
-                            borderRadius: (cellSize - 6) / 2,
+                            width: cellWidth - 6,
+                            height: cellHeight - 6,
+                            borderRadius: Math.min(cellWidth, cellHeight) / 2,
                           },
                           hasWorkout && { backgroundColor: colors.primary },
                           isSelected && {
@@ -186,6 +192,7 @@ export default function HistoryMonthlyScreen() {
                             styles.dayText,
                             { color: hasWorkout ? '#fff' : colors.text },
                           ]}
+                          maxFontSizeMultiplier={fontScaleCap.fixed}
                         >
                           {day}
                         </Text>
@@ -231,7 +238,7 @@ export default function HistoryMonthlyScreen() {
           </Card>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

@@ -7,8 +7,8 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
@@ -82,7 +82,7 @@ export default function CreateExerciseScreen() {
   if (!isPro) return null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen>
       <ScreenHeader title="New exercise" onBack={() => router.back()} backIcon="close" />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Name</Text>
@@ -178,7 +178,7 @@ export default function CreateExerciseScreen() {
           style={{ marginTop: spacing.sm, opacity: canSave ? 1 : 0.5 }}
         />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

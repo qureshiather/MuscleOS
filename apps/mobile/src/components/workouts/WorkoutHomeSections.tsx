@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
+import { useDeviceMetrics } from '@/theme/layout';
 import type { WorkoutTemplate, WorkoutSession } from '@muscleos/types';
 
 type RecentWorkoutsRowProps = {
@@ -13,6 +14,8 @@ type RecentWorkoutsRowProps = {
 
 export function RecentWorkoutsRow({ items, onPress, formatRelative }: RecentWorkoutsRowProps) {
   const { colors, isDark } = useTheme();
+  const { isNarrow } = useDeviceMetrics();
+  const cardWidth = isNarrow ? 140 : 160;
 
   if (items.length === 0) return null;
 
@@ -31,6 +34,7 @@ export function RecentWorkoutsRow({ items, onPress, formatRelative }: RecentWork
             style={({ pressed }) => [
               styles.card,
               {
+                width: cardWidth,
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
                 opacity: pressed ? 0.9 : 1,
@@ -104,7 +108,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   card: {
-    width: 160,
     padding: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,

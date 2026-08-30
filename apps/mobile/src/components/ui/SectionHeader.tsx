@@ -14,7 +14,7 @@ export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderPro
 
   return (
     <View style={styles.row}>
-      <Text style={[typography.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[typography.sectionTitle, { color: colors.text, flex: 1, minWidth: 0 }]}>{title}</Text>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} hitSlop={8} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
           <Text style={[typography.label, { color: colors.primary }]}>{actionLabel}</Text>
@@ -29,6 +29,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
     marginBottom: spacing.md,
   },
 });

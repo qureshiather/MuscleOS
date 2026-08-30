@@ -7,12 +7,13 @@ import {
   Pressable,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
+import { useBottomSpace, useDeviceMetrics } from '@/theme/layout';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -88,6 +89,7 @@ function PRCard({
   } | null;
   onPress: () => void;
 }) {
+  const { isNarrow } = useDeviceMetrics();
   return (
     <Pressable
       onPress={onPress}
@@ -100,7 +102,7 @@ function PRCard({
           </Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </View>
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, isNarrow && styles.statsRowStacked]}>
           <View style={[styles.stat, { backgroundColor: colors.surfaceElevated }]}>
             <Text style={[typography.caption, styles.statLabel, { color: colors.textMuted }]}>
               Est. 1RM
@@ -157,6 +159,7 @@ export default function PersonalRecordsScreen() {
   const isPro = useRequirePro('personal_records');
   const { colors } = useTheme();
   const router = useRouter();
+  const scrollPaddingBottom = useBottomSpace(spacing.xl);
   const [search, setSearch] = useState('');
   const loadSessions = useSessionsStore((s) => s.load);
   const completedSessions = useSessionsStore((s) => s.completedSessions);
@@ -184,7 +187,7 @@ export default function PersonalRecordsScreen() {
   if (!isPro) return null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen>
       <ScreenHeader
         title="Personal records"
         subtitle="Estimated 1RM & best sets"
@@ -260,7 +263,10 @@ export default function PersonalRecordsScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingBottom: scrollPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
+        >
           {prs.map((pr) => {
             const exerciseName = getExercise(pr.exerciseId)?.name ?? pr.exerciseId;
             const strengthComparison =
@@ -300,7 +306,7 @@ export default function PersonalRecordsScreen() {
           })}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -320,7 +326,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: { textAlign: 'center', marginTop: spacing.sm },
-  scroll: { padding: spacing.lg + 4, paddingBottom: 40 },
+  scroll: { padding: spacing.lg + 4 },
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -331,7 +337,7 @@ const styles = StyleSheet.create({
   searchIcon: { position: 'absolute', left: 12, zIndex: 1 },
   searchInput: {
     flex: 1,
-    height: 44,
+    minHeight: 44,
     borderRadius: radius.md,
     paddingLeft: 40,
     paddingRight: 40,
@@ -369,8 +375,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  statsRowStacked: { flexDirection: 'column' },
   stat: {
     flex: 1,
+    minWidth: 0,
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,

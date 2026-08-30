@@ -75,10 +75,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: spacing.md,
   },
-  header: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.md },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   weightLabel: { fontSize: 18 },
   platesRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,

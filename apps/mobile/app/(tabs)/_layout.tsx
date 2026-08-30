@@ -8,7 +8,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
 import { typography } from '@/theme/typography';
-import { spacing } from '@/theme/tokens';
+import { useTabBarLayout } from '@/theme/layout';
 
 function TabBarWithResumePill({
   showPill,
@@ -24,6 +24,7 @@ function TabBarWithResumePill({
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const tabBar = useTabBarLayout();
   const session = useActiveWorkoutStore((s) => s.session);
   const showPill = session != null;
 
@@ -40,11 +41,21 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          paddingTop: spacing.xs,
+          height: tabBar.height,
+          paddingTop: tabBar.paddingTop,
+          paddingBottom: tabBar.paddingBottom,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { ...typography.caption, fontFamily: typography.label.fontFamily },
+        // Scaling is applied to the measured font size instead, so the bar can never
+        // be shorter than its labels.
+        tabBarAllowFontScaling: false,
+        tabBarLabelStyle: {
+          fontFamily: typography.label.fontFamily,
+          fontSize: tabBar.labelFontSize,
+          lineHeight: tabBar.labelLineHeight,
+          includeFontPadding: false,
+        },
       }}
     >
       <Tabs.Screen

@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import type { WorkoutSession } from '@muscleos/types';
 import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { fontScaleCap } from '@/theme/layout';
+import { spacing } from '@/theme/tokens';
 
 const DAYS = 14;
 const CHART_HEIGHT = 120;
@@ -26,7 +29,6 @@ function workoutsPerDay(sessions: WorkoutSession[], days: number): number[] {
   return counts;
 }
 
-/** Labels for the last N days (e.g. "Mon", "12/1"). */
 function dayLabels(days: number): string[] {
   const labels: string[] = [];
   const now = new Date();
@@ -40,67 +42,79 @@ function dayLabels(days: number): string[] {
 
 interface WorkoutHistoryChartProps {
   sessions: WorkoutSession[];
-  /** Number of days to show (default 14) */
   days?: number;
 }
 
 export function WorkoutHistoryChart({ sessions, days = DAYS }: WorkoutHistoryChartProps) {
   const { colors } = useTheme();
+  const [chartWidth, setChartWidth] = useState(0);
   const counts = useMemo(() => workoutsPerDay(sessions, days), [sessions, days]);
   const labels = useMemo(() => dayLabels(days), [days]);
   const maxCount = Math.max(1, ...counts);
-  const barWidth = 20;
-  const totalWidth = days * barWidth + (days - 1) * BAR_GAP;
+
+  const barWidth =
+    chartWidth > 0 ? Math.max(4, (chartWidth - (days - 1) * BAR_GAP) / days) : 0;
+
+  function onLayout(e: LayoutChangeEvent) {
+    const next = Math.floor(e.nativeEvent.layout.width);
+    setChartWidth((prev) => (prev === next ? prev : next));
+  }
 
   return (
-    <View style={styles.wrapper}>
-      <Text style={[styles.title, { color: colors.text }]}>Workouts over time</Text>
-      <View style={styles.chartRow}>
-        <Svg width={totalWidth} height={CHART_HEIGHT} style={styles.svg}>
-          {counts.map((c, i) => {
-            const x = i * (barWidth + BAR_GAP);
-            const h = maxCount > 0 ? (c / maxCount) * (CHART_HEIGHT - 8) : 0;
-            const y = CHART_HEIGHT - h;
-            return (
-              <Rect
-                key={i}
-                x={x}
-                y={y}
-                width={barWidth}
-                height={h}
-                rx={4}
-                fill={colors.primary ?? '#6366f1'}
-                opacity={c > 0 ? 1 : 0.25}
-              />
-            );
-          })}
-        </Svg>
-      </View>
-      <View style={[styles.labelsRow, { width: totalWidth }]}>
-        {labels.map((label, i) => (
-          <View key={i} style={[styles.labelSlot, { width: barWidth + BAR_GAP }]}>
-            <Text
-              style={[styles.label, { color: colors.textSecondary }]}
-              numberOfLines={1}
-            >
-              {label}
-            </Text>
+    <View style={styles.wrapper} onLayout={onLayout}>
+      <Text style={[typography.sectionTitle, styles.title, { color: colors.text }]}>
+        Workouts over time
+      </Text>
+      {barWidth > 0 ? (
+        <>
+          <View style={styles.chartRow}>
+            <Svg width={chartWidth} height={CHART_HEIGHT}>
+              {counts.map((c, i) => {
+                const x = i * (barWidth + BAR_GAP);
+                const h = maxCount > 0 ? (c / maxCount) * (CHART_HEIGHT - 8) : 0;
+                const y = CHART_HEIGHT - h;
+                return (
+                  <Rect
+                    key={i}
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={h}
+                    rx={4}
+                    fill={colors.primary}
+                    opacity={c > 0 ? 1 : 0.25}
+                  />
+                );
+              })}
+            </Svg>
           </View>
-        ))}
-      </View>
+          <View style={styles.labelsRow}>
+            {labels.map((label, i) => (
+              <View key={i} style={[styles.labelSlot, { width: barWidth + BAR_GAP }]}>
+                <Text
+                  style={[typography.caption, styles.label, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={fontScaleCap.fixed}
+                >
+                  {label.slice(0, 1)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { marginBottom: 24 },
-  title: { fontSize: 16, fontWeight: '600', marginBottom: 12 },
-  chartRow: { flexDirection: 'row', height: CHART_HEIGHT },
-  svg: {},
+  wrapper: { marginBottom: spacing.xl, width: '100%' },
+  title: { marginBottom: spacing.md },
+  chartRow: { height: CHART_HEIGHT },
   labelsRow: {
     flexDirection: 'row',
-    marginTop: 6,
+    marginTop: spacing.xs,
   },
   labelSlot: { alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 10, textAlign: 'center' },
+  label: { textAlign: 'center' },
 });

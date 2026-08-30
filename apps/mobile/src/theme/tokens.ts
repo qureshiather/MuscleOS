@@ -14,3 +14,9 @@ export const radius = {
   md: 12,
   lg: 16,
 } as const;
+
+/** Touch-target minima (Apple HIG / Material). Use for chrome, not body copy. */
+export const touch = {
+  min: 44,
+  hitSlop: 8,
+} as const;

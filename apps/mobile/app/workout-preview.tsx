@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen, ScreenFooter } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -69,7 +69,7 @@ export default function WorkoutPreviewScreen() {
 
   if (!templateId || exerciseIds.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <Screen kind="chrome">
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
           <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
@@ -77,12 +77,12 @@ export default function WorkoutPreviewScreen() {
         <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg }]}>
           Missing workout details
         </Text>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="chrome">
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
@@ -166,10 +166,10 @@ export default function WorkoutPreviewScreen() {
         })}
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
+      <ScreenFooter>
         <PrimaryButton label="Start workout" onPress={handleStart} />
-      </View>
-    </SafeAreaView>
+      </ScreenFooter>
+    </Screen>
   );
 }
 

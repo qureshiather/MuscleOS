@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
@@ -101,7 +101,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen>
       <ScreenHeader title="Settings" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Card style={styles.section}>
@@ -216,7 +216,7 @@ export default function SettingsScreen() {
           </View>
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

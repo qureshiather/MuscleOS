@@ -1,16 +1,11 @@
 import { useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
+import { useTextScaledSize } from '@/theme/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
 import { useSessionsStore } from '@/store/sessionsStore';
@@ -30,7 +25,6 @@ import {
 import { useRequirePro } from '@/hooks/useProGate';
 
 const CHART_HEIGHT = 180;
-const CHART_PADDING = 24;
 
 function formatChartDate(iso: string): string {
   const d = new Date(iso);
@@ -46,20 +40,18 @@ function ProgressionChart({
   max1RM: number;
   colors: Record<string, string>;
 }) {
+  const chartHeight = useTextScaledSize(CHART_HEIGHT);
   const points = [...history].sort(
     (a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
   );
   if (points.length === 0) return null;
 
-  const width = Dimensions.get('window').width - CHART_PADDING * 2 - 40;
-  const barWidth = Math.max(12, (width - (points.length - 1) * 6) / points.length);
-
   return (
     <View style={[styles.chartContainer, { backgroundColor: colors.surfaceElevated }]}>
-      <View style={[styles.chart, { height: CHART_HEIGHT }]}>
+      <View style={[styles.chart, { height: chartHeight }]}>
         {points.map((p, i) => {
           const ratio = max1RM > 0 ? Math.min(1, p.estimated1RM / max1RM) : 0;
-          const barH = Math.max(4, ratio * (CHART_HEIGHT - 24));
+          const barH = Math.max(4, ratio * (chartHeight - 24));
           return (
             <View key={`${p.completedAt}-${i}`} style={styles.barColumn}>
               <View
@@ -157,19 +149,19 @@ export default function ExerciseProgressionScreen() {
 
   if (!exerciseId || !pr) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <Screen>
         <ScreenHeader title="Exercise" onBack={() => router.back()} />
         <View style={styles.empty}>
           <Text style={[typography.body, { color: colors.textMuted, textAlign: 'center' }]}>
             No progression data for this exercise.
           </Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen>
       <ScreenHeader
         title={exerciseName}
         subtitle="Progression & 1RM history"
@@ -236,7 +228,7 @@ export default function ExerciseProgressionScreen() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

@@ -12,10 +12,10 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { BUILT_IN_FOLDERS } from '@/data/builtInTemplates';
@@ -35,6 +35,7 @@ import {
 } from '@/components/workouts/WorkoutHomeSections';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
+import { useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
 import type { WorkoutTemplate, TemplateFolder, MuscleId } from '@muscleos/types';
 
 const ARCHIVED_SECTION = '_archived';
@@ -67,6 +68,14 @@ export default function WorkoutsScreen() {
   const getExercise = useExercisesStore((s) => s.getExercise);
   const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
+
+  const { width: screenWidth } = useDeviceMetrics();
+  const modalMaxHeight = useModalMaxHeight();
+  const modalPaddingBottom = useBottomSpace(spacing.xl);
+  /** The folder list may take at most half the modal so the title and Cancel button stay visible. */
+  const moveFolderListMaxHeight = Math.min(300, Math.round(modalMaxHeight / 2));
+  const dropdownMinWidth = Math.min(140, screenWidth - spacing.xl * 2);
+  const templateMenuMinWidth = Math.min(200, screenWidth - spacing.xl * 2);
 
   const [builtInExpanded, setBuiltInExpanded] = useState(false);
   const [customExpanded, setCustomExpanded] = useState(true);
@@ -394,7 +403,7 @@ export default function WorkoutsScreen() {
                 { color: colors.text },
                 !hasDescription && styles.templateNameNoDesc,
               ]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {displayName}
             </Text>
@@ -510,6 +519,7 @@ export default function WorkoutsScreen() {
         style={[
           styles.folderDropdown,
           {
+            minWidth: dropdownMinWidth,
             backgroundColor: colors.surfaceElevated,
             borderColor: colors.border,
           },
@@ -685,7 +695,7 @@ export default function WorkoutsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="tab">
       <ScrollView contentContainerStyle={screenHeaderStyles.scrollContent}>
         <View style={screenHeaderStyles.headerInScroll}>
           <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Workouts</Text>
@@ -1009,28 +1019,37 @@ export default function WorkoutsScreen() {
           onPress={() => setShowFolderModal(false)}
         >
           <View
-            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                maxHeight: modalMaxHeight,
+                paddingBottom: modalPaddingBottom,
+              },
+            ]}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>New folder</Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Folder name"
-              placeholderTextColor={colors.textMuted}
-              value={newFolderName}
-              onChangeText={setNewFolderName}
-              autoFocus
-            />
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+              <Text style={[styles.modalTitle, { color: colors.text }]}>New folder</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Folder name"
+                placeholderTextColor={colors.textMuted}
+                value={newFolderName}
+                onChangeText={setNewFolderName}
+                autoFocus
+              />
+            </ScrollView>
             <View style={styles.modalActions}>
               <Pressable
-                style={[styles.modalBtn, { borderColor: colors.border }]}
+                style={[styles.modalBtn, styles.modalBtnInRow, { borderColor: colors.border }]}
                 onPress={() => setShowFolderModal(false)}
               >
                 <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>
@@ -1038,7 +1057,12 @@ export default function WorkoutsScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.modalBtn,
+                  styles.modalBtnInRow,
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleCreateFolder}
                 disabled={!newFolderName.trim()}
               >
@@ -1055,28 +1079,37 @@ export default function WorkoutsScreen() {
           onPress={() => setEditingFolder(null)}
         >
           <View
-            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                maxHeight: modalMaxHeight,
+                paddingBottom: modalPaddingBottom,
+              },
+            ]}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Rename folder</Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Folder name"
-              placeholderTextColor={colors.textMuted}
-              value={editingFolderName}
-              onChangeText={setEditingFolderName}
-              autoFocus
-            />
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Rename folder</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Folder name"
+                placeholderTextColor={colors.textMuted}
+                value={editingFolderName}
+                onChangeText={setEditingFolderName}
+                autoFocus
+              />
+            </ScrollView>
             <View style={styles.modalActions}>
               <Pressable
-                style={[styles.modalBtn, { borderColor: colors.border }]}
+                style={[styles.modalBtn, styles.modalBtnInRow, { borderColor: colors.border }]}
                 onPress={() => setEditingFolder(null)}
               >
                 <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>
@@ -1084,7 +1117,12 @@ export default function WorkoutsScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.modalBtn,
+                  styles.modalBtnInRow,
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleSaveFolderRename}
                 disabled={!editingFolderName.trim()}
               >
@@ -1208,7 +1246,10 @@ export default function WorkoutsScreen() {
           onPress={() => setTemplateMenuTarget(null)}
         >
           <View
-            style={[styles.templateMenuContent, { backgroundColor: colors.surface }]}
+            style={[
+              styles.templateMenuContent,
+              { minWidth: templateMenuMinWidth, backgroundColor: colors.surface },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             {!templateMenuTarget?.isBuiltIn && (
@@ -1317,28 +1358,37 @@ export default function WorkoutsScreen() {
           onPress={() => setEditingTemplateName(null)}
         >
           <View
-            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                maxHeight: modalMaxHeight,
+                paddingBottom: modalPaddingBottom,
+              },
+            ]}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Rename template</Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: colors.background,
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Template name"
-              placeholderTextColor={colors.textMuted}
-              value={editingTemplateNewName}
-              onChangeText={setEditingTemplateNewName}
-              autoFocus
-            />
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Rename template</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Template name"
+                placeholderTextColor={colors.textMuted}
+                value={editingTemplateNewName}
+                onChangeText={setEditingTemplateNewName}
+                autoFocus
+              />
+            </ScrollView>
             <View style={styles.modalActions}>
               <Pressable
-                style={[styles.modalBtn, { borderColor: colors.border }]}
+                style={[styles.modalBtn, styles.modalBtnInRow, { borderColor: colors.border }]}
                 onPress={() => setEditingTemplateName(null)}
               >
                 <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>
@@ -1346,7 +1396,12 @@ export default function WorkoutsScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.modalBtn,
+                  styles.modalBtnInRow,
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleSaveTemplateRename}
                 disabled={!editingTemplateNewName.trim()}
               >
@@ -1367,7 +1422,14 @@ export default function WorkoutsScreen() {
           }}
         >
           <View
-            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                maxHeight: modalMaxHeight,
+                paddingBottom: modalPaddingBottom,
+              },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -1392,7 +1454,7 @@ export default function WorkoutsScreen() {
                 />
                 <View style={styles.moveModalCreateFolderActions}>
                   <Pressable
-                    style={[styles.modalBtn, { borderColor: colors.border }]}
+                    style={[styles.modalBtn, styles.modalBtnInRow, { borderColor: colors.border }]}
                     onPress={() => {
                       setShowCreateFolderInMoveModal(false);
                       setMoveModalNewFolderName('');
@@ -1401,7 +1463,12 @@ export default function WorkoutsScreen() {
                     <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Back</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                    style={[
+                      styles.modalBtn,
+                      styles.modalBtnInRow,
+                      styles.modalBtnPrimary,
+                      { backgroundColor: colors.primary },
+                    ]}
                     onPress={handleCreateFolderAndMove}
                     disabled={!moveModalNewFolderName.trim()}
                   >
@@ -1411,7 +1478,10 @@ export default function WorkoutsScreen() {
               </View>
             ) : (
               <>
-                <ScrollView style={styles.moveFolderList} nestedScrollEnabled>
+                <ScrollView
+                  style={[styles.moveFolderList, { maxHeight: moveFolderListMaxHeight }]}
+                  nestedScrollEnabled
+                >
                   <Pressable
                     style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
                     onPress={() =>
@@ -1464,7 +1534,7 @@ export default function WorkoutsScreen() {
           </View>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -1492,7 +1562,11 @@ const styles = StyleSheet.create({
   },
   startEmptyTextWrap: { flex: 1 },
   startEmptyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
-  startEmptyCardTitle: { ...typography.bodyMedium, fontFamily: typography.screenTitle.fontFamily, fontSize: 17 },
+  startEmptyCardTitle: {
+    ...typography.bodyMedium,
+    fontFamily: typography.screenTitle.fontFamily,
+    fontSize: typography.sectionTitle.fontSize,
+  },
   startEmptyCardSubtitle: { ...typography.caption, marginTop: 2 },
   templatesSection: { marginTop: spacing.sm },
   homeSection: { marginBottom: spacing.lg },
@@ -1518,7 +1592,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
-  addBtnText: { fontSize: 13, fontWeight: '600' },
+  addBtnText: { fontSize: typography.label.fontSize, fontWeight: '600' },
   folderAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1527,7 +1601,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
   },
-  folderAddBtnText: { fontSize: 13, fontWeight: '600' },
+  folderAddBtnText: { fontSize: typography.label.fontSize, fontWeight: '600' },
   collapsibleSection: {
     borderRadius: 14,
     marginBottom: 10,
@@ -1550,7 +1624,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '100%',
     right: 12,
-    minWidth: 140,
     borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
@@ -1567,7 +1640,7 @@ const styles = StyleSheet.create({
   folderDropdownItemBorder: {
     borderBottomWidth: 1,
   },
-  folderDropdownItemText: { fontSize: 15 },
+  folderDropdownItemText: { fontSize: typography.body.fontSize },
   sectionHeaderLeft: {
     flex: 1,
     flexDirection: 'row',
@@ -1575,7 +1648,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   folderStar: { marginRight: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', flex: 1 },
+  sectionTitle: { fontSize: typography.button.fontSize, fontWeight: '600', flex: 1 },
   sectionContent: { paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0, gap: 6 },
   emptySectionRow: {
     flexDirection: 'row',
@@ -1585,11 +1658,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
-  emptySectionText: { fontSize: 14, paddingVertical: 12, paddingHorizontal: 4 },
+  emptySectionText: { fontSize: typography.body.fontSize, paddingVertical: 12, paddingHorizontal: 4 },
   emptySectionTextInRow: { paddingVertical: 0, paddingHorizontal: 0 },
-  emptySectionLink: { fontSize: 14, fontWeight: '600' },
+  emptySectionLink: { fontSize: typography.bodyMedium.fontSize, fontWeight: '600' },
   placeholder: { paddingVertical: 24, alignItems: 'center' },
-  placeholderText: { fontSize: 15 },
+  placeholderText: { fontSize: typography.body.fontSize },
   templateCard: {
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -1614,7 +1687,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     alignSelf: 'center',
-    minWidth: 200,
   },
   templateMenuItem: {
     flexDirection: 'row',
@@ -1624,7 +1696,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderBottomWidth: 1,
   },
-  templateMenuItemText: { fontSize: 16, fontWeight: '500' },
+  templateMenuItemText: { fontSize: typography.button.fontSize, fontWeight: '500' },
   templateMoveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1632,11 +1704,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 6,
   },
-  templateMoveLabel: { fontSize: 13, fontWeight: '600' },
+  templateMoveLabel: { fontSize: typography.label.fontSize, fontWeight: '600' },
   lastDoneText: { fontSize: 11, marginTop: 2 },
   templateName: { ...typography.bodyMedium, marginBottom: 2 },
   templateNameNoDesc: { marginBottom: 6 },
-  templateDesc: { fontSize: 13, marginBottom: 6, lineHeight: 18 },
+  templateDesc: { fontSize: typography.caption.fontSize, marginBottom: 6 },
   exerciseCount: { fontSize: 11, marginTop: 4 },
   modalOverlay: {
     flex: 1,
@@ -1648,11 +1720,12 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  modalScroll: { flexShrink: 1 },
   modalInput: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
-    fontSize: 16,
+    fontSize: typography.button.fontSize,
     marginBottom: 20,
   },
   modalActions: {
@@ -1665,10 +1738,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
+    alignItems: 'center',
   },
+  modalBtnInRow: { flex: 1, minWidth: 0 },
   modalBtnPrimary: { borderWidth: 0 },
-  modalBtnText: { fontSize: 16, fontWeight: '600' },
-  moveFolderList: { maxHeight: 300, marginBottom: 8 },
+  modalBtnText: {
+    fontSize: typography.button.fontSize,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  moveFolderList: { marginBottom: 8 },
   moveFolderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1677,7 +1757,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: 1,
   },
-  moveFolderRowText: { fontSize: 16 },
+  moveFolderRowText: { fontSize: typography.button.fontSize },
   moveModalCreateFolderBlock: { marginBottom: 12 },
   moveModalCreateFolderActions: {
     flexDirection: 'row',

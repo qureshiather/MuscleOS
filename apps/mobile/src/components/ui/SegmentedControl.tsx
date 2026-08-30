@@ -1,7 +1,8 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { radius, spacing } from '@/theme/tokens';
+import { radius, spacing, touch } from '@/theme/tokens';
+import { fontScaleCap } from '@/theme/layout';
 
 type Option<T extends string> = {
   value: T;
@@ -36,7 +37,10 @@ export function SegmentedControl<T extends string>({
             ]}
             onPress={() => onChange(opt.value)}
           >
-            <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.text }]}>
+            <Text
+              style={[typography.label, { color: selected ? colors.primaryOn : colors.text, textAlign: 'center' }]}
+              maxFontSizeMultiplier={fontScaleCap.chrome}
+            >
               {opt.label}
             </Text>
           </Pressable>
@@ -53,7 +57,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
     minWidth: 72,
+    minHeight: touch.min,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
+    flexGrow: 1,
+    flexBasis: 0,
   },
 });

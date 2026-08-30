@@ -2,7 +2,8 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { spacing } from '@/theme/tokens';
+import { spacing, touch } from '@/theme/tokens';
+import { fontScaleCap } from '@/theme/layout';
 
 type ScreenHeaderProps = {
   title: string;
@@ -28,7 +29,7 @@ export function ScreenHeader({
         <Pressable
           onPress={onBack}
           style={({ pressed }) => [styles.sideBtn, { opacity: pressed ? 0.7 : 1 }]}
-          hitSlop={8}
+          hitSlop={touch.hitSlop}
         >
           <Ionicons
             name={backIcon === 'close' ? 'close' : 'chevron-back'}
@@ -40,13 +41,18 @@ export function ScreenHeader({
         <View style={styles.sideBtn} />
       )}
       <View style={styles.center}>
-        <Text style={[typography.sectionTitle, { color: colors.text, textAlign: 'center' }]} numberOfLines={1}>
+        <Text
+          style={[typography.sectionTitle, { color: colors.text, textAlign: 'center' }]}
+          numberOfLines={2}
+          maxFontSizeMultiplier={fontScaleCap.chrome}
+        >
           {title}
         </Text>
         {subtitle ? (
           <Text
             style={[typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 2 }]}
-            numberOfLines={2}
+            numberOfLines={3}
+            maxFontSizeMultiplier={fontScaleCap.chrome}
           >
             {subtitle}
           </Text>
@@ -66,8 +72,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sideBtn: {
-    width: 44,
-    height: 44,
+    width: touch.min,
+    minHeight: touch.min,
     alignItems: 'center',
     justifyContent: 'center',
   },

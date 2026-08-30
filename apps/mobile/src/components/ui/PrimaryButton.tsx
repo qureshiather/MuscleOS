@@ -1,7 +1,8 @@
 import { Pressable, Text, StyleSheet, type PressableProps } from 'react-native';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { radius, spacing } from '@/theme/tokens';
+import { radius, spacing, touch } from '@/theme/tokens';
+import { fontScaleCap } from '@/theme/layout';
 
 type PrimaryButtonProps = PressableProps & {
   label: string;
@@ -25,20 +26,28 @@ export function PrimaryButton({ label, variant = 'filled', style, disabled, ...r
       disabled={disabled}
       {...rest}
     >
-      <Text style={[typography.button, { color: isFilled ? colors.primaryOn : colors.text }]}>{label}</Text>
+      <Text
+        style={[typography.button, styles.label, { color: isFilled ? colors.primaryOn : colors.text }]}
+        maxFontSizeMultiplier={fontScaleCap.chrome}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
+    minHeight: touch.min,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   outline: {
     borderWidth: 1,
     backgroundColor: 'transparent',
   },
+  label: { textAlign: 'center' },
 });

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -42,7 +42,7 @@ export default function RecoveryScreen() {
     : [];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="tab">
       <View style={screenHeaderStyles.headerFixed}>
         <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Recovery</Text>
         <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
@@ -112,7 +112,7 @@ export default function RecoveryScreen() {
           </Card>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -129,6 +129,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
     paddingVertical: spacing.sm + 2,
   },
   recoveryUntil: {

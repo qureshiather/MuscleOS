@@ -9,10 +9,11 @@ import {
   FlatList,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen, SheetFrame } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
+import { useBottomSpace } from '@/theme/layout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -29,6 +30,7 @@ import { useRequirePro } from '@/hooks/useProGate';
 export default function CreateTemplateScreen() {
   const isPro = useRequirePro('custom_templates');
   const { colors } = useTheme();
+  const bottomSpace = useBottomSpace(spacing.xl);
   const router = useRouter();
   const { templateId: editTemplateId } = useLocalSearchParams<{ templateId?: string }>();
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
@@ -133,13 +135,17 @@ export default function CreateTemplateScreen() {
   if (!isPro) return null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="chrome">
       <ScreenHeader
         title={isEditMode ? 'Edit template' : 'New template'}
         onBack={() => router.back()}
         backIcon="close"
       />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.form, { paddingBottom: bottomSpace }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Template name</Text>
         <TextInput
           style={[
@@ -296,8 +302,8 @@ export default function CreateTemplateScreen() {
 
       <Modal visible={showPicker} animationType="slide" transparent>
         <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowPicker(false)}>
-          <View
-            style={[styles.pickerContent, { backgroundColor: colors.surface }]}
+          <SheetFrame
+            style={styles.pickerContent}
             onStartShouldSetResponder={() => true}
           >
             <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
@@ -341,10 +347,10 @@ export default function CreateTemplateScreen() {
                 </Text>
               }
             />
-          </View>
+          </SheetFrame>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -401,12 +407,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
-  pickerContent: {
-    borderTopLeftRadius: radius.lg + 8,
-    borderTopRightRadius: radius.lg + 8,
-    maxHeight: '80%',
-    paddingBottom: 40,
-  },
+  pickerContent: {},
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

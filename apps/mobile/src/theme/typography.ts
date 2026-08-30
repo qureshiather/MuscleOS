@@ -13,6 +13,7 @@ export const typography = StyleSheet.create({
   screenTitle: {
     fontFamily: fontFamily.sansBold,
     fontSize: 28,
+    lineHeight: 34,
     letterSpacing: -0.5,
   },
   screenSubtitle: {
@@ -23,6 +24,7 @@ export const typography = StyleSheet.create({
   sectionTitle: {
     fontFamily: fontFamily.sansSemiBold,
     fontSize: 17,
+    lineHeight: 22,
   },
   body: {
     fontFamily: fontFamily.sans,
@@ -32,6 +34,7 @@ export const typography = StyleSheet.create({
   bodyMedium: {
     fontFamily: fontFamily.sansMedium,
     fontSize: 15,
+    lineHeight: 22,
   },
   caption: {
     fontFamily: fontFamily.sans,
@@ -41,18 +44,22 @@ export const typography = StyleSheet.create({
   label: {
     fontFamily: fontFamily.sansMedium,
     fontSize: 13,
+    lineHeight: 18,
   },
   data: {
     fontFamily: fontFamily.mono,
     fontSize: 15,
+    lineHeight: 20,
   },
   dataLarge: {
     fontFamily: fontFamily.monoMedium,
     fontSize: 22,
+    lineHeight: 28,
     letterSpacing: -0.5,
   },
   button: {
     fontFamily: fontFamily.sansSemiBold,
     fontSize: 16,
+    lineHeight: 22,
   },
 });

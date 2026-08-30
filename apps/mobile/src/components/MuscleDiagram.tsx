@@ -4,6 +4,8 @@ import Body from 'react-native-body-highlighter';
 import type { Slug } from 'react-native-body-highlighter';
 import type { MuscleId } from '@muscleos/types';
 import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeContext';
+import { useDeviceMetrics } from '@/theme/layout';
+import { spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
 
 /** Map our MuscleId to the body-highlighter library's Slug (one or more muscles can map to same slug). */
@@ -57,6 +59,7 @@ export function MuscleDiagram({
   justTrainedMuscleIds?: MuscleId[];
 }) {
   const { colors } = useTheme();
+  const { width, isShort } = useDeviceMetrics();
   const profile = useSettingsStore((s) => s.profile);
   const userGender = profile?.sex === 'female' ? 'female' : 'male';
   const gender = (variant ?? userGender) as 'male' | 'female';
@@ -93,6 +96,10 @@ export function MuscleDiagram({
       })();
 
   const useGreen = highlightColor === 'green';
+  // The highlighter's `scale` is relative to a ~360pt pair of figures. Shrink on
+  // Display Zoom / SE-class widths and short phones so the pair never overflows.
+  const fit = Math.min(1, (width - spacing.xl * 2) / 360);
+  const resolvedScale = size * fit * (isShort ? 0.88 : 1);
   const colorPalette = isRecoveryMode
     ? getRecoveryPalette(colors, useThreeStates)
     : getHighlightGradient(colors, useGreen ? 'green' : 'orange');
@@ -104,7 +111,7 @@ export function MuscleDiagram({
           data={data}
           gender={gender}
           side="front"
-          scale={size}
+          scale={resolvedScale}
           colors={colorPalette}
           border={colors.bodyDiagramBorder}
           defaultFill={colors.bodyDiagramFill}
@@ -113,7 +120,7 @@ export function MuscleDiagram({
           data={data}
           gender={gender}
           side="back"
-          scale={size}
+          scale={resolvedScale}
           colors={colorPalette}
           border={colors.bodyDiagramBorder}
           defaultFill={colors.bodyDiagramFill}
@@ -132,7 +139,7 @@ export function MuscleDiagram({
 
 const styles = StyleSheet.create({
   wrapper: { alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', gap: 12, justifyContent: 'center' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
   labels: { width: '100%', marginTop: 8, paddingHorizontal: 8 },
   labelText: { fontSize: 12 },
 });

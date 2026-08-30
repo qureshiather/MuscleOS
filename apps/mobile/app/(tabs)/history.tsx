@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -116,7 +116,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="tab">
       <View style={screenHeaderStyles.headerFixed}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextBlock}>
@@ -259,7 +259,7 @@ export default function HistoryScreen() {
           </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 

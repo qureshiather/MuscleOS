@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
+import { fontScaleCap } from '@/theme/layout';
 
 type StatChipProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -15,7 +16,12 @@ export function StatChip({ icon, label }: StatChipProps) {
   return (
     <View style={[styles.chip, { backgroundColor: colors.surfaceElevated }]}>
       <Ionicons name={icon} size={12} color={colors.textSecondary} />
-      <Text style={[typography.caption, styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <Text
+        style={[typography.caption, styles.label, { color: colors.textSecondary }]}
+        maxFontSizeMultiplier={fontScaleCap.chrome}
+      >
+        {label}
+      </Text>
     </View>
   );
 }

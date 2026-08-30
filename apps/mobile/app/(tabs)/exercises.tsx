@@ -10,10 +10,10 @@ import {
   ScrollView,
   LayoutAnimation,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen, SheetFrame } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -104,7 +104,7 @@ export default function ExercisesScreen() {
   }, [allExercises, search, typeFilter, muscleFilter]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="tab">
       <View style={screenHeaderStyles.headerFixed}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextBlock}>
@@ -350,7 +350,7 @@ export default function ExercisesScreen() {
             setSelected(null);
           }}
         >
-          <Pressable style={[styles.modalContent, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
+          <SheetFrame onStartShouldSetResponder={() => true}>
             {selected && (
               <>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
@@ -406,10 +406,10 @@ export default function ExercisesScreen() {
                 </ScrollView>
               </>
             )}
-          </Pressable>
+          </SheetFrame>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView, TextInput, Modal, ActivityIndicator, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
+import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
+import { useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -144,7 +145,7 @@ export default function ProfileScreen() {
   const sexDisplay = profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : '—';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="tab">
       <ScrollView contentContainerStyle={[screenHeaderStyles.scrollContent, styles.scrollExtra]}>
         <View style={screenHeaderStyles.headerInScroll}>
           <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Profile</Text>
@@ -372,7 +373,7 @@ export default function ProfileScreen() {
           onPress={() => router.push('/settings')}
         />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

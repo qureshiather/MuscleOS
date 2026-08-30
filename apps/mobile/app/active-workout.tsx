@@ -17,9 +17,10 @@ import {
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
+import { fontScaleCap, useBottomSpace, useDenseRowMetrics } from '@/theme/layout';
+import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -299,6 +300,17 @@ type FinishedSummary = {
 
 export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
+  const listPaddingBottom = useBottomSpace(24);
+  const dense = useDenseRowMetrics();
+  const colSetStyle = [styles.colSet, { width: dense.setCol }];
+  const colPrevStyle = [styles.colPrev, { minWidth: dense.prevMin }];
+  const colInputStyle = [styles.colInput, { minWidth: dense.inputMin }];
+  const colDoneStyle = [styles.colDone, { width: dense.doneBtn }];
+  const setInputWrapStyle = [
+    styles.setInputWrap,
+    { minWidth: dense.inputMin, minHeight: dense.inputMinHeight },
+  ];
+  const setRowStyle = [styles.setRow, { minHeight: dense.rowMin }];
   const router = useRouter();
   const params = useLocalSearchParams<{
     templateId?: string;
@@ -630,7 +642,7 @@ export default function ActiveWorkoutScreen() {
   if (finishedSummary) {
     const totalSets = finishedSummary.exercises.reduce((n, ex) => n + ex.completed, 0);
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <Screen>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.finishedScrollContent}
@@ -721,29 +733,29 @@ export default function ActiveWorkoutScreen() {
           </View>
         </ScrollView>
 
-        <View style={[styles.finishedFooter, { borderTopColor: colors.border }]}>
+        <ScreenFooter style={[styles.finishedFooter, { borderTopColor: colors.border }]}>
           <Pressable
             style={[styles.finishedDoneBtn, { backgroundColor: colors.primary }]}
             onPress={leaveFinishedWorkout}
           >
             <Text style={styles.finishedDoneBtnText}>Done</Text>
           </Pressable>
-        </View>
+        </ScreenFooter>
         <WorkoutConfetti visible={showConfetti} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!session) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <Screen kind="chrome">
         <View style={styles.header}>
           <Pressable onPress={minimizeWorkout} hitSlop={12}>
             <Ionicons name="chevron-down" size={28} color={colors.primary} />
           </Pressable>
           <Text style={[styles.elapsed, { color: colors.text }]}>Loading…</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -768,7 +780,7 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen kind="chrome">
       {/* Header: Back + rest chip | Time | Done/Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
@@ -846,7 +858,7 @@ export default function ActiveWorkoutScreen() {
         }}
         activationDistance={reorderMode ? 8 : 9999}
         containerStyle={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: listPaddingBottom }]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
@@ -1053,19 +1065,27 @@ export default function ActiveWorkoutScreen() {
                 ]}
               >
               <View style={styles.tableHeader}>
-                <View style={styles.colSet}>
-                  <Text style={[styles.th, { color: colors.textMuted }]}>SET</Text>
+                <View style={colSetStyle}>
+                  <Text style={[styles.th, { color: colors.textMuted }]} maxFontSizeMultiplier={fontScaleCap.fixed}>
+                    SET
+                  </Text>
                 </View>
-                <View style={styles.colPrev}>
-                  <Text style={[styles.th, { color: colors.textMuted }]}>PREVIOUS</Text>
+                <View style={colPrevStyle}>
+                  <Text style={[styles.th, { color: colors.textMuted }]} maxFontSizeMultiplier={fontScaleCap.fixed}>
+                    PREVIOUS
+                  </Text>
                 </View>
-                <View style={styles.colInput}>
-                  <Text style={[styles.th, { color: colors.textMuted }]}>{weightLabel}</Text>
+                <View style={colInputStyle}>
+                  <Text style={[styles.th, { color: colors.textMuted }]} maxFontSizeMultiplier={fontScaleCap.fixed}>
+                    {weightLabel}
+                  </Text>
                 </View>
-                <View style={styles.colInput}>
-                  <Text style={[styles.th, { color: colors.textMuted }]}>REPS</Text>
+                <View style={colInputStyle}>
+                  <Text style={[styles.th, { color: colors.textMuted }]} maxFontSizeMultiplier={fontScaleCap.fixed}>
+                    REPS
+                  </Text>
                 </View>
-                <View style={styles.colDone} />
+                <View style={colDoneStyle} />
               </View>
               </View>
 
@@ -1161,7 +1181,7 @@ export default function ActiveWorkoutScreen() {
                 const setRow = (
                     <View
                       style={[
-                        styles.setRow,
+                        setRowStyle,
                         {
                           backgroundColor: rowBg,
                           borderBottomColor: colors.border,
@@ -1169,7 +1189,7 @@ export default function ActiveWorkoutScreen() {
                       ]}
                     >
                       <Pressable
-                        style={[styles.colSet, styles.setLabelCol]}
+                        style={[colSetStyle, styles.setLabelCol, { minHeight: dense.inputMinHeight }]}
                         onLongPress={() => {
                           if (!canDeleteSet) return;
                           Alert.alert('Remove set', 'Delete this set from the exercise?', [
@@ -1211,14 +1231,18 @@ export default function ActiveWorkoutScreen() {
                             : '0:00'}
                         </Text>
                       </Pressable>
-                      <View style={styles.colPrev}>
-                        <Text style={[styles.prevCell, { color: colors.textMuted }]} numberOfLines={1}>
+                      <View style={colPrevStyle}>
+                        <Text
+                          style={[styles.prevCell, { color: colors.textMuted }]}
+                          numberOfLines={1}
+                          maxFontSizeMultiplier={fontScaleCap.tabular}
+                        >
                           {prevLabel}
                         </Text>
                       </View>
                       <View
                         style={[
-                          styles.setInputWrap,
+                          setInputWrapStyle,
                           {
                             backgroundColor: kgFill,
                             borderColor: kgBorderColor,
@@ -1228,6 +1252,7 @@ export default function ActiveWorkoutScreen() {
                       >
                         <TextInput
                           style={[styles.setInput, { color: colors.text }]}
+                          maxFontSizeMultiplier={fontScaleCap.tabular}
                           placeholder="0"
                           placeholderTextColor={colors.textMuted}
                           keyboardType="number-pad"
@@ -1254,7 +1279,7 @@ export default function ActiveWorkoutScreen() {
                       </View>
                       <View
                         style={[
-                          styles.setInputWrap,
+                          setInputWrapStyle,
                           {
                             backgroundColor: repsFill,
                             borderColor: repsBorderColor,
@@ -1264,6 +1289,7 @@ export default function ActiveWorkoutScreen() {
                       >
                         <TextInput
                           style={[styles.setInput, { color: colors.text }]}
+                          maxFontSizeMultiplier={fontScaleCap.tabular}
                           placeholder="0"
                           placeholderTextColor={colors.textMuted}
                           keyboardType="number-pad"
@@ -1804,8 +1830,8 @@ export default function ActiveWorkoutScreen() {
             style={styles.addExerciseKeyboardAvoid}
             keyboardVerticalOffset={0}
           >
-            <View
-              style={[styles.addExerciseModalContent, { backgroundColor: colors.surface }]}
+            <SheetFrame
+              style={styles.addExerciseModalContent}
               onStartShouldSetResponder={() => true}
             >
               <View style={styles.addExerciseModalHeader}>
@@ -1878,11 +1904,11 @@ export default function ActiveWorkoutScreen() {
                 </Pressable>
               )}
               />
-            </View>
+            </SheetFrame>
           </KeyboardAvoidingView>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </Screen>
     </GestureHandlerRootView>
   );
 }
@@ -2554,11 +2580,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   addExerciseModalContent: {
-    flex: 1,
-    maxHeight: '80%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 40,
+    flexGrow: 0,
   },
   addExerciseModalHeader: {
     flexDirection: 'row',

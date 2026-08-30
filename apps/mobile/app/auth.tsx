@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Screen } from '@/components/layout';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -29,7 +29,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <Screen>
       <View style={styles.logoContainer}>
         <Image source={require('../assets/icon.png')} style={styles.logo} resizeMode="contain" />
         <Text style={[typography.screenTitle, { color: colors.text, marginTop: spacing.md }]}>MuscleOS</Text>
@@ -76,7 +76,7 @@ export default function AuthScreen() {
       <Pressable onPress={() => router.back()} style={styles.skip} disabled={loading}>
         <Text style={[typography.caption, { color: colors.textMuted }]}>Skip for now</Text>
       </Pressable>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
