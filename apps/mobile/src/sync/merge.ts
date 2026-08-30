@@ -36,6 +36,7 @@ import {
   mergeStringMap,
 } from './mergePolicy';
 import type { OutboxEntry, RemoteSyncRecord, SyncEntityType } from './types';
+import { normalizeExercise } from '@/utils/exerciseNormalize';
 
 function sessionUpdatedAt(session: WorkoutSession): string {
   return session.completedAt ?? session.startedAt;
@@ -253,7 +254,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
           remoteUpdatedAt,
         });
         if (decision === 'take_remote') {
-          exerciseMap.set(record.entity_id, remote);
+          exerciseMap.set(record.entity_id, normalizeExercise(remote, record.entity_id));
           changed = true;
         } else if (pending) {
           touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, local ?? pending.payload);

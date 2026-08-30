@@ -13,7 +13,7 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 | Set logging (reps, weight, complete sets) | Yes |
 | Rest timers + workout sounds | Yes |
 | Plate calculator | Yes |
-| Exercise library (~50 built-ins, browse/filter) | Yes |
+| Exercise library (~395 catalog, browse/filter by category) | Yes |
 | Recovery tab + home snapshot | Yes |
 | Workout history (list, detail, delete) | Yes |
 | Profile, units, theme, export data | Yes |

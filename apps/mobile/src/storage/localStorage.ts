@@ -13,6 +13,7 @@ import type {
 } from '@muscleos/types';
 import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
 import { STORAGE_KEYS } from './keys';
+import { normalizeExercise } from '@/utils/exerciseNormalize';
 
 const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
@@ -329,10 +330,54 @@ export async function getCustomExercises(): Promise<Exercise[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.customExercises);
   if (!raw) return [];
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((row, i) => normalizeExercise(row, `custom_${i + 1}`));
   } catch {
     return [];
   }
+}
+
+export interface CatalogCache {
+  exercises: Exercise[];
+  watermark: string | null;
+  seedAppliedAt: string | null;
+}
+
+export async function getCatalogCache(): Promise<CatalogCache> {
+  const [raw, watermark, seedAppliedAt] = await Promise.all([
+    AsyncStorage.getItem(STORAGE_KEYS.catalogExercises),
+    AsyncStorage.getItem(STORAGE_KEYS.catalogWatermark),
+    AsyncStorage.getItem(STORAGE_KEYS.catalogSeedAppliedAt),
+  ]);
+  if (!raw) {
+    return { exercises: [], watermark, seedAppliedAt };
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return { exercises: [], watermark, seedAppliedAt };
+    }
+    return {
+      exercises: parsed.map((row, i) => normalizeExercise(row, `catalog_${i}`)),
+      watermark,
+      seedAppliedAt,
+    };
+  } catch {
+    return { exercises: [], watermark, seedAppliedAt };
+  }
+}
+
+export async function setCatalogCache(cache: {
+  exercises: Exercise[];
+  watermark: string;
+  seedAppliedAt: string;
+}): Promise<void> {
+  await Promise.all([
+    AsyncStorage.setItem(STORAGE_KEYS.catalogExercises, JSON.stringify(cache.exercises)),
+    AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, cache.watermark),
+    AsyncStorage.setItem(STORAGE_KEYS.catalogSeedAppliedAt, cache.seedAppliedAt),
+  ]);
 }
 
 export async function setCustomExercises(exercises: Exercise[]): Promise<void> {
@@ -416,6 +461,9 @@ const ALL_APP_KEYS = [
   STORAGE_KEYS.exercisePrevious,
   STORAGE_KEYS.exerciseNotes,
   STORAGE_KEYS.customExercises,
+  STORAGE_KEYS.catalogExercises,
+  STORAGE_KEYS.catalogWatermark,
+  STORAGE_KEYS.catalogSeedAppliedAt,
   STORAGE_KEYS.devProOverride,
   APP_SETTINGS_KEYS.unitSystem,
   APP_SETTINGS_KEYS.profile,
@@ -433,16 +481,25 @@ export async function clearAllData(): Promise<void> {
 }
 
 export async function buildExportData(profile?: UserProfile | null): Promise<ExportData> {
-  const [templates, templateFolders, sessions, recovery, health, subscription, exerciseNotes] =
-    await Promise.all([
-      getTemplates(),
-      getTemplateFolders(),
-      getSessions(),
-      getRecovery(),
-      getHealth(),
-      getSubscription(),
-      getExerciseNotes(),
-    ]);
+  const [
+    templates,
+    templateFolders,
+    sessions,
+    recovery,
+    health,
+    subscription,
+    exerciseNotes,
+    customExercises,
+  ] = await Promise.all([
+    getTemplates(),
+    getTemplateFolders(),
+    getSessions(),
+    getRecovery(),
+    getHealth(),
+    getSubscription(),
+    getExerciseNotes(),
+    getCustomExercises(),
+  ]);
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -453,6 +510,7 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     sessions,
     recovery,
     exerciseNotes: Object.keys(exerciseNotes).length ? exerciseNotes : undefined,
+    customExercises: customExercises.length ? customExercises : undefined,
     health: Object.keys(health).length ? health : undefined,
   };
 }

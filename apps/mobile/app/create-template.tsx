@@ -26,6 +26,7 @@ import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRequirePro } from '@/hooks/useProGate';
+import { exerciseMatchesQuery } from '@/utils/exerciseSearch';
 
 export default function CreateTemplateScreen() {
   const isPro = useRequirePro('custom_templates');
@@ -72,13 +73,7 @@ export default function CreateTemplateScreen() {
   const pickerExercises = useMemo(() => {
     let list = allExercises;
     if (pickerSearch.trim()) {
-      const q = pickerSearch.trim().toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.muscles.some((m) => m.toLowerCase().includes(q)) ||
-          e.equipment.some((eq) => eq.toLowerCase().includes(q))
-      );
+      list = list.filter((e) => exerciseMatchesQuery(e, pickerSearch));
     }
     return list.filter((e) => !selectedIds.includes(e.id));
   }, [allExercises, pickerSearch, selectedIds]);
@@ -342,9 +337,26 @@ export default function CreateTemplateScreen() {
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg, textAlign: 'center' }]}>
-                  No matching exercises
-                </Text>
+                pickerSearch.trim() ? (
+                  <Pressable
+                    style={[styles.pickerRow, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      setShowPicker(false);
+                      router.push({
+                        pathname: '/create-exercise',
+                        params: { name: pickerSearch.trim() },
+                      });
+                    }}
+                  >
+                    <Text style={[typography.bodyMedium, { color: colors.primary }]}>
+                      Create “{pickerSearch.trim()}”
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg, textAlign: 'center' }]}>
+                    No matching exercises
+                  </Text>
+                )
               }
             />
           </SheetFrame>

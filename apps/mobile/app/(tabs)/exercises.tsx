@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   LayoutAnimation,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,17 +21,10 @@ import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useProGate } from '@/hooks/useProGate';
-import { MUSCLE_GROUPS } from '@muscleos/types';
-import type { Exercise, MuscleId } from '@muscleos/types';
+import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS } from '@muscleos/types';
+import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
-
-/** Equipment type filter: Cable, Machine, or Free Weight (barbell, dumbbell, etc.). */
-const EQUIPMENT_TYPE = {
-  cable: ['cable'] as const,
-  machine: ['machine'] as const,
-  free_weight: ['barbell', 'dumbbell', 'kettlebell', 'ez_bar', 'bodyweight', 'band'] as const,
-} as const;
-type EquipmentTypeKey = keyof typeof EQUIPMENT_TYPE;
+import { exerciseMatchesQuery } from '@/utils/exerciseSearch';
 
 /** Large muscle groups for filtering: small muscle IDs in each. */
 const LARGE_MUSCLE_GROUPS: Record<string, MuscleId[]> = {
@@ -47,10 +41,9 @@ const LARGE_GROUP_LABELS: Record<string, string> = {
   shoulders: 'Shoulders',
 };
 
-function exerciseMatchesType(e: Exercise, typeKey: EquipmentTypeKey | null): boolean {
+function exerciseMatchesType(e: Exercise, typeKey: ExerciseCategory | null): boolean {
   if (!typeKey) return true;
-  const equipmentList = EQUIPMENT_TYPE[typeKey];
-  return e.equipment.some((eq) => (equipmentList as readonly string[]).includes(eq));
+  return e.category === typeKey;
 }
 
 function exerciseMatchesMuscleFilter(e: Exercise, muscleFilter: string | null): boolean {
@@ -67,10 +60,11 @@ export default function ExercisesScreen() {
   const router = useRouter();
   const { isPro, gatePro } = useProGate();
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
+  const removeExercise = useExercisesStore((s) => s.removeExercise);
   const notes = useExerciseNotesStore((s) => s.notes);
   const setNote = useExerciseNotesStore((s) => s.setNote);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<EquipmentTypeKey | null>(null);
+  const [typeFilter, setTypeFilter] = useState<ExerciseCategory | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
@@ -83,20 +77,14 @@ export default function ExercisesScreen() {
     setFiltersExpanded((v) => !v);
   };
 
-  const typeLabel = typeFilter === null ? 'All' : typeFilter === 'free_weight' ? 'Free Weight' : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1);
+  const typeLabel = typeFilter === null ? 'All' : EXERCISE_CATEGORY_LABELS[typeFilter];
   const muscleLabel = muscleFilter === null ? 'All' : LARGE_GROUP_LABELS[muscleFilter] ?? MUSCLE_GROUPS[muscleFilter as MuscleId]?.name ?? muscleFilter;
   const filterSummary = `${typeLabel} · ${muscleLabel}`;
 
   const filtered = useMemo(() => {
     let list = allExercises;
     if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.muscles.some((m) => MUSCLE_GROUPS[m].name.toLowerCase().includes(q)) ||
-          e.equipment.some((eq) => eq.toLowerCase().includes(q))
-      );
+      list = list.filter((e) => exerciseMatchesQuery(e, search));
     }
     list = list.filter((e) => exerciseMatchesType(e, typeFilter));
     list = list.filter((e) => exerciseMatchesMuscleFilter(e, muscleFilter));
@@ -197,7 +185,7 @@ export default function ExercisesScreen() {
                     All
                   </Text>
                 </Pressable>
-                {(['cable', 'machine', 'free_weight'] as const).map((key) => (
+                {EXERCISE_CATEGORIES.map((key) => (
                   <Pressable
                     key={key}
                     style={[
@@ -213,7 +201,7 @@ export default function ExercisesScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {key === 'free_weight' ? 'Free Weight' : key.charAt(0).toUpperCase() + key.slice(1)}
+                      {EXERCISE_CATEGORY_LABELS[key]}
                     </Text>
                   </Pressable>
                 ))}
@@ -300,6 +288,27 @@ export default function ExercisesScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          search.trim() ? (
+            <Pressable
+              style={[styles.emptyCreate, { borderColor: colors.border, backgroundColor: colors.surface }]}
+              onPress={() => {
+                if (gatePro('custom_exercises')) {
+                  router.push({ pathname: '/create-exercise', params: { name: search.trim() } });
+                }
+              }}
+            >
+              <Text style={[styles.emptyCreateTitle, { color: colors.text }]}>
+                Create “{search.trim()}”
+              </Text>
+              <Text style={[styles.emptyCreateHint, { color: colors.textMuted }]}>
+                {isPro ? 'Add it as a custom exercise on your account.' : 'Pro · save your own exercises.'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={[styles.emptyCreateHint, { color: colors.textMuted }]}>No exercises match these filters.</Text>
+          )
+        }
         renderItem={({ item }) => (
           <Pressable
             style={({ pressed }) => [
@@ -329,7 +338,8 @@ export default function ExercisesScreen() {
               {item.muscles.map((id) => MUSCLE_GROUPS[id].name).join(' · ')}
             </Text>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
-              {item.equipment.join(', ')}
+              {EXERCISE_CATEGORY_LABELS[item.category]}
+              {item.equipment.length ? ` · ${item.equipment.join(', ')}` : ''}
             </Text>
           </Pressable>
         )}
@@ -370,10 +380,49 @@ export default function ExercisesScreen() {
                   <Text style={[styles.bodyText, { color: colors.text }]}>
                     {selected.muscles.map((id) => MUSCLE_GROUPS[id].name).join(', ')}
                   </Text>
-                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Equipment</Text>
+                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Type</Text>
                   <Text style={[styles.bodyText, { color: colors.text }]}>
-                    {selected.equipment.join(', ')}
+                    {EXERCISE_CATEGORY_LABELS[selected.category]}
+                    {selected.equipment.length ? ` · ${selected.equipment.join(', ')}` : ''}
                   </Text>
+                  {selected.id.startsWith('custom_') ? (
+                    <View style={styles.customActions}>
+                      <Pressable
+                        onPress={() => {
+                          const id = selected.id;
+                          void setNote(id, noteDraft);
+                          setSelected(null);
+                          if (gatePro('custom_exercises')) {
+                            router.push({ pathname: '/create-exercise', params: { id } });
+                          }
+                        }}
+                      >
+                        <Text style={[styles.modalClose, { color: colors.primary }]}>Edit</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert(
+                            'Delete exercise',
+                            `Remove ${selected.name} from your account? Past workouts keep the name if you logged it.`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () => {
+                                  const id = selected.id;
+                                  void removeExercise(id);
+                                  setSelected(null);
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <Text style={[styles.modalClose, { color: colors.danger }]}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                   {selected.instructions && (
                     <>
                       <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Instructions</Text>
@@ -519,5 +568,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
+  },
+  emptyCreate: {
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  emptyCreateTitle: { ...typography.bodyMedium },
+  emptyCreateHint: { ...typography.caption, marginTop: spacing.sm },
+  customActions: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.lg,
   },
 });

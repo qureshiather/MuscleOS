@@ -35,6 +35,7 @@ import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
 import type { MuscleId, SessionExercise } from '@muscleos/types';
+import { exerciseMatchesQuery } from '@/utils/exerciseSearch';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -377,9 +378,9 @@ export default function ActiveWorkoutScreen() {
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
   const addExerciseResults = useMemo(() => {
     const all = getAllExercises();
-    const q = addExerciseSearch.trim().toLowerCase();
+    const q = addExerciseSearch.trim();
     if (!q) return all;
-    return all.filter((e) => e.name.toLowerCase().includes(q));
+    return all.filter((e) => exerciseMatchesQuery(e, q));
   }, [addExerciseSearch, customExercises, getAllExercises]);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
@@ -1863,9 +1864,28 @@ export default function ActiveWorkoutScreen() {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               ListEmptyComponent={
-                <Text style={[styles.addExerciseEmpty, { color: colors.textMuted }]}>
-                  No matching exercises
-                </Text>
+                addExerciseSearch.trim() ? (
+                  <Pressable
+                    style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      if (gatePro('custom_exercises')) {
+                        setShowAddExerciseModal(false);
+                        router.push({
+                          pathname: '/create-exercise',
+                          params: { name: addExerciseSearch.trim() },
+                        });
+                      }
+                    }}
+                  >
+                    <Text style={[typography.bodyMedium, { color: colors.primary }]}>
+                      Create “{addExerciseSearch.trim()}”
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text style={[styles.addExerciseEmpty, { color: colors.textMuted }]}>
+                    No matching exercises
+                  </Text>
+                )
               }
               renderItem={({ item }) => (
                 <Pressable

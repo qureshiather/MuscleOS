@@ -1,15 +1,25 @@
 import { create } from 'zustand';
 import type { Exercise } from '@muscleos/types';
-import { getCustomExercises, setCustomExercises } from '@/storage/localStorage';
-import { EXERCISES } from '@/data/exercises';
+import {
+  getCatalogCache,
+  getCustomExercises,
+  setCatalogCache,
+  setCustomExercises,
+} from '@/storage/localStorage';
+import { CATALOG_SEED, CATALOG_SEED_UPDATED_AT } from '@/data/catalogSeed';
 import { notifyCustomExerciseUpsert, notifyCustomExerciseDelete } from '@/sync';
+import { fetchCatalogDelta, mergeCatalogById } from '@/sync/catalogPull';
+import { buildExerciseAliasMap } from '@/utils/exerciseSearch';
+import { normalizeExercise } from '@/utils/exerciseNormalize';
 
 export interface ExercisesStoreState {
+  catalogExercises: Exercise[];
   customExercises: Exercise[];
   isLoading: boolean;
   load: () => Promise<void>;
+  refreshCatalog: () => Promise<void>;
   getExercise: (id: string) => Exercise | undefined;
-  /** Built-in + custom (custom last) */
+  /** Published catalog + custom (custom last) */
   getAllExercises: () => Exercise[];
   addExercise: (exercise: Omit<Exercise, 'id'>) => Promise<Exercise>;
   updateExercise: (id: string, patch: Partial<Omit<Exercise, 'id'>>) => Promise<void>;
@@ -24,30 +34,77 @@ function nextCustomId(custom: Exercise[]): string {
   return `custom_${max + 1}`;
 }
 
+function resolveExercise(
+  id: string,
+  catalog: Exercise[],
+  custom: Exercise[]
+): Exercise | undefined {
+  const aliasMap = buildExerciseAliasMap(catalog);
+  const resolved = aliasMap.get(id) ?? id;
+  return catalog.find((e) => e.id === resolved) ?? custom.find((e) => e.id === resolved || e.id === id);
+}
+
+let catalogPullInFlight: Promise<void> | null = null;
+
 export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
+  catalogExercises: CATALOG_SEED,
   customExercises: [],
   isLoading: true,
 
   load: async () => {
     set({ isLoading: true });
-    const customExercises = await getCustomExercises();
-    set({ customExercises, isLoading: false });
+    const [customExercises, cache] = await Promise.all([getCustomExercises(), getCatalogCache()]);
+
+    let catalog = cache.exercises;
+    let watermark = cache.watermark ?? CATALOG_SEED_UPDATED_AT;
+    const seedNeedsApply =
+      !cache.seedAppliedAt || cache.seedAppliedAt < CATALOG_SEED_UPDATED_AT || catalog.length === 0;
+
+    if (seedNeedsApply) {
+      catalog = mergeCatalogById(CATALOG_SEED, catalog);
+      if (CATALOG_SEED_UPDATED_AT > watermark) watermark = CATALOG_SEED_UPDATED_AT;
+      await setCatalogCache({
+        exercises: catalog,
+        watermark,
+        seedAppliedAt: CATALOG_SEED_UPDATED_AT,
+      });
+    }
+
+    set({ catalogExercises: catalog, customExercises, isLoading: false });
+    void get().refreshCatalog();
   },
 
-  getExercise: (id) => {
-    const builtIn = EXERCISES.find((e) => e.id === id);
-    if (builtIn) return builtIn;
-    return get().customExercises.find((e) => e.id === id);
+  refreshCatalog: async () => {
+    if (catalogPullInFlight) return catalogPullInFlight;
+    catalogPullInFlight = (async () => {
+      const cache = await getCatalogCache();
+      const watermark = cache.watermark ?? CATALOG_SEED_UPDATED_AT;
+      const { exercises: delta, watermark: nextWatermark } = await fetchCatalogDelta(watermark);
+      if (delta.length === 0) return;
+      const merged = mergeCatalogById(get().catalogExercises, delta);
+      await setCatalogCache({
+        exercises: merged,
+        watermark: nextWatermark,
+        seedAppliedAt: CATALOG_SEED_UPDATED_AT,
+      });
+      set({ catalogExercises: merged });
+    })().finally(() => {
+      catalogPullInFlight = null;
+    });
+    return catalogPullInFlight;
   },
+
+  getExercise: (id) => resolveExercise(id, get().catalogExercises, get().customExercises),
 
   getAllExercises: () => {
-    return [...EXERCISES, ...get().customExercises];
+    const published = get().catalogExercises.filter((e) => e.isPublished !== false);
+    return [...published, ...get().customExercises];
   },
 
   addExercise: async (exercise) => {
     const { customExercises } = get();
     const id = nextCustomId(customExercises);
-    const newEx: Exercise = { ...exercise, id };
+    const newEx = normalizeExercise({ ...exercise, id, isPublished: true });
     const next = [...customExercises, newEx];
     await setCustomExercises(next);
     set({ customExercises: next });
@@ -57,11 +114,13 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
 
   updateExercise: async (id, patch) => {
     const { customExercises } = get();
-    const next = customExercises.map((e) => (e.id === id ? { ...e, ...patch } : e));
+    const current = customExercises.find((e) => e.id === id);
+    if (!current) return;
+    const updated = normalizeExercise({ ...current, ...patch, id });
+    const next = customExercises.map((e) => (e.id === id ? updated : e));
     await setCustomExercises(next);
     set({ customExercises: next });
-    const updated = next.find((e) => e.id === id);
-    if (updated) notifyCustomExerciseUpsert(updated);
+    notifyCustomExerciseUpsert(updated);
   },
 
   removeExercise: async (id) => {

@@ -64,7 +64,7 @@ MuscleOS/
 
 ### 1. Shared Types (`packages/types`)
 
-- All domain models live in `@muscleos/types`: `Exercise`, `WorkoutTemplate`, `WorkoutSession`, `MuscleRecovery`, `MuscleId`, etc.
+- All domain models live in `@muscleos/types`: `Exercise` (includes `category`), `WorkoutTemplate`, `WorkoutSession`, `MuscleRecovery`, `MuscleId`, etc.
 - **Always import types from `@muscleos/types`** — do not duplicate type definitions in the mobile app.
 - Build: `tsup` produces `dist/` with CJS + `.d.ts`.
 
@@ -142,6 +142,7 @@ apps/mobile/
 - **Feature list:** `src/subscription/features.ts` — single source for paywall copy and gate keys.
 - **Pro gates:** custom templates/exercises, empty workout, add exercise mid-workout, save-as-template, PRs, progression charts, monthly calendar.
 - **Basic includes:** built-in templates, workout logging, recovery, history list, exercise library, export.
+- **Exercise catalog:** `catalog_exercises` in Supabase + bundled `CATALOG_SEED`. User customs are `user_exercises` (account-private). See [`docs/supabase/setup.md`](docs/supabase/setup.md).
 - **Setup:** See [`docs/monetization/revenuecat-setup.md`](../docs/monetization/revenuecat-setup.md) for store + RevenueCat dashboard steps.
 
 ---

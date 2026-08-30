@@ -4,6 +4,12 @@ import { getOutbox, clearOutbox, setOutbox, enqueueOutbox } from './outbox';
 import { getSyncMeta, setSyncMeta } from './meta';
 import { useSyncStore } from '@/store/syncStore';
 import { applyRemoteRecords, collectFullLocalSnapshot, reloadSyncedStores } from './merge';
+import {
+  applyRemoteUserExercises,
+  isCustomExerciseOutbox,
+  pullUserExercises,
+  pushUserExercises,
+} from './userExercises';
 import type { OutboxEntry, RemoteSyncRecord } from './types';
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -29,7 +35,20 @@ export async function pushNow(): Promise<void> {
   const outbox = await getOutbox();
   if (outbox.length === 0) return;
 
-  const records = outbox.map((entry) => ({
+  const customEntries = outbox.filter(isCustomExerciseOutbox);
+  const syncEntries = outbox.filter((entry) => !isCustomExerciseOutbox(entry));
+
+  if (customEntries.length) {
+    await pushUserExercises(customEntries);
+  }
+
+  if (syncEntries.length === 0) {
+    await clearOutbox();
+    await setSyncMeta({ lastPushedAt: new Date().toISOString() });
+    return;
+  }
+
+  const records = syncEntries.map((entry) => ({
     entity_type: entry.entityType,
     entity_id: entry.entityId,
     payload: entry.op === 'delete' ? null : entry.payload ?? null,
@@ -71,7 +90,10 @@ export async function pullNow(): Promise<boolean> {
     query = query.gt('updated_at', meta.lastPulledAt);
   }
 
-  const { data, error } = await query.order('updated_at', { ascending: true });
+  const [{ data, error }, userRows] = await Promise.all([
+    query.order('updated_at', { ascending: true }),
+    pullUserExercises(meta.lastPulledAt),
+  ]);
 
   if (error) {
     if (__DEV__) console.warn('[sync] pull failed:', error.message);
@@ -79,15 +101,19 @@ export async function pullNow(): Promise<boolean> {
   }
 
   const records = (data ?? []) as RemoteSyncRecord[];
-  if (records.length === 0) {
+  const appliedRecords = records.length ? await applyRemoteRecords(records) : false;
+  const appliedUsers = await applyRemoteUserExercises(userRows);
+
+  if (!appliedRecords && !appliedUsers && records.length === 0 && userRows.length === 0) {
     await setSyncMeta({ lastPulledAt: new Date().toISOString() });
     return false;
   }
 
-  await applyRemoteRecords(records);
-  await reloadSyncedStores();
+  if (appliedRecords || appliedUsers) {
+    await reloadSyncedStores();
+  }
   await setSyncMeta({ lastPulledAt: new Date().toISOString() });
-  return true;
+  return appliedRecords || appliedUsers;
 }
 
 /** Pull then push — Strong-style background sync. */

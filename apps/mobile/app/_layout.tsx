@@ -59,6 +59,7 @@ export default function RootLayout() {
   const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
   const loadCustomExercises = useExercisesStore((s) => s.load);
+  const refreshCatalog = useExercisesStore((s) => s.refreshCatalog);
   const loadExerciseNotes = useExerciseNotesStore((s) => s.load);
 
   // Independent of auth/network so a resumed workout appears as fast as possible.
@@ -96,11 +97,12 @@ export default function RootLayout() {
       if (nextState === 'active') {
         const userId = useAuthStore.getState().user?.id;
         void loadSubscription(userId);
+        void refreshCatalog();
         void syncNow();
       }
     });
     return () => sub.remove();
-  }, [loadSubscription]);
+  }, [loadSubscription, refreshCatalog]);
 
   if (!fontsLoaded) {
     return (

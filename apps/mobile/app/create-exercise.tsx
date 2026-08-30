@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,14 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useExercisesStore } from '@/store/exercisesStore';
-import { MUSCLE_GROUPS } from '@muscleos/types';
-import type { MuscleId, Equipment } from '@muscleos/types';
+import {
+  EXERCISE_CATEGORIES,
+  EXERCISE_CATEGORY_LABELS,
+  MUSCLE_GROUPS,
+} from '@muscleos/types';
+import type { ExerciseCategory, MuscleId, Equipment } from '@muscleos/types';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
@@ -51,11 +55,31 @@ export default function CreateExerciseScreen() {
   const isPro = useRequirePro('custom_exercises');
   const { colors } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ id?: string; name?: string }>();
+  const editId = typeof params.id === 'string' ? params.id : undefined;
   const addExercise = useExercisesStore((s) => s.addExercise);
-  const [name, setName] = useState('');
-  const [muscles, setMuscles] = useState<MuscleId[]>([]);
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [instructions, setInstructions] = useState('');
+  const updateExercise = useExercisesStore((s) => s.updateExercise);
+  const getExercise = useExercisesStore((s) => s.getExercise);
+
+  const existing = editId ? getExercise(editId) : undefined;
+  const isEdit = Boolean(existing && existing.id.startsWith('custom_'));
+
+  const [name, setName] = useState(
+    existing?.name ?? (typeof params.name === 'string' ? params.name : '')
+  );
+  const [category, setCategory] = useState<ExerciseCategory | null>(existing?.category ?? null);
+  const [muscles, setMuscles] = useState<MuscleId[]>(existing?.muscles ?? []);
+  const [equipment, setEquipment] = useState<Equipment[]>(existing?.equipment ?? []);
+  const [instructions, setInstructions] = useState(existing?.instructions ?? '');
+
+  useEffect(() => {
+    if (!existing) return;
+    setName(existing.name);
+    setCategory(existing.category);
+    setMuscles(existing.muscles);
+    setEquipment(existing.equipment);
+    setInstructions(existing.instructions ?? '');
+  }, [existing?.id]);
 
   function toggleMuscle(id: MuscleId) {
     setMuscles((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
@@ -67,23 +91,33 @@ export default function CreateExerciseScreen() {
 
   async function handleSave() {
     const trimmedName = name.trim();
-    if (!trimmedName || muscles.length === 0 || equipment.length === 0) return;
-    await addExercise({
+    if (!trimmedName || muscles.length === 0 || !category) return;
+    const payload = {
       name: trimmedName,
+      category,
       muscles,
       equipment,
       instructions: instructions.trim() || undefined,
-    });
+    };
+    if (isEdit && editId) {
+      await updateExercise(editId, payload);
+    } else {
+      await addExercise(payload);
+    }
     router.back();
   }
 
-  const canSave = name.trim().length > 0 && muscles.length > 0 && equipment.length > 0;
+  const canSave = name.trim().length > 0 && muscles.length > 0 && category !== null;
 
   if (!isPro) return null;
 
   return (
     <Screen>
-      <ScreenHeader title="New exercise" onBack={() => router.back()} backIcon="close" />
+      <ScreenHeader
+        title={isEdit ? 'Edit exercise' : 'New exercise'}
+        onBack={() => router.back()}
+        backIcon="close"
+      />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Name</Text>
         <TextInput
@@ -96,6 +130,30 @@ export default function CreateExerciseScreen() {
           value={name}
           onChangeText={setName}
         />
+
+        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Type</Text>
+        <View style={styles.chipsRow}>
+          {EXERCISE_CATEGORIES.map((key) => {
+            const selected = category === key;
+            return (
+              <Pressable
+                key={key}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.surface,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setCategory(key)}
+              >
+                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                  {EXERCISE_CATEGORY_LABELS[key]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
           Muscles · {muscles.length}
@@ -130,7 +188,7 @@ export default function CreateExerciseScreen() {
         )}
 
         <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
-          Equipment · {equipment.length}
+          Equipment · optional
         </Text>
         <View style={styles.chipsRow}>
           {EQUIPMENT_OPTIONS.map((eq) => {
@@ -172,7 +230,7 @@ export default function CreateExerciseScreen() {
         />
 
         <PrimaryButton
-          label="Save exercise"
+          label={isEdit ? 'Save changes' : 'Save exercise'}
           onPress={handleSave}
           disabled={!canSave}
           style={{ marginTop: spacing.sm, opacity: canSave ? 1 : 0.5 }}

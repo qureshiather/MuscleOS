@@ -1,11 +1,20 @@
-import type { Exercise } from '@muscleos/types';
+import type { Equipment, MuscleId } from '@muscleos/types';
+import { CATALOG_SEED } from './catalogSeed';
 
 /**
- * Exercise catalog seeded from StrengthLog's exercise directory.
- * https://www.strengthlog.com/exercise-directory/
- * Used under their non-commercial attribution terms.
+ * Raw generator input (StrengthLog scrape). Runtime catalog is catalogSeed.ts.
+ * Regenerate with: node scripts/generate-exercise-catalog.mjs
  */
-export const EXERCISES: Exercise[] = [
+type SourceExercise = {
+  id: string;
+  name: string;
+  muscles: MuscleId[];
+  equipment: Equipment[];
+  instructions?: string;
+  mediaUrl?: string;
+};
+
+export const EXERCISES: SourceExercise[] = [
   { id: "air-squat", name: "Air Squat", muscles: ['quads', 'glutes', 'calves'], equipment: ['bodyweight'], instructions: "Stand with your feet about shoulder width apart. Squat as deep as possible. Reverse the movement, and return to a standing position.", mediaUrl: "https://www.strengthlog.com/wp-content/uploads/2020/02/Air-squat.gif" },
   { id: "arnold-press", name: "Arnold Press", muscles: ['front_delts', 'side_delts', 'triceps'], equipment: ['other'], instructions: "Start with the dumbbells in front of your chest with your palms facing toward your body. As you press the dumbbells up, rotate your palms outward so they face forward when your arms are extended overhead. Lower the dumbbells back to the starting position, rotating your palms inward again. Repeat for reps.", mediaUrl: "https://www.strengthlog.com/wp-content/uploads/2024/10/arnold-press.gif" },
   { id: "assisted-chin-up", name: "Assisted Chin-Up", muscles: ['lats', 'biceps', 'rear_delts', 'forearms'], equipment: ['bodyweight'], instructions: "Grip the bar with a supinated grip (palms facing you), about shoulder-width apart. Put your feet/knees on the pad and let your body weight push it down until you're hanging with your arms extended. Keep your chest up, and look up at the bar. Inhale and pull yourself up until your chin is over the bar, or the bar touches your upper chest. Exhale and lower yourself with control until your arms are fully extended.", mediaUrl: "https://www.strengthlog.com/wp-content/uploads/2024/02/assisterade-chins-med-omvant-grepp.gif" },
@@ -403,7 +412,7 @@ export const EXERCISES: Exercise[] = [
   { id: "zottman-curl", name: "Zottman Curl", muscles: ['biceps', 'forearms'], equipment: ['other'], instructions: "Hold a dumbbell in each hand with palms facing up (supinated grip). Bend your elbows and curl the dumbbells upward like a regular bicep curl. At the top, rotate your wrists so your palms face downward (pronated grip). Slowly lower the dumbbells back to the starting position with the reverse grip. Rotate back to the original position and repeat for the desired number of repetitions.", mediaUrl: "https://www.strengthlog.com/wp-content/uploads/2025/04/zottman-curl.gif" },
 ];
 
-export const EXERCISE_MAP = new Map(EXERCISES.map((e) => [e.id, e]));
+export const EXERCISE_MAP = new Map(CATALOG_SEED.map((e) => [e.id, e]));
 
 /** Legacy slug → canonical id (for old saved workouts referencing StrengthLog slugs) */
 export const EXERCISE_SLUG_ALIASES: Record<string, string> = {
@@ -441,7 +450,7 @@ export const EXERCISE_SLUG_ALIASES: Record<string, string> = {
   'dumbbell-wrist-extension': 'reverse-wrist-curl',
 };
 
-export function getExercise(id: string): Exercise | undefined {
+export function getExercise(id: string) {
   const resolved = EXERCISE_SLUG_ALIASES[id] ?? id;
   return EXERCISE_MAP.get(resolved);
 }
