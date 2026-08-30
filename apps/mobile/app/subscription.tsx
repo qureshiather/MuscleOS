@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { Screen } from '@/components/layout';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
@@ -17,7 +18,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { getOfferingPackages, hasRevenueCatApiKey, isRevenueCatConfigured } from '@/utils/revenueCat';
+import {
+  getOfferingPackages,
+  hasRevenueCatApiKey,
+  isRevenueCatConfigured,
+  openManageSubscriptions,
+} from '@/utils/revenueCat';
 import {
   BASIC_FEATURES_LIST,
   PRO_FEATURES_LIST,
@@ -25,6 +31,7 @@ import {
   parseProFeatureParam,
 } from '@/subscription/features';
 import { FALLBACK_PRICE_LABELS, annualSavingsPercent } from '@/subscription/pricing';
+import { LEGAL_URLS } from '@/subscription/legal';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -65,6 +72,7 @@ export default function SubscriptionScreen() {
 
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [managing, setManaging] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>('annual');
   const [packages, setPackages] = useState<{
     monthly: PurchasesPackage | null;
@@ -95,15 +103,22 @@ export default function SubscriptionScreen() {
     return annualSavingsPercent();
   }, [packages.monthly, packages.annual]);
 
+  const purchasesReady = isRevenueCatConfigured();
+
   async function handlePurchase() {
     if (!selectedPackage) {
-      Alert.alert('Unavailable', 'This plan is not configured yet. Check RevenueCat setup.');
+      Alert.alert(
+        'Unavailable',
+        __DEV__
+          ? 'This plan is not configured yet. Check RevenueCat setup.'
+          : 'This plan is not available right now. Try again later.'
+      );
       return;
     }
     setPurchasing(true);
     const result = await purchasePackage(selectedPackage);
     setPurchasing(false);
-    if (result.success) return;
+    if (result.success || result.cancelled) return;
     Alert.alert('Purchase failed', result.error ?? 'Could not complete purchase.');
   }
 
@@ -112,8 +127,29 @@ export default function SubscriptionScreen() {
     const result = await restorePurchases();
     setRestoring(false);
     if (!result.success) {
-      Alert.alert('Restore failed', 'Could not restore purchases. Try again.');
+      Alert.alert('Restore failed', result.error ?? 'Could not restore purchases. Try again.');
+      return;
     }
+    if (result.restored) {
+      Alert.alert('Purchases restored', 'Pro is active on this device.');
+      return;
+    }
+    Alert.alert('No purchases found', 'Nothing to restore for this account.');
+  }
+
+  async function handleManageSubscription() {
+    setManaging(true);
+    try {
+      await openManageSubscriptions();
+    } catch {
+      Alert.alert('Could not open subscriptions', 'Open your App Store or Google Play account to manage billing.');
+    } finally {
+      setManaging(false);
+    }
+  }
+
+  function openLegal(page: keyof typeof LEGAL_URLS) {
+    void WebBrowser.openBrowserAsync(LEGAL_URLS[page]);
   }
 
   async function handleGrantProTesting() {
@@ -180,9 +216,14 @@ export default function SubscriptionScreen() {
             <Text style={[typography.dataLarge, { color: pro ? colors.primary : colors.text }]}>
               {pro ? 'Pro' : 'Basic'}
             </Text>
+            {pro && state?.plan && state.plan !== 'lifetime' && (
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
+                {PLAN_LABELS[state.plan]} plan
+              </Text>
+            )}
             {pro && state?.isLifetime && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-                Lifetime access
+                Lifetime access — no renewal
               </Text>
             )}
             {state?.expiresAt && pro && !state.isLifetime && (
@@ -190,6 +231,22 @@ export default function SubscriptionScreen() {
                 Renews{' '}
                 {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
               </Text>
+            )}
+            {pro && !state?.isLifetime && (
+              <Pressable
+                style={[
+                  styles.manageBtn,
+                  { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                ]}
+                onPress={() => void handleManageSubscription()}
+                disabled={managing}
+              >
+                {managing ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <Text style={[typography.label, { color: colors.primary }]}>Manage subscription</Text>
+                )}
+              </Pressable>
             )}
           </Card>
 
@@ -285,33 +342,52 @@ export default function SubscriptionScreen() {
                     styles.primaryBtn,
                     {
                       backgroundColor: colors.primary,
-                      opacity: purchasing || !isRevenueCatConfigured() ? 0.8 : 1,
+                      opacity: purchasing || !purchasesReady ? 0.8 : 1,
                     },
                   ]}
                   onPress={handlePurchase}
-                  disabled={purchasing || !isRevenueCatConfigured()}
+                  disabled={purchasing || !purchasesReady}
                 >
                   {purchasing ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <Text style={[typography.button, { color: '#fff', textAlign: 'center' }]}>
-                      {isRevenueCatConfigured()
+                      {purchasesReady
                         ? `Continue with ${PLAN_LABELS[selectedPlan]}`
-                        : 'Configure RevenueCat to enable purchases'}
+                        : 'Purchases unavailable'}
                     </Text>
                   )}
                 </Pressable>
-                {!isRevenueCatConfigured() && hasRevenueCatApiKey() && (
+                {__DEV__ && !isRevenueCatConfigured() && hasRevenueCatApiKey() && (
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
                     RevenueCat could not load plans. On Android, set EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID
                     (goog_…). Use a dev build with Google Play sandbox.
                   </Text>
                 )}
-                {!hasRevenueCatApiKey() && (
+                {__DEV__ && !hasRevenueCatApiKey() && (
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
                     Set platform RevenueCat keys in .env and use a development build. See docs/monetization/revenuecat-setup.md.
                   </Text>
                 )}
+                <Text
+                  style={[
+                    typography.caption,
+                    { color: colors.textMuted, marginTop: spacing.md, textAlign: 'center' },
+                  ]}
+                >
+                  {selectedPlan === 'lifetime'
+                    ? 'One-time purchase. Pro stays unlocked with no renewal.'
+                    : 'Auto-renews unless cancelled at least 24 hours before the period ends. Charged to your Apple or Google account at confirmation.'}
+                </Text>
+                <View style={styles.legalRow}>
+                  <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>
+                    <Text style={[typography.caption, { color: colors.primary }]}>Privacy Policy</Text>
+                  </Pressable>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>·</Text>
+                  <Pressable onPress={() => openLegal('terms')} hitSlop={8}>
+                    <Text style={[typography.caption, { color: colors.primary }]}>Terms of Use</Text>
+                  </Pressable>
+                </View>
               </Card>
             </>
           )}
@@ -400,6 +476,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     alignItems: 'center',
     borderWidth: 1,
+  },
+  manageBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+  },
+  legalRow: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   devSection: { marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1 },
   devBtn: {

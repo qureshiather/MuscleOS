@@ -39,4 +39,4 @@ Complete before enabling real purchases in production.
 ## Docs & pricing sync
 
 - [ ] Store prices match [pricing.md](pricing.md) and `apps/mobile/src/subscription/pricing.ts`
-- [ ] Privacy policy / terms mention subscriptions (landing site)
+- [x] Privacy policy / terms mention subscriptions (landing site)

@@ -165,9 +165,8 @@ const FEATURES = [
       'JSON export anytime',
       'PRs, charts, and calendar on Pro',
     ],
-    src: undefined,
-    alt: 'MuscleOS history (screenshot coming)',
-    labelFallback: 'History',
+    src: '/screens/history.png',
+    alt: 'MuscleOS History screen',
   },
 ] as const;
 
@@ -320,9 +319,9 @@ export function LandingPage() {
                       className={`flex justify-center ${phoneFirst ? 'lg:order-1 lg:justify-start' : 'lg:justify-end'}`}
                     >
                       <PhoneFrame
-                        src={'src' in feature ? feature.src : undefined}
+                        src={feature.src}
                         alt={feature.alt}
-                        label={'labelFallback' in feature ? feature.labelFallback : feature.label}
+                        label={feature.label}
                         priority={i === 0}
                       />
                     </div>

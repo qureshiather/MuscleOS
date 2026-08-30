@@ -2,13 +2,23 @@
  * RevenueCat integration for Pro subscription.
  * Set platform API keys in .env — Android requires the goog_ key, iOS the appl_ key.
  */
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Purchases, {
   type CustomerInfo,
   type PurchasesPackage,
 } from 'react-native-purchases';
 import type { SubscriptionPlan } from '@muscleos/types';
 import Constants from 'expo-constants';
+import { STORE_SUBSCRIPTION_URLS } from '@/subscription/legal';
+
+export type PurchaseOutcome =
+  | { status: 'success'; customerInfo: CustomerInfo }
+  | { status: 'cancelled' }
+  | { status: 'error'; message: string };
+
+export type RestoreOutcome =
+  | { status: 'success'; customerInfo: CustomerInfo }
+  | { status: 'error'; message: string };
 
 export const PRO_ENTITLEMENT_ID = 'MuscleOS Pro';
 
@@ -215,23 +225,69 @@ export async function getOfferingPackages(): Promise<OfferingPackages> {
   }
 }
 
-/** Purchase a specific package. Returns updated CustomerInfo on success. */
-export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo | null> {
-  if (!(await ensureRevenueCatConfigured())) return null;
+function isUserCancelledPurchase(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { userCancelled?: boolean; code?: number | string };
+  if (err.userCancelled === true) return true;
+  return err.code === 'PURCHASE_CANCELLED_ERROR' || err.code === 1;
+}
+
+function purchaseErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) return message;
+  }
+  return 'Could not complete purchase.';
+}
+
+/** Purchase a specific package. Distinguishes cancel from failure. */
+export async function purchasePackage(pkg: PurchasesPackage): Promise<PurchaseOutcome> {
+  if (!(await ensureRevenueCatConfigured())) {
+    return { status: 'error', message: 'Purchases are not available right now.' };
+  }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return customerInfo;
-  } catch {
-    return null;
+    return { status: 'success', customerInfo };
+  } catch (error) {
+    if (isUserCancelledPurchase(error)) return { status: 'cancelled' };
+    return { status: 'error', message: purchaseErrorMessage(error) };
   }
 }
 
-/** Restore previous purchases. Returns updated CustomerInfo. */
-export async function restorePurchases(): Promise<CustomerInfo | null> {
-  if (!(await ensureRevenueCatConfigured())) return null;
-  try {
-    return await withTimeout(Purchases.restorePurchases(), RC_REQUEST_TIMEOUT_MS);
-  } catch {
-    return null;
+/** Restore previous purchases. */
+export async function restorePurchases(): Promise<RestoreOutcome> {
+  if (!(await ensureRevenueCatConfigured())) {
+    return { status: 'error', message: 'Purchases are not available right now.' };
   }
+  try {
+    const customerInfo = await withTimeout(Purchases.restorePurchases(), RC_REQUEST_TIMEOUT_MS);
+    if (!customerInfo) {
+      return { status: 'error', message: 'Restore timed out. Try again.' };
+    }
+    return { status: 'success', customerInfo };
+  } catch (error) {
+    return { status: 'error', message: purchaseErrorMessage(error) };
+  }
+}
+
+/** Open the platform subscription management sheet or store account page. */
+export async function openManageSubscriptions(): Promise<void> {
+  if (Platform.OS === 'ios') {
+    try {
+      await Purchases.showManageSubscriptions();
+      return;
+    } catch {
+      // Fall through to the public store URL (older iOS / Expo Go).
+    }
+  }
+
+  const info = await getRevenueCatCustomerInfo();
+  const managementURL =
+    info && 'managementURL' in info
+      ? (info as CustomerInfo & { managementURL?: string | null }).managementURL
+      : null;
+  const url =
+    managementURL ??
+    (Platform.OS === 'ios' ? STORE_SUBSCRIPTION_URLS.ios : STORE_SUBSCRIPTION_URLS.android);
+  await Linking.openURL(url);
 }

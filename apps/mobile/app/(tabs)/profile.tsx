@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const authProfile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const loadSubscription = useSubscriptionStore((s) => s.load);
+  const isPro = useSubscriptionStore((s) => s.isPro());
   const isSyncing = useSyncStore((s) => s.isSyncing);
   const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
   const lastSyncError = useSyncStore((s) => s.lastError);
@@ -364,7 +365,7 @@ export default function ProfileScreen() {
 
         <ListRow
           title="Subscription"
-          hint="Pro features"
+          hint={isPro ? 'Pro' : 'Basic · upgrade for custom training'}
           onPress={() => router.push('/subscription')}
         />
         <ListRow

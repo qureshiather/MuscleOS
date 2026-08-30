@@ -18,10 +18,6 @@ export function PhoneFrame({
   return (
     <div className={`relative mx-auto w-[200px] sm:w-[240px] lg:w-[280px] ${className}`}>
       <div className="relative rounded-[2.2rem] bg-phone-bezel p-2.5 shadow-phone ring-1 ring-black/40">
-        <div
-          className="pointer-events-none absolute left-1/2 top-3.5 z-10 h-5 w-[72px] -translate-x-1/2 rounded-full bg-black sm:h-6 sm:w-[84px]"
-          aria-hidden
-        />
         <div className="relative aspect-[9/19.5] w-full overflow-hidden rounded-[1.7rem] bg-phone-frame">
           {src ? (
             <Image

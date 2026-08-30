@@ -72,7 +72,35 @@ export default function TermsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">7. Contact</h2>
+        <h2 className="text-xl font-semibold text-text mb-3">7. Subscriptions and Payments</h2>
+        <p className="mb-3">
+          MuscleOS offers an optional <strong>Pro</strong> upgrade. Basic features stay free. Pro is sold as:
+        </p>
+        <ul className="list-disc pl-6 space-y-1 mb-3">
+          <li>Monthly auto-renewing subscription — $2.99 USD</li>
+          <li>Annual auto-renewing subscription — $19.99 USD</li>
+          <li>Lifetime one-time purchase — $39.99 USD</li>
+        </ul>
+        <p className="mb-3">
+          Prices are USD list prices. The App Store and Google Play may show a localized equivalent. Payment is
+          charged to your Apple ID or Google Play account at confirmation of purchase. Auto-renewing
+          subscriptions renew unless you cancel at least 24 hours before the end of the current period. Your
+          account is charged for renewal within 24 hours prior to the end of that period. Lifetime is a
+          one-time purchase and does not renew.
+        </p>
+        <p className="mb-3">
+          You can manage or cancel a subscription in your App Store or Google Play account settings, or from
+          the Subscription screen in the app. Deleting the app does not cancel a subscription. Refunds are
+          handled by Apple or Google under their store policies.
+        </p>
+        <p>
+          Purchases require a linked MuscleOS account so Pro can restore on other devices. We use RevenueCat
+          to verify entitlements with Apple and Google. We do not store your full payment card details.
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-text mb-3">8. Contact</h2>
         <p>
           For questions about these Terms of Service, please contact us at{' '}
           <a href="mailto:legal@muscleos.app">legal@muscleos.app</a>.

@@ -74,7 +74,21 @@ export default function PrivacyPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">6. Contact Us</h2>
+        <h2 className="text-xl font-semibold text-text mb-3">6. Payments and Third Parties</h2>
+        <p className="mb-3">
+          If you subscribe to Pro or buy lifetime access, Apple or Google processes the payment. We receive
+          purchase status and entitlement information through RevenueCat so we can unlock Pro on your
+          account. Those companies process payment data under their own privacy policies. We do not receive
+          or store your full card number.
+        </p>
+        <p>
+          Account identifiers (such as your MuscleOS user ID) are shared with RevenueCat so purchases restore
+          on other devices signed into the same account. We do not use purchase data for advertising.
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-text mb-3">7. Contact Us</h2>
         <p>
           If you have questions about this Privacy Policy, want to export your data, or want us to delete your
           account and associated data, contact us at{' '}

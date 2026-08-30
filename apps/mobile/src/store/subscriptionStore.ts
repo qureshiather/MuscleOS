@@ -44,8 +44,10 @@ export interface SubscriptionStoreState {
   ) => Promise<void>;
   setBasic: () => Promise<void>;
   isPro: () => boolean;
-  purchasePackage: (pkg: PurchasesPackage) => Promise<{ success: boolean; error?: string }>;
-  restorePurchases: () => Promise<{ success: boolean }>;
+  purchasePackage: (
+    pkg: PurchasesPackage
+  ) => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
+  restorePurchases: () => Promise<{ success: boolean; restored?: boolean; error?: string }>;
 }
 
 export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) => ({
@@ -144,41 +146,44 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   },
 
   purchasePackage: async (pkg) => {
-    try {
-      const customerInfo = await rcPurchasePackage(pkg);
-      if (customerInfo && hasProEntitlement(customerInfo)) {
-        const state = stateFromCustomerInfo(customerInfo);
-        await setSubscription(state);
-        set({ state, isLoading: false });
-        return { success: true };
-      }
-      return { success: false, error: 'Purchase did not grant Pro.' };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Purchase failed';
-      return { success: false, error: message };
+    const result = await rcPurchasePackage(pkg);
+    if (result.status === 'cancelled') {
+      return { success: false, cancelled: true };
     }
+    if (result.status === 'error') {
+      return { success: false, error: result.message };
+    }
+    if (hasProEntitlement(result.customerInfo)) {
+      const state = stateFromCustomerInfo(result.customerInfo);
+      await setSubscription(state);
+      set({ state, isLoading: false });
+      return { success: true };
+    }
+    return {
+      success: false,
+      error: 'Purchase completed but Pro is not active yet. Try Restore purchases.',
+    };
   },
 
   restorePurchases: async () => {
     const devOverride = await getDevProOverride();
     if (devOverride) {
       await get().load();
-      return { success: true };
+      return { success: true, restored: true };
     }
-    try {
-      const customerInfo = await rcRestorePurchases();
-      if (customerInfo && hasProEntitlement(customerInfo)) {
-        const state = stateFromCustomerInfo(customerInfo);
-        await setSubscription(state);
-        set({ state, isLoading: false });
-        return { success: true };
-      }
-      const state: SubscriptionState = { tier: 'basic' };
+    const result = await rcRestorePurchases();
+    if (result.status === 'error') {
+      return { success: false, error: result.message };
+    }
+    if (hasProEntitlement(result.customerInfo)) {
+      const state = stateFromCustomerInfo(result.customerInfo);
       await setSubscription(state);
       set({ state, isLoading: false });
-      return { success: true };
-    } catch {
-      return { success: false };
+      return { success: true, restored: true };
     }
+    const state: SubscriptionState = { tier: 'basic' };
+    await setSubscription(state);
+    set({ state, isLoading: false });
+    return { success: true, restored: false };
   },
 }));
