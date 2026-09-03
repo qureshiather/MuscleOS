@@ -10,10 +10,12 @@ import {
   Modal,
   FlatList,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Animated,
   LayoutAnimation,
   Dimensions,
+  type KeyboardEvent,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
@@ -35,7 +37,7 @@ import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
 import type { MuscleId, SessionExercise } from '@muscleos/types';
-import { exerciseMatchesQuery } from '@/utils/exerciseSearch';
+import { searchExercises } from '@/utils/exerciseSearch';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -76,19 +78,26 @@ function digitsOnly(text: string): string {
 
 function ExerciseMenuContent({
   isBuiltInWorkout,
+  isPro,
   colors,
   onAddWarmUp,
+  onReplace,
   onEditRest,
   onEditNote,
   onRemove,
+  replaceTestID,
 }: {
   isBuiltInWorkout: boolean;
-  colors: { text: string; danger: string; border: string };
+  isPro: boolean;
+  colors: { text: string; textSecondary: string; textMuted: string; danger: string; border: string };
   onAddWarmUp: () => void;
+  onReplace: () => void;
   onEditRest: () => void;
   onEditNote: () => void;
   onRemove: () => void;
+  replaceTestID?: string;
 }) {
+  const replaceColor = isPro ? colors.text : colors.textSecondary;
   return (
     <>
       <Pressable
@@ -97,6 +106,18 @@ function ExerciseMenuContent({
       >
         <Ionicons name="add-circle-outline" size={18} color={colors.text} />
         <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Add warm-up set</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
+        onPress={onReplace}
+        testID={replaceTestID}
+        accessibilityLabel={isPro ? 'Replace exercise' : 'Replace exercise, Pro'}
+      >
+        <Ionicons name="swap-horizontal-outline" size={18} color={replaceColor} />
+        <Text style={[styles.exerciseDropdownItemText, styles.exerciseDropdownItemTextGrow, { color: replaceColor }]}>
+          Replace exercise
+        </Text>
+        {!isPro ? <Ionicons name="lock-closed" size={14} color={colors.textMuted} /> : null}
       </Pressable>
       <Pressable
         style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
@@ -304,7 +325,7 @@ export default function ActiveWorkoutScreen() {
   const listPaddingBottom = useBottomSpace(24);
   const dense = useDenseRowMetrics();
   const sheetMaxHeight = useModalMaxHeight();
-  const addExerciseListMaxHeight = Math.max(180, sheetMaxHeight - 180);
+  const addExerciseListMaxHeight = Math.max(80, sheetMaxHeight - 180);
   const colSetStyle = [styles.colSet, { width: dense.setCol }];
   const colPrevStyle = [styles.colPrev, { minWidth: dense.prevMin }];
   const colInputStyle = [styles.colInput, { minWidth: dense.inputMin }];
@@ -331,6 +352,7 @@ export default function ActiveWorkoutScreen() {
   const addWarmUpSet = useActiveWorkoutStore((s) => s.addWarmUpSet);
   const removeSet = useActiveWorkoutStore((s) => s.removeSet);
   const addExercise = useActiveWorkoutStore((s) => s.addExercise);
+  const replaceExercise = useActiveWorkoutStore((s) => s.replaceExercise);
   const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
   const reorderExercises = useActiveWorkoutStore((s) => s.reorderExercises);
   const replaceTemplateAndAddExercise = useActiveWorkoutStore((s) => s.replaceTemplateAndAddExercise);
@@ -374,14 +396,38 @@ export default function ActiveWorkoutScreen() {
   const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
-  const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
+  const [exercisePicker, setExercisePicker] = useState<
+    { mode: 'add' } | { mode: 'replace'; exIdx: number } | null
+  >(null);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
+  const [pickerKeyboardHeight, setPickerKeyboardHeight] = useState(0);
+  const pickerKeyboardSubRef = useRef<{ remove: () => void } | null>(null);
+  const replaceExcludeId =
+    exercisePicker?.mode === 'replace'
+      ? session?.exercises[exercisePicker.exIdx]?.exerciseId
+      : undefined;
   const addExerciseResults = useMemo(() => {
-    const all = getAllExercises();
-    const q = addExerciseSearch.trim();
-    if (!q) return all;
-    return all.filter((e) => exerciseMatchesQuery(e, q));
-  }, [addExerciseSearch, customExercises, getAllExercises]);
+    const matched = searchExercises(getAllExercises(), addExerciseSearch);
+    if (!replaceExcludeId) return matched;
+    return matched.filter((e) => e.id !== replaceExcludeId);
+  }, [addExerciseSearch, customExercises, getAllExercises, replaceExcludeId]);
+
+  useEffect(() => {
+    if (exercisePicker === null) {
+      setPickerKeyboardHeight(0);
+      return;
+    }
+    const onShow = (e: KeyboardEvent) => {
+      setPickerKeyboardHeight(e.endCoordinates.height);
+    };
+    const subs = [
+      Keyboard.addListener('keyboardWillShow', onShow),
+      Keyboard.addListener('keyboardDidShow', onShow),
+    ];
+    return () => {
+      for (const sub of subs) sub.remove();
+    };
+  }, [exercisePicker]);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
   const [dropdownLayout, setDropdownLayout] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
@@ -410,6 +456,11 @@ export default function ActiveWorkoutScreen() {
   const closeExerciseMenu = () => {
     setExerciseMenuExIdx(null);
     setDropdownLayout(null);
+  };
+
+  const closeExercisePicker = () => {
+    setExercisePicker(null);
+    setAddExerciseSearch('');
   };
 
   const positionExerciseMenu = (exIdx: number) => {
@@ -907,7 +958,7 @@ export default function ActiveWorkoutScreen() {
               ]}
               onPress={() => {
                 if (gatePro('add_exercise_mid_workout')) {
-                  setShowAddExerciseModal(true);
+                  setExercisePicker({ mode: 'add' });
                 }
               }}
             >
@@ -1048,6 +1099,8 @@ export default function ActiveWorkoutScreen() {
                         hitSlop={8}
                         onPress={() => toggleExerciseMenu(exIdx)}
                         style={styles.exerciseHeaderIcon}
+                        accessibilityLabel="Exercise menu"
+                        testID={`exercise-menu-${exIdx}`}
                       >
                         <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
                       </Pressable>
@@ -1432,8 +1485,10 @@ export default function ActiveWorkoutScreen() {
         >
           <ExerciseMenuContent
             isBuiltInWorkout={isBuiltInWorkout}
+            isPro={isPro}
             colors={colors}
             onAddWarmUp={() => {}}
+            onReplace={() => {}}
             onEditRest={() => {}}
             onEditNote={() => {}}
             onRemove={() => {}}
@@ -1469,10 +1524,17 @@ export default function ActiveWorkoutScreen() {
               >
                 <ExerciseMenuContent
                   isBuiltInWorkout={isBuiltInWorkout}
+                  isPro={isPro}
                   colors={colors}
                   onAddWarmUp={() => {
                     addWarmUpSet(exIdx);
                     closeExerciseMenu();
+                  }}
+                  onReplace={() => {
+                    closeExerciseMenu();
+                    if (gatePro('replace_exercise_mid_workout')) {
+                      setExercisePicker({ mode: 'replace', exIdx });
+                    }
                   }}
                   onEditRest={() => {
                     setRestTimersExIdx(exIdx);
@@ -1494,6 +1556,7 @@ export default function ActiveWorkoutScreen() {
                       ]
                     );
                   }}
+                  replaceTestID="exercise-menu-replace"
                 />
               </View>
             </View>
@@ -1833,15 +1896,41 @@ export default function ActiveWorkoutScreen() {
         </Pressable>
       </Modal>
 
-      <Modal visible={showAddExerciseModal} animationType="slide" transparent>
+      {exercisePicker !== null ? (
+      <Modal visible animationType="slide" transparent onRequestClose={closeExercisePicker}>
         <Pressable
-          style={[styles.addExerciseOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setShowAddExerciseModal(false)}
+          style={[
+            styles.addExerciseOverlay,
+            { backgroundColor: colors.overlay, paddingBottom: pickerKeyboardHeight },
+          ]}
+          onPress={closeExercisePicker}
         >
-          <SheetFrame onStartShouldSetResponder={() => true}>
+          <SheetFrame
+            onStartShouldSetResponder={() => true}
+            style={
+              pickerKeyboardHeight > 0
+                ? {
+                    height: Math.max(240, sheetMaxHeight - pickerKeyboardHeight),
+                    maxHeight: Math.max(240, sheetMaxHeight - pickerKeyboardHeight),
+                    paddingBottom: 12,
+                  }
+                : undefined
+            }
+          >
             <View style={styles.addExerciseModalHeader}>
-              <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>Add exercise</Text>
-              <Pressable onPress={() => setShowAddExerciseModal(false)}>
+              <View style={styles.addExerciseModalTitleBlock}>
+                <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>
+                  {exercisePicker?.mode === 'replace' ? 'Replace exercise' : 'Add exercise'}
+                </Text>
+                {exercisePicker?.mode === 'replace' ? (
+                  <Text style={[styles.addExerciseModalHint, { color: colors.textMuted }]} numberOfLines={2}>
+                    {replaceExcludeId
+                      ? `Swapping ${getExercise(replaceExcludeId)?.name ?? 'this exercise'}. Sets transfer over.`
+                      : 'Sets, rest, and warm-ups stay with the new movement.'}
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable onPress={closeExercisePicker}>
                 <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
               </Pressable>
             </View>
@@ -1856,11 +1945,31 @@ export default function ActiveWorkoutScreen() {
               onChangeText={setAddExerciseSearch}
               autoCorrect={false}
               autoCapitalize="none"
+              onFocus={() => {
+                const metrics = Keyboard.metrics();
+                if (metrics?.height) {
+                  setPickerKeyboardHeight(metrics.height);
+                }
+                pickerKeyboardSubRef.current?.remove();
+                pickerKeyboardSubRef.current = Keyboard.addListener('keyboardDidShow', (e) => {
+                  setPickerKeyboardHeight(e.endCoordinates.height);
+                });
+                setTimeout(() => {
+                  setPickerKeyboardHeight((current) =>
+                    current > 0 ? current : Math.round(Dimensions.get('window').height * 0.38)
+                  );
+                }, 280);
+              }}
+              onBlur={() => {
+                pickerKeyboardSubRef.current?.remove();
+                pickerKeyboardSubRef.current = null;
+                setPickerKeyboardHeight(0);
+              }}
             />
             <FlatList
               data={addExerciseResults}
               keyExtractor={(item) => item.id}
-              style={{ maxHeight: addExerciseListMaxHeight }}
+              style={pickerKeyboardHeight > 0 ? { flex: 1, minHeight: 0 } : { maxHeight: addExerciseListMaxHeight }}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               ListEmptyComponent={
@@ -1869,7 +1978,7 @@ export default function ActiveWorkoutScreen() {
                     style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
                     onPress={() => {
                       if (gatePro('custom_exercises')) {
-                        setShowAddExerciseModal(false);
+                        closeExercisePicker();
                         router.push({
                           pathname: '/create-exercise',
                           params: { name: addExerciseSearch.trim() },
@@ -1892,6 +2001,11 @@ export default function ActiveWorkoutScreen() {
                   style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
                   onPress={() => {
                     if (!session) return;
+                    if (exercisePicker?.mode === 'replace') {
+                      replaceExercise(exercisePicker.exIdx, item.id);
+                      closeExercisePicker();
+                      return;
+                    }
                     const template = allTemplates().find((t) => t.id === session.templateId);
                     const isBuiltIn = template?.isBuiltIn === true;
                     if (isBuiltIn) {
@@ -1914,27 +2028,30 @@ export default function ActiveWorkoutScreen() {
                               };
                               addTemplate(newTemplate);
                               replaceTemplateAndAddExercise(newTemplate.id, item.id);
-                              setShowAddExerciseModal(false);
-                              setAddExerciseSearch('');
+                              closeExercisePicker();
                             },
                           },
                         ]
                       );
                     } else {
                       addExercise(item.id);
-                      setShowAddExerciseModal(false);
-                      setAddExerciseSearch('');
+                      closeExercisePicker();
                     }
                   }}
                 >
                   <Text style={[styles.addExerciseRowText, { color: colors.text }]}>{item.name}</Text>
-                  <Ionicons name="add" size={20} color={colors.primary} />
+                  <Ionicons
+                    name={exercisePicker?.mode === 'replace' ? 'swap-horizontal' : 'add'}
+                    size={20}
+                    color={colors.primary}
+                  />
                 </Pressable>
               )}
             />
           </SheetFrame>
         </Pressable>
       </Modal>
+      ) : null}
     </Screen>
     </GestureHandlerRootView>
   );
@@ -2463,7 +2580,7 @@ const styles = StyleSheet.create({
   restPickerCancel: { alignItems: 'center', padding: 8 },
   restPickerCancelText: { ...typography.caption },
   exerciseDropdown: {
-    minWidth: 200,
+    minWidth: 220,
     borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
@@ -2487,6 +2604,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   exerciseDropdownItemText: { fontSize: 15 },
+  exerciseDropdownItemTextGrow: { flex: 1 },
   editSetsCard: {
     width: '100%',
     maxWidth: 320,
@@ -2613,7 +2731,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
+  addExerciseModalTitleBlock: {
+    flex: 1,
+    paddingRight: 12,
+    gap: 4,
+  },
   addExerciseModalTitle: { fontSize: 20, fontWeight: '700' },
+  addExerciseModalHint: { ...typography.caption, fontSize: 13, lineHeight: 18 },
   addExerciseModalClose: { fontSize: 16, fontWeight: '600' },
   addExerciseSearch: {
     marginHorizontal: 20,

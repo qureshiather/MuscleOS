@@ -3,6 +3,7 @@ export type ProFeature =
   | 'custom_exercises'
   | 'empty_workout'
   | 'add_exercise_mid_workout'
+  | 'replace_exercise_mid_workout'
   | 'save_as_template'
   | 'personal_records'
   | 'exercise_progression'
@@ -13,6 +14,7 @@ export const PRO_FEATURE_LABELS: Record<ProFeature, string> = {
   custom_exercises: 'Custom exercises',
   empty_workout: 'Empty / ad-hoc workouts',
   add_exercise_mid_workout: 'Add exercises mid-workout',
+  replace_exercise_mid_workout: 'Replace exercises mid-workout',
   save_as_template: 'Save workout as template',
   personal_records: 'Personal records & 1RM tracking',
   exercise_progression: 'Exercise progression charts',
@@ -25,6 +27,7 @@ export const PRO_FEATURES_LIST = [
   PRO_FEATURE_LABELS.custom_exercises,
   PRO_FEATURE_LABELS.empty_workout,
   PRO_FEATURE_LABELS.add_exercise_mid_workout,
+  PRO_FEATURE_LABELS.replace_exercise_mid_workout,
   PRO_FEATURE_LABELS.save_as_template,
   PRO_FEATURE_LABELS.personal_records,
   PRO_FEATURE_LABELS.exercise_progression,

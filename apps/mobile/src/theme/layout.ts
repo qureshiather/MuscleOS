@@ -10,7 +10,14 @@
  * No domain logic belongs in this file.
  */
 
-import { StyleSheet, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Keyboard,
+  Platform,
+  StyleSheet,
+  useWindowDimensions,
+  type KeyboardEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from './tokens';
 import { typography } from './typography';
@@ -166,6 +173,57 @@ export function useModalMaxHeight(reserve = spacing.xxl * 2): number {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   return Math.max(240, height - insets.top - insets.bottom - reserve);
+}
+
+/**
+ * How much the keyboard still covers the window. Uses the keyboard's reported
+ * height (not screenY) so Modal windows and scaled simulators stay correct.
+ * On Android `adjustResize` already shrinks the window; we subtract that shrink
+ * so callers do not double-pad.
+ *
+ * Hide listeners must set 0 themselves — iOS `keyboardWillHide` still reports
+ * the keyboard height in `endCoordinates`.
+ */
+export function useKeyboardOverlap(): number {
+  const { height: windowHeight } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const restWindowHeightRef = useRef(windowHeight);
+
+  useEffect(() => {
+    if (keyboardHeight === 0) {
+      restWindowHeightRef.current = windowHeight;
+    }
+  }, [keyboardHeight, windowHeight]);
+
+  useEffect(() => {
+    const onShow = (e: KeyboardEvent) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    };
+    const onHide = () => {
+      setKeyboardHeight(0);
+    };
+    const subs = [
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', onShow),
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', onHide),
+    ];
+    if (Platform.OS === 'ios') {
+      // Modal windows sometimes skip the "will" events.
+      subs.push(Keyboard.addListener('keyboardDidShow', onShow));
+      subs.push(Keyboard.addListener('keyboardDidHide', onHide));
+    }
+    return () => {
+      for (const sub of subs) sub.remove();
+    };
+  }, []);
+
+  if (keyboardHeight <= 0) return 0;
+  // iOS Modal is a separate window and does not shrink with the keyboard, even
+  // when useWindowDimensions on the main window does. Always lift by the
+  // keyboard height there. On Android adjustResize, subtract the window shrink
+  // so we do not pad twice.
+  if (Platform.OS === 'ios') return keyboardHeight;
+  const windowShrink = Math.max(0, restWindowHeightRef.current - windowHeight);
+  return Math.max(0, keyboardHeight - windowShrink);
 }
 
 // ---------------------------------------------------------------------------

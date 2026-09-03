@@ -28,6 +28,7 @@ export {
   useScreenGutter,
   useScrollBottomPadding,
   useModalMaxHeight,
+  useKeyboardOverlap,
   useDenseRowMetrics,
   useTabBarLayout,
   fontScaleCap,

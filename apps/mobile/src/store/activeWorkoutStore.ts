@@ -81,6 +81,8 @@ export interface ActiveWorkoutState {
   addWarmUpSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   addExercise: (exerciseId: string) => void;
+  /** Swap the exercise at index; sets, rest, and warm-ups stay in place. */
+  replaceExercise: (exerciseIndex: number, newExerciseId: string) => void;
   removeExercise: (exerciseIndex: number) => void;
   moveExerciseUp: (exerciseIndex: number) => void;
   moveExerciseDown: (exerciseIndex: number) => void;
@@ -326,6 +328,20 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
         exercises: [...session.exercises, newEx],
       },
     });
+  },
+
+  replaceExercise: (exerciseIndex, newExerciseId) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex || ex.exerciseId === newExerciseId) return;
+    exercises[exerciseIndex] = {
+      ...ex,
+      exerciseId: newExerciseId,
+      sets: ex.sets.map((s) => ({ ...s })),
+    };
+    set({ session: { ...session, exercises } });
   },
 
   removeExercise: (exerciseIndex) => {

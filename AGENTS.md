@@ -140,7 +140,7 @@ apps/mobile/
 - **Identity:** Supabase `user.id` is RevenueCat `appUserID`. Purchases require a linked (non-anonymous) account.
 - **State:** `subscriptionStore` + `SubscriptionState` in `@muscleos/types`. Use `useProGate()` / `useRequirePro()` from `src/hooks/useProGate.ts` for feature gates.
 - **Feature list:** `src/subscription/features.ts` — single source for paywall copy and gate keys.
-- **Pro gates:** custom templates/exercises, empty workout, add exercise mid-workout, save-as-template, PRs, progression charts, monthly calendar.
+- **Pro gates:** custom templates/exercises, empty workout, add/replace exercise mid-workout, save-as-template, PRs, progression charts, monthly calendar.
 - **Basic includes:** built-in templates, workout logging, recovery, history list, exercise library, export.
 - **Exercise catalog:** `catalog_exercises` in Supabase + bundled `CATALOG_SEED`. User customs are `user_exercises` (account-private). See [`docs/supabase/setup.md`](docs/supabase/setup.md).
 - **Setup:** See [`docs/monetization/revenuecat-setup.md`](../docs/monetization/revenuecat-setup.md) for store + RevenueCat dashboard steps.

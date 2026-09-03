@@ -18,6 +18,7 @@ import { useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatWeight } from '@/utils/weightUnits';
+import { textMatchesQuery } from '@/utils/exerciseSearch';
 import {
   buildExercisePRs,
   type ExercisePR,
@@ -176,11 +177,11 @@ export default function PersonalRecordsScreen() {
   const completed = completedSessions();
   const allPRs = buildExercisePRs(completed);
   const prs = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     if (!q) return allPRs;
     return allPRs.filter((pr) => {
       const name = getExercise(pr.exerciseId)?.name ?? pr.exerciseId;
-      return name.toLowerCase().includes(q);
+      return textMatchesQuery(name, q);
     });
   }, [allPRs, search, getExercise]);
 

@@ -13,7 +13,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen, SheetFrame } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import { useBottomSpace } from '@/theme/layout';
+import { useBottomSpace, useKeyboardOverlap } from '@/theme/layout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -26,12 +26,13 @@ import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRequirePro } from '@/hooks/useProGate';
-import { exerciseMatchesQuery } from '@/utils/exerciseSearch';
+import { searchExercises } from '@/utils/exerciseSearch';
 
 export default function CreateTemplateScreen() {
   const isPro = useRequirePro('custom_templates');
   const { colors } = useTheme();
   const bottomSpace = useBottomSpace(spacing.xl);
+  const keyboardOverlap = useKeyboardOverlap();
   const router = useRouter();
   const { templateId: editTemplateId } = useLocalSearchParams<{ templateId?: string }>();
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
@@ -71,11 +72,7 @@ export default function CreateTemplateScreen() {
   const [saving, setSaving] = useState(false);
 
   const pickerExercises = useMemo(() => {
-    let list = allExercises;
-    if (pickerSearch.trim()) {
-      list = list.filter((e) => exerciseMatchesQuery(e, pickerSearch));
-    }
-    return list.filter((e) => !selectedIds.includes(e.id));
+    return searchExercises(allExercises, pickerSearch).filter((e) => !selectedIds.includes(e.id));
   }, [allExercises, pickerSearch, selectedIds]);
 
   function addExerciseId(id: string) {
@@ -320,7 +317,7 @@ export default function CreateTemplateScreen() {
             <FlatList
               data={pickerExercises}
               keyExtractor={(item) => item.id}
-              style={styles.pickerList}
+              style={keyboardOverlap > 0 ? { flex: 1, minHeight: 0 } : styles.pickerList}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable

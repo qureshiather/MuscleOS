@@ -193,6 +193,7 @@ const PRO_POINTS = [
   'Custom exercises',
   'Empty / ad-hoc workouts',
   'Add exercises mid-session',
+  'Replace exercises mid-session',
   'Save a finished workout as a template',
   'Personal records & estimated 1RM',
   'Exercise progression charts',

@@ -49,5 +49,6 @@ Still required before live IAP.
 - [ ] Empty workout → paywall
 - [ ] Create template → paywall
 - [ ] Add exercise mid-workout → paywall
+- [ ] Replace exercise mid-workout → paywall
 - [ ] PR / calendar buttons → paywall
 - [ ] Deep link `?feature=custom_templates` highlights correct copy

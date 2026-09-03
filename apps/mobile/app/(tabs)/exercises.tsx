@@ -24,7 +24,7 @@ import { useProGate } from '@/hooks/useProGate';
 import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS } from '@muscleos/types';
 import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
-import { exerciseMatchesQuery } from '@/utils/exerciseSearch';
+import { searchExercises } from '@/utils/exerciseSearch';
 
 /** Large muscle groups for filtering: small muscle IDs in each. */
 const LARGE_MUSCLE_GROUPS: Record<string, MuscleId[]> = {
@@ -82,10 +82,7 @@ export default function ExercisesScreen() {
   const filterSummary = `${typeLabel} · ${muscleLabel}`;
 
   const filtered = useMemo(() => {
-    let list = allExercises;
-    if (search.trim()) {
-      list = list.filter((e) => exerciseMatchesQuery(e, search));
-    }
+    let list = searchExercises(allExercises, search);
     list = list.filter((e) => exerciseMatchesType(e, typeFilter));
     list = list.filter((e) => exerciseMatchesMuscleFilter(e, muscleFilter));
     return list;

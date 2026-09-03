@@ -28,6 +28,7 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 | Custom exercises | `custom_exercises` | Yes |
 | Empty / ad-hoc workout | `empty_workout` | Yes |
 | Add exercise mid-workout | `add_exercise_mid_workout` | Yes |
+| Replace exercise mid-workout (sets transfer) | `replace_exercise_mid_workout` | Yes |
 | Personal records & 1RM tracking | `personal_records` | Yes |
 | Exercise progression charts | `exercise_progression` | Yes |
 | Monthly training calendar | `monthly_calendar` | Yes |
@@ -46,6 +47,7 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 | `(tabs)/index.tsx` | Empty workout | `empty_workout` |
 | `(tabs)/index.tsx` | Create template, folders, rename/move/edit custom template | `custom_templates` |
 | `active-workout.tsx` | Add exercise | `add_exercise_mid_workout` |
+| `active-workout.tsx` | Replace exercise (ellipsis menu) | `replace_exercise_mid_workout` |
 | `active-workout.tsx` | Save as template / update template from session | `save_as_template` |
 | `create-template.tsx` | Screen entry | `custom_templates` |
 | `create-exercise.tsx` | Screen entry | `custom_exercises` |
