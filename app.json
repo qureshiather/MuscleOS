@@ -4,6 +4,9 @@
       "eas": {
         "projectId": "ae7d06c7-76ab-4e99-a4f8-44904ef91478"
       }
+    },
+    "android": {
+      "package": "com.twaxter.muscleos"
     }
   }
 }
