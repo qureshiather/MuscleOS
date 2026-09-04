@@ -108,64 +108,133 @@ Or download the APK from the dashboard and `adb install path/to/app.apk`.
 
 ## iOS testers
 
-Two paths. Use **ad hoc** for a handful of known phones (same `preview` profile as Android). Use **TestFlight** when you want to invite people by Apple ID and skip UDIDs.
+Two paths. Use **ad hoc** (the playbook below) for a handful of known phones — same `preview` profile as Android. Use [TestFlight](#ios-option-b-testflight) when you want to invite people by Apple ID and skip UDIDs.
 
-### Option A: Ad hoc (register each device)
+### Option A: Ad hoc preview (register → resign or build → send install link)
 
-Apple’s ad hoc profile is an allow-list. A new phone cannot install an **already-built** IPA. Register the device, then create a new build (or re-sign).
+Apple’s ad hoc profile is an allow-list. A phone can install an IPA only if its UDID is in **that IPA’s** provisioning profile.
 
-**1. Register testers’ devices**
+There are two lists. They are not the same:
+
+| List | What it is | Command / where |
+|------|------------|-----------------|
+| Expo registered devices | Phones that completed the registration link | `eas device:list` |
+| Devices on a given build | Phones baked into that IPA’s profile | Chosen when you **build** or **resign** |
+
+A new tester is not done after they register. They only appear in `eas device:list`. They cannot open an **old** install URL until you **resign** (or rebuild) and send them the **new** URL.
+
+All commands below run from `apps/mobile`, logged into EAS and the Apple team that owns `com.muscle-os.app`.
+
+#### 1. See who is already registered
+
+```bash
+cd apps/mobile
+eas device:list
+```
+
+You will be asked for the Apple team. The table is name, UDID, class (iPhone / iPad), and whether Expo has the device.
+
+Same list in the browser: [expo.dev](https://expo.dev) → MuscleOS project → **Credentials** (or **Devices**).
+
+```bash
+eas device:delete    # remove a device from Expo (optional: also disable it on Apple)
+```
+
+Apple’s standard program allows **100 devices per device class per year** (iPhone, iPad, …).
+
+#### 2. Generate a registration link to send people
 
 ```bash
 cd apps/mobile
 eas device:create
 ```
 
-- Sign in with the Apple Developer account when prompted.
-- Choose **website** registration (URL + QR). Send that link to the tester.
-- Tester opens the link **on the iPhone** → installs the Expo registration profile → device UDID is saved with EAS.
+Prompts:
 
-List / remove devices later:
+1. Use this Expo account? **Yes**
+2. Apple ID + team (the MuscleOS team)
+3. How would you like to register devices? **Website**
+
+Do **not** pick Developer Portal or typing a UDID unless you already have the UDID. **Website** is what you send to non-technical testers.
+
+The CLI prints a **registration URL** and a QR code. Copy the URL and send it (iMessage, email, Slack). The same link can be reused for several people.
+
+This link is **not** the app. It only registers the phone.
+
+#### 3. What the tester does on their iPhone
+
+They must do this **on the iPhone**, not a computer.
+
+1. Open the registration URL in Safari (or scan the QR with Camera).
+2. Tap **Download Profile**.
+3. Open **Settings** — iOS shows **Profile Downloaded** (or Settings → General → VPN & Device Management).
+4. Tap the Expo / MuscleOS registration profile → **Install**.
+5. Tell you they finished.
+
+Confirm they landed:
 
 ```bash
 eas device:list
-eas device:delete
 ```
 
-This only registers the device with **Expo**. Apple sees it when the next internal build (or re-sign) includes it in a provisioning profile.
+Their phone should appear. Until it does, do not resign or build for them.
 
-**2. Build (includes registered devices)**
+Registering only saves the UDID with Expo. Apple (and an existing IPA) do not know about them yet.
+
+#### 4. Resign the latest preview so new people can install it
+
+Use this when the app code is unchanged and you only added testers. Resigning re-signs the existing IPA with an updated ad hoc profile — minutes, not a full 15–25 minute compile.
+
+```bash
+cd apps/mobile
+eas build:resign -p ios --latest --profile preview
+```
+
+Then in the prompts:
+
+1. Select the latest **preview** iOS build (the IPA you want them to run).
+2. Log in to Apple if asked.
+3. When it offers **Show devices and ask me again**, do that.
+4. Select **all** devices that should be able to install — old testers **and** the new ones. If you omit someone, their old install URL may still work but this new URL will not.
+
+EAS starts a short job that reuses the binary and stamps a new profile. When it finishes, the CLI and [expo.dev](https://expo.dev) show a **new build / install URL**.
+
+Send testers **that new URL**. The previous install link still has the old device list; new phones will fail on it.
+
+If Apple just added the UDID (new membership or first time that device appeared), resign/build can fail for 24–72 hours. Wait and run the same resign command again.
+
+#### 5. Full preview build (first time, or after code / env changes)
+
+Need a new binary? Full build. First iOS preview: allow EAS to create the distribution cert + ad hoc profile.
 
 ```bash
 cd apps/mobile
 eas build --platform ios --profile preview
 ```
 
-- First iOS build: allow EAS to create the distribution cert + ad hoc provisioning profile.
-- When asked which devices to include, select **all** registered devices (or the ones you care about).
-- Typical wait: ~15–25 minutes.
+When asked which devices to include, select **all** registered testers. Typical wait: ~15–25 minutes.
 
-**New or recently renewed Apple membership:** the first build after adding a device can fail while Apple processes the UDID (up to 24–72 hours). Wait, then run the same build command again.
+After **code or preview env** changes you must full-build. Resign only updates who can install; it does not pick up new JS or env vars.
 
-**3. Install**
+#### 6. Send the install link
 
-1. Open the finished build on [expo.dev](https://expo.dev) (or the install URL from the CLI).
-2. On the **registered** iPhone, open the link → install the profile/app if prompted → install MuscleOS.
-3. Unregistered phones will fail to install. Register them and rebuild (or re-sign).
+From the finished **build** or **resign** job:
 
-**Adding a device after a build already exists**
+1. Copy the install URL from the CLI, or open [expo.dev](https://expo.dev) → MuscleOS → **Builds** → that iOS preview job.
+2. Send testers that URL (not the registration URL from step 2).
+3. On a **registered** iPhone that was **included in that job**, they open the link → follow the install prompts → MuscleOS.
 
-You do **not** need a full rebuild if the binary is unchanged — re-sign with an updated profile:
+If install fails: they are missing from `eas device:list`, or they were not selected on that resign/build. Register (if needed), resign again, send the newest URL.
 
-```bash
-cd apps/mobile
-eas device:create          # tester registers on their phone
-eas build:resign -p ios --latest --profile preview
+**Quick recap**
+
+```text
+eas device:create     →  send registration URL  →  tester installs profile on iPhone
+eas device:list       →  confirm they show up
+eas build:resign …    →  if the current preview binary is fine
+eas build … preview   →  if you need a new binary
+                      →  send the NEW install URL from that job
 ```
-
-Or run `eas build --platform ios --profile preview` again.
-
-Apple’s standard program allows **100 devices per device class per year** (iPhone, iPad, etc.).
 
 ### Option B: TestFlight (invite by email)
 
