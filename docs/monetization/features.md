@@ -13,7 +13,7 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 | Set logging (reps, weight, complete sets) | Yes |
 | Rest timers + workout sounds | Yes |
 | Plate calculator | Yes |
-| Exercise library (~395 catalog, browse/filter by category) | Yes |
+| Exercise library (~399 catalog, browse/filter by category) | Yes |
 | Recovery tab + home snapshot | Yes |
 | Workout history (list, detail, delete) | Yes |
 | Profile, units, theme, export data | Yes |
@@ -46,9 +46,10 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 |----------|--------|------|
 | `(tabs)/index.tsx` | Empty workout | `empty_workout` |
 | `(tabs)/index.tsx` | Create template, folders, rename/move/edit custom template | `custom_templates` |
-| `active-workout.tsx` | Add exercise | `add_exercise_mid_workout` |
+| `active-workout.tsx` | Add / replace / remove on a built-in workout | Pro: edit session, then save as **new** template only. Basic: “can’t edit a built-in workout.” |
+| `active-workout.tsx` | Add exercise (custom / empty) | `add_exercise_mid_workout` |
 | `active-workout.tsx` | Replace exercise (ellipsis menu) | `replace_exercise_mid_workout` |
-| `active-workout.tsx` | Save as template / update template from session | `save_as_template` |
+| `active-workout.tsx` | Save as template / update custom template from session | `save_as_template` |
 | `create-template.tsx` | Screen entry | `custom_templates` |
 | `create-exercise.tsx` | Screen entry | `custom_exercises` |
 | `(tabs)/exercises.tsx` | + button → create exercise | `custom_exercises` |

@@ -128,16 +128,19 @@ export function exerciseSearchScore(exercise: Exercise, query: string): number {
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return 1;
 
+  let best = 0;
   const nameScore = scoreSearchText(exercise.name, normalizedQuery);
-  if (nameScore > 0) return nameScore + 80;
+  if (nameScore > 0) best = Math.max(best, nameScore + 80);
 
   const idScore = scoreSearchText(exercise.id.replace(/-/g, ' '), normalizedQuery);
-  if (idScore > 0) return idScore + 40;
+  if (idScore > 0) best = Math.max(best, idScore + 40);
 
   for (const alias of exercise.aliases ?? []) {
     const aliasScore = scoreSearchText(alias.replace(/-/g, ' '), normalizedQuery);
-    if (aliasScore > 0) return aliasScore + 20;
+    if (aliasScore > 0) best = Math.max(best, aliasScore + 20);
   }
+
+  if (best > 0) return best;
 
   for (const field of metadataHaystacks(exercise)) {
     const metaScore = scoreSearchText(field, normalizedQuery);

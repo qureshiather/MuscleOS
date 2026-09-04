@@ -15,7 +15,7 @@ const SRC_PATH = join(__dirname, '../src/data/exercises.ts');
 const TS_OUT = join(__dirname, '../src/data/catalogSeed.ts');
 const SQL_OUT = join(ROOT, 'supabase/migrations/20260830020000_catalog_exercises_seed.sql');
 
-const SEED_UPDATED_AT = '2026-08-30T00:00:00.000Z';
+const SEED_UPDATED_AT = '2026-09-04T00:00:00.000Z';
 
 const UNPUBLISHED = new Set([
   'powerlifting-exercises',

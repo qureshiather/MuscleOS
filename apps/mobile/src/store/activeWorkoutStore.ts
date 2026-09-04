@@ -88,8 +88,6 @@ export interface ActiveWorkoutState {
   moveExerciseDown: (exerciseIndex: number) => void;
   /** Drag-and-drop reorder; remaps rest timer indices. */
   reorderExercises: (fromIndex: number, toIndex: number) => void;
-  /** Switch session to a new custom template and add an exercise (used when adding to built-in). */
-  replaceTemplateAndAddExercise: (newTemplateId: string, exerciseId: string) => void;
   finishWorkout: () => Promise<void>;
   discardWorkout: () => void;
   // Rest timer actions (in store so timer survives addSet/session updates)
@@ -393,22 +391,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       session: { ...session, exercises },
       restDurationsBetweenSets: remapRestDurations(restDurationsBetweenSets, oldToNew),
       restAfter: remapRestAfter(restAfter, oldToNew),
-    });
-  },
-
-  replaceTemplateAndAddExercise: (newTemplateId, exerciseId) => {
-    const { session } = get();
-    if (!session) return;
-    const newEx: SessionExercise = {
-      exerciseId,
-      sets: [{ completed: false }, { completed: false }, { completed: false }],
-    };
-    set({
-      session: {
-        ...session,
-        templateId: newTemplateId,
-        exercises: [...session.exercises, newEx],
-      },
     });
   },
 

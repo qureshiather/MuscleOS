@@ -1,7 +1,7 @@
 import type { Exercise } from '@muscleos/types';
 
 /** Bundled catalog floor. Same rows as the SQL seed. Generated — do not edit by hand. */
-export const CATALOG_SEED_UPDATED_AT = "2026-08-30T00:00:00.000Z";
+export const CATALOG_SEED_UPDATED_AT = "2026-09-04T00:00:00.000Z";
 
 export const CATALOG_SEED: Exercise[] = [
   { id: "air-squat", name: "Air Squat", muscles: ["quads", "glutes", "calves"], equipment: ["bodyweight"], category: "bodyweight" },
@@ -339,20 +339,24 @@ export const CATALOG_SEED: Exercise[] = [
   { id: "one-legged-hip-thrust", name: "Single-Leg Hip Thrust", muscles: ["glutes", "quads"], equipment: ["other"], category: "free_weight" },
   { id: "single-leg-romanian-deadlift", name: "Single-Leg Romanian Deadlift", muscles: ["glutes", "lower_back", "hamstrings", "traps", "forearms"], equipment: ["other"], category: "free_weight" },
   { id: "sit-up", name: "Sit-Up", muscles: ["abs", "obliques"], equipment: ["bodyweight"], category: "bodyweight" },
-  { id: "smith-machine-bench-press", name: "Smith Machine Bench Press", muscles: ["chest", "front_delts", "triceps"], equipment: ["machine"], category: "machine" },
+  { id: "smith-machine-bench-press", name: "Smith Machine Bench Press", muscles: ["chest", "front_delts", "triceps"], equipment: ["machine"], category: "machine", aliases: ["smith-bench", "smith-bench-press", "smith-machine-bench"] },
   { id: "smith-machine-bulgarian-split-squat", name: "Smith Machine Bulgarian Split Squat", muscles: ["quads", "glutes"], equipment: ["machine"], category: "machine" },
+  { id: "smith-machine-calf-raise", name: "Smith Machine Calf Raise", muscles: ["calves"], equipment: ["machine"], category: "machine", aliases: ["smith-calf-raise"] },
+  { id: "smith-machine-close-grip-bench-press", name: "Smith Machine Close-Grip Bench Press", muscles: ["triceps", "chest", "front_delts"], equipment: ["machine"], category: "machine", aliases: ["smith-close-grip", "smith-close-grip-bench"] },
   { id: "smith-machine-deadlift", name: "Smith Machine Deadlift", muscles: ["glutes", "lower_back", "traps", "forearms", "hamstrings"], equipment: ["machine"], category: "machine" },
+  { id: "smith-machine-decline-bench-press", name: "Smith Machine Decline Bench Press", muscles: ["chest", "triceps", "front_delts"], equipment: ["machine"], category: "machine", aliases: ["decline-smith", "decline-smith-machine", "smith-decline", "smith-decline-bench"] },
   { id: "smith-machine-front-squat", name: "Smith Machine Front Squat", muscles: ["quads", "glutes", "lower_back", "calves"], equipment: ["machine"], category: "machine" },
   { id: "smith-machine-hip-thrust", name: "Smith Machine Hip Thrust", muscles: ["glutes", "quads"], equipment: ["machine"], category: "machine" },
-  { id: "smith-machine-incline-bench-press", name: "Smith Machine Incline Bench Press", muscles: ["chest", "front_delts", "triceps"], equipment: ["machine"], category: "machine" },
+  { id: "smith-machine-incline-bench-press", name: "Smith Machine Incline Bench Press", muscles: ["chest", "front_delts", "triceps"], equipment: ["machine"], category: "machine", aliases: ["incline-smith", "incline-smith-machine", "incline-smith-machine-bench-press", "smith-incline", "smith-incline-bench", "smith-machine-incline"] },
   { id: "smith-machine-landmine-press", name: "Smith Machine Landmine Press", muscles: ["front_delts", "triceps", "chest"], equipment: ["machine"], category: "machine" },
   { id: "smith-machine-lunge", name: "Smith Machine Lunge", muscles: ["quads", "glutes"], equipment: ["machine"], category: "machine" },
   { id: "smith-machine-one-handed-row", name: "Smith Machine One-Handed Row", muscles: ["lats", "traps", "rear_delts", "biceps", "forearms"], equipment: ["machine"], category: "machine" },
   { id: "smith-machine-reverse-grip-bench-press", name: "Smith Machine Reverse Grip Bench Press", muscles: ["chest", "front_delts", "triceps"], equipment: ["machine"], category: "machine" },
   { id: "smith-machine-romanian-deadlift", name: "Smith Machine Romanian Deadlift", muscles: ["hamstrings", "glutes", "lower_back", "traps", "forearms"], equipment: ["machine"], category: "machine" },
-  { id: "seated-smith-machine-shoulder-press", name: "Smith Machine Shoulder Press", muscles: ["front_delts", "triceps", "side_delts"], equipment: ["machine"], category: "machine" },
+  { id: "smith-machine-shrug", name: "Smith Machine Shrug", muscles: ["traps", "forearms"], equipment: ["machine"], category: "machine", aliases: ["smith-shrug"] },
+  { id: "seated-smith-machine-shoulder-press", name: "Smith Machine Shoulder Press", muscles: ["front_delts", "triceps", "side_delts"], equipment: ["machine"], category: "machine", aliases: ["smith-shoulder-press", "smith-machine-ohp"] },
   { id: "smith-machine-skull-crushers", name: "Smith Machine Skull Crushers", muscles: ["triceps"], equipment: ["machine"], category: "machine" },
-  { id: "smith-machine-squat", name: "Smith Machine Squat", muscles: ["quads", "glutes", "lower_back", "calves"], equipment: ["machine"], category: "machine" },
+  { id: "smith-machine-squat", name: "Smith Machine Squat", muscles: ["quads", "glutes", "lower_back", "calves"], equipment: ["machine"], category: "machine", aliases: ["smith-squat", "smith-machine-back-squat"] },
   { id: "snatch", name: "Snatch", muscles: ["glutes", "lower_back", "quads", "hamstrings", "traps", "forearms", "calves"], equipment: ["other"], category: "free_weight" },
   { id: "snatch-grip-behind-the-neck-press", name: "Snatch Grip Behind the Neck Press", muscles: ["front_delts", "side_delts", "traps", "triceps"], equipment: ["other"], category: "free_weight" },
   { id: "snatch-grip-deadlift", name: "Snatch Grip Deadlift", muscles: ["glutes", "lower_back", "quads", "hamstrings", "traps", "forearms"], equipment: ["other"], category: "free_weight" },

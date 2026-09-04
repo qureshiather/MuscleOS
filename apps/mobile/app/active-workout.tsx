@@ -76,6 +76,13 @@ function digitsOnly(text: string): string {
   return text.replace(/[^\d]/g, '');
 }
 
+function alertCannotEditBuiltIn() {
+  Alert.alert(
+    'Built-in workout',
+    'You can’t edit a built-in workout. Upgrade to Pro to customize it and save it as a new template.'
+  );
+}
+
 function ExerciseMenuContent({
   isBuiltInWorkout,
   isPro,
@@ -98,6 +105,8 @@ function ExerciseMenuContent({
   replaceTestID?: string;
 }) {
   const replaceColor = isPro ? colors.text : colors.textSecondary;
+  const removeLocked = isBuiltInWorkout && !isPro;
+  const removeColor = removeLocked ? colors.textMuted : colors.danger;
   return (
     <>
       <Pressable
@@ -127,22 +136,19 @@ function ExerciseMenuContent({
         <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit rest timer</Text>
       </Pressable>
       <Pressable
-        style={[
-          styles.exerciseDropdownItem,
-          !isBuiltInWorkout && styles.exerciseDropdownItemBorder,
-          { borderBottomColor: colors.border },
-        ]}
+        style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
         onPress={onEditNote}
       >
         <Ionicons name="create-outline" size={18} color={colors.text} />
         <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit note</Text>
       </Pressable>
-      {!isBuiltInWorkout ? (
-        <Pressable style={styles.exerciseDropdownItem} onPress={onRemove}>
-          <Ionicons name="trash-outline" size={18} color={colors.danger} />
-          <Text style={[styles.exerciseDropdownItemText, { color: colors.danger }]}>Remove exercise</Text>
-        </Pressable>
-      ) : null}
+      <Pressable style={styles.exerciseDropdownItem} onPress={onRemove}>
+        <Ionicons name="trash-outline" size={18} color={removeColor} />
+        <Text style={[styles.exerciseDropdownItemText, styles.exerciseDropdownItemTextGrow, { color: removeColor }]}>
+          Remove exercise
+        </Text>
+        {removeLocked ? <Ionicons name="lock-closed" size={14} color={colors.textMuted} /> : null}
+      </Pressable>
     </>
   );
 }
@@ -259,6 +265,7 @@ function ActiveRestGap({
   restSecondsLeft,
   restTotalSeconds,
   colors,
+  onPress,
 }: {
   /** Countdown is running for this set. */
   active: boolean;
@@ -267,6 +274,7 @@ function ActiveRestGap({
   restSecondsLeft: number;
   restTotalSeconds: number;
   colors: { primary: string; text: string; textSecondary: string; textMuted: string; primarySurface: string; border: string };
+  onPress?: () => void;
 }) {
   const opacity = useRef(new Animated.Value(active ? 1 : 0)).current;
 
@@ -286,24 +294,38 @@ function ActiveRestGap({
       : 0;
   const timeLabel = `${Math.floor(restSecondsLeft / 60)}:${(restSecondsLeft % 60).toString().padStart(2, '0')}`;
 
+  const inner = (
+    <Animated.View style={[styles.restGapInner, { opacity }]}>
+      <View style={styles.restGapTimeRow}>
+        <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
+        <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
+        <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
+      </View>
+      <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
+        <View
+          style={[
+            styles.restGapFill,
+            { width: `${progress}%`, backgroundColor: colors.primary },
+          ]}
+        />
+      </View>
+    </Animated.View>
+  );
+
   return (
     <View style={[styles.restGapBlock, { height: REST_GAP_HEIGHT }]}>
       {active ? (
-        <Animated.View style={[styles.restGapInner, { opacity }]}>
-          <View style={styles.restGapTimeRow}>
-            <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
-            <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
-            <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
-          </View>
-          <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.restGapFill,
-                { width: `${progress}%`, backgroundColor: colors.primary },
-              ]}
-            />
-          </View>
-        </Animated.View>
+        onPress ? (
+          <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel="Open rest timer controls"
+          >
+            {inner}
+          </Pressable>
+        ) : (
+          inner
+        )
       ) : null}
     </View>
   );
@@ -355,7 +377,6 @@ export default function ActiveWorkoutScreen() {
   const replaceExercise = useActiveWorkoutStore((s) => s.replaceExercise);
   const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
   const reorderExercises = useActiveWorkoutStore((s) => s.reorderExercises);
-  const replaceTemplateAndAddExercise = useActiveWorkoutStore((s) => s.replaceTemplateAndAddExercise);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
   const restEndTime = useActiveWorkoutStore((s) => s.restEndTime);
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
@@ -690,7 +711,10 @@ export default function ActiveWorkoutScreen() {
   function openSaveAsTemplateModal() {
     if (!gatePro('save_as_template')) return;
     const dateLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    setSaveAsTemplateName(`Workout ${dateLabel}`);
+    const template = session
+      ? allTemplates().find((t) => t.id === session.templateId)
+      : undefined;
+    setSaveAsTemplateName(template && session?.templateId !== '_empty' ? template.name : `Workout ${dateLabel}`);
     setShowSaveAsTemplateModal(true);
   }
 
@@ -825,9 +849,8 @@ export default function ActiveWorkoutScreen() {
   const isNoTemplateWorkout = session.templateId === '_empty';
   const templateExerciseIds = currentTemplate?.exerciseIds ?? [];
   const sessionExerciseIds = session.exercises.map((e) => e.exerciseId);
-  const hasAddedExercises =
-    currentTemplate &&
-    !currentTemplate.isBuiltIn &&
+  const templateListChanged =
+    currentTemplate != null &&
     (sessionExerciseIds.length !== templateExerciseIds.length ||
       sessionExerciseIds.some((id, i) => templateExerciseIds[i] !== id));
 
@@ -957,6 +980,10 @@ export default function ActiveWorkoutScreen() {
                   : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
               ]}
               onPress={() => {
+                if (isBuiltInWorkout && !isPro) {
+                  alertCannotEditBuiltIn();
+                  return;
+                }
                 if (gatePro('add_exercise_mid_workout')) {
                   setExercisePicker({ mode: 'add' });
                 }
@@ -1419,6 +1446,7 @@ export default function ActiveWorkoutScreen() {
                       restSecondsLeft={restSecondsLeft ?? 0}
                       restTotalSeconds={restTotalSeconds}
                       colors={colors}
+                      onPress={() => setShowRestControls(true)}
                     />
                   </View>
                 );
@@ -1532,6 +1560,10 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onReplace={() => {
                     closeExerciseMenu();
+                    if (isBuiltInWorkout && !isPro) {
+                      alertCannotEditBuiltIn();
+                      return;
+                    }
                     if (gatePro('replace_exercise_mid_workout')) {
                       setExercisePicker({ mode: 'replace', exIdx });
                     }
@@ -1547,6 +1579,10 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onRemove={() => {
                     closeExerciseMenu();
+                    if (isBuiltInWorkout && !isPro) {
+                      alertCannotEditBuiltIn();
+                      return;
+                    }
                     Alert.alert(
                       'Remove exercise',
                       `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
@@ -1777,19 +1813,7 @@ export default function ActiveWorkoutScreen() {
                 ))}
             </View>
             <View style={styles.summaryActions}>
-              {isBuiltInWorkout ? (
-                <>
-                  <Pressable
-                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => handleFinish(false)}
-                  >
-                    <Text style={styles.summarySaveBtnText}>Save values</Text>
-                  </Pressable>
-                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
-                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
-                  </Pressable>
-                </>
-              ) : isNoTemplateWorkout ? (
+              {isNoTemplateWorkout ? (
                 <>
                   <Pressable
                     style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
@@ -1807,7 +1831,25 @@ export default function ActiveWorkoutScreen() {
                     <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
                   </Pressable>
                 </>
-              ) : hasAddedExercises ? (
+              ) : isBuiltInWorkout && templateListChanged ? (
+                <>
+                  <Pressable
+                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
+                    onPress={openSaveAsTemplateModal}
+                  >
+                    <Text style={styles.summarySaveBtnText}>Save as new template</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
+                    onPress={() => handleFinish(false)}
+                  >
+                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save values only</Text>
+                  </Pressable>
+                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
+                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
+                  </Pressable>
+                </>
+              ) : !isBuiltInWorkout && templateListChanged ? (
                 <>
                   <Pressable
                     style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
@@ -1823,6 +1865,14 @@ export default function ActiveWorkoutScreen() {
                   >
                     <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
                       Save values and template
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
+                    onPress={openSaveAsTemplateModal}
+                  >
+                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
+                      Save as new template
                     </Text>
                   </Pressable>
                   <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
@@ -2006,37 +2056,8 @@ export default function ActiveWorkoutScreen() {
                       closeExercisePicker();
                       return;
                     }
-                    const template = allTemplates().find((t) => t.id === session.templateId);
-                    const isBuiltIn = template?.isBuiltIn === true;
-                    if (isBuiltIn) {
-                      Alert.alert(
-                        'Create custom workout',
-                        'Adding an exercise to a built-in workout will create a custom copy. You can edit it later.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Continue',
-                            onPress: () => {
-                              const newTemplate = {
-                                id: 'tpl_' + Date.now(),
-                                name: (template?.name ?? 'Workout') + ' (Copy)',
-                                exerciseIds: [
-                                  ...session.exercises.map((e) => e.exerciseId),
-                                  item.id,
-                                ],
-                                isBuiltIn: false as const,
-                              };
-                              addTemplate(newTemplate);
-                              replaceTemplateAndAddExercise(newTemplate.id, item.id);
-                              closeExercisePicker();
-                            },
-                          },
-                        ]
-                      );
-                    } else {
-                      addExercise(item.id);
-                      closeExercisePicker();
-                    }
+                    addExercise(item.id);
+                    closeExercisePicker();
                   }}
                 >
                   <Text style={[styles.addExerciseRowText, { color: colors.text }]}>{item.name}</Text>

@@ -175,6 +175,18 @@ export default function WorkoutsScreen() {
     [builtIn]
   );
 
+  const visibleBuiltInFolders = useMemo(
+    () => BUILT_IN_FOLDERS.filter((f) => (builtInByFolder[f.id] ?? []).length > 0),
+    [builtInByFolder]
+  );
+
+  const folderHasOnlyHiddenTemplates = (folderId: string) =>
+    (byFolder[folderId] ?? []).length === 0 && hiddenCustom.some((t) => t.folderId === folderId);
+
+  const visibleFavoriteFolders = favoriteFolders.filter((f) => !folderHasOnlyHiddenTemplates(f.id));
+  const visibleNormalFolders = normalFolders.filter((f) => !folderHasOnlyHiddenTemplates(f.id));
+  const visibleArchivedFolders = archivedFolders.filter((f) => !folderHasOnlyHiddenTemplates(f.id));
+
   const lastDoneByTemplate = useMemo(() => {
     const completed = sessions.filter((s) => s.completedAt != null);
     const map: Record<string, string> = {};
@@ -850,9 +862,9 @@ export default function WorkoutsScreen() {
                     {uncategorized.map((template) =>
                       renderTemplateCard(template, templateCardStyle, true)
                     )}
-                    {favoriteFolders.map((f) => renderFolderSection(f))}
-                    {normalFolders.map((f) => renderFolderSection(f))}
-                    {archivedFolders.length > 0 && (
+                    {visibleFavoriteFolders.map((f) => renderFolderSection(f))}
+                    {visibleNormalFolders.map((f) => renderFolderSection(f))}
+                    {visibleArchivedFolders.length > 0 && (
                       <View style={nestedSectionStyle}>
                         <Pressable
                           style={({ pressed }) => [
@@ -876,7 +888,7 @@ export default function WorkoutsScreen() {
                         </Pressable>
                         {isFolderExpanded(ARCHIVED_SECTION) && (
                           <View style={styles.sectionContent}>
-                            {archivedFolders.map((f) => renderFolderSection(f, true))}
+                            {visibleArchivedFolders.map((f) => renderFolderSection(f, true))}
                           </View>
                         )}
                       </View>
@@ -966,7 +978,7 @@ export default function WorkoutsScreen() {
                     {builtInUncategorized.map((template) =>
                       renderTemplateCard(template, templateCardStyle, true)
                     )}
-                    {BUILT_IN_FOLDERS.map((f) => renderBuiltInFolderSection(f))}
+                    {visibleBuiltInFolders.map((f) => renderBuiltInFolderSection(f))}
                     {hiddenBuiltIn.length > 0 && (
                       <View style={nestedSectionStyle}>
                         <Pressable
