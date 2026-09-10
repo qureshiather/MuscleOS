@@ -81,6 +81,8 @@ cd apps/mobile
 eas build --platform android --profile preview
 ```
 
+Run EAS from `apps/mobile`, not the repo root. A root `eas build` uses the stub `app.json` there, so EAS picks an old image (Node 18 / pnpm 8) and `pnpm install --frozen-lockfile` fails against the pnpm 9 lockfile.
+
 - First Android build may prompt to generate a keystore — accept the EAS-managed keystore unless you already have one.
 - Build runs in the cloud; progress is on [expo.dev](https://expo.dev) and in the terminal.
 - Typical wait: ~10–20 minutes.

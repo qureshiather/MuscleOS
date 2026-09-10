@@ -7,10 +7,11 @@ import {
   isWorkoutLiveNotificationAvailable,
   showWorkoutLiveNotification,
 } from '../../modules/workout-live-notification';
-import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
+import { useActiveWorkoutStore, type RestAfter } from '@/store/activeWorkoutStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
+import type { WorkoutSession } from '@muscleos/types';
 
 const WORKOUT_NOTIFICATION_ID = 'active-workout';
 const REST_COMPLETE_NOTIFICATION_ID = 'rest-complete';
@@ -48,6 +49,71 @@ function formatRestEndClock(restEndTime: number): string {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+type NotificationCopy = {
+  restBody: string;
+  idleBody: string;
+  alertBody: string;
+};
+
+function hasIncompleteSets(se: WorkoutSession['exercises'][number] | undefined): boolean {
+  return !!se && se.sets.some((s) => !s.completed);
+}
+
+/**
+ * Rest always starts after a working set, including the last one. Name the
+ * upcoming work — not the exercise whose sets are already done.
+ */
+function getWorkoutNotificationCopy(
+  session: WorkoutSession,
+  restAfter: RestAfter | null
+): NotificationCopy {
+  const getExercise = useExercisesStore.getState().getExercise;
+  const nameOf = (exerciseId: string) => getExercise(exerciseId)?.name ?? exerciseId;
+
+  const forExercise = (name: string, advancing: boolean): NotificationCopy =>
+    advancing
+      ? {
+          restBody: `Continue to ${name}`,
+          idleBody: `Continue to ${name}`,
+          alertBody: `Time for ${name}`,
+        }
+      : {
+          restBody: `Next: ${name}`,
+          idleBody: `Next: ${name}`,
+          alertBody: `Time for ${name}`,
+        };
+
+  const done: NotificationCopy = {
+    restBody: 'Finish your workout',
+    idleBody: 'Finish your workout',
+    alertBody: 'Time to finish your workout',
+  };
+
+  const findIncompleteFrom = (start: number, end: number) => {
+    for (let i = start; i < end; i++) {
+      const se = session.exercises[i];
+      if (hasIncompleteSets(se)) return se;
+    }
+    return undefined;
+  };
+
+  if (restAfter != null) {
+    const current = session.exercises[restAfter.exIdx];
+    if (hasIncompleteSets(current)) {
+      return forExercise(nameOf(current.exerciseId), false);
+    }
+    const next =
+      findIncompleteFrom(restAfter.exIdx + 1, session.exercises.length) ??
+      findIncompleteFrom(0, restAfter.exIdx);
+    if (next) return forExercise(nameOf(next.exerciseId), true);
+    return done;
+  }
+
+  const next = findIncompleteFrom(0, session.exercises.length);
+  if (next) return forExercise(nameOf(next.exerciseId), false);
+  return done;
 }
 
 async function ensureChannels() {
@@ -131,7 +197,7 @@ async function cancelRestCompleteNotification() {
  */
 async function scheduleRestCompleteNotification(
   restEndTime: number,
-  exerciseName: string,
+  alertBody: string,
   playSound: boolean
 ) {
   const seconds = Math.ceil((restEndTime - Date.now()) / 1000);
@@ -144,7 +210,7 @@ async function scheduleRestCompleteNotification(
 
   const content: Notifications.NotificationContentInput = {
     title: 'Rest over',
-    body: `Time for ${exerciseName}`,
+    body: alertBody,
     data: { screen: 'active-workout', type: 'rest-complete' },
     sound: playSound ? REST_END_SOUND : false,
     ...(Platform.OS === 'ios'
@@ -172,6 +238,8 @@ export function useWorkoutNotification() {
   const restAfter = useActiveWorkoutStore((s) => s.restAfter);
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
+  const remainingSetsSignature =
+    session?.exercises.map((se) => se.sets.filter((s) => !s.completed).length).join(',') ?? '';
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
@@ -190,20 +258,7 @@ export function useWorkoutNotification() {
       return;
     }
 
-    const currentSession = session;
-
-    function getCurrentExerciseName(): string {
-      const getExercise = useExercisesStore.getState().getExercise;
-      if (restAfter != null) {
-        const se = currentSession.exercises[restAfter.exIdx];
-        if (se) return getExercise(se.exerciseId)?.name ?? se.exerciseId;
-      }
-      const next = currentSession.exercises.find((se) =>
-        se.sets.some((s) => !s.completed)
-      );
-      if (next) return getExercise(next.exerciseId)?.name ?? next.exerciseId;
-      return 'Workout';
-    }
+    const copy = getWorkoutNotificationCopy(session, restAfter);
 
     if (useNativeLiveNotification) {
       let disposed = false;
@@ -214,15 +269,14 @@ export function useWorkoutNotification() {
         const granted = await requestPermission();
         if (!granted || disposed) return;
         if (resting) void maybePromptForExactAlarms();
-        const exerciseName = getCurrentExerciseName();
         await showWorkoutLiveNotification({
           restTitle: 'Resting',
-          restBody: `Next: ${exerciseName}`,
+          restBody: copy.restBody,
           idleTitle: 'Workout in progress',
-          idleBody: `Next: ${exerciseName}`,
+          idleBody: copy.idleBody,
           restEndTime: resting ? restEndTime : null,
           alertTitle: 'Rest over',
-          alertBody: `Time for ${exerciseName}`,
+          alertBody: copy.alertBody,
           // In the foreground the in-app sound handles it, so skip the OS alert.
           alertEnabled: appState !== 'active',
           alertSound: workoutSoundsEnabled,
@@ -246,21 +300,20 @@ export function useWorkoutNotification() {
     }
 
     function buildNotification(preferAbsoluteRestTime: boolean) {
-      const exerciseName = getCurrentExerciseName();
       const title = 'MuscleOS — Workout';
       if (restEndTime != null && restEndTime > Date.now()) {
         if (preferAbsoluteRestTime) {
           return {
             title,
-            body: `Rest until ${formatRestEndClock(restEndTime)} • ${exerciseName}`,
+            body: `Rest until ${formatRestEndClock(restEndTime)} • ${copy.restBody}`,
           };
         }
         return {
           title,
-          body: `Rest ${formatRestCountdown(restEndTime)} • ${exerciseName}`,
+          body: `Rest ${formatRestCountdown(restEndTime)} • ${copy.restBody}`,
         };
       }
-      return { title, body: `Next: ${exerciseName}` };
+      return { title, body: copy.idleBody };
     }
 
     function clearRefreshInterval() {
@@ -288,7 +341,7 @@ export function useWorkoutNotification() {
       }
       await scheduleRestCompleteNotification(
         restEndTime!,
-        getCurrentExerciseName(),
+        copy.alertBody,
         workoutSoundsEnabled
       );
     }
@@ -337,6 +390,7 @@ export function useWorkoutNotification() {
     restEndTime,
     restAfter?.exIdx,
     restAfter?.setIdx,
+    remainingSetsSignature,
     restTotalSeconds,
     workoutSoundsEnabled,
   ]);

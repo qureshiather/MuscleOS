@@ -4,11 +4,23 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "node": "20.18.0",
+      "pnpm": "9.14.2",
+      "android": {
+        "image": "sdk-54"
+      },
+      "ios": {
+        "image": "sdk-54"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
       "environment": "preview",
       "android": {
@@ -17,6 +29,7 @@
       }
     },
     "production": {
+      "extends": "base",
       "autoIncrement": true
     }
   },
