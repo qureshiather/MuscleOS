@@ -14,7 +14,7 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRecoveryReady } from '@/utils/relativeTime';
-import { getRecoveryUntil } from '@/utils/recovery';
+import { getRecoveryUntil } from '@/utils/recoveryUntil';
 
 const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 

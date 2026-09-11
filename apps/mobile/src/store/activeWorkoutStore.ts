@@ -9,15 +9,13 @@ import {
   getActiveWorkout,
   setActiveWorkout,
 } from '@/storage/localStorage';
-import { getRecovery, setRecovery } from '@/storage/localStorage';
-import { getRecoveryUntil } from '@/utils/recovery';
-import type { MuscleId } from '@muscleos/types';
+import { setRecovery } from '@/storage/localStorage';
+import { recoveryFromSessions } from '@/utils/recovery';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import {
   notifySessionUpsert,
-  notifyRecoverySnapshot,
   notifyExercisePreviousSnapshot,
   syncAfterWorkout,
 } from '@/sync';
@@ -402,7 +400,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       completedAt: new Date().toISOString(),
     };
     const sessions = await getSessions();
-    await setSessions([...sessions, completed]);
+    const allSessions = [...sessions, completed];
+    await setSessions(allSessions);
 
     // Update previous weight/reps per exercise (best completed set by weight, then reps)
     const prev = await getExercisePrevious();
@@ -419,22 +418,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     }
     await setExercisePrevious(prev);
 
-    // Update recovery: only muscles from exercises that had at least one completed set
-    const muscleIds = new Set<MuscleId>();
-    for (const se of completed.exercises) {
-      const hasCompletedSet = se.sets.some((s) => s.completed);
-      if (!hasCompletedSet) continue;
-      const ex = useExercisesStore.getState().getExercise(se.exerciseId);
-      if (ex) ex.muscles.forEach((m) => muscleIds.add(m));
-    }
-    const now = new Date();
-    const recoveryList = await getRecovery();
-    const newRecovery = Array.from(muscleIds).map((muscleId) => ({
-      muscleId,
-      trainedAt: session.startedAt,
-    }));
-    const nowIso = now.toISOString();
-    const merged = [...recoveryList.filter((r) => getRecoveryUntil(r) > nowIso), ...newRecovery];
+    const merged = recoveryFromSessions(allSessions, (id) =>
+      useExercisesStore.getState().getExercise(id)
+    );
     await setRecovery(merged);
 
     set({
@@ -451,7 +437,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     ]);
 
     notifySessionUpsert(completed);
-    notifyRecoverySnapshot(merged);
     notifyExercisePreviousSnapshot(prev);
     void syncAfterWorkout();
   },

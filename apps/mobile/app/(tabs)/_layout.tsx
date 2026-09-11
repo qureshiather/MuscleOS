@@ -1,26 +1,12 @@
 import { useCallback } from 'react';
-import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
-import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
+import { TabBarWithResumePill } from '@/components/TabBarWithResumePill';
 import { typography } from '@/theme/typography';
 import { useTabBarLayout } from '@/theme/layout';
-
-function TabBarWithResumePill({
-  showPill,
-  ...props
-}: BottomTabBarProps & { showPill: boolean }) {
-  return (
-    <View>
-      {showPill ? <ResumeWorkoutPill /> : null}
-      <BottomTabBar {...props} />
-    </View>
-  );
-}
 
 export default function TabsLayout() {
   const { colors } = useTheme();
@@ -47,8 +33,6 @@ export default function TabsLayout() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        // Scaling is applied to the measured font size instead, so the bar can never
-        // be shorter than its labels.
         tabBarAllowFontScaling: false,
         tabBarLabelStyle: {
           fontFamily: typography.label.fontFamily,

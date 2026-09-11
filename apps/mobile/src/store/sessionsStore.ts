@@ -3,13 +3,14 @@ import type { WorkoutSession } from '@muscleos/types';
 import {
   getSessions,
   setSessions,
-  getRecovery,
   setRecovery,
   getExercisePrevious,
   setExercisePrevious,
   type ExercisePrevious,
 } from '@/storage/localStorage';
-import { notifySessionDelete, notifyRecoverySnapshot, notifyExercisePreviousSnapshot } from '@/sync';
+import { notifySessionDelete, notifyExercisePreviousSnapshot } from '@/sync';
+import { recoveryFromSessions } from '@/utils/recovery';
+import { useExercisesStore } from '@/store/exercisesStore';
 export interface SessionsState {
   sessions: WorkoutSession[];
   isLoading: boolean;
@@ -37,9 +38,9 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     const remaining = sessions.filter((s) => s.id !== sessionId);
     await setSessions(remaining);
 
-    // Remove recovery impact for this workout (recovery uses startedAt as trainedAt)
-    const recovery = await getRecovery();
-    const updatedRecovery = recovery.filter((r) => r.trainedAt !== session.startedAt);
+    const updatedRecovery = recoveryFromSessions(remaining, (id) =>
+      useExercisesStore.getState().getExercise(id)
+    );
     await setRecovery(updatedRecovery);
 
     // Rebuild exercise previous from remaining sessions (newest first)
@@ -65,7 +66,6 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
 
     set({ sessions: remaining });
     notifySessionDelete(sessionId);
-    notifyRecoverySnapshot(updatedRecovery);
     notifyExercisePreviousSnapshot(prev);
   },
 

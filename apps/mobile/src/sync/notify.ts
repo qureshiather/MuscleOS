@@ -1,4 +1,4 @@
-import type { WorkoutSession, WorkoutTemplate, TemplateFolder, Exercise, MuscleRecovery } from '@muscleos/types';
+import type { WorkoutSession, WorkoutTemplate, TemplateFolder, Exercise } from '@muscleos/types';
 import type { ExercisePrevious, SyncedAppSettings } from '@/storage/localStorage';
 import { enqueueOutbox } from './outbox';
 import { isCloudSyncEnabled, schedulePush } from './syncEngine';
@@ -96,18 +96,6 @@ export function notifyCustomExerciseDelete(exerciseId: string): void {
     entityId: exerciseId,
     op: 'delete',
     updatedAt: new Date().toISOString(),
-  });
-  touch();
-}
-
-export function notifyRecoverySnapshot(recovery: MuscleRecovery[]): void {
-  if (!isCloudSyncEnabled()) return;
-  void enqueueOutbox({
-    entityType: 'recovery',
-    entityId: 'default',
-    op: 'upsert',
-    payload: recovery,
-    updatedAt: recovery.at(-1)?.trainedAt ?? new Date().toISOString(),
   });
   touch();
 }

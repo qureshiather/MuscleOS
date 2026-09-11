@@ -156,9 +156,9 @@ const PRO_POINTS = [
 ] as const;
 
 const STATS = [
-  { value: '5', label: 'Built-in programs' },
-  { value: '$0', label: 'Cost to start' },
-  { value: '100%', label: 'Your data' },
+  { value: '≈32 MB', label: 'App size' },
+  { value: '1–2 MB', label: 'Typical workout data' },
+  { value: '$0', label: 'Basic plan' },
 ] as const;
 
 export function LandingPage() {
@@ -291,17 +291,22 @@ export function LandingPage() {
 
         {/* Stats */}
         <section className="border-y border-border/70 bg-surface/60 py-12 sm:py-16">
-          <div className="mx-auto grid max-w-site gap-8 px-5 sm:grid-cols-3 sm:gap-10 sm:px-8">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-                  {stat.value}
-                </p>
-                <p className="mt-2 font-mono-label text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-                  {stat.label}
-                </p>
-              </div>
-            ))}
+          <div className="mx-auto max-w-site px-5 sm:px-8">
+            <p className="text-center font-display text-xl font-semibold text-ink">
+              Small app. Low storage use.
+            </p>
+            <div className="mt-8 grid gap-8 sm:grid-cols-3 sm:gap-10">
+              {STATS.map((stat) => (
+                <div key={stat.label} className="text-center">
+                  <p className="font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
+                    {stat.value}
+                  </p>
+                  <p className="mt-2 font-mono-label text-[11px] uppercase tracking-[0.18em] text-ink-muted">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

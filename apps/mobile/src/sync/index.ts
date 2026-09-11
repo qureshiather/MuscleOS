@@ -8,7 +8,6 @@ export {
   notifyFolderDelete,
   notifyCustomExerciseUpsert,
   notifyCustomExerciseDelete,
-  notifyRecoverySnapshot,
   notifyExercisePreviousSnapshot,
   notifyExerciseNotesSnapshot,
   notifyAppSettingsSnapshot,

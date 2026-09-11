@@ -32,8 +32,12 @@ export function schedulePush(delayMs = 2000): void {
 export async function pushNow(): Promise<void> {
   if (!isCloudSyncEnabled()) return;
 
-  const outbox = await getOutbox();
-  if (outbox.length === 0) return;
+  const rawOutbox = await getOutbox();
+  const outbox = rawOutbox.filter((entry) => entry.entityType !== 'recovery');
+  if (outbox.length === 0) {
+    if (rawOutbox.length > 0) await clearOutbox();
+    return;
+  }
 
   const customEntries = outbox.filter(isCustomExerciseOutbox);
   const syncEntries = outbox.filter((entry) => !isCustomExerciseOutbox(entry));

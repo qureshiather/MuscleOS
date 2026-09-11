@@ -224,7 +224,7 @@ export default function HistoryScreen() {
                         const isLast = idx === exercises.length - 1;
                         return (
                           <View
-                            key={se.exerciseId}
+                            key={`${se.exerciseId}-${idx}`}
                             style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}
                           >
                             <Text

@@ -3,7 +3,6 @@ import type {
   WorkoutTemplate,
   TemplateFolder,
   Exercise,
-  MuscleRecovery,
 } from '@muscleos/types';
 import {
   getSessions,
@@ -14,7 +13,6 @@ import {
   setTemplateFolders,
   getCustomExercises,
   setCustomExercises,
-  getRecovery,
   setRecovery,
   getExercisePrevious,
   setExercisePrevious,
@@ -37,6 +35,7 @@ import {
 } from './mergePolicy';
 import type { OutboxEntry, RemoteSyncRecord, SyncEntityType } from './types';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
+import { recoveryFromSessions } from '@/utils/recovery';
 
 function sessionUpdatedAt(session: WorkoutSession): string {
   return session.completedAt ?? session.startedAt;
@@ -73,7 +72,6 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     templates,
     folders,
     customExercises,
-    recovery,
     exercisePrevious,
     exerciseNotes,
     appSettings,
@@ -83,18 +81,20 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     getTemplates(),
     getTemplateFolders(),
     getCustomExercises(),
-    getRecovery(),
     getExercisePrevious(),
     getExerciseNotes(),
     getAppSettings(),
     getOutboxMap(),
   ]);
 
+  for (const [key, entry] of outboxMap) {
+    if (entry.entityType === 'recovery') outboxMap.delete(key);
+  }
+
   const sessionMap = new Map(sessions.map((s) => [s.id, s]));
   const templateMap = new Map(templates.map((t) => [t.id, t]));
   const folderMap = new Map(folders.map((f) => [f.id, f]));
   const exerciseMap = new Map(customExercises.map((e) => [e.id, e]));
-  let recoveryData = recovery;
   let previousData = exercisePrevious;
   let notesData = exerciseNotes;
   let settingsData = appSettings;
@@ -168,6 +168,8 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
           break;
         }
         case 'recovery':
+          // Recovery is derived locally from sessions, never from snapshots.
+          break;
         case 'exercise_previous':
         case 'exercise_note':
         case 'app_settings': {
@@ -178,7 +180,6 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
             remoteUpdatedAt,
           });
           if (decision === 'take_remote') {
-            if (record.entity_type === 'recovery') recoveryData = [];
             if (record.entity_type === 'exercise_previous') previousData = {};
             if (record.entity_type === 'exercise_note') notesData = {};
             if (record.entity_type === 'app_settings') settingsData = defaultAppSettings();
@@ -261,22 +262,8 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
         }
         break;
       }
-      case 'recovery': {
-        const remote = (record.payload as MuscleRecovery[]) ?? [];
-        const decision = decideEntityApply({
-          hasLocal: recoveryData.length > 0 || isDirty,
-          isDirty,
-          localUpdatedAt: pending?.updatedAt ?? (recoveryData.at(-1)?.trainedAt ?? null),
-          remoteUpdatedAt,
-        });
-        if (decision === 'take_remote') {
-          recoveryData = remote;
-          changed = true;
-        } else if (pending) {
-          touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, recoveryData);
-        }
+      case 'recovery':
         break;
-      }
       case 'exercise_previous': {
         const remote = (record.payload as Record<string, ExercisePrevious>) ?? {};
         const decision = decideEntityApply({
@@ -354,6 +341,10 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     }
   }
 
+  const recoveryData = recoveryFromSessions(Array.from(sessionMap.values()), (id) =>
+    exerciseMap.get(id)
+  );
+
   await Promise.all([
     setSessions(Array.from(sessionMap.values())),
     setTemplates(Array.from(templateMap.values())),
@@ -383,7 +374,6 @@ export async function collectFullLocalSnapshot(): Promise<
     templates,
     folders,
     customExercises,
-    recovery,
     exercisePrevious,
     exerciseNotes,
     appSettings,
@@ -392,7 +382,6 @@ export async function collectFullLocalSnapshot(): Promise<
     getTemplates(),
     getTemplateFolders(),
     getCustomExercises(),
-    getRecovery(),
     getExercisePrevious(),
     getExerciseNotes(),
     getAppSettings(),
@@ -422,14 +411,6 @@ export async function collectFullLocalSnapshot(): Promise<
   }
   for (const exercise of customExercises) {
     items.push({ entityType: 'custom_exercise', entityId: exercise.id, payload: exercise, updatedAt: now });
-  }
-  if (recovery.length) {
-    items.push({
-      entityType: 'recovery',
-      entityId: 'default',
-      payload: recovery,
-      updatedAt: recovery.at(-1)?.trainedAt ?? now,
-    });
   }
   if (Object.keys(exercisePrevious).length) {
     items.push({
@@ -465,10 +446,10 @@ export async function reloadSyncedStores(): Promise<void> {
   const { useExerciseNotesStore } = await import('@/store/exerciseNotesStore');
   const { useSettingsStore } = await import('@/store/settingsStore');
 
+  await useExercisesStore.getState().load();
   await Promise.all([
     useSessionsStore.getState().load(),
     useTemplatesStore.getState().load(),
-    useExercisesStore.getState().load(),
     useRecoveryStore.getState().load(),
     useExerciseNotesStore.getState().load(),
     useSettingsStore.getState().load(),
