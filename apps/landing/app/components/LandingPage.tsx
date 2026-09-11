@@ -1,7 +1,8 @@
-import Image from 'next/image';
-import Link from 'next/link';
-
+import { FaqJsonLd } from './FaqJsonLd';
+import { FaqSection } from './FaqSection';
 import { PhoneFrame } from './PhoneFrame';
+import { SiteFooter } from './SiteFooter';
+import { SiteHeader } from './SiteHeader';
 
 function AppStoreIcon({ className }: { className?: string }) {
   return (
@@ -51,52 +52,6 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
         <span>Google Play</span>
       </a>
     </div>
-  );
-}
-
-function SiteHeader() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-site items-center justify-between px-5 py-4 sm:px-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <Image
-            src="/icon.png"
-            alt=""
-            width={36}
-            height={36}
-            className="brand-mark h-9 w-9 rounded-[10px]"
-            priority
-            style={{ viewTransitionName: 'brand-mark' }}
-          />
-          <span className="font-display text-lg font-semibold tracking-tight text-ink">
-            MuscleOS
-          </span>
-        </Link>
-        <nav className="flex items-center gap-5 text-sm font-medium leading-none text-ink sm:gap-6">
-          <Link
-            href="#features"
-            className="hidden transition hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:inline"
-          >
-            Features
-          </Link>
-          <Link
-            href="#pricing"
-            className="transition hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/privacy"
-            className="transition hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            Privacy
-          </Link>
-        </nav>
-      </div>
-    </header>
   );
 }
 
@@ -209,6 +164,7 @@ const STATS = [
 export function LandingPage() {
   return (
     <>
+      <FaqJsonLd />
       <SiteHeader />
       <div className="bg-atmosphere relative min-h-screen">
         <div className="bg-grain pointer-events-none absolute inset-0 opacity-30" aria-hidden />
@@ -437,52 +393,9 @@ export function LandingPage() {
           </div>
         </section>
 
-        <footer className="border-t border-border/80 bg-background">
-          <div className="mx-auto flex max-w-site flex-col gap-8 px-5 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-8">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <Image src="/icon.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
-                <span className="font-display font-medium text-ink">MuscleOS</span>
-              </div>
-              <p className="mt-2 max-w-xs text-sm text-ink-secondary">
-                Workout logging for people who actually train.
-              </p>
-              <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
-            </div>
-            <div className="flex gap-12 text-sm">
-              <div>
-                <p className="font-medium text-ink">Product</p>
-                <ul className="mt-3 space-y-2">
-                  <li>
-                    <Link href="#features" className="text-ink-secondary transition hover:text-ink">
-                      Features
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#pricing" className="text-ink-secondary transition hover:text-ink">
-                      Pricing
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <p className="font-medium text-ink">Legal</p>
-                <ul className="mt-3 space-y-2">
-                  <li>
-                    <Link href="/privacy" className="text-ink-secondary transition hover:text-ink">
-                      Privacy
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/terms" className="text-ink-secondary transition hover:text-ink">
-                      Terms
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </footer>
+        <FaqSection />
+
+        <SiteFooter />
       </div>
     </>
   );

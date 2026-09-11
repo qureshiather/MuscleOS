@@ -53,6 +53,10 @@ export function LegalPageLayout({
       <footer className="relative z-10 border-t border-border/80 py-6 text-center text-sm text-ink-muted">
         <p>© {new Date().getFullYear()} MuscleOS</p>
         <p className="mt-1 flex justify-center gap-3">
+          <Link href="/faq" className="transition hover:text-ink">
+            FAQ
+          </Link>
+          <span aria-hidden>·</span>
           <Link href="/privacy" className="transition hover:text-ink">
             Privacy
           </Link>

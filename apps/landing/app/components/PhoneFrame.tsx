@@ -6,7 +6,13 @@ type PhoneFrameProps = {
   label?: string;
   priority?: boolean;
   className?: string;
+  size?: 'default' | 'compact';
 };
+
+const SIZE_CLASS = {
+  default: 'w-[200px] sm:w-[240px] lg:w-[280px]',
+  compact: 'w-[148px] sm:w-[168px] lg:w-[184px]',
+} as const;
 
 export function PhoneFrame({
   src,
@@ -14,10 +20,15 @@ export function PhoneFrame({
   label,
   priority = false,
   className = '',
+  size = 'default',
 }: PhoneFrameProps) {
   return (
-    <div className={`relative mx-auto w-[200px] sm:w-[240px] lg:w-[280px] ${className}`}>
-      <div className="relative rounded-[2.2rem] bg-phone-bezel p-2.5 shadow-phone ring-1 ring-black/40">
+    <div className={`relative mx-auto ${SIZE_CLASS[size]} ${className}`}>
+      <div
+        className={`relative rounded-[2.2rem] bg-phone-bezel p-2.5 ring-1 ring-black/40 ${
+          size === 'compact' ? 'shadow-phone-sm' : 'shadow-phone'
+        }`}
+      >
         <div className="relative aspect-[9/19.5] w-full overflow-hidden rounded-[1.7rem] bg-phone-frame">
           {src ? (
             <Image
@@ -26,7 +37,11 @@ export function PhoneFrame({
               fill
               priority={priority}
               className="object-cover object-top"
-              sizes="(max-width: 640px) 200px, (max-width: 1024px) 240px, 280px"
+              sizes={
+                size === 'compact'
+                  ? '(max-width: 640px) 148px, (max-width: 1024px) 168px, 184px'
+                  : '(max-width: 640px) 200px, (max-width: 1024px) 240px, 280px'
+              }
             />
           ) : (
             <div
