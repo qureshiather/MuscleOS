@@ -57,16 +57,16 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
 
 const PROBLEMS = [
   {
-    pain: 'Logging that gets in the way',
-    fix: 'Templates, sets, reps, rest timer — fast enough to use between sets.',
+    pain: 'Start quickly',
+    fix: 'Choose a built-in template and begin logging.',
   },
   {
-    pain: 'Programs that aren’t yours',
-    fix: 'Start on built-ins, then build custom templates and exercises when you’re ready.',
+    pain: 'Use your own workouts',
+    fix: 'Create templates for your usual training days with Pro.',
   },
   {
-    pain: 'No sense of whether you’re progressing',
-    fix: 'History, PRs, and progression charts show what the numbers are doing over time.',
+    pain: 'Check muscle recovery',
+    fix: 'See which muscles are ready and which are still recovering.',
   },
 ] as const;
 
@@ -74,8 +74,8 @@ const FEATURES = [
   {
     id: 'workouts',
     label: 'Workouts',
-    title: 'Templates, sets, and rest — without the clutter',
-    body: 'Pick a built-in program — Push Pull Legs or Strong Lifts 5×5 — run the session, and log weight and reps as you go. Plate calculator and workout sounds are there when you need them.',
+    title: 'Log your workouts',
+    body: 'Start with a built-in Push Pull Legs or Strong Lifts 5×5 workout. Enter your weight and reps, complete each set, and use the rest timer between sets.',
     points: [
       '5 built-in workouts (PPL + Strong Lifts)',
       'Set logging with rest timers',
@@ -87,8 +87,8 @@ const FEATURES = [
   {
     id: 'exercises',
     label: 'Exercises',
-    title: 'A library you can search and filter',
-    body: 'Browse hundreds of built-in movements by muscle and equipment. Add your own on Pro when the defaults aren’t enough.',
+    title: 'Find exercises',
+    body: 'Search the exercise library by name, muscle, or equipment. Tap an exercise to see instructions and the muscles it works.',
     points: [
       'Search by name, muscle, or equipment',
       'Muscle map on each exercise',
@@ -100,8 +100,8 @@ const FEATURES = [
   {
     id: 'recovery',
     label: 'Recovery',
-    title: 'Muscle readiness on a body map',
-    body: 'After you log a session, MuscleOS updates which muscle groups are still recovering. Same app, same data — just another tab when you want it.',
+    title: 'Check your recovery',
+    body: 'Recovery updates after each saved workout. The body map shows which muscles are ready and which are still recovering.',
     points: [
       'Front and back diagram',
       'Updates from logged workouts',
@@ -113,8 +113,8 @@ const FEATURES = [
   {
     id: 'history',
     label: 'History',
-    title: 'What you did, when you did it',
-    body: 'Review past sessions, dig into details, and export everything as JSON. Pro adds personal records, progression charts, and a monthly calendar.',
+    title: 'Review past workouts',
+    body: 'See your saved workouts, including duration, volume, exercises, and sets. Pro adds personal records, progression charts, and a monthly calendar.',
     points: [
       'Session list and detail',
       'JSON export anytime',
@@ -133,13 +133,13 @@ const STEPS = [
   },
   {
     n: '2',
-    title: 'Start a workout',
-    body: 'Use a built-in template or build your own on Pro.',
+    title: 'Choose a workout',
+    body: 'Start a built-in template or create your own with Pro.',
   },
   {
     n: '3',
-    title: 'Keep logging',
-    body: 'Sets, history, recovery, and progress stay in one place.',
+    title: 'Log your sets',
+    body: 'Enter your weight and reps, then save the workout.',
   },
 ] as const;
 
@@ -174,7 +174,7 @@ export function LandingPage() {
           <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-8 px-5 pb-12 pt-8 sm:gap-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-24 lg:pt-16">
             <div className="max-w-xl">
               <p className="font-mono-label mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-primary sm:mb-4">
-                Workout companion
+                Workout tracker
               </p>
 
               <h1 className="font-display text-[clamp(2.5rem,9vw,5rem)] font-extrabold leading-[0.95] tracking-tight text-ink">
@@ -182,18 +182,18 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-3 text-lg font-semibold leading-snug text-primary sm:mt-4 sm:text-2xl">
-                Log workouts. Track progress. Train your way.
+                Log your workouts and track muscle recovery.
               </p>
 
               <p className="mt-3 max-w-md text-base leading-relaxed text-ink-secondary sm:mt-4 sm:text-lg">
-                Five built-in workouts across PPL and Strong Lifts to start fast. Custom templates,
-                PRs, and progression when you want the full system.
+                Track sets, reps, weight, and rest. Review your workout history and see which
+                muscles are ready to train.
               </p>
 
               <div className="mt-6 sm:mt-8">
                 <StoreButtons />
               </div>
-              <p className="mt-3 text-sm text-ink-muted sm:mt-4">Free to start. Pro from $2.99/mo.</p>
+              <p className="mt-3 text-sm text-ink-muted sm:mt-4">Basic is free. Pro starts at $2.99/month.</p>
             </div>
 
             <div className="flex justify-center lg:justify-end">
@@ -206,10 +206,10 @@ export function LandingPage() {
         <section className="relative border-t border-border/70 bg-surface/50">
           <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
             <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-              Why MuscleOS
+              Overview
             </p>
             <h2 className="font-display mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-              A gym log that stays out of your way — and grows with how you train.
+              A simple way to track your training.
             </h2>
 
             <ul className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-5">
@@ -219,7 +219,7 @@ export function LandingPage() {
                   className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
                 >
                   <p className="font-medium text-ink">{item.pain}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">→ {item.fix}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{item.fix}</p>
                 </li>
               ))}
             </ul>
@@ -234,10 +234,10 @@ export function LandingPage() {
                 Features
               </p>
               <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-                Everything you need in the gym and after.
+                Workouts, recovery, exercises, and history.
               </h2>
               <p className="mt-4 text-lg text-ink-secondary">
-                Workouts, exercises, recovery, and history — one app, no social feed.
+                The main parts of MuscleOS.
               </p>
             </div>
 
@@ -313,11 +313,11 @@ export function LandingPage() {
                 Pricing
               </p>
               <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-                Free to start. Pro to train on your terms.
+                Choose Basic or Pro.
               </h2>
               <p className="mt-4 text-lg text-ink-secondary">
-                Basic covers solid built-in programs and full logging. Pro is the upgrade for your
-                own programs, flexible sessions, and progress tools.
+                Basic includes workout logging, built-in programs, Recovery, and History. Pro adds
+                custom workouts and progress tools.
               </p>
             </div>
 
@@ -325,7 +325,7 @@ export function LandingPage() {
               <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
                 <p className="font-display text-xl font-semibold text-ink">Basic</p>
                 <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
-                <p className="mt-2 text-sm text-ink-muted">Forever — no trial wall</p>
+                <p className="mt-2 text-sm text-ink-muted">No time limit</p>
                 <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
                   <li>5 built-in programs (PPL &amp; Strong Lifts)</li>
                   <li>Full set logging &amp; rest timers</li>
@@ -344,10 +344,10 @@ export function LandingPage() {
                   $19.99<span className="text-lg font-medium text-ink-muted">/yr</span>
                 </p>
                 <p className="mt-2 text-sm text-ink-muted">
-                  Best value · also $2.99/mo or $39.99 lifetime
+                  Monthly: $2.99 · Lifetime: $39.99
                 </p>
                 <p className="mt-5 text-sm font-medium text-ink">
-                  Everything in Basic, plus the tools serious lifters actually use:
+                  Pro also includes:
                 </p>
                 <ul className="mt-4 grid gap-2.5 text-sm text-ink-secondary sm:grid-cols-2">
                   {PRO_POINTS.map((point) => (
@@ -369,10 +369,10 @@ export function LandingPage() {
         <section id="how" className="relative border-t border-border/70">
           <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
             <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-              How it works
+              Getting started
             </p>
             <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-              Download. Log. Repeat.
+              Start your first workout.
             </h2>
             <ol className="mt-10 grid gap-8 sm:mt-12 sm:grid-cols-3">
               {STEPS.map((step) => (
@@ -386,7 +386,7 @@ export function LandingPage() {
 
             <div className="mt-12 flex flex-col gap-5 border-t border-border/80 pt-10 sm:mt-14 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-md text-base text-ink-secondary sm:text-lg">
-                Free on Basic. Pro from $2.99/mo when you want your own programs and progress tools.
+                Use Basic for free. Upgrade to Pro for custom workouts and progress tracking.
               </p>
               <StoreButtons />
             </div>

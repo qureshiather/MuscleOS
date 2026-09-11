@@ -14,6 +14,7 @@ module.exports = ({ config }) => ({
     revenueCatApiKeyAndroid: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ?? '',
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
-    enableGrantProTesting: process.env.EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING === 'true',
+    // Default on so TestFlight testers can unlock Pro. Set to "false" before App Store release.
+    enableGrantProTesting: process.env.EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING !== 'false',
   },
 });

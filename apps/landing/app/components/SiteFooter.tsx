@@ -11,7 +11,7 @@ export function SiteFooter() {
             <span className="font-display font-medium text-ink">MuscleOS</span>
           </div>
           <p className="mt-2 max-w-xs text-sm text-ink-secondary">
-            Workout logging for people who actually train.
+            Track workouts, history, and muscle recovery.
           </p>
           <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
         </div>
