@@ -400,6 +400,11 @@ export default function ActiveWorkoutScreen() {
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
+  // Selected through the store (not allTemplates(), which is a stable function) so the
+  // summary re-renders once templates finish loading.
+  const currentTemplate = useTemplatesStore((s) =>
+    session == null ? undefined : s.allTemplates().find((t) => t.id === session.templateId)
+  );
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
   // Rest timer state lives in store so it survives addSet/session updates
@@ -844,7 +849,6 @@ export default function ActiveWorkoutScreen() {
     );
   }
 
-  const currentTemplate = allTemplates().find((t) => t.id === session.templateId);
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
   const isNoTemplateWorkout = session.templateId === '_empty';
   const templateExerciseIds = currentTemplate?.exerciseIds ?? [];
@@ -1777,41 +1781,44 @@ export default function ActiveWorkoutScreen() {
       <Modal visible={showFinishSummary} transparent animationType="fade">
         <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowFinishSummary(false)}>
           <View
-            style={[styles.summaryCard, { backgroundColor: colors.surface }]}
+            style={[styles.summaryCard, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}
             onStartShouldSetResponder={() => true}
           >
             <Text style={[styles.summaryTitle, { color: colors.text }]}>Workout summary</Text>
             {currentTemplate?.name && (
               <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{currentTemplate.name}</Text>
             )}
-            <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Duration</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
-            </View>
-            <View style={styles.summaryExercises}>
-              <Text style={[styles.summarySectionLabel, { color: colors.textMuted }]}>Exercises</Text>
-              {completedSetsByExercise
-                .filter((ex) => ex.completed > 0)
-                .map((item, idx) => (
-                  <View key={idx} style={[styles.summaryExerciseRow, { borderBottomColor: colors.border }]}>
-                    <Text style={[styles.summaryExerciseName, { color: colors.text }]} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={[styles.summaryExerciseSets, { color: colors.textSecondary }]}>
-                      {item.completed} set{item.completed !== 1 ? 's' : ''}
-                      {item.sets.some((s) => s.weightKg != null || s.reps != null)
-                        ? ` · ${item.sets
-                            .map((s) => {
-                              const w = s.weightKg != null && s.weightKg > 0 ? kgToDisplay(s.weightKg, weightUnit) : '';
-                              const r = s.reps != null ? `${s.reps} reps` : '';
-                              return w && r ? `${w} × ${r}` : w || r || '—';
-                            })
-                            .join(', ')}`
-                        : ''}
-                    </Text>
-                  </View>
-                ))}
-            </View>
+            {/* Scrolls so the save actions below stay on screen no matter how many exercises were logged. */}
+            <ScrollView style={styles.summaryScroll} contentContainerStyle={styles.summaryScrollContent}>
+              <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Duration</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
+              </View>
+              <View style={styles.summaryExercises}>
+                <Text style={[styles.summarySectionLabel, { color: colors.textMuted }]}>Exercises</Text>
+                {completedSetsByExercise
+                  .filter((ex) => ex.completed > 0)
+                  .map((item, idx) => (
+                    <View key={idx} style={[styles.summaryExerciseRow, { borderBottomColor: colors.border }]}>
+                      <Text style={[styles.summaryExerciseName, { color: colors.text }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.summaryExerciseSets, { color: colors.textSecondary }]}>
+                        {item.completed} set{item.completed !== 1 ? 's' : ''}
+                        {item.sets.some((s) => s.weightKg != null || s.reps != null)
+                          ? ` · ${item.sets
+                              .map((s) => {
+                                const w = s.weightKg != null && s.weightKg > 0 ? kgToDisplay(s.weightKg, weightUnit) : '';
+                                const r = s.reps != null ? `${s.reps} reps` : '';
+                                return w && r ? `${w} × ${r}` : w || r || '—';
+                              })
+                              .join(', ')}`
+                          : ''}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+            </ScrollView>
             <View style={styles.summaryActions}>
               {isNoTemplateWorkout ? (
                 <>
@@ -1851,6 +1858,9 @@ export default function ActiveWorkoutScreen() {
                 </>
               ) : !isBuiltInWorkout && templateListChanged ? (
                 <>
+                  <Text style={[styles.summaryChangedHint, { color: colors.textMuted }]}>
+                    You changed the exercises in this workout.
+                  </Text>
                   <Pressable
                     style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
                     onPress={() => handleFinish(false)}
@@ -1864,7 +1874,7 @@ export default function ActiveWorkoutScreen() {
                     }}
                   >
                     <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
-                      Save values and template
+                      Overwrite this template
                     </Text>
                   </Pressable>
                   <Pressable
@@ -2803,7 +2813,9 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontSize: 15 },
   summaryValue: { ...typography.data, fontFamily: typography.data.fontFamily },
-  summaryExercises: { marginTop: 8, marginBottom: 20 },
+  summaryScroll: { flexGrow: 0, flexShrink: 1 },
+  summaryScrollContent: { paddingBottom: 20 },
+  summaryExercises: { marginTop: 8 },
   summarySectionLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   summaryExerciseRow: {
     paddingVertical: 10,
@@ -2812,6 +2824,7 @@ const styles = StyleSheet.create({
   summaryExerciseName: { fontSize: 16, fontWeight: '600' },
   summaryExerciseSets: { fontSize: 14, marginTop: 2 },
   summaryActions: { gap: 10 },
+  summaryChangedHint: { fontSize: 13, textAlign: 'center' },
   summarySaveBtn: {
     padding: 16,
     borderRadius: 14,

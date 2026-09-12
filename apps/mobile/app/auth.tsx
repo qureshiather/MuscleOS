@@ -4,13 +4,15 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { Screen } from '@/components/layout';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { radius, spacing } from '@/theme/tokens';
+import { radius, spacing, touch } from '@/theme/tokens';
+import { useScreenGutter } from '@/theme/layout';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
 
 export default function AuthScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const gutter = useScreenGutter();
   const { signInWithApple, signInWithGoogle } = useSignIn();
   const [loading, setLoading] = useState(false);
 
@@ -30,68 +32,77 @@ export default function AuthScreen() {
 
   return (
     <Screen>
-      <View style={styles.logoContainer}>
-        <Image source={require('../assets/icon.png')} style={styles.logo} resizeMode="contain" />
-        <Text style={[typography.screenTitle, { color: colors.text, marginTop: spacing.md }]}>MuscleOS</Text>
+      <View style={[styles.body, { paddingHorizontal: gutter }]}>
+        <View style={styles.logoContainer}>
+          <Image source={require('../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+          <Text style={[typography.screenTitle, { color: colors.text, marginTop: spacing.md }]}>MuscleOS</Text>
+        </View>
+        <View style={styles.header}>
+          <Text style={[typography.sectionTitle, styles.headerText, { color: colors.text }]}>Sign in</Text>
+          <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
+            Link an account to subscribe and restore Pro on any device.
+          </Text>
+        </View>
+        {Platform.OS === 'ios' && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={
+              isDark
+                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+            }
+            cornerRadius={radius.md}
+            style={styles.appleButton}
+            onPress={handleApple}
+          />
+        )}
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
+          ]}
+          onPress={handleGoogle}
+          disabled={loading}
+        >
+          <Text style={[typography.button, { color: colors.text }]}>Continue with Google</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
+          ]}
+          onPress={() => router.push('/auth-email')}
+          disabled={loading}
+        >
+          <Text style={[typography.button, { color: colors.text }]}>Continue with Email</Text>
+        </Pressable>
+        <Pressable onPress={() => router.back()} style={styles.skip} disabled={loading}>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>Skip for now</Text>
+        </Pressable>
       </View>
-      <View style={styles.header}>
-        <Text style={[typography.sectionTitle, { color: colors.text }]}>Sign in</Text>
-        <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-          Link an account to subscribe and restore Pro on any device.
-        </Text>
-      </View>
-      {Platform.OS === 'ios' && (
-        <AppleAuthentication.AppleAuthenticationButton
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-          buttonStyle={
-            isDark
-              ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-              : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-          }
-          cornerRadius={radius.md}
-          style={styles.appleButton}
-          onPress={handleApple}
-        />
-      )}
-      <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
-        ]}
-        onPress={handleGoogle}
-        disabled={loading}
-      >
-        <Text style={[typography.button, { color: colors.text }]}>Continue with Google</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
-        ]}
-        onPress={() => router.push('/auth-email')}
-        disabled={loading}
-      >
-        <Text style={[typography.button, { color: colors.text }]}>Continue with Email</Text>
-      </Pressable>
-      <Pressable onPress={() => router.back()} style={styles.skip} disabled={loading}>
-        <Text style={[typography.caption, { color: colors.textMuted }]}>Skip for now</Text>
-      </Pressable>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.lg + 4 },
+  body: {
+    paddingTop: spacing.lg,
+  },
   logoContainer: { alignItems: 'center', marginBottom: spacing.xl },
   logo: { width: 80, height: 80, borderRadius: radius.lg },
   header: { marginBottom: spacing.xl },
-  subtitle: { marginTop: spacing.sm },
-  appleButton: { height: 50, marginBottom: spacing.md },
+  headerText: { textAlign: 'center' },
+  subtitle: { marginTop: spacing.sm, textAlign: 'center' },
+  appleButton: { width: '100%', height: 50, marginBottom: spacing.md },
   button: {
-    padding: spacing.lg,
+    minHeight: touch.min,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
     marginBottom: spacing.md,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skip: { marginTop: spacing.xl, alignSelf: 'center' },
 });

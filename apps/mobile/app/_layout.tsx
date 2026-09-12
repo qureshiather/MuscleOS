@@ -12,6 +12,7 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { hydrateActiveWorkout } from '@/store/activeWorkoutStore';
 import { syncNow } from '@/sync';
 import { useSyncStore } from '@/store/syncStore';
@@ -61,11 +62,16 @@ export default function RootLayout() {
   const loadCustomExercises = useExercisesStore((s) => s.load);
   const refreshCatalog = useExercisesStore((s) => s.refreshCatalog);
   const loadExerciseNotes = useExerciseNotesStore((s) => s.load);
+  const loadTemplates = useTemplatesStore((s) => s.load);
 
   // Independent of auth/network so a resumed workout appears as fast as possible.
+  // Templates come along because the workout screen needs them to tell whether the
+  // session drifted from its template — resuming from the notification skips the tab
+  // that used to be the only thing loading them.
   useEffect(() => {
     void hydrateActiveWorkout();
-  }, []);
+    void loadTemplates();
+  }, [loadTemplates]);
 
   useEffect(() => {
     (async () => {
