@@ -15,6 +15,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import type { SubscriptionPlan } from '@muscleos/types';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -23,6 +24,7 @@ import {
   hasRevenueCatApiKey,
   isRevenueCatConfigured,
   openManageSubscriptions,
+  type OfferingPackages,
 } from '@/utils/revenueCat';
 import {
   BASIC_FEATURES_LIST,
@@ -41,13 +43,14 @@ const __DEV__ = process.env.NODE_ENV !== 'production';
 const extra = Constants.expoConfig?.extra as { enableGrantProTesting?: boolean } | undefined;
 const showGrantProTesting = __DEV__ || extra?.enableGrantProTesting === true;
 
-type PlanKey = 'monthly' | 'annual' | 'lifetime';
+type PlanKey = 'monthly' | 'annual';
 
-const PLAN_LABELS: Record<PlanKey, string> = {
+const PLAN_LABELS: Record<NonNullable<SubscriptionPlan>, string> = {
   monthly: 'Monthly',
   annual: 'Annual',
-  lifetime: 'Lifetime',
 };
+
+const PURCHASABLE_PLANS: PlanKey[] = ['monthly', 'annual'];
 
 function packagePrice(pkg: PurchasesPackage | null, fallback: string): string {
   return pkg?.product.priceString ?? fallback;
@@ -74,11 +77,7 @@ export default function SubscriptionScreen() {
   const [restoring, setRestoring] = useState(false);
   const [managing, setManaging] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>('annual');
-  const [packages, setPackages] = useState<{
-    monthly: PurchasesPackage | null;
-    annual: PurchasesPackage | null;
-    lifetime: PurchasesPackage | null;
-  }>({ monthly: null, annual: null, lifetime: null });
+  const [packages, setPackages] = useState<OfferingPackages>({ monthly: null, annual: null });
 
   useEffect(() => {
     void load(userId);
@@ -160,7 +159,6 @@ export default function SubscriptionScreen() {
 
   function planSubtitle(plan: PlanKey): string | null {
     if (plan === 'annual') return `Save ${annualSavings}% vs monthly`;
-    if (plan === 'lifetime') return 'Pay once, keep Pro forever';
     return null;
   }
 
@@ -216,23 +214,18 @@ export default function SubscriptionScreen() {
             <Text style={[typography.dataLarge, { color: pro ? colors.primary : colors.text }]}>
               {pro ? 'Pro' : 'Basic'}
             </Text>
-            {pro && state?.plan && state.plan !== 'lifetime' && (
+            {pro && state?.plan && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
                 {PLAN_LABELS[state.plan]} plan
               </Text>
             )}
-            {pro && state?.isLifetime && (
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-                Lifetime access — no renewal
-              </Text>
-            )}
-            {state?.expiresAt && pro && !state.isLifetime && (
+            {state?.expiresAt && pro && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
                 Renews{' '}
                 {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
               </Text>
             )}
-            {pro && !state?.isLifetime && (
+            {pro && (
               <Pressable
                 style={[
                   styles.manageBtn,
@@ -298,7 +291,7 @@ export default function SubscriptionScreen() {
                 <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>
                   Choose a plan
                 </Text>
-                {(['monthly', 'annual', 'lifetime'] as const).map((plan) => {
+                {PURCHASABLE_PLANS.map((plan) => {
                   const selected = selectedPlan === plan;
                   const subtitle = planSubtitle(plan);
                   return (
@@ -375,9 +368,8 @@ export default function SubscriptionScreen() {
                     { color: colors.textMuted, marginTop: spacing.md, textAlign: 'center' },
                   ]}
                 >
-                  {selectedPlan === 'lifetime'
-                    ? 'One-time purchase. Pro stays unlocked with no renewal.'
-                    : 'Auto-renews unless cancelled at least 24 hours before the period ends. Charged to your Apple or Google account at confirmation.'}
+                  Auto-renews unless cancelled at least 24 hours before the period ends. Charged to
+                  your Apple or Google account at confirmation.
                 </Text>
                 <View style={styles.legalRow}>
                   <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>

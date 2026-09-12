@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LegalPageLayout } from '../components/LegalPageLayout';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — MuscleOS',
@@ -76,7 +77,7 @@ export default function PrivacyPage() {
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-text mb-3">6. Payments and Third Parties</h2>
         <p className="mb-3">
-          If you subscribe to Pro or buy lifetime access, Apple or Google processes the payment. We receive
+          If you subscribe to Pro, Apple or Google processes the payment. We receive
           purchase status and entitlement information through RevenueCat so we can unlock Pro on your
           account. Those companies process payment data under their own privacy policies. We do not receive
           or store your full card number.
@@ -92,7 +93,7 @@ export default function PrivacyPage() {
         <p>
           If you have questions about this Privacy Policy, want to export your data, or want us to delete your
           account and associated data, contact us at{' '}
-          <a href="mailto:privacy@muscleos.app">privacy@muscleos.app</a>.
+          <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>.
         </p>
       </section>
     </LegalPageLayout>

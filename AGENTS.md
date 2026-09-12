@@ -135,8 +135,8 @@ apps/mobile/
 
 - **Specs:** [`docs/monetization/`](../docs/monetization/) — overview, pricing, features, technical, launch checklist.
 - **Tiers:** `basic` (free) and `pro`. UI labels: Basic / Pro.
-- **Pricing (USD):** $2.99/mo · $19.99/yr · $39.99 lifetime — see `apps/mobile/src/subscription/pricing.ts`.
-- **Billing:** RevenueCat SDK (`src/utils/revenueCat.ts`). Entitlement: **`MuscleOS Pro`**. Products: `muscleos_pro_monthly`, `muscleos_pro_annual`, `muscleos_pro_lifetime`.
+- **Pricing (USD):** $2.99/mo · $19.99/yr — see `apps/mobile/src/subscription/pricing.ts`.
+- **Billing:** RevenueCat SDK (`src/utils/revenueCat.ts`). Entitlement: **`MuscleOS Pro`**. Products: `muscleos_pro_monthly`, `muscleos_pro_annual`.
 - **Identity:** Supabase `user.id` is RevenueCat `appUserID`. Purchases require a linked (non-anonymous) account.
 - **State:** `subscriptionStore` + `SubscriptionState` in `@muscleos/types`. Use `useProGate()` / `useRequirePro()` from `src/hooks/useProGate.ts` for feature gates.
 - **Feature list:** `src/subscription/features.ts` — single source for paywall copy and gate keys.

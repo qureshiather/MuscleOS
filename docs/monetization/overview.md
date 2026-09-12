@@ -9,10 +9,9 @@ MuscleOS should feel **complete on Basic** and **worth upgrading on Pro** when a
 | Tier | Price | Audience |
 |------|-------|----------|
 | **Basic** | Free | Anyone starting out or running built-in programs |
-| **Pro** | Subscription or lifetime | Lifters who want their own templates, custom exercises, flexible sessions, and analytics |
-| **Lifetime** | One-time purchase | Same as Pro, forever |
+| **Pro** | Monthly or annual subscription | Lifters who want their own templates, custom exercises, flexible sessions, and analytics |
 
-There is **one Pro entitlement** (`MuscleOS Pro`). Monthly, annual, and lifetime all unlock the same features.
+There is **one Pro entitlement** (`MuscleOS Pro`). Monthly and annual unlock the same features.
 
 ## Design principles
 
@@ -34,7 +33,7 @@ There is **one Pro entitlement** (`MuscleOS Pro`). Monthly, annual, and lifetime
 ### Pro subscriber
 
 1. Links account (email / Apple / Google).
-2. Chooses monthly, annual, or lifetime on Subscription screen.
+2. Chooses monthly or annual on Subscription screen.
 3. RevenueCat grants `MuscleOS Pro`.
 4. Custom templates, analytics, and flexible workouts unlock.
 

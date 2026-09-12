@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
+
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/80 bg-background">
@@ -15,7 +17,7 @@ export function SiteFooter() {
           </p>
           <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
         </div>
-        <div className="flex gap-12 text-sm">
+        <div className="flex flex-wrap gap-x-12 gap-y-8 text-sm">
           <div>
             <p className="font-medium text-ink">Product</p>
             <ul className="mt-3 space-y-2">
@@ -33,6 +35,16 @@ export function SiteFooter() {
                 <Link href="/#pricing" className="text-ink-secondary transition hover:text-ink">
                   Pricing
                 </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-ink">Support</p>
+            <ul className="mt-3 space-y-2">
+              <li>
+                <a href={SUPPORT_MAILTO} className="text-ink-secondary transition hover:text-ink">
+                  {SUPPORT_EMAIL}
+                </a>
               </li>
             </ul>
           </div>

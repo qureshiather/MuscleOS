@@ -81,6 +81,16 @@ export function FaqAccordion() {
                       ))}
                     </ul>
                   ) : null}
+                  {item.contactEmail ? (
+                    <p>
+                      <a
+                        href={`mailto:${item.contactEmail}`}
+                        className="text-primary transition hover:underline"
+                      >
+                        {item.contactEmail}
+                      </a>
+                    </p>
+                  ) : null}
                   {item.aside ? (
                     <p className="border-t border-border/70 pt-3 text-sm text-ink-muted">
                       {item.aside}

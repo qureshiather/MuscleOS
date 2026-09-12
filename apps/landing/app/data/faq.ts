@@ -1,3 +1,5 @@
+import { SUPPORT_EMAIL } from './contact';
+
 export type FaqScreenshot = {
   src: string;
   alt: string;
@@ -14,6 +16,7 @@ export type FaqItem = {
   steps?: string[];
   screenshot?: FaqScreenshot;
   aside?: string;
+  contactEmail?: string;
   defaultOpen?: boolean;
 };
 
@@ -129,5 +132,12 @@ export const FAQ_ITEMS: FaqItem[] = [
     ],
     answerText:
       'Tap the three dots on a template and choose Hide. Use the same menu to show it again.',
+  },
+  {
+    id: 'support',
+    question: 'How do I contact support?',
+    paragraphs: ['Email us and we will get back to you.'],
+    contactEmail: SUPPORT_EMAIL,
+    answerText: `Email ${SUPPORT_EMAIL} and we will get back to you.`,
   },
 ];

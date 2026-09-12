@@ -143,16 +143,20 @@ const STEPS = [
   },
 ] as const;
 
+const BASIC_POINTS = [
+  '5 built-in programs (PPL & Strong Lifts)',
+  'Full set logging & rest timers',
+  'Exercise library',
+  'Recovery map',
+  'History & JSON export',
+] as const;
+
 const PRO_POINTS = [
   'Custom workout templates & folders',
   'Custom exercises',
-  'Empty / ad-hoc workouts',
-  'Add exercises mid-session',
-  'Replace exercises mid-session',
+  'Empty workouts & mid-session edits',
   'Save a finished workout as a template',
-  'Personal records & estimated 1RM',
-  'Exercise progression charts',
-  'Monthly training calendar',
+  'PRs, charts, and monthly calendar',
 ] as const;
 
 const STATS = [
@@ -326,21 +330,26 @@ export function LandingPage() {
               </p>
             </div>
 
-            <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:mt-14 sm:gap-6 lg:grid-cols-[1fr_1.15fr]">
-              <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
+            <div className="mx-auto mt-12 grid max-w-4xl items-stretch gap-5 sm:mt-14 sm:grid-cols-2 sm:gap-6">
+              <div className="flex h-full flex-col rounded-2xl border border-border bg-surface p-6 sm:p-8">
                 <p className="font-display text-xl font-semibold text-ink">Basic</p>
                 <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
                 <p className="mt-2 text-sm text-ink-muted">No time limit</p>
-                <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
-                  <li>5 built-in programs (PPL &amp; Strong Lifts)</li>
-                  <li>Full set logging &amp; rest timers</li>
-                  <li>Exercise library</li>
-                  <li>Recovery map</li>
-                  <li>History &amp; JSON export</li>
+                <p className="mt-5 text-sm font-medium text-ink">Includes:</p>
+                <ul className="mt-4 space-y-2.5 text-sm text-ink-secondary">
+                  {BASIC_POINTS.map((point) => (
+                    <li key={point} className="flex gap-2">
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted"
+                        aria-hidden
+                      />
+                      {point}
+                    </li>
+                  ))}
                 </ul>
               </div>
 
-              <div className="relative rounded-2xl border-2 border-primary bg-primary/[0.06] p-6 sm:p-8">
+              <div className="relative flex h-full flex-col rounded-2xl border-2 border-primary bg-primary/[0.06] p-6 sm:p-8">
                 <p className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
                   Recommended
                 </p>
@@ -348,13 +357,9 @@ export function LandingPage() {
                 <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
                   $19.99<span className="text-lg font-medium text-ink-muted">/yr</span>
                 </p>
-                <p className="mt-2 text-sm text-ink-muted">
-                  Monthly: $2.99 · Lifetime: $39.99
-                </p>
-                <p className="mt-5 text-sm font-medium text-ink">
-                  Pro also includes:
-                </p>
-                <ul className="mt-4 grid gap-2.5 text-sm text-ink-secondary sm:grid-cols-2">
+                <p className="mt-2 text-sm text-ink-muted">or $2.99/month</p>
+                <p className="mt-5 text-sm font-medium text-ink">Everything in Basic, plus:</p>
+                <ul className="mt-4 space-y-2.5 text-sm text-ink-secondary">
                   {PRO_POINTS.map((point) => (
                     <li key={point} className="flex gap-2">
                       <span

@@ -1,15 +1,13 @@
 export type SubscriptionTier = 'basic' | 'pro';
 
-export type SubscriptionPlan = 'monthly' | 'annual' | 'lifetime' | null;
+export type SubscriptionPlan = 'monthly' | 'annual' | null;
 
 export interface SubscriptionState {
   tier: SubscriptionTier;
-  /** For pro subscriptions: expiry as ISO string. Omitted for lifetime. */
+  /** For pro subscriptions: expiry as ISO string. */
   expiresAt?: string;
   /** Active billing plan when tier is pro. */
   plan?: SubscriptionPlan;
-  /** True when the user purchased lifetime access. */
-  isLifetime?: boolean;
   /** Store purchase token for restore */
   purchaseToken?: string;
 }

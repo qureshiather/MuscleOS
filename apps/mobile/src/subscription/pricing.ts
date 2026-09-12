@@ -2,13 +2,11 @@
 export const SUBSCRIPTION_PRICING_USD = {
   monthly: 2.99,
   annual: 19.99,
-  lifetime: 39.99,
 } as const;
 
 export const FALLBACK_PRICE_LABELS = {
   monthly: '$2.99/mo',
   annual: '$19.99/yr',
-  lifetime: '$39.99 once',
 } as const;
 
 /** Approximate annual savings vs paying monthly for 12 months. */

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
+
 export function LegalPageLayout({
   title,
   children,
@@ -52,10 +54,14 @@ export function LegalPageLayout({
 
       <footer className="relative z-10 border-t border-border/80 py-6 text-center text-sm text-ink-muted">
         <p>© {new Date().getFullYear()} MuscleOS</p>
-        <p className="mt-1 flex justify-center gap-3">
+        <p className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
           <Link href="/faq" className="transition hover:text-ink">
             FAQ
           </Link>
+          <span aria-hidden>·</span>
+          <a href={SUPPORT_MAILTO} className="transition hover:text-ink">
+            {SUPPORT_EMAIL}
+          </a>
           <span aria-hidden>·</span>
           <Link href="/privacy" className="transition hover:text-ink">
             Privacy

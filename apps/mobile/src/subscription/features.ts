@@ -21,25 +21,22 @@ export const PRO_FEATURE_LABELS: Record<ProFeature, string> = {
   monthly_calendar: 'Monthly training calendar',
 };
 
-/** Pro features shown on the paywall (ordered). */
+/** Pro highlights on the paywall — keep the same count as BASIC_FEATURES_LIST. */
 export const PRO_FEATURES_LIST = [
-  PRO_FEATURE_LABELS.custom_templates,
-  PRO_FEATURE_LABELS.custom_exercises,
-  PRO_FEATURE_LABELS.empty_workout,
-  PRO_FEATURE_LABELS.add_exercise_mid_workout,
-  PRO_FEATURE_LABELS.replace_exercise_mid_workout,
-  PRO_FEATURE_LABELS.save_as_template,
-  PRO_FEATURE_LABELS.personal_records,
-  PRO_FEATURE_LABELS.exercise_progression,
-  PRO_FEATURE_LABELS.monthly_calendar,
+  'Custom workout templates & folders',
+  'Custom exercises',
+  'Empty workouts & mid-session edits',
+  'Save a finished workout as a template',
+  'PRs, charts, and monthly calendar',
 ] as const;
 
 /** Basic tier highlights for comparison on the paywall. */
 export const BASIC_FEATURES_LIST = [
   '5 built-in programs (PPL & Strong Lifts)',
-  'Full workout logging & rest timers',
-  'Exercise library & recovery tracking',
-  'Workout history & data export',
+  'Full set logging & rest timers',
+  'Exercise library',
+  'Recovery map',
+  'History & JSON export',
 ] as const;
 
 export function subscriptionPaywallPath(feature?: ProFeature): `/subscription${string}` {

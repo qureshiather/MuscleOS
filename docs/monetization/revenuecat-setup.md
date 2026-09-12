@@ -10,7 +10,7 @@ Manual steps required before real IAP works in production. Product IDs must matc
 |-------|-------|
 | Identifier | `MuscleOS Pro` |
 
-All paid products grant this single entitlement (subscriptions + lifetime).
+All paid products grant this single entitlement (monthly and annual).
 
 ## App Store Connect / Google Play products
 
@@ -18,7 +18,6 @@ All paid products grant this single entitlement (subscriptions + lifetime).
 |------------|------|-------------|
 | `muscleos_pro_monthly` | Auto-renewable subscription, 1 month | $2.99 |
 | `muscleos_pro_annual` | Auto-renewable subscription, 1 year | $19.99 |
-| `muscleos_pro_lifetime` | Non-consumable (iOS) / one-time (Android) | $39.99 |
 
 **Platform API keys (required for store builds):**
 
@@ -29,16 +28,15 @@ All paid products grant this single entitlement (subscriptions + lifetime).
 
 Using the iOS key on Android (or vice versa) will fail silently or hang. Get both from RevenueCat → Project → API keys.
 
-Create a subscription group for monthly + annual on iOS. Attach lifetime as a separate non-consumable.
+Create a subscription group for monthly + annual on iOS.
 
 ## RevenueCat dashboard
 
 1. Create project and add iOS + Android apps.
-2. Create entitlement **`MuscleOS Pro`** and attach all three products.
+2. Create entitlement **`MuscleOS Pro`** and attach monthly + annual.
 3. Create **Default** offering with packages:
    - `$rc_monthly` → `muscleos_pro_monthly`
    - `$rc_annual` → `muscleos_pro_annual`
-   - `$rc_lifetime` → `muscleos_pro_lifetime`
 4. Copy the **public** SDK API key into `apps/mobile/.env`:
 
    ```
@@ -55,7 +53,7 @@ Create a subscription group for monthly + annual on iOS. Attach lifetime as a se
 
 - Use an **Expo development build** (not Expo Go) with sandbox Apple/Google accounts.
 - In dev, enable **Grant Pro (testing)** on the Subscription screen, or set `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true`.
-- Verify: monthly purchase, annual purchase, lifetime purchase, restore, and lapse after sandbox expiry.
+- Verify: monthly purchase, annual purchase, restore, and lapse after sandbox expiry.
 
 See [launch-checklist.md](launch-checklist.md) for the full checklist.
 

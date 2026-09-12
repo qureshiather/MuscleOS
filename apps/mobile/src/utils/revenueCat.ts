@@ -26,14 +26,14 @@ export const PRO_ENTITLEMENT_ID = 'MuscleOS Pro';
 export const PRODUCT_IDS = {
   monthly: 'muscleos_pro_monthly',
   annual: 'muscleos_pro_annual',
-  lifetime: 'muscleos_pro_lifetime',
 } as const;
 
 export type OfferingPackages = {
   monthly: PurchasesPackage | null;
   annual: PurchasesPackage | null;
-  lifetime: PurchasesPackage | null;
 };
+
+const EMPTY_PACKAGES: OfferingPackages = { monthly: null, annual: null };
 
 const RC_REQUEST_TIMEOUT_MS = 8_000;
 
@@ -175,7 +175,7 @@ export function hasProEntitlement(customerInfo: CustomerInfo | null): boolean {
   return ent?.isActive === true;
 }
 
-/** Expiration date for Pro entitlement, ISO string or undefined (lifetime). */
+/** Expiration date for Pro entitlement as an ISO string. */
 export function getProExpirationDate(customerInfo: CustomerInfo | null): string | undefined {
   if (!customerInfo) return undefined;
   const ent = customerInfo.entitlements.active[PRO_ENTITLEMENT_ID];
@@ -190,38 +190,31 @@ export function getProPlan(customerInfo: CustomerInfo | null): SubscriptionPlan 
   if (!ent?.isActive) return null;
 
   const productId = ent.productIdentifier;
-  if (productId === PRODUCT_IDS.lifetime) return 'lifetime';
   if (productId === PRODUCT_IDS.annual) return 'annual';
   if (productId === PRODUCT_IDS.monthly) return 'monthly';
-  if (!ent.expirationDate) return 'lifetime';
   return 'monthly';
 }
 
-export function isLifetimeEntitlement(customerInfo: CustomerInfo | null): boolean {
-  return getProPlan(customerInfo) === 'lifetime';
-}
-
-/** Get packages from the current offering (monthly, annual, lifetime). */
+/** Get purchasable packages from the current offering (monthly, annual). */
 export async function getOfferingPackages(): Promise<OfferingPackages> {
   if (!(await ensureRevenueCatConfigured())) {
-    return { monthly: null, annual: null, lifetime: null };
+    return EMPTY_PACKAGES;
   }
   try {
     const offerings = await withTimeout(Purchases.getOfferings(), RC_REQUEST_TIMEOUT_MS);
     if (!offerings) {
-      return { monthly: null, annual: null, lifetime: null };
+      return EMPTY_PACKAGES;
     }
     const current = offerings.current;
     if (!current) {
-      return { monthly: null, annual: null, lifetime: null };
+      return EMPTY_PACKAGES;
     }
     return {
       monthly: current.monthly ?? null,
       annual: current.annual ?? null,
-      lifetime: current.lifetime ?? null,
     };
   } catch {
-    return { monthly: null, annual: null, lifetime: null };
+    return EMPTY_PACKAGES;
   }
 }
 

@@ -62,6 +62,8 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 
 Locked actions navigate to `/subscription?feature=<gate_key>`. The subscription screen highlights the relevant Pro feature when a query param is present.
 
+Paywall comparison lists (`BASIC_FEATURES_LIST` / `PRO_FEATURES_LIST`) each have **5 items** so Basic and Pro stay visually balanced.
+
 ## Helpers
 
 - `useProGate()` — `{ isPro, gatePro(feature?) }` for inline actions

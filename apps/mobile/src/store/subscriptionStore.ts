@@ -21,13 +21,10 @@ import {
 
 function stateFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionState {
   const plan = getProPlan(customerInfo);
-  const isLifetime = plan === 'lifetime';
-  const expiresAt = isLifetime ? undefined : getProExpirationDate(customerInfo);
   return {
     tier: 'pro',
-    expiresAt,
+    expiresAt: getProExpirationDate(customerInfo),
     plan,
-    isLifetime,
   };
 }
 
@@ -40,7 +37,7 @@ export interface SubscriptionStoreState {
   load: (appUserId?: string | null) => Promise<void>;
   setPro: (
     expiresAt?: string,
-    options?: { devOverride?: boolean; plan?: SubscriptionPlan; isLifetime?: boolean }
+    options?: { devOverride?: boolean; plan?: SubscriptionPlan }
   ) => Promise<void>;
   setBasic: () => Promise<void>;
   isPro: () => boolean;
@@ -112,14 +109,10 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   },
 
   setPro: async (expiresAt, options) => {
-    const isLifetime = options?.isLifetime ?? false;
     const state: SubscriptionState = {
       tier: 'pro',
-      expiresAt: isLifetime
-        ? undefined
-        : expiresAt ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: expiresAt ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       plan: options?.plan ?? 'annual',
-      isLifetime,
     };
     await setSubscription(state);
     if (options?.devOverride) {
@@ -140,7 +133,6 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   isPro: () => {
     const { state } = get();
     if (!state || state.tier !== 'pro') return false;
-    if (state.isLifetime) return true;
     if (state.expiresAt && new Date(state.expiresAt) < new Date()) return false;
     return true;
   },

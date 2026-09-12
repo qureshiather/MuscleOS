@@ -34,13 +34,12 @@ flowchart LR
 
 ```ts
 type SubscriptionTier = 'basic' | 'pro';
-type SubscriptionPlan = 'monthly' | 'annual' | 'lifetime' | null;
+type SubscriptionPlan = 'monthly' | 'annual' | null;
 
 interface SubscriptionState {
   tier: SubscriptionTier;
-  expiresAt?: string;      // omitted for lifetime
+  expiresAt?: string;
   plan?: SubscriptionPlan;
-  isLifetime?: boolean;
 }
 ```
 
@@ -51,11 +50,10 @@ Legacy `tier: 'free'` in AsyncStorage migrates to `'basic'` on read.
 File: [`apps/mobile/src/utils/revenueCat.ts`](../../apps/mobile/src/utils/revenueCat.ts)
 
 - Entitlement: **`MuscleOS Pro`**
-- Products: `muscleos_pro_monthly`, `muscleos_pro_annual`, `muscleos_pro_lifetime`
-- `getOfferingPackages()` → `{ monthly, annual, lifetime }`
+- Products: `muscleos_pro_monthly`, `muscleos_pro_annual`
+- `getOfferingPackages()` → `{ monthly, annual }`
 - `purchasePackage(pkg)` → updates `CustomerInfo`
 - `hasProEntitlement()` is the source of truth for Pro access
-- Lifetime: active entitlement with no `expirationDate` → `isLifetime: true`
 
 Configure API key via `EXPO_PUBLIC_REVENUECAT_API_KEY` in `apps/mobile/.env`.
 
@@ -66,7 +64,7 @@ File: [`apps/mobile/src/store/subscriptionStore.ts`](../../apps/mobile/src/store
 | Method | Purpose |
 |--------|---------|
 | `load(appUserId?)` | Configure RC, sync from CustomerInfo or dev override |
-| `isPro()` | True if tier is pro and not expired (lifetime always true) |
+| `isPro()` | True if tier is pro and not expired |
 | `purchasePackage(pkg)` | IAP + persist state |
 | `restorePurchases()` | Restore from store |
 | `setPro()` / `setBasic()` | Dev testing only |
