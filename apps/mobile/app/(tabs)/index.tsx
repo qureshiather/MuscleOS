@@ -89,7 +89,9 @@ export default function WorkoutsScreen() {
   const [moveTemplateModal, setMoveTemplateModal] = useState<WorkoutTemplate | null>(null);
   const [showCreateFolderInMoveModal, setShowCreateFolderInMoveModal] = useState(false);
   const [moveModalNewFolderName, setMoveModalNewFolderName] = useState('');
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [templateMenuTarget, setTemplateMenuTarget] = useState<WorkoutTemplate | null>(null);
+  const [templateMenuWasHidden, setTemplateMenuWasHidden] = useState(false);
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
   const [folderDropdownLayout, setFolderDropdownLayout] = useState<{
     x: number;
@@ -389,6 +391,16 @@ export default function WorkoutsScreen() {
     setFolderExpanded((prev) => ({ ...prev, [folderId]: !(prev[folderId] ?? true) }));
   }
 
+  function openTemplateMenu(template: WorkoutTemplate) {
+    setTemplateMenuTarget(template);
+    setTemplateMenuWasHidden(isTemplateHidden(template));
+    setTemplateMenuOpen(true);
+  }
+
+  function closeTemplateMenu() {
+    setTemplateMenuOpen(false);
+  }
+
   function renderTemplateCard(
     template: WorkoutTemplate,
     cardStyle?: StyleProp<ViewStyle>,
@@ -426,7 +438,7 @@ export default function WorkoutsScreen() {
                   styles.templateMenuBtn,
                   { opacity: p ? 0.7 : 1 },
                 ]}
-                onPress={() => setTemplateMenuTarget(template)}
+                onPress={() => openTemplateMenu(template)}
               >
                 <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
               </Pressable>
@@ -1252,10 +1264,10 @@ export default function WorkoutsScreen() {
         );
       })()}
 
-      <Modal visible={!!templateMenuTarget} animationType="fade" transparent>
+      <Modal visible={templateMenuOpen} animationType="fade" transparent>
         <Pressable
           style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setTemplateMenuTarget(null)}
+          onPress={closeTemplateMenu}
         >
           <View
             style={[
@@ -1270,14 +1282,14 @@ export default function WorkoutsScreen() {
                   style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
                   onPress={() => {
                     if (!gatePro('custom_templates')) {
-                      setTemplateMenuTarget(null);
+                      closeTemplateMenu();
                       return;
                     }
                     if (templateMenuTarget) {
                       setEditingTemplateName(templateMenuTarget);
                       setEditingTemplateNewName(templateMenuTarget.name);
                     }
-                    setTemplateMenuTarget(null);
+                    closeTemplateMenu();
                   }}
                 >
                   <Ionicons name="pencil-outline" size={18} color={colors.text} />
@@ -1287,11 +1299,11 @@ export default function WorkoutsScreen() {
                   style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
                   onPress={() => {
                     if (!gatePro('custom_templates')) {
-                      setTemplateMenuTarget(null);
+                      closeTemplateMenu();
                       return;
                     }
                     if (templateMenuTarget) setMoveTemplateModal(templateMenuTarget);
-                    setTemplateMenuTarget(null);
+                    closeTemplateMenu();
                   }}
                 >
                   <Ionicons name="arrow-redo-outline" size={18} color={colors.text} />
@@ -1301,7 +1313,7 @@ export default function WorkoutsScreen() {
                   style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
                   onPress={() => {
                     if (!gatePro('custom_templates')) {
-                      setTemplateMenuTarget(null);
+                      closeTemplateMenu();
                       return;
                     }
                     if (templateMenuTarget) {
@@ -1310,7 +1322,7 @@ export default function WorkoutsScreen() {
                         params: { templateId: templateMenuTarget.id },
                       });
                     }
-                    setTemplateMenuTarget(null);
+                    closeTemplateMenu();
                   }}
                 >
                   <Ionicons name="create-outline" size={18} color={colors.text} />
@@ -1328,23 +1340,20 @@ export default function WorkoutsScreen() {
               ]}
               onPress={() => {
                 const target = templateMenuTarget;
-                setTemplateMenuTarget(null);
+                const nextHidden = !templateMenuWasHidden;
+                closeTemplateMenu();
                 if (target) {
-                  void setTemplateHidden(target, !isTemplateHidden(target));
+                  void setTemplateHidden(target, nextHidden);
                 }
               }}
             >
               <Ionicons
-                name={
-                  templateMenuTarget && isTemplateHidden(templateMenuTarget)
-                    ? 'eye-outline'
-                    : 'eye-off-outline'
-                }
+                name={templateMenuWasHidden ? 'eye-outline' : 'eye-off-outline'}
                 size={18}
                 color={colors.text}
               />
               <Text style={[styles.templateMenuItemText, { color: colors.text }]}>
-                {templateMenuTarget && isTemplateHidden(templateMenuTarget) ? 'Unhide' : 'Hide'}
+                {templateMenuWasHidden ? 'Unhide' : 'Hide'}
               </Text>
             </Pressable>
             {!templateMenuTarget?.isBuiltIn && (
@@ -1352,7 +1361,7 @@ export default function WorkoutsScreen() {
                 style={[styles.templateMenuItem, { borderBottomWidth: 0 }]}
                 onPress={() => {
                   const target = templateMenuTarget;
-                  setTemplateMenuTarget(null);
+                  closeTemplateMenu();
                   if (target) handleDeleteTemplate(target);
                 }}
               >
