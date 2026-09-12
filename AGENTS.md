@@ -35,7 +35,9 @@ MuscleOS/
 | `pnpm dev:landing` | Start landing only on port 3001 |
 | `pnpm build` | Build all packages |
 | `pnpm typecheck` | Type-check all packages |
-| `pnpm lint` | Lint all packages |
+| `pnpm lint` | Lint all packages with Biome |
+| `pnpm test` | Run unit/regression tests |
+| `pnpm check` | Lint + typecheck + test (CI) |
 | `pnpm clean` | Clean build artifacts and node_modules |
 
 ### Mobile Dev (Expo)
@@ -54,6 +56,8 @@ MuscleOS/
 | Mobile state | Zustand |
 | Mobile storage | AsyncStorage + Expo SecureStore (auth) |
 | Types | Shared `@muscleos/types` package |
+| Lint | Biome (ESLint replacement) |
+| Tests | Vitest, run via Turbo |
 | Landing | Next.js 15, React 19, Tailwind CSS |
 
 ---
@@ -154,6 +158,7 @@ apps/mobile/
 3. **New store**: Follow `authStore`/`templatesStore` pattern — load on app init from layout if needed.
 4. **New screen**: Add file under `app/`; use `Stack`/`Tabs` screen options for layout.
 5. **New component**: Place in `src/components/`, use `@/` imports and `useTheme()` for colors.
+6. **Tests**: Put `*.test.ts` next to domain helpers (`src/utils`, `@muscleos/types`). CI runs `pnpm check` (Biome + `tsc` + Vitest via Turbo).
 
 ---
 

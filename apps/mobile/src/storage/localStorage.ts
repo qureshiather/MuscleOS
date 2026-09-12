@@ -135,7 +135,9 @@ export function onThemeStorageChanged(listener: () => void): () => void {
 }
 
 function emitThemeStorageChanged(): void {
-  themeStorageListeners.forEach((listener) => listener());
+  for (const listener of themeStorageListeners) {
+    listener();
+  }
 }
 
 export async function setAppSettings(settings: SyncedAppSettings): Promise<void> {

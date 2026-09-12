@@ -9,7 +9,9 @@
     "ios": "expo run:ios",
     "build": "expo export",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint",
+    "lint": "biome lint --diagnostic-level=error .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf .expo node_modules",
     "seed:exercises": "node scripts/seed-exercises-from-strengthlog.mjs",
     "eas-build-post-install": "cd ../.. && pnpm run build --filter @muscleos/types"
@@ -54,10 +56,12 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/runtime": "^7.26.0",
+    "@biomejs/biome": "catalog:",
     "@types/react": "~19.1.17",
     "babel-preset-expo": "~54.0.0",
     "dotenv": "^16.4.5",
     "expo-mcp": "^0.2.4",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "catalog:"
   }
 }

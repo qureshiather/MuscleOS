@@ -1,4 +1,4 @@
-import type { WorkoutSession, SetRecord } from '@muscleos/types';
+import type { WorkoutSession } from '@muscleos/types';
 
 /**
  * Epley formula: 1RM ≈ weight × (1 + reps/30)

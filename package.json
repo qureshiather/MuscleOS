@@ -12,7 +12,10 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "lint:fix": "biome lint --write .",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test",
     "dev": "turbo run dev",
     "dev:landing": "pnpm --filter landing dev",
     "supabase": "node scripts/supabase.mjs",
@@ -21,6 +24,7 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "supabase": "^2.115.0",
     "turbo": "^2.8.17"
   },

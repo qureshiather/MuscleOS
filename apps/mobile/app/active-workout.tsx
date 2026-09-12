@@ -572,15 +572,15 @@ export default function ActiveWorkoutScreen() {
       setPreviousMap(prev);
       const current = useActiveWorkoutStore.getState().session;
       if (!current) return;
-      current.exercises.forEach((se, exIdx) => {
+      for (const [exIdx, se] of current.exercises.entries()) {
         const p = prev[se.exerciseId];
-        if (!p) return;
-        se.sets.forEach((set, setIdx) => {
+        if (!p) continue;
+        for (const [setIdx, set] of se.sets.entries()) {
           if (set.weightKg == null && set.reps == null) {
             setSetRecord(exIdx, setIdx, { weightKg: p.weightKg, reps: p.reps });
           }
-        });
-      });
+        }
+      }
     });
   }, [session?.id]);
 
@@ -677,7 +677,9 @@ export default function ActiveWorkoutScreen() {
     for (const se of session.exercises) {
       if (!se.sets.some((s) => s.completed)) continue;
       const exercise = getExercise(se.exerciseId);
-      exercise?.muscles.forEach((m) => muscleIdSet.add(m));
+      for (const m of exercise?.muscles ?? []) {
+        muscleIdSet.add(m);
+      }
     }
 
     const summary: FinishedSummary = {

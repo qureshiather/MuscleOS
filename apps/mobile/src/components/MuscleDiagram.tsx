@@ -81,11 +81,15 @@ export function MuscleDiagram({
 
   const recoveringSlugSet = new Set<Slug>();
   if (recoveringMuscleIds?.length) {
-    recoveringMuscleIds.forEach((id) => recoveringSlugSet.add(MUSCLE_ID_TO_SLUG[id]));
+    for (const id of recoveringMuscleIds) {
+      recoveringSlugSet.add(MUSCLE_ID_TO_SLUG[id]);
+    }
   }
   const justTrainedSlugSet = new Set<Slug>();
   if (justTrainedMuscleIds?.length) {
-    justTrainedMuscleIds.forEach((id) => justTrainedSlugSet.add(MUSCLE_ID_TO_SLUG[id]));
+    for (const id of justTrainedMuscleIds) {
+      justTrainedSlugSet.add(MUSCLE_ID_TO_SLUG[id]);
+    }
   }
   const recoveringOnlySlugSet = new Set([...recoveringSlugSet].filter((slug) => !justTrainedSlugSet.has(slug)));
   const readySlugSet = new Set([...ALL_SLUGS].filter((slug) => !recoveringSlugSet.has(slug)));
@@ -103,7 +107,9 @@ export function MuscleDiagram({
         ]
     : (() => {
         const slugSet = new Set<Slug>();
-        muscleIds.forEach((id) => slugSet.add(MUSCLE_ID_TO_SLUG[id]));
+        for (const id of muscleIds) {
+          slugSet.add(MUSCLE_ID_TO_SLUG[id]);
+        }
         return Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
       })();
 

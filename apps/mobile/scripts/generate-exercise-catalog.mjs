@@ -132,8 +132,7 @@ function parseSource(src) {
   const items = [];
   const re =
     /\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)",\s*muscles:\s*\[([^\]]*)\],\s*equipment:\s*\[([^\]]*)\]/g;
-  let m;
-  while ((m = re.exec(src))) {
+  for (const m of src.matchAll(re)) {
     items.push({
       id: m[1],
       name: m[2],
@@ -145,7 +144,7 @@ function parseSource(src) {
   const aliasesByTarget = {};
   const aliasBlock = src.slice(src.indexOf('export const EXERCISE_SLUG_ALIASES'));
   const aliasRe = /'([^']+)':\s*'([^']+)'/g;
-  while ((m = aliasRe.exec(aliasBlock))) {
+  for (const m of aliasBlock.matchAll(aliasRe)) {
     const [, alias, target] = m;
     if (!aliasesByTarget[target]) aliasesByTarget[target] = [];
     if (!aliasesByTarget[target].includes(alias)) aliasesByTarget[target].push(alias);

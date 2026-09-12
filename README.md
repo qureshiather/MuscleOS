@@ -13,9 +13,12 @@ Fitness/workout tracking app (Expo React Native) with a Next.js landing site. Mo
 pnpm install
 pnpm dev          # mobile + landing
 pnpm dev:landing  # landing only (port 3001)
+pnpm check        # biome + typecheck + tests (also runs in GitHub Actions)
 ```
 
 Mobile app: `cd apps/mobile && pnpm dev`
+
+CI (GitHub Actions on `main` and PRs) runs the same `pnpm check` pipeline: Biome, TypeScript, and Vitest via Turbo.
 
 ## Expo login
 
