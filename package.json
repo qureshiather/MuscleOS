@@ -26,7 +26,7 @@
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "supabase": "^2.115.0",
-    "turbo": "^2.8.17"
+    "turbo": "^2.10.12"
   },
   "engines": {
     "node": ">=20"
