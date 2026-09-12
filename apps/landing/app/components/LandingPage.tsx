@@ -43,7 +43,7 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
         <span>App Store</span>
       </a>
       <a
-        href="https://play.google.com/store/apps/details?id=com.muscleos.app"
+        href="https://play.google.com/store/apps/details?id=com.muscle-os.app"
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-[15px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${primary}`}
@@ -122,24 +122,6 @@ const FEATURES = [
     ],
     src: '/screens/history.png',
     alt: 'MuscleOS History screen',
-  },
-] as const;
-
-const STEPS = [
-  {
-    n: '1',
-    title: 'Download',
-    body: 'Get MuscleOS on iPhone or Android.',
-  },
-  {
-    n: '2',
-    title: 'Choose a workout',
-    body: 'Start a built-in template or create your own with Pro.',
-  },
-  {
-    n: '3',
-    title: 'Log your sets',
-    body: 'Enter your weight and reps, then save the workout.',
   },
 ] as const;
 
@@ -371,34 +353,6 @@ export function LandingPage() {
                   ))}
                 </ul>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* How + close */}
-        <section id="how" className="relative border-t border-border/70">
-          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
-            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-              Getting started
-            </p>
-            <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-              Start your first workout.
-            </h2>
-            <ol className="mt-10 grid gap-8 sm:mt-12 sm:grid-cols-3">
-              {STEPS.map((step) => (
-                <li key={step.n} className="relative">
-                  <span className="font-display text-4xl font-bold text-primary/25">{step.n}</span>
-                  <h3 className="font-display mt-2 text-xl font-semibold text-ink">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{step.body}</p>
-                </li>
-              ))}
-            </ol>
-
-            <div className="mt-12 flex flex-col gap-5 border-t border-border/80 pt-10 sm:mt-14 sm:flex-row sm:items-center sm:justify-between">
-              <p className="max-w-md text-base text-ink-secondary sm:text-lg">
-                Use Basic for free. Upgrade to Pro for custom workouts and progress tracking.
-              </p>
-              <StoreButtons />
             </div>
           </div>
         </section>

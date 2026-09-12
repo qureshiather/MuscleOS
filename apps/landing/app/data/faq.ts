@@ -1,11 +1,5 @@
 import { SUPPORT_EMAIL } from './contact';
 
-export type FaqScreenshot = {
-  src: string;
-  alt: string;
-  label: string;
-};
-
 export type FaqItem = {
   id: string;
   question: string;
@@ -14,7 +8,10 @@ export type FaqItem = {
   paragraphs: string[];
   bullets?: string[];
   steps?: string[];
-  screenshot?: FaqScreenshot;
+  instructionGroups?: {
+    title: string;
+    steps: string[];
+  }[];
   aside?: string;
   contactEmail?: string;
   defaultOpen?: boolean;
@@ -25,16 +22,25 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'how-to-workout',
     question: 'How do I start a workout?',
     defaultOpen: true,
-    screenshot: {
-      src: '/screens/workouts.png',
-      alt: 'MuscleOS Workouts tab with empty workout, suggested templates, and custom Pull / Push days',
-      label: 'Workouts',
-    },
-    paragraphs: [
-      'Open the Workouts tab. Tap a template to start it, or tap Empty workout to add exercises as you go.',
+    paragraphs: ['Open the Workouts tab, then follow the steps for your plan:'],
+    instructionGroups: [
+      {
+        title: 'Basic',
+        steps: [
+          'Choose one of the built-in workout templates.',
+          'Review the exercises and tap Start workout.',
+        ],
+      },
+      {
+        title: 'Pro',
+        steps: [
+          'Choose a built-in or custom workout template, or tap Empty workout.',
+          'Add or review your exercises, then start the workout.',
+        ],
+      },
     ],
     answerText:
-      'Open the Workouts tab and tap a template. You can also tap Empty workout to add exercises as you go. Empty workouts require Pro.',
+      'On Basic, open the Workouts tab, choose a built-in template, review its exercises, and start the workout. On Pro, choose a built-in or custom template, or start an empty workout and add exercises as you go.',
   },
   {
     id: 'log-sets',
@@ -83,11 +89,6 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'recovery',
     question: 'How does Recovery work?',
-    screenshot: {
-      src: '/screens/recovery.png',
-      alt: 'MuscleOS Recovery tab with front and back muscle diagrams',
-      label: 'Recovery',
-    },
     paragraphs: [
       'Recovery updates after you save a workout. It shows which muscles are ready and which are still recovering.',
       'The Workouts tab also suggests templates based on the muscles that are ready.',
@@ -99,11 +100,6 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'history',
     question: 'Where can I see past workouts?',
-    screenshot: {
-      src: '/screens/history.png',
-      alt: 'MuscleOS History tab showing past sessions with volume and sets',
-      label: 'History',
-    },
     paragraphs: [
       'Open the History tab. Tap a workout to see its exercises, sets, duration, and total volume.',
     ],
@@ -113,11 +109,6 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'exercises',
     question: 'How do I find exercises?',
-    screenshot: {
-      src: '/screens/exercises.png',
-      alt: 'MuscleOS exercise library with search and muscle filters',
-      label: 'Exercises',
-    },
     paragraphs: [
       'Open the Exercises tab. Search by name or filter by muscle and equipment. Tap an exercise to see its instructions and muscle map.',
     ],
