@@ -23,7 +23,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import type { WorkoutTemplate } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
-import { MUSCLE_GROUPS } from '@muscleos/types';
+import { formatMuscleLabels } from '@muscleos/types';
 import { Ionicons } from '@expo/vector-icons';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
@@ -296,7 +296,7 @@ export default function CreateTemplateScreen() {
                 </Text>
                 <MuscleDiagram muscleIds={templateMuscleIds} size={0.85} />
                 <Text style={[typography.caption, styles.muscleNames, { color: colors.textSecondary }]}>
-                  {templateMuscleIds.map((id) => MUSCLE_GROUPS[id].name).join(', ')}
+                  {formatMuscleLabels(templateMuscleIds)}
                 </Text>
               </Card>
             )}
@@ -436,7 +436,7 @@ export default function CreateTemplateScreen() {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[typography.bodyMedium, { color: colors.text }]}>{item.name}</Text>
                     <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                      {item.muscles.map((m) => MUSCLE_GROUPS[m].name).join(' · ')}
+                      {formatMuscleLabels(item.muscles, ' · ')}
                     </Text>
                   </View>
                   <Ionicons name="add-circle" size={22} color={colors.primary} />

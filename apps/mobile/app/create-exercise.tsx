@@ -14,9 +14,11 @@ import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useExercisesStore } from '@/store/exercisesStore';
 import {
+  EQUIPMENT_LABELS,
   EXERCISE_CATEGORIES,
   EXERCISE_CATEGORY_LABELS,
   MUSCLE_GROUPS,
+  muscleLabel,
 } from '@muscleos/types';
 import type { ExerciseCategory, MuscleId, Equipment } from '@muscleos/types';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -36,18 +38,6 @@ const EQUIPMENT_OPTIONS: Equipment[] = [
   'ez_bar',
   'other',
 ];
-
-const EQUIPMENT_LABELS: Record<Equipment, string> = {
-  barbell: 'Barbell',
-  dumbbell: 'Dumbbell',
-  kettlebell: 'Kettlebell',
-  cable: 'Cable',
-  machine: 'Machine',
-  bodyweight: 'Bodyweight',
-  band: 'Band',
-  ez_bar: 'EZ Bar',
-  other: 'Other',
-};
 
 const MUSCLE_IDS = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
@@ -174,7 +164,7 @@ export default function CreateExerciseScreen() {
                 onPress={() => toggleMuscle(id)}
               >
                 <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
-                  {MUSCLE_GROUPS[id].name}
+                  {muscleLabel(id)}
                 </Text>
               </Pressable>
             );

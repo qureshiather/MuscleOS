@@ -8,7 +8,7 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { MUSCLE_GROUPS } from '@muscleos/types';
+import { MUSCLE_GROUPS, muscleLabel } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
@@ -102,7 +102,7 @@ export default function RecoveryScreen() {
                 ]}
               >
                 <Text style={[typography.body, { color: colors.text }]}>
-                  {MUSCLE_GROUPS[r.muscleId].name}
+                  {muscleLabel(r.muscleId)}
                 </Text>
                 <Text style={[typography.caption, styles.recoveryUntil, { color: colors.textMuted }]}>
                   {formatRecoveryReady(getRecoveryUntil(r))}

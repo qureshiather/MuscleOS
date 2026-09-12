@@ -1,5 +1,5 @@
 import type { Exercise } from '@muscleos/types';
-import { EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS } from '@muscleos/types';
+import { EXERCISE_CATEGORY_LABELS, muscleLabel } from '@muscleos/types';
 
 /** Lowercase, strip diacritics, turn punctuation/hyphens into spaces. */
 export function normalizeSearchText(value: string): string {
@@ -116,10 +116,7 @@ function metadataHaystacks(exercise: Exercise): string[] {
     exercise.category.replace('_', ' '),
     EXERCISE_CATEGORY_LABELS[exercise.category],
     ...exercise.equipment,
-    ...exercise.muscles.flatMap((id) => {
-      const group = MUSCLE_GROUPS[id];
-      return group ? [group.name, id.replace('_', ' ')] : [id.replace('_', ' ')];
-    }),
+    ...exercise.muscles.flatMap((id) => [muscleLabel(id), id.replace(/_/g, ' ')]),
   ];
   return fields;
 }

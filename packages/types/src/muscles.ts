@@ -44,3 +44,23 @@ export const MUSCLE_GROUPS: Record<MuscleId, MuscleGroup> = {
   glutes: { id: 'glutes', name: 'Glutes', region: 'lower_back' },
   calves: { id: 'calves', name: 'Calves', region: 'lower_back' },
 };
+
+/** User-facing label for a muscle ID. Never show the raw ID (e.g. `rear_delts`) in UI. */
+export function muscleLabel(id: MuscleId): string {
+  return MUSCLE_GROUPS[id]?.name ?? humanizeMuscleId(id);
+}
+
+export function formatMuscleLabels(
+  ids: readonly MuscleId[],
+  separator = ', '
+): string {
+  return ids.map(muscleLabel).join(separator);
+}
+
+function humanizeMuscleId(id: string): string {
+  return id
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}

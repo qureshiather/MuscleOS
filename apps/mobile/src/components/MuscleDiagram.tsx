@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Body from 'react-native-body-highlighter';
 import type { Slug } from 'react-native-body-highlighter';
-import type { MuscleId } from '@muscleos/types';
+import { formatMuscleLabels, type MuscleId } from '@muscleos/types';
 import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeContext';
 import { useDeviceMetrics } from '@/theme/layout';
 import { spacing } from '@/theme/tokens';
@@ -147,7 +147,7 @@ export function MuscleDiagram({
       {showLabels && muscleIds.length > 0 && (
         <View style={styles.labels}>
           <Text style={[styles.labelText, { color: colors.textSecondary }]}>
-            Targeted: {muscleIds.join(', ')}
+            Targeted: {formatMuscleLabels(muscleIds)}
           </Text>
         </View>
       )}

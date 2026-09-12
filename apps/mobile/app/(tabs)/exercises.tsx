@@ -21,7 +21,7 @@ import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useProGate } from '@/hooks/useProGate';
-import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS } from '@muscleos/types';
+import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatEquipmentLabels, formatMuscleLabels, muscleLabel } from '@muscleos/types';
 import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { searchExercises } from '@/utils/exerciseSearch';
@@ -78,8 +78,8 @@ export default function ExercisesScreen() {
   };
 
   const typeLabel = typeFilter === null ? 'All' : EXERCISE_CATEGORY_LABELS[typeFilter];
-  const muscleLabel = muscleFilter === null ? 'All' : LARGE_GROUP_LABELS[muscleFilter] ?? MUSCLE_GROUPS[muscleFilter as MuscleId]?.name ?? muscleFilter;
-  const filterSummary = `${typeLabel} · ${muscleLabel}`;
+  const muscleFilterLabel = muscleFilter === null ? 'All' : LARGE_GROUP_LABELS[muscleFilter] ?? muscleLabel(muscleFilter as MuscleId);
+  const filterSummary = `${typeLabel} · ${muscleFilterLabel}`;
 
   const filtered = useMemo(() => {
     let list = searchExercises(allExercises, search);
@@ -332,11 +332,11 @@ export default function ExercisesScreen() {
               )}
             </View>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
-              {item.muscles.map((id) => MUSCLE_GROUPS[id].name).join(' · ')}
+              {formatMuscleLabels(item.muscles, ' · ')}
             </Text>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
               {EXERCISE_CATEGORY_LABELS[item.category]}
-              {item.equipment.length ? ` · ${item.equipment.join(', ')}` : ''}
+              {item.equipment.length ? ` · ${formatEquipmentLabels(item.equipment)}` : ''}
             </Text>
           </Pressable>
         )}
@@ -371,16 +371,16 @@ export default function ExercisesScreen() {
                     <Text style={[styles.modalClose, { color: colors.primary }]}>Close</Text>
                   </Pressable>
                 </View>
-                <MuscleDiagram muscleIds={selected.muscles} showLabels size={0.9} />
+                <MuscleDiagram muscleIds={selected.muscles} size={0.9} />
                 <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Muscles</Text>
                   <Text style={[styles.bodyText, { color: colors.text }]}>
-                    {selected.muscles.map((id) => MUSCLE_GROUPS[id].name).join(', ')}
+                    {formatMuscleLabels(selected.muscles)}
                   </Text>
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Type</Text>
                   <Text style={[styles.bodyText, { color: colors.text }]}>
                     {EXERCISE_CATEGORY_LABELS[selected.category]}
-                    {selected.equipment.length ? ` · ${selected.equipment.join(', ')}` : ''}
+                    {selected.equipment.length ? ` · ${formatEquipmentLabels(selected.equipment)}` : ''}
                   </Text>
                   {selected.id.startsWith('custom_') ? (
                     <View style={styles.customActions}>

@@ -10,7 +10,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useExercisesStore } from '@/store/exercisesStore';
-import { MUSCLE_GROUPS } from '@muscleos/types';
+import { formatMuscleLabels } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { formatWeight } from '@/utils/weightUnits';
@@ -43,7 +43,7 @@ export default function WorkoutPreviewScreen() {
   const workoutMuscleIds: MuscleId[] = Array.from(
     new Set(exerciseIds.flatMap((id) => getExercise(id)?.muscles ?? []))
   );
-  const workoutMuscleNames = workoutMuscleIds.map((id) => MUSCLE_GROUPS[id].name).join(', ');
+  const workoutMuscleNames = formatMuscleLabels(workoutMuscleIds);
 
   useEffect(() => {
     getExercisePrevious().then(setPreviousMap);
@@ -125,7 +125,7 @@ export default function WorkoutPreviewScreen() {
           const exercise = getExercise(exerciseId);
           const prev = previousMap[exerciseId];
           const muscleNames =
-            exercise?.muscles.map((id) => MUSCLE_GROUPS[id].name).join(', ') ?? '—';
+            exercise ? formatMuscleLabels(exercise.muscles) : '—';
           return (
             <Card key={exerciseId} elevated style={styles.exerciseCard}>
               <View style={styles.exerciseRow}>

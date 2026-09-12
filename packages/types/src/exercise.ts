@@ -45,3 +45,26 @@ export const EXERCISE_CATEGORY_LABELS: Record<ExerciseCategory, string> = {
   cable: 'Cable',
   bodyweight: 'Bodyweight',
 };
+
+export const EQUIPMENT_LABELS: Record<Equipment, string> = {
+  barbell: 'Barbell',
+  dumbbell: 'Dumbbell',
+  kettlebell: 'Kettlebell',
+  cable: 'Cable',
+  machine: 'Machine',
+  bodyweight: 'Bodyweight',
+  band: 'Band',
+  ez_bar: 'EZ Bar',
+  other: 'Other',
+};
+
+export function equipmentLabel(id: Equipment): string {
+  return EQUIPMENT_LABELS[id] ?? id.replace(/_/g, ' ');
+}
+
+export function formatEquipmentLabels(
+  ids: readonly Equipment[],
+  separator = ', '
+): string {
+  return ids.map(equipmentLabel).join(separator);
+}
