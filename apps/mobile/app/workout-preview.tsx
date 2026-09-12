@@ -5,7 +5,9 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen, ScreenFooter } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
+import { useProGate } from '@/hooks/useProGate';
+import { requiresProToStart, subscriptionPaywallPath } from '@/subscription/features';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
@@ -21,6 +23,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { isPro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
   const params = useLocalSearchParams<{
     templateId?: string;
@@ -54,6 +57,13 @@ export default function WorkoutPreviewScreen() {
       router.replace('/active-workout');
     }
   }, [activeSession, router]);
+
+  /** Custom templates stay runnable only while Pro is active, including via deep links. */
+  const startBlocked = !isPro && template != null && requiresProToStart(template);
+  useEffect(() => {
+    if (!startBlocked) return;
+    router.replace(subscriptionPaywallPath('custom_templates') as Href);
+  }, [startBlocked, router]);
 
   function handleStart() {
     if (activeSession) return;

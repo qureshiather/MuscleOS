@@ -23,7 +23,12 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { fontScaleCap, useBottomSpace, useDenseRowMetrics, useModalMaxHeight } from '@/theme/layout';
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
+import {
+  requiresProToStart,
+  subscriptionPaywallPath,
+  type ProFeature,
+} from '@/subscription/features';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useProGate } from '@/hooks/useProGate';
@@ -517,13 +522,38 @@ export default function ActiveWorkoutScreen() {
     if (!params.templateId || session || startedFromParamsRef.current || leavingWorkoutRef.current) {
       return;
     }
+    // Last line of defence: notifications and deep links reach this screen directly, so
+    // a lapsed subscription must not be able to start Pro-only work here either. An
+    // already-running session is untouched — this only blocks starting a new one.
+    if (!isPro) {
+      let blockedBy: ProFeature | null = null;
+      if (params.templateId === '_empty') {
+        blockedBy = 'empty_workout';
+      } else {
+        const requested = allTemplates().find((t) => t.id === params.templateId);
+        if (requested != null && requiresProToStart(requested)) blockedBy = 'custom_templates';
+      }
+      if (blockedBy != null) {
+        router.replace(subscriptionPaywallPath(blockedBy) as Href);
+        return;
+      }
+    }
     startedFromParamsRef.current = true;
     const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
     const defaultSets =
       params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
     const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
     startWorkout(params.templateId, ids, sets);
-  }, [params.templateId, params.exerciseIds, params.defaultSets, session, startWorkout]);
+  }, [
+    params.templateId,
+    params.exerciseIds,
+    params.defaultSets,
+    session,
+    startWorkout,
+    isPro,
+    allTemplates,
+    router,
+  ]);
 
   // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page),
   // and not before the persisted workout has been read back (deep link from the notification lands here first).

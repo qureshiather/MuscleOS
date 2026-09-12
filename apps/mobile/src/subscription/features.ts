@@ -39,6 +39,18 @@ export const BASIC_FEATURES_LIST = [
   'History & JSON export',
 ] as const;
 
+/**
+ * Custom templates are Pro content to *run*, not just to create.
+ *
+ * A lapsed Pro account keeps its templates — they are never deleted, and they stay
+ * visible so the data does not look lost — but starting one requires an active
+ * subscription. A workout already in progress when the subscription lapses may
+ * still be finished; the gate applies to starting a new one.
+ */
+export function requiresProToStart(template: { isBuiltIn?: boolean }): boolean {
+  return template.isBuiltIn !== true;
+}
+
 export function subscriptionPaywallPath(feature?: ProFeature): `/subscription${string}` {
   return feature ? `/subscription?feature=${feature}` : '/subscription';
 }

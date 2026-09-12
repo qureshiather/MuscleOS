@@ -32,6 +32,8 @@ export type PaletteBase = {
   recoveryReady: string;
   bodyDiagramBorder: string;
   bodyDiagramFill: string;
+  /** Training-region accent for core work. Push/pull/legs reuse primary/success/warning. */
+  regionCore: string;
 };
 
 /** Mode-specific UI tints (tables, set rows, overlays). */
@@ -91,6 +93,7 @@ export const paletteConfig: PaletteConfig = {
     recoveryReady: '#3DD68C',
     bodyDiagramBorder: '#454A5A',
     bodyDiagramFill: '#5A6070',
+    regionCore: '#A78BFA',
   },
   light: {
     background: '#F2F4FA',
@@ -116,6 +119,7 @@ export const paletteConfig: PaletteConfig = {
     recoveryReady: '#059669',
     bodyDiagramBorder: '#B8BCC8',
     bodyDiagramFill: '#C8CCD8',
+    regionCore: '#7C3AED',
   },
   ui: {
     dark: {
@@ -163,6 +167,10 @@ export type ThemeColors = PaletteBase & {
   rowFuture: string;
   inputBorder: string;
   overlay: string;
+  regionPush: string;
+  regionPull: string;
+  regionLegs: string;
+  regionMixed: string;
 };
 
 export function buildThemeColors(mode: ColorMode): ThemeColors {
@@ -180,6 +188,10 @@ export function buildThemeColors(mode: ColorMode): ThemeColors {
     rowFuture: ui.rowFuture,
     inputBorder: ui.inputBorder,
     overlay: ui.overlay,
+    regionPush: base.primary,
+    regionPull: base.success,
+    regionLegs: base.warning,
+    regionMixed: base.textSecondary,
   };
 }
 

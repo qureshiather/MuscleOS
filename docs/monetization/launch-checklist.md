@@ -50,3 +50,15 @@ Still required before live IAP.
 - [ ] Replace exercise mid-workout → paywall
 - [ ] PR / calendar buttons → paywall
 - [ ] Deep link `?feature=custom_templates` highlights correct copy
+
+## Downgrade (Pro → Basic with existing custom templates)
+
+See [features.md](features.md#downgrade-behaviour-pro--basic).
+
+- [ ] Custom templates still listed under **Mine**, shown locked (lock icon + `PRO` chip)
+- [ ] Tapping a locked custom template → paywall, does **not** start a workout
+- [ ] Custom templates absent from **Suggested** and **Recent**
+- [ ] Built-in templates still start normally
+- [ ] Deep link straight to `active-workout?templateId=<custom id>` → paywall
+- [ ] Workout already in progress when Pro lapses can still be finished
+- [ ] Resubscribe → same templates run again, nothing lost

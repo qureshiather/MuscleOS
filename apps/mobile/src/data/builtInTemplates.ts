@@ -11,7 +11,6 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
   {
     id: 'ppl-push',
     name: 'Push',
-    description: 'Chest, shoulders, triceps.',
     isBuiltIn: true,
     folderId: 'builtin_ppl',
     exerciseIds: ['bench-press', 'overhead-press', 'incline-bench', 'lateral-raise', 'tricep-pushdown', 'skull-crusher'],
@@ -19,7 +18,6 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
   {
     id: 'ppl-pull',
     name: 'Pull',
-    description: 'Back, biceps.',
     isBuiltIn: true,
     folderId: 'builtin_ppl',
     exerciseIds: ['barbell-row', 'pull-up', 'lat-pulldown', 'face-pull', 'barbell-curl', 'hammer-curl'],
@@ -27,7 +25,6 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
   {
     id: 'ppl-legs',
     name: 'Legs',
-    description: 'Quads, hamstrings, calves.',
     isBuiltIn: true,
     folderId: 'builtin_ppl',
     exerciseIds: ['squat', 'romanian-deadlift', 'leg-press', 'leg-curl', 'calf-raise', 'plank'],
