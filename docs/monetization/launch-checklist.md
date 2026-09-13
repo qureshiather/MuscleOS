@@ -2,6 +2,9 @@
 
 Complete before enabling real purchases in production.
 
+Tier rules and the full gate map live in
+[features/subscriptions.md](../features/subscriptions.md).
+
 ## Store & RevenueCat
 
 Still required before live IAP.
@@ -53,9 +56,9 @@ Still required before live IAP.
 
 ## Downgrade (Pro → Basic with existing custom templates)
 
-See [features.md](features.md#downgrade-behaviour-pro--basic).
+See [features/subscriptions.md](../features/subscriptions.md#downgrade-behaviour-pro--basic).
 
-- [ ] Custom templates still listed under **Mine**, shown locked (lock icon + `PRO` chip)
+- [ ] Custom templates still listed in the **Custom** section on the Workouts tab, shown locked (lock icon)
 - [ ] Tapping a locked custom template → paywall, does **not** start a workout
 - [ ] Custom templates absent from **Suggested** and **Recent**
 - [ ] Built-in templates still start normally

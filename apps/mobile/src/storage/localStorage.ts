@@ -490,7 +490,7 @@ const ALL_APP_KEYS = [
   APP_SETTINGS_KEYS.theme,
 ] as const;
 
-/** Clears all app data from AsyncStorage: workouts, sessions, recovery, health, settings, theme. Does not clear auth (SecureStore). */
+/** Clears the app-owned AsyncStorage keys below. Supabase auth uses separate AsyncStorage keys and is not cleared here. */
 export async function clearAllData(): Promise<void> {
   await Promise.all(ALL_APP_KEYS.map((key) => AsyncStorage.removeItem(key)));
 }

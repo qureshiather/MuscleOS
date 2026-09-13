@@ -1,5 +1,8 @@
 # Subscriptions — Technical Spec
 
+How billing is wired. For what each tier includes and where gates are enforced, see
+[features/subscriptions.md](../features/subscriptions.md).
+
 ## Architecture
 
 ```mermaid
@@ -55,7 +58,10 @@ File: [`apps/mobile/src/utils/revenueCat.ts`](../../apps/mobile/src/utils/revenu
 - `purchasePackage(pkg)` → updates `CustomerInfo`
 - `hasProEntitlement()` is the source of truth for Pro access
 
-Configure API key via `EXPO_PUBLIC_REVENUECAT_API_KEY` in `apps/mobile/.env`.
+Configure the platform public keys in `apps/mobile/.env`:
+`EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` (`appl_`) and
+`EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` (`goog_`).
+`EXPO_PUBLIC_REVENUECAT_API_KEY` is supported only as a legacy fallback.
 
 ## Subscription store
 

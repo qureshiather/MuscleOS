@@ -1,6 +1,6 @@
 # MuscleOS
 
-Fitness/workout tracking app (Expo React Native) with a Next.js landing site. Monorepo managed with pnpm + Turborepo.
+Strength-training log (Expo React Native) with a Next.js landing site. Monorepo managed with pnpm + Turborepo.
 
 ## Prerequisites
 
@@ -47,13 +47,22 @@ Copy from each directory's `.env.example` where present.
 
 ## Specs & docs
 
-Product and engineering specs live in [`docs/`](docs/). That folder is the source of truth — not scattered READMEs in app directories.
+Product and engineering specs live in [`docs/`](docs/). That folder is the source of truth for what
+the app does — not scattered READMEs in app directories. Start at
+[`docs/README.md`](docs/README.md).
 
 | Area | Path |
 |------|------|
-| Monetization | [`docs/monetization/`](docs/monetization/) |
+| **What the app is** — principles, screen map, assumptions | [`docs/product/overview.md`](docs/product/overview.md) |
+| **Feature specs** — index and Basic/Pro tier matrix | [`docs/features/README.md`](docs/features/README.md) |
+| Test coverage and gaps | [`docs/engineering/testing.md`](docs/engineering/testing.md) |
+| Subscriptions — tiers and gates | [`docs/features/subscriptions.md`](docs/features/subscriptions.md) |
+| Monetization — pricing, RevenueCat, launch | [`docs/monetization/`](docs/monetization/) |
 | EAS builds | [`docs/mobile/eas-build.md`](docs/mobile/eas-build.md) |
 | Supabase / sync | [`docs/supabase/setup.md`](docs/supabase/setup.md) |
+
+Changing a feature? Update its spec in the same change — see
+[keeping docs in sync](docs/README.md#keeping-docs-in-sync).
 
 ## Troubleshooting
 

@@ -2,6 +2,8 @@
 
 MuscleOS Pro is priced in the **budget fitness app** band: a few dollars, not a premium subscription.
 
+What Pro actually unlocks: [features/subscriptions.md](../features/subscriptions.md).
+
 ## Plans (USD)
 
 | Plan | Price | Effective monthly | Notes |

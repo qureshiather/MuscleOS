@@ -2,7 +2,7 @@
 
 Manual steps required before real IAP works in production. Product IDs must match [`apps/mobile/src/utils/revenueCat.ts`](../../apps/mobile/src/utils/revenueCat.ts).
 
-**Full specs:** [monetization docs](./overview.md)
+**Tier rules and gates:** [features/subscriptions.md](../features/subscriptions.md) · **Prices:** [pricing.md](pricing.md) · **Integration:** [technical.md](technical.md)
 
 ## Entitlement
 
@@ -37,11 +37,15 @@ Create a subscription group for monthly + annual on iOS.
 3. Create **Default** offering with packages:
    - `$rc_monthly` → `muscleos_pro_monthly`
    - `$rc_annual` → `muscleos_pro_annual`
-4. Copy the **public** SDK API key into `apps/mobile/.env`:
+4. Copy both platform **public** SDK API keys into `apps/mobile/.env`:
 
    ```
-   EXPO_PUBLIC_REVENUECAT_API_KEY=your_public_key
+   EXPO_PUBLIC_REVENUECAT_API_KEY_IOS=appl_your_ios_key
+   EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID=goog_your_android_key
    ```
+
+   `EXPO_PUBLIC_REVENUECAT_API_KEY` remains a legacy single-platform fallback, but store builds
+   should use the platform-specific variables above.
 
 ## Supabase identity
 

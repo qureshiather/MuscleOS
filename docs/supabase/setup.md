@@ -2,7 +2,10 @@
 
 ## Cloud sync (Strong-style)
 
-MuscleOS syncs workout history, templates, custom exercises, exercise notes, settings (units, sounds, theme, biodata), and derived data to Supabase for **linked accounts only**. Reads are always local-first (AsyncStorage); sync runs in the background.
+MuscleOS syncs workout history, templates, custom exercises, exercise notes, settings (units,
+sounds, theme, biodata), and the persisted exercise-previous snapshot to Supabase for
+**linked accounts only**. Recovery is not synced; it is recomputed locally from sessions after a
+merge. Reads are always local-first (AsyncStorage); sync runs in the background.
 
 ### Exercise catalog vs user exercises
 

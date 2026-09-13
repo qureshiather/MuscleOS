@@ -7,7 +7,7 @@ Preview builds are **standalone binaries** you can install without Expo Go or a 
 | Android | `com.muscleos.app` | APK — anyone with the link can install |
 | iOS | `com.muscle-os.app` | Ad hoc IPA — **only registered devices** can install |
 
-Android needs no device list. iOS does: Apple requires each physical iPhone/iPad UDID in the provisioning profile. Register testers first, then build (or re-sign). For inviting people by email with no UDID dance, use [TestFlight](#ios-option-b-testflight) instead.
+Android needs no device list. iOS does: Apple requires each physical iPhone/iPad UDID in the provisioning profile. Register testers first, then build (or re-sign). For inviting people by email with no UDID dance, use [TestFlight](#option-b-testflight-invite-by-email) instead.
 
 ## Prerequisites
 
@@ -110,7 +110,7 @@ Or download the APK from the dashboard and `adb install path/to/app.apk`.
 
 ## iOS testers
 
-Two paths. Use **ad hoc** (the playbook below) for a handful of known phones — same `preview` profile as Android. Use [TestFlight](#ios-option-b-testflight) when you want to invite people by Apple ID and skip UDIDs.
+Two paths. Use **ad hoc** (the playbook below) for a handful of known phones — same `preview` profile as Android. Use [TestFlight](#option-b-testflight-invite-by-email) when you want to invite people by Apple ID and skip UDIDs.
 
 ### Option A: Ad hoc preview (register → resign or build → send install link)
 
