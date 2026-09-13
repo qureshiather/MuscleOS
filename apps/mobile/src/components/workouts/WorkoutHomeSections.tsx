@@ -1,31 +1,18 @@
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useDeviceMetrics } from '@/theme/layout';
-import { getTrainingRegion, regionColor, topMuscleLabels } from '@/utils/trainingRegion';
-import { MuscleLoadBar } from './MuscleLoadBar';
-import { TemplateCard } from './TemplateCard';
-import type { MuscleId, WorkoutTemplate, WorkoutSession } from '@muscleos/types';
-
-/** Worked muscles per template id, duplicates kept, keyed for O(1) card lookups. */
-export type MusclesByTemplate = Record<string, MuscleId[]>;
-
-const NO_MUSCLES: MuscleId[] = [];
+import type { WorkoutTemplate, WorkoutSession } from '@muscleos/types';
 
 type RecentWorkoutsRowProps = {
   items: { session: WorkoutSession; template: WorkoutTemplate }[];
-  musclesByTemplate: MusclesByTemplate;
   onPress: (template: WorkoutTemplate) => void;
   formatRelative: (iso: string) => string;
 };
 
-export function RecentWorkoutsRow({
-  items,
-  musclesByTemplate,
-  onPress,
-  formatRelative,
-}: RecentWorkoutsRowProps) {
+export function RecentWorkoutsRow({ items, onPress, formatRelative }: RecentWorkoutsRowProps) {
   const { colors, isDark } = useTheme();
   const { isNarrow } = useDeviceMetrics();
   const cardWidth = isNarrow ? 140 : 160;
@@ -40,10 +27,7 @@ export function RecentWorkoutsRow({
       style={styles.scroll}
     >
       {items.map(({ session, template }) => {
-        const muscleIds = musclesByTemplate[template.id] ?? NO_MUSCLES;
-        const accent = regionColor(getTrainingRegion(muscleIds), colors);
         const completedAgo = session.completedAt ? formatRelative(session.completedAt) : null;
-        const muscleLine = topMuscleLabels(muscleIds, 2).join(' · ');
         return (
           <Pressable
             key={session.id}
@@ -61,22 +45,17 @@ export function RecentWorkoutsRow({
             ]}
             onPress={() => onPress(template)}
           >
-            <View style={styles.cardBody}>
-              <Text style={[typography.bodyMedium, { color: colors.text }]} numberOfLines={2}>
-                {template.name}
+            <Text style={[typography.bodyMedium, { color: colors.text }]} numberOfLines={2}>
+              {template.name}
+            </Text>
+            {completedAgo ? (
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
+                {completedAgo}
               </Text>
-              {muscleLine ? (
-                <Text style={[styles.muscleLine, { color: accent }]} numberOfLines={1}>
-                  {muscleLine.toUpperCase()}
-                </Text>
-              ) : null}
-              <View style={styles.metaRow}>
-                <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
-                  {[`${template.exerciseIds.length} ex`, completedAgo].filter(Boolean).join('  ·  ')}
-                </Text>
-              </View>
-            </View>
-            <MuscleLoadBar muscleIds={muscleIds} />
+            ) : null}
+            <Text style={[typography.caption, styles.meta, { color: colors.textMuted }]}>
+              {template.exerciseIds.length} exercises
+            </Text>
           </Pressable>
         );
       })}
@@ -86,27 +65,40 @@ export function RecentWorkoutsRow({
 
 type SuggestedWorkoutsGridProps = {
   items: { template: WorkoutTemplate }[];
-  musclesByTemplate: MusclesByTemplate;
   onPress: (template: WorkoutTemplate) => void;
 };
 
-export function SuggestedWorkoutsGrid({
-  items,
-  musclesByTemplate,
-  onPress,
-}: SuggestedWorkoutsGridProps) {
+export function SuggestedWorkoutsGrid({ items, onPress }: SuggestedWorkoutsGridProps) {
+  const { colors, isDark } = useTheme();
+
   if (items.length === 0) return null;
 
   return (
     <View style={styles.grid}>
       {items.map(({ template }) => (
-        <View key={template.id} style={styles.gridCell}>
-          <TemplateCard
-            template={template}
-            muscleIds={musclesByTemplate[template.id] ?? NO_MUSCLES}
-            onPress={onPress}
-          />
-        </View>
+        <Pressable
+          key={template.id}
+          accessibilityRole="button"
+          accessibilityLabel={`${template.name}, ${template.exerciseIds.length} exercises`}
+          style={({ pressed }) => [
+            styles.gridCard,
+            {
+              backgroundColor: colors.surfaceElevated,
+              borderColor: colors.border,
+              opacity: pressed ? 0.9 : 1,
+            },
+            !isDark && styles.cardLight,
+          ]}
+          onPress={() => onPress(template)}
+        >
+          <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+          <Text style={[typography.bodyMedium, styles.gridTitle, { color: colors.text }]} numberOfLines={2}>
+            {template.name}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>
+            {template.exerciseIds.length} exercises
+          </Text>
+        </Pressable>
       ))}
     </View>
   );
@@ -120,15 +112,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   card: {
+    padding: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
     minHeight: 96,
-    overflow: 'hidden',
-  },
-  cardBody: {
-    flex: 1,
-    padding: spacing.md,
-    gap: spacing.xs / 2,
+    justifyContent: 'space-between',
   },
   cardLight: {
     shadowColor: '#000',
@@ -137,33 +125,21 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  muscleLine: {
-    fontFamily: typography.label.fontFamily,
-    fontSize: 10,
-    lineHeight: 14,
-    letterSpacing: 0.7,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 'auto',
-    paddingTop: spacing.xs,
-  },
-  metaText: {
-    fontFamily: typography.data.fontFamily,
-    fontSize: 11,
-    lineHeight: 16,
-  },
+  meta: { marginTop: spacing.xs },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
     marginBottom: spacing.md,
   },
-  gridCell: {
+  gridCard: {
+    width: '47%',
     flexGrow: 1,
     flexBasis: '45%',
-    minWidth: 0,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
   },
+  gridTitle: { marginTop: spacing.xs / 2 },
 });

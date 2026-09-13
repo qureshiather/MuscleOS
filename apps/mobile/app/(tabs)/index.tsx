@@ -27,11 +27,9 @@ import { formatRelative } from '@/utils/relativeTime';
 import { recommendTemplates } from '@/utils/recommendTemplates';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import {
   RecentWorkoutsRow,
   SuggestedWorkoutsGrid,
-  type MusclesByTemplate,
 } from '@/components/workouts/WorkoutHomeSections';
 import { TemplateCard } from '@/components/workouts/TemplateCard';
 import { computeHomeStats } from '@/utils/homeStats';
@@ -44,9 +42,6 @@ import type { WorkoutTemplate, TemplateFolder, MuscleId } from '@muscleos/types'
 const ARCHIVED_SECTION = '_archived';
 const HIDDEN_CUSTOM_SECTION = '_hidden_custom';
 const HIDDEN_BUILT_IN_SECTION = '_hidden_builtin';
-
-/** Basic is built-in only, so `mine` is offered to Pro accounts only. */
-type HomeTab = 'for_you' | 'mine' | 'library';
 
 export default function WorkoutsScreen() {
   const { colors, isDark } = useTheme();
@@ -85,7 +80,8 @@ export default function WorkoutsScreen() {
   const dropdownMinWidth = Math.min(140, screenWidth - spacing.xl * 2);
   const templateMenuMinWidth = Math.min(200, screenWidth - spacing.xl * 2);
 
-  const [homeTab, setHomeTab] = useState<HomeTab>('for_you');
+  const [builtInExpanded, setBuiltInExpanded] = useState(false);
+  const [customExpanded, setCustomExpanded] = useState(true);
   const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>({});
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -225,20 +221,6 @@ export default function WorkoutsScreen() {
     return map;
   }, [sessions]);
 
-  /** Worked muscles per template, duplicates kept so cards can weigh dominance. */
-  const musclesByTemplate = useMemo(() => {
-    const map: MusclesByTemplate = {};
-    for (const template of templates) {
-      const muscles: MuscleId[] = [];
-      for (const id of template.exerciseIds) {
-        const exercise = getExercise(id);
-        if (exercise) muscles.push(...exercise.muscles);
-      }
-      map[template.id] = muscles;
-    }
-    return map;
-  }, [templates, getExercise]);
-
   const { sessionsThisWeek, weekStreak } = useMemo(
     () => computeHomeStats(sessions),
     [sessions]
@@ -254,16 +236,6 @@ export default function WorkoutsScreen() {
     }
     return parts.join('  ·  ');
   }, [sessionsThisWeek, weekStreak]);
-
-  const tabOptions = useMemo(
-    () =>
-      [
-        { value: 'for_you', label: 'For you' },
-        { value: 'mine', label: 'Mine' },
-        { value: 'library', label: 'Library' },
-      ] as { value: HomeTab; label: string }[],
-    []
-  );
 
   /**
    * Basic accounts keep their custom templates but cannot start one, so they are
@@ -301,7 +273,14 @@ export default function WorkoutsScreen() {
       recoveringMuscleIds,
       recentlyWorkedMuscleIds,
       lastDoneByTemplate,
-      getTemplateMuscles: (template) => musclesByTemplate[template.id] ?? [],
+      getTemplateMuscles: (template) => {
+        const muscles: MuscleId[] = [];
+        for (const id of template.exerciseIds) {
+          const exercise = getExercise(id);
+          if (exercise) muscles.push(...exercise.muscles);
+        }
+        return muscles;
+      },
       limit: 2,
     });
   }, [
@@ -316,7 +295,6 @@ export default function WorkoutsScreen() {
     isTemplateHidden,
     activeRecovery,
     getExercise,
-    musclesByTemplate,
   ]);
 
   /** Recent excludes Suggested so the two home launchers never repeat the same template. */
@@ -483,7 +461,6 @@ export default function WorkoutsScreen() {
       <TemplateCard
         key={template.id}
         template={template}
-        muscleIds={musclesByTemplate[template.id] ?? []}
         lastDone={getLastDone(template)}
         onPress={handleStartTemplate}
         onMenu={showMenu ? openTemplateMenu : undefined}
@@ -538,6 +515,31 @@ export default function WorkoutsScreen() {
       },
     });
   }
+
+  const sectionStyle = [
+    styles.collapsibleSection,
+    { backgroundColor: colors.surface },
+    !isDark && {
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
+        },
+        android: { elevation: 2 },
+      }),
+    },
+  ];
+
+  const nestedSectionStyle = [
+    styles.collapsibleSection,
+    styles.nestedSection,
+    { backgroundColor: colors.surfaceElevated },
+    !isDark && { borderWidth: 1, borderColor: colors.border },
+  ];
 
   function closeFolderMenu() {
     setFolderMenuId(null);
@@ -664,82 +666,47 @@ export default function WorkoutsScreen() {
     );
   }
 
-  /**
-   * Folder groups render as flat labelled bands rather than nested cards — a box
-   * inside a box inside a box was the main reason home read as a file manager.
-   */
-  function renderGroupHeader(options: {
-    label: string;
-    count?: number;
-    expanded: boolean;
-    onToggle: () => void;
-    icon?: keyof typeof Ionicons.glyphMap;
-    muted?: boolean;
-    favorite?: boolean;
-    trailing?: React.ReactNode;
-  }) {
-    const { label, count, expanded, onToggle, icon, muted, favorite, trailing } = options;
-    const labelColor = muted ? colors.textMuted : colors.textSecondary;
-    return (
-      <View style={styles.groupHeaderRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
-          accessibilityLabel={label}
-          style={({ pressed }) => [styles.groupHeaderLeft, pressed && styles.pressedRow]}
-          onPress={onToggle}
-        >
-          <Ionicons
-            name={expanded ? 'chevron-down' : 'chevron-forward'}
-            size={14}
-            color={labelColor}
-          />
-          {icon ? <Ionicons name={icon} size={13} color={labelColor} /> : null}
-          {favorite ? <Ionicons name="star" size={11} color={colors.warning} /> : null}
-          <Text style={[styles.groupLabel, { color: labelColor }]} numberOfLines={1}>
-            {label.toUpperCase()}
-          </Text>
-          {count != null ? (
-            <Text style={[styles.groupCount, { color: colors.textMuted }]}>{count}</Text>
-          ) : null}
-        </Pressable>
-        {trailing}
-      </View>
-    );
-  }
-
   function renderBuiltInFolderSection(
     folder: TemplateFolder,
     templatesInFolder: WorkoutTemplate[],
     muted?: boolean
   ) {
     const expanded = isFolderExpanded(folder.id);
+    const titleColor = muted ? colors.textMuted : colors.text;
+    const iconColor = muted ? colors.textMuted : colors.primary;
     return (
-      <View key={folder.id} style={[styles.folderGroup, muted && styles.dimmedGroup]}>
+      <View key={folder.id} style={[nestedSectionStyle, muted && styles.dimmedGroup]}>
         <View style={styles.folderSectionHeaderWrap}>
-          {renderGroupHeader({
-            label: folder.name,
-            count: templatesInFolder.length,
-            expanded,
-            onToggle: () => toggleFolderExpanded(folder.id),
-            icon: 'folder-outline',
-            muted,
-            trailing: (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Options for ${folder.name}`}
-                hitSlop={8}
-                onPress={() => setFolderMenuId((id) => (id === folder.id ? null : folder.id))}
-                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
-              </Pressable>
-            ),
-          })}
+          <View style={styles.sectionHeader}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              accessibilityLabel={folder.name}
+              style={styles.sectionHeaderLeft}
+              onPress={() => toggleFolderExpanded(folder.id)}
+            >
+              <Ionicons
+                name={expanded ? 'chevron-down' : 'chevron-forward'}
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Ionicons name="folder-outline" size={18} color={iconColor} />
+              <Text style={[styles.sectionTitle, { color: titleColor }]}>{folder.name}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Options for ${folder.name}`}
+              hitSlop={8}
+              onPress={() => setFolderMenuId((id) => (id === folder.id ? null : folder.id))}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+            </Pressable>
+          </View>
           {folderMenuId === folder.id && renderFolderDropdown(folder, true)}
         </View>
         {expanded && templatesInFolder.length > 0 && (
-          <View style={styles.groupContent}>
+          <View style={styles.sectionContent}>
             {templatesInFolder.map((template) => renderTemplateCard(template, true))}
           </View>
         )}
@@ -750,33 +717,44 @@ export default function WorkoutsScreen() {
   function renderFolderSection(folder: TemplateFolder, isArchived?: boolean) {
     const templatesInFolder = byFolder[folder.id] ?? [];
     const expanded = isFolderExpanded(folder.id);
+    const titleColor = isArchived ? colors.textMuted : colors.text;
+    const iconColor = isArchived ? colors.textMuted : colors.primary;
     return (
-      <View key={folder.id} style={[styles.folderGroup, isArchived && styles.dimmedGroup]}>
+      <View key={folder.id} style={[nestedSectionStyle, isArchived && styles.dimmedGroup]}>
         <View style={styles.folderSectionHeaderWrap}>
-          {renderGroupHeader({
-            label: folder.name,
-            count: templatesInFolder.length,
-            expanded,
-            onToggle: () => toggleFolderExpanded(folder.id),
-            icon: 'folder-outline',
-            muted: isArchived,
-            favorite: folder.favorite && !isArchived,
-            trailing: (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Options for ${folder.name}`}
-                hitSlop={8}
-                onPress={() => setFolderMenuId((id) => (id === folder.id ? null : folder.id))}
-                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
-              </Pressable>
-            ),
-          })}
+          <View style={styles.sectionHeader}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              accessibilityLabel={folder.name}
+              style={styles.sectionHeaderLeft}
+              onPress={() => toggleFolderExpanded(folder.id)}
+            >
+              <Ionicons
+                name={expanded ? 'chevron-down' : 'chevron-forward'}
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Ionicons name="folder-outline" size={18} color={iconColor} />
+              {folder.favorite && !isArchived ? (
+                <Ionicons name="star" size={14} color={colors.warning} style={styles.folderStar} />
+              ) : null}
+              <Text style={[styles.sectionTitle, { color: titleColor }]}>{folder.name}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Options for ${folder.name}`}
+              hitSlop={8}
+              onPress={() => setFolderMenuId((id) => (id === folder.id ? null : folder.id))}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+            </Pressable>
+          </View>
           {folderMenuId === folder.id && renderFolderDropdown(folder)}
         </View>
         {expanded && (
-          <View style={styles.groupContent}>
+          <View style={styles.sectionContent}>
             {templatesInFolder.length === 0 ? (
               <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
                 No templates in this folder.
@@ -874,224 +852,304 @@ export default function WorkoutsScreen() {
         </View>
 
         <View style={styles.templatesSection}>
-          <View style={styles.tabBar}>
-            <SegmentedControl options={tabOptions} value={homeTab} onChange={setHomeTab} />
+          {suggestedWorkouts.length > 0 && (
+            <View style={styles.homeSection}>
+              <SectionHeader title="Suggested" />
+              <SuggestedWorkoutsGrid
+                items={suggestedWorkouts}
+                onPress={handleStartTemplate}
+              />
+            </View>
+          )}
+
+          {recentWorkouts.length > 0 && (
+            <View style={styles.homeSection}>
+              <SectionHeader title="Recent" />
+              <RecentWorkoutsRow
+                items={recentWorkouts}
+                onPress={handleStartTemplate}
+                formatRelative={formatRelative}
+              />
+            </View>
+          )}
+
+          <View style={styles.templatesSectionRow}>
+            <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
+            {isPro ? (
+              <View style={styles.templatesSectionActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="New folder"
+                  style={[styles.addBtn, { borderColor: colors.border }]}
+                  onPress={() => {
+                    if (gatePro('custom_templates')) setShowFolderModal(true);
+                  }}
+                >
+                  <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="New template"
+                  style={[styles.addBtn, { borderColor: colors.border }]}
+                  onPress={() => {
+                    if (gatePro('custom_templates')) router.push('/create-template');
+                  }}
+                >
+                  <Ionicons name="add" size={18} color={colors.primary} />
+                  <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
 
           {isLoading ? (
-            <View style={styles.groupContent}>
+            <View>
               <SkeletonCard lines={2} />
               <SkeletonCard lines={3} />
               <SkeletonCard lines={2} />
             </View>
-          ) : homeTab === 'for_you' ? (
+          ) : (
             <>
-              {suggestedWorkouts.length > 0 && (
-                <View style={styles.homeSection}>
-                  <SectionHeader
-                    title="Suggested"
-                    caption="Based on what has recovered and what you have not trained lately"
-                  />
-                  <SuggestedWorkoutsGrid
-                    items={suggestedWorkouts}
-                    musclesByTemplate={musclesByTemplate}
-                    onPress={handleStartTemplate}
-                  />
-                </View>
-              )}
-
-              {recentWorkouts.length > 0 && (
-                <View style={styles.homeSection}>
-                  <SectionHeader title="Recent" />
-                  <RecentWorkoutsRow
-                    items={recentWorkouts}
-                    musclesByTemplate={musclesByTemplate}
-                    onPress={handleStartTemplate}
-                    formatRelative={formatRelative}
-                  />
-                </View>
-              )}
-
-              {suggestedWorkouts.length === 0 && recentWorkouts.length === 0 && (
-                <View style={styles.emptySectionRow}>
-                  <Text
-                    style={[
-                      styles.emptySectionText,
-                      styles.emptySectionTextInRow,
-                      { color: colors.textMuted },
+              {isPro || custom.length > 0 || hiddenCustom.length > 0 ? (
+                <View style={sectionStyle}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: customExpanded }}
+                    accessibilityLabel="Custom"
+                    style={({ pressed }) => [
+                      styles.sectionHeader,
+                      styles.sectionHeaderLeft,
+                      { opacity: pressed ? 0.85 : 1 },
                     ]}
+                    onPress={() => setCustomExpanded((e) => !e)}
                   >
-                    Nothing to suggest yet.
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setHomeTab('library')}
-                    hitSlop={8}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <Text style={[styles.emptySectionLink, { color: colors.primary }]}>
-                      Browse the library
-                    </Text>
+                    <Ionicons
+                      name={customExpanded ? 'chevron-down' : 'chevron-forward'}
+                      size={18}
+                      color={colors.textSecondary}
+                    />
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom</Text>
                   </Pressable>
+                  {customExpanded && (
+                    <View style={styles.sectionContent}>
+                      {!isPro && custom.length > 0 ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Your templates are saved. Resubscribe to Pro to run them."
+                          onPress={() => gatePro('custom_templates')}
+                          style={({ pressed }) => [
+                            styles.lapsedNotice,
+                            {
+                              backgroundColor: colors.primarySurface,
+                              borderColor: colors.primaryBorder,
+                            },
+                            pressed && styles.pressedRow,
+                          ]}
+                        >
+                          <Ionicons name="lock-closed" size={14} color={colors.primary} />
+                          <Text
+                            style={[
+                              typography.caption,
+                              styles.lapsedNoticeText,
+                              { color: colors.text },
+                            ]}
+                          >
+                            Your templates are saved. Resubscribe to Pro to run them.
+                          </Text>
+                          <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                        </Pressable>
+                      ) : null}
+                      {uncategorized.map((template) => renderTemplateCard(template, true))}
+                      {visibleFavoriteFolders.map((f) => renderFolderSection(f))}
+                      {visibleNormalFolders.map((f) => renderFolderSection(f))}
+                      {visibleArchivedFolders.length > 0 && (
+                        <View style={nestedSectionStyle}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{
+                              expanded: isFolderExpanded(ARCHIVED_SECTION),
+                            }}
+                            accessibilityLabel="Archived"
+                            style={({ pressed }) => [
+                              styles.sectionHeader,
+                              styles.sectionHeaderLeft,
+                              { opacity: pressed ? 0.85 : 1 },
+                            ]}
+                            onPress={() => toggleFolderExpanded(ARCHIVED_SECTION)}
+                          >
+                            <Ionicons
+                              name={
+                                isFolderExpanded(ARCHIVED_SECTION)
+                                  ? 'chevron-down'
+                                  : 'chevron-forward'
+                              }
+                              size={18}
+                              color={colors.textMuted}
+                            />
+                            <Ionicons name="archive-outline" size={18} color={colors.textMuted} />
+                            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                              Archived
+                            </Text>
+                          </Pressable>
+                          {isFolderExpanded(ARCHIVED_SECTION) && (
+                            <View style={styles.sectionContent}>
+                              {visibleArchivedFolders.map((f) => renderFolderSection(f, true))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                      {hiddenCustom.length > 0 && (
+                        <View style={nestedSectionStyle}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{
+                              expanded: isFolderExpanded(HIDDEN_CUSTOM_SECTION),
+                            }}
+                            accessibilityLabel="Hidden"
+                            style={({ pressed }) => [
+                              styles.sectionHeader,
+                              styles.sectionHeaderLeft,
+                              { opacity: pressed ? 0.85 : 1 },
+                            ]}
+                            onPress={() => toggleFolderExpanded(HIDDEN_CUSTOM_SECTION)}
+                          >
+                            <Ionicons
+                              name={
+                                isFolderExpanded(HIDDEN_CUSTOM_SECTION)
+                                  ? 'chevron-down'
+                                  : 'chevron-forward'
+                              }
+                              size={18}
+                              color={colors.textMuted}
+                            />
+                            <Ionicons name="eye-off-outline" size={18} color={colors.textMuted} />
+                            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                              Hidden
+                            </Text>
+                          </Pressable>
+                          {isFolderExpanded(HIDDEN_CUSTOM_SECTION) && (
+                            <View style={[styles.sectionContent, styles.dimmedGroup]}>
+                              {hiddenCustom.map((template) =>
+                                renderTemplateCard(template, true)
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                      {custom.length === 0 && hiddenCustom.length === 0 && (
+                        <View style={styles.emptySectionRow}>
+                          <Text
+                            style={[
+                              styles.emptySectionText,
+                              styles.emptySectionTextInRow,
+                              { color: colors.textMuted },
+                            ]}
+                          >
+                            No templates yet.
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={() => router.push('/create-template')}
+                            hitSlop={8}
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <Text style={[styles.emptySectionLink, { color: colors.primary }]}>
+                              Create template
+                            </Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
-              )}
-            </>
-          ) : homeTab === 'mine' ? (
-            <View style={styles.homeSection}>
-              <View style={styles.templatesSectionRow}>
-                <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>
-                  My templates
-                </Text>
-                <View style={styles.templatesSectionActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="New folder"
-                    style={[styles.addBtn, { borderColor: colors.border }]}
-                    onPress={() => {
-                      if (gatePro('custom_templates')) setShowFolderModal(true);
-                    }}
-                  >
-                    <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="New template"
-                    style={[styles.addBtn, { borderColor: colors.border }]}
-                    onPress={() => {
-                      if (gatePro('custom_templates')) router.push('/create-template');
-                    }}
-                  >
-                    <Ionicons name="add" size={18} color={colors.primary} />
-                    <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
-                  </Pressable>
-                </View>
-              </View>
-
-              {!isPro && custom.length > 0 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Your templates are saved. Resubscribe to Pro to run them."
-                  onPress={() => gatePro('custom_templates')}
-                  style={({ pressed }) => [
-                    styles.lapsedNotice,
-                    { backgroundColor: colors.primarySurface, borderColor: colors.primaryBorder },
-                    pressed && styles.pressedRow,
-                  ]}
-                >
-                  <Ionicons name="lock-closed" size={14} color={colors.primary} />
-                  <Text style={[typography.caption, styles.lapsedNoticeText, { color: colors.text }]}>
-                    Your templates are saved. Resubscribe to Pro to run them.
-                  </Text>
-                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-                </Pressable>
               ) : null}
 
-              <View style={styles.groupContent}>
-                {uncategorized.map((template) => renderTemplateCard(template, true))}
-                {visibleFavoriteFolders.map((f) => renderFolderSection(f))}
-                {visibleNormalFolders.map((f) => renderFolderSection(f))}
-
-                {visibleArchivedFolders.length > 0 && (
-                  <View style={styles.folderGroup}>
-                    {renderGroupHeader({
-                      label: 'Archived',
-                      count: visibleArchivedFolders.length,
-                      expanded: isFolderExpanded(ARCHIVED_SECTION),
-                      onToggle: () => toggleFolderExpanded(ARCHIVED_SECTION),
-                      icon: 'archive-outline',
-                      muted: true,
-                    })}
-                    {isFolderExpanded(ARCHIVED_SECTION) && (
-                      <View style={styles.groupContent}>
-                        {visibleArchivedFolders.map((f) => renderFolderSection(f, true))}
-                      </View>
+              <View style={sectionStyle}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: builtInExpanded }}
+                  accessibilityLabel="Built-in"
+                  style={({ pressed }) => [
+                    styles.sectionHeader,
+                    styles.sectionHeaderLeft,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  onPress={() => {
+                    setBuiltInExpanded((e) => {
+                      if (!e) {
+                        const next: Record<string, boolean> = {};
+                        for (const f of BUILT_IN_FOLDERS) next[f.id] = true;
+                        setFolderExpanded((prev) => ({ ...prev, ...next }));
+                      }
+                      return !e;
+                    });
+                  }}
+                >
+                  <Ionicons
+                    name={builtInExpanded ? 'chevron-down' : 'chevron-forward'}
+                    size={18}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Built-in</Text>
+                </Pressable>
+                {builtInExpanded && (
+                  <View style={styles.sectionContent}>
+                    {builtInUncategorized.map((template) =>
+                      renderTemplateCard(template, true)
                     )}
-                  </View>
-                )}
-
-                {hiddenCustom.length > 0 && (
-                  <View style={styles.folderGroup}>
-                    {renderGroupHeader({
-                      label: 'Hidden',
-                      count: hiddenCustom.length,
-                      expanded: isFolderExpanded(HIDDEN_CUSTOM_SECTION),
-                      onToggle: () => toggleFolderExpanded(HIDDEN_CUSTOM_SECTION),
-                      icon: 'eye-off-outline',
-                      muted: true,
-                    })}
-                    {isFolderExpanded(HIDDEN_CUSTOM_SECTION) && (
-                      <View style={[styles.groupContent, styles.dimmedGroup]}>
-                        {hiddenCustom.map((template) => renderTemplateCard(template, true))}
-                      </View>
+                    {visibleBuiltInFolders.map((f) =>
+                      renderBuiltInFolderSection(f, builtInByFolder[f.id] ?? [])
                     )}
-                  </View>
-                )}
-
-                {custom.length === 0 && hiddenCustom.length === 0 && (
-                  <View style={styles.emptySectionRow}>
-                    <Text
-                      style={[
-                        styles.emptySectionText,
-                        styles.emptySectionTextInRow,
-                        { color: colors.textMuted },
-                      ]}
-                    >
-                      No templates yet.
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => router.push('/create-template')}
-                      hitSlop={8}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      <Text style={[styles.emptySectionLink, { color: colors.primary }]}>
-                        Create template
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            </View>
-          ) : (
-            <View style={styles.homeSection}>
-              <SectionHeader
-                title="Built-in templates"
-                caption="Proven programs, ready to run as-is"
-              />
-              <View style={styles.groupContent}>
-                {builtInUncategorized.map((template) => renderTemplateCard(template, true))}
-                {visibleBuiltInFolders.map((f) =>
-                  renderBuiltInFolderSection(f, builtInByFolder[f.id] ?? [])
-                )}
-
-                {hiddenBuiltIn.length > 0 && (
-                  <View style={styles.folderGroup}>
-                    {renderGroupHeader({
-                      label: 'Hidden',
-                      count: hiddenBuiltIn.length,
-                      expanded: isFolderExpanded(HIDDEN_BUILT_IN_SECTION),
-                      onToggle: () => toggleFolderExpanded(HIDDEN_BUILT_IN_SECTION),
-                      icon: 'eye-off-outline',
-                      muted: true,
-                    })}
-                    {isFolderExpanded(HIDDEN_BUILT_IN_SECTION) && (
-                      <View style={[styles.groupContent, styles.dimmedGroup]}>
-                        {hiddenBuiltInFolders.map(({ folder, templates: folderTemplates }) =>
-                          renderBuiltInFolderSection(folder, folderTemplates, true)
+                    {hiddenBuiltIn.length > 0 && (
+                      <View style={nestedSectionStyle}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityState={{
+                            expanded: isFolderExpanded(HIDDEN_BUILT_IN_SECTION),
+                          }}
+                          accessibilityLabel="Hidden"
+                          style={({ pressed }) => [
+                            styles.sectionHeader,
+                            styles.sectionHeaderLeft,
+                            { opacity: pressed ? 0.85 : 1 },
+                          ]}
+                          onPress={() => toggleFolderExpanded(HIDDEN_BUILT_IN_SECTION)}
+                        >
+                          <Ionicons
+                            name={
+                              isFolderExpanded(HIDDEN_BUILT_IN_SECTION)
+                                ? 'chevron-down'
+                                : 'chevron-forward'
+                            }
+                            size={18}
+                            color={colors.textMuted}
+                          />
+                          <Ionicons name="eye-off-outline" size={18} color={colors.textMuted} />
+                          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                            Hidden
+                          </Text>
+                        </Pressable>
+                        {isFolderExpanded(HIDDEN_BUILT_IN_SECTION) && (
+                          <View style={[styles.sectionContent, styles.dimmedGroup]}>
+                            {hiddenBuiltInFolders.map(({ folder, templates: folderTemplates }) =>
+                              renderBuiltInFolderSection(folder, folderTemplates, true)
+                            )}
+                            {hiddenBuiltInLoose.map((template) =>
+                              renderTemplateCard(template, true)
+                            )}
+                          </View>
                         )}
-                        {hiddenBuiltInLoose.map((template) => renderTemplateCard(template, true))}
                       </View>
+                    )}
+                    {builtIn.length === 0 && hiddenBuiltIn.length === 0 && (
+                      <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
+                        No built-in templates
+                      </Text>
                     )}
                   </View>
                 )}
-
-                {builtIn.length === 0 && hiddenBuiltIn.length === 0 && (
-                  <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
-                    No built-in templates
-                  </Text>
-                )}
               </View>
-            </View>
+            </>
           )}
         </View>
       </ScrollView>
@@ -1577,35 +1635,31 @@ const styles = StyleSheet.create({
   },
   startEmptyCardSubtitle: { ...typography.caption, marginTop: 2 },
   templatesSection: { marginTop: spacing.sm },
-  tabBar: { marginBottom: spacing.lg },
   homeSection: { marginBottom: spacing.lg },
-  folderGroup: { marginTop: spacing.xs },
-  groupHeaderRow: {
+  collapsibleSection: {
+    borderRadius: 14,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  nestedSection: {
+    marginBottom: 6,
+    marginTop: 2,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 32,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  groupHeaderLeft: {
+  sectionHeaderLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 32,
+    gap: 10,
   },
-  groupLabel: {
-    fontFamily: typography.label.fontFamily,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.8,
-    flexShrink: 1,
-  },
-  groupCount: {
-    fontFamily: typography.data.fontFamily,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  groupContent: { gap: spacing.sm },
+  sectionTitle: { fontSize: typography.button.fontSize, fontWeight: '600', flex: 1 },
+  sectionContent: { paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0, gap: 6 },
+  folderStar: { marginRight: 2 },
   lapsedNotice: {
     flexDirection: 'row',
     alignItems: 'center',
