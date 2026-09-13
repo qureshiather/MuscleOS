@@ -8,7 +8,7 @@ Feature labels for the paywall and gate keys are defined in [`apps/mobile/src/su
 
 | Feature | Included |
 |---------|----------|
-| 5 built-in templates (PPL, Strong Lifts 5×5) | Yes |
+| 9 built-in templates (PPL, Upper/Lower, Strong Lifts 5×5) | Yes |
 | Start workout from a **built-in** template | Yes |
 | Start workout from a **custom** template | No — Pro, see [Downgrade behaviour](#downgrade-behaviour-pro--basic) |
 | Set logging (reps, weight, complete sets) | Yes |
@@ -86,7 +86,7 @@ When a subscription lapses:
 | Custom templates & folders | **Kept, never deleted.** Still visible under the **Mine** tab on home, rendered locked (lock icon + `PRO` chip). |
 | Starting a custom template | **Blocked.** Tapping the card opens `/subscription?feature=custom_templates`. |
 | Suggested / Recent on home | Custom templates are **excluded** — Basic is never recommended a workout it cannot start. |
-| Built-in templates | Unaffected; all 5 remain fully runnable. |
+| Built-in templates | Unaffected; all remain fully runnable. |
 | Workout already in progress | **May be finished.** The gate blocks *starting*, so a session in flight when the subscription lapses is not destroyed. |
 | Resubscribing | Templates become runnable again immediately; nothing to restore. |
 

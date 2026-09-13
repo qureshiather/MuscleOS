@@ -75,9 +75,9 @@ const FEATURES = [
     id: 'workouts',
     label: 'Workouts',
     title: 'Log your workouts',
-    body: 'Start with a built-in Push Pull Legs or Strong Lifts 5×5 workout. Enter your weight and reps, complete each set, and use the rest timer between sets.',
+    body: 'Start with a built-in Push Pull Legs, Upper/Lower, or Strong Lifts 5×5 workout. Enter your weight and reps, complete each set, and use the rest timer between sets.',
     points: [
-      '5 built-in workouts (PPL + Strong Lifts)',
+      'Built-in PPL, Upper/Lower & Strong Lifts',
       'Set logging with rest timers',
       'Resume an in-progress workout',
     ],
@@ -126,7 +126,7 @@ const FEATURES = [
 ] as const;
 
 const BASIC_POINTS = [
-  '5 built-in programs (PPL & Strong Lifts)',
+  'Built-in PPL, Upper/Lower & Strong Lifts',
   'Full set logging & rest timers',
   'Exercise library',
   'Recovery map',

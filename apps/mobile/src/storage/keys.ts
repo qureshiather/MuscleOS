@@ -3,6 +3,8 @@ export const STORAGE_KEYS = {
   templateFolders: 'muscleos_template_folders',
   /** Built-in template IDs soft-hidden on the home screen */
   hiddenBuiltInTemplateIds: 'muscleos_hidden_builtin_template_ids',
+  /** Built-in folder IDs soft-hidden on the home screen (hides every template in the folder) */
+  hiddenBuiltInFolderIds: 'muscleos_hidden_builtin_folder_ids',
   sessions: 'muscleos_sessions',
   /** In-progress workout, so it survives the OS killing the app mid-session */
   activeWorkout: 'muscleos_active_workout',

@@ -16,7 +16,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { BUILT_IN_FOLDERS } from '@/data/builtInTemplates';
+import { BUILT_IN_FOLDERS, BUILT_IN_TEMPLATES } from '@/data/builtInTemplates';
 import { useProGate } from '@/hooks/useProGate';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
@@ -61,8 +61,10 @@ export default function WorkoutsScreen() {
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   const deleteTemplate = useTemplatesStore((s) => s.deleteTemplate);
   const setTemplateHidden = useTemplatesStore((s) => s.setTemplateHidden);
+  const setBuiltInFolderHidden = useTemplatesStore((s) => s.setBuiltInFolderHidden);
   const isTemplateHidden = useTemplatesStore((s) => s.isTemplateHidden);
   const hiddenBuiltInIds = useTemplatesStore((s) => s.hiddenBuiltInIds);
+  const hiddenBuiltInFolderIds = useTemplatesStore((s) => s.hiddenBuiltInFolderIds);
   const isLoading = useTemplatesStore((s) => s.isLoading);
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
@@ -146,7 +148,7 @@ export default function WorkoutsScreen() {
       }
     });
     return { builtIn, custom, hiddenCustom, hiddenBuiltIn };
-  }, [templates, hiddenBuiltInIds, userTemplates, isTemplateHidden]);
+  }, [templates, hiddenBuiltInIds, hiddenBuiltInFolderIds, userTemplates, isTemplateHidden]);
 
   const { byFolder, uncategorized } = useMemo(() => {
     const byFolder: Record<string, WorkoutTemplate[]> = {};
@@ -185,6 +187,23 @@ export default function WorkoutsScreen() {
   const visibleBuiltInFolders = useMemo(
     () => BUILT_IN_FOLDERS.filter((f) => (builtInByFolder[f.id] ?? []).length > 0),
     [builtInByFolder]
+  );
+
+  const hiddenBuiltInFolders = useMemo(
+    () =>
+      BUILT_IN_FOLDERS.filter((f) => hiddenBuiltInFolderIds.includes(f.id)).map((folder) => ({
+        folder,
+        templates: BUILT_IN_TEMPLATES.filter((t) => t.folderId === folder.id),
+      })),
+    [hiddenBuiltInFolderIds]
+  );
+
+  const hiddenBuiltInLoose = useMemo(
+    () =>
+      hiddenBuiltIn.filter(
+        (t) => !t.folderId || !hiddenBuiltInFolderIds.includes(t.folderId)
+      ),
+    [hiddenBuiltIn, hiddenBuiltInFolderIds]
   );
 
   const folderHasOnlyHiddenTemplates = (folderId: string) =>
@@ -292,6 +311,7 @@ export default function WorkoutsScreen() {
     sessions,
     lastDoneByTemplate,
     hiddenBuiltInIds,
+    hiddenBuiltInFolderIds,
     userTemplates,
     isTemplateHidden,
     activeRecovery,
@@ -320,6 +340,7 @@ export default function WorkoutsScreen() {
     sessions,
     startableTemplates,
     hiddenBuiltInIds,
+    hiddenBuiltInFolderIds,
     userTemplates,
     isTemplateHidden,
     completedSessions,
@@ -518,7 +539,106 @@ export default function WorkoutsScreen() {
     });
   }
 
-  function renderFolderDropdown(folder: TemplateFolder) {
+  function closeFolderMenu() {
+    setFolderMenuId(null);
+    setFolderDropdownLayout(null);
+  }
+
+  function renderFolderMenuItems(folder: TemplateFolder, isBuiltIn: boolean) {
+    if (isBuiltIn) {
+      const hidden = hiddenBuiltInFolderIds.includes(folder.id);
+      return (
+        <Pressable
+          style={styles.folderDropdownItem}
+          onPress={() => {
+            closeFolderMenu();
+            void setBuiltInFolderHidden(folder.id, !hidden);
+          }}
+        >
+          <Ionicons
+            name={hidden ? 'eye-outline' : 'eye-off-outline'}
+            size={18}
+            color={colors.text}
+          />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+            {hidden ? 'Unhide' : 'Hide'}
+          </Text>
+        </Pressable>
+      );
+    }
+
+    return (
+      <>
+        <Pressable
+          style={[
+            styles.folderDropdownItem,
+            styles.folderDropdownItemBorder,
+            { borderBottomColor: colors.border },
+          ]}
+          onPress={() => {
+            setEditingFolder(folder);
+            setEditingFolderName(folder.name);
+            closeFolderMenu();
+          }}
+        >
+          <Ionicons name="pencil-outline" size={18} color={colors.text} />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>Rename</Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.folderDropdownItem,
+            styles.folderDropdownItemBorder,
+            { borderBottomColor: colors.border },
+          ]}
+          onPress={() => {
+            closeFolderMenu();
+            updateFolder(folder.id, { favorite: !folder.favorite });
+          }}
+        >
+          <Ionicons
+            name={folder.favorite ? 'star' : 'star-outline'}
+            size={18}
+            color={folder.favorite ? colors.warning : colors.text}
+          />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+            {folder.favorite ? 'Unpin from top' : 'Pin to top'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.folderDropdownItem,
+            styles.folderDropdownItemBorder,
+            { borderBottomColor: colors.border },
+          ]}
+          onPress={() => {
+            closeFolderMenu();
+            updateFolder(folder.id, { archived: !folder.archived });
+          }}
+        >
+          <Ionicons
+            name={folder.archived ? 'arrow-undo-outline' : 'archive-outline'}
+            size={18}
+            color={colors.text}
+          />
+          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
+            {folder.archived ? 'Unarchive' : 'Archive'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={styles.folderDropdownItem}
+          onPress={() => {
+            closeFolderMenu();
+            handleDeleteFolder(folder);
+          }}
+        >
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Text style={[styles.folderDropdownItemText, { color: colors.danger }]}>Delete</Text>
+        </Pressable>
+      </>
+    );
+  }
+
+  function renderFolderDropdown(folder: TemplateFolder, isBuiltIn = false) {
     return (
       <View
         ref={folderDropdownRef}
@@ -539,75 +659,7 @@ export default function WorkoutsScreen() {
         }}
         collapsable={false}
       >
-        <Pressable
-          style={[
-            styles.folderDropdownItem,
-            styles.folderDropdownItemBorder,
-            { borderBottomColor: colors.border },
-          ]}
-          onPress={() => {
-            setEditingFolder(folder);
-            setEditingFolderName(folder.name);
-            setFolderMenuId(null);
-            setFolderDropdownLayout(null);
-          }}
-        >
-          <Ionicons name="pencil-outline" size={18} color={colors.text} />
-          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>Rename</Text>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.folderDropdownItem,
-            styles.folderDropdownItemBorder,
-            { borderBottomColor: colors.border },
-          ]}
-          onPress={() => {
-            setFolderMenuId(null);
-            setFolderDropdownLayout(null);
-            updateFolder(folder.id, { favorite: !folder.favorite });
-          }}
-        >
-          <Ionicons
-            name={folder.favorite ? 'star' : 'star-outline'}
-            size={18}
-            color={folder.favorite ? colors.warning : colors.text}
-          />
-          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
-            {folder.favorite ? 'Unpin from top' : 'Pin to top'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.folderDropdownItem,
-            styles.folderDropdownItemBorder,
-            { borderBottomColor: colors.border },
-          ]}
-          onPress={() => {
-            setFolderMenuId(null);
-            setFolderDropdownLayout(null);
-            updateFolder(folder.id, { archived: !folder.archived });
-          }}
-        >
-          <Ionicons
-            name={folder.archived ? 'arrow-undo-outline' : 'archive-outline'}
-            size={18}
-            color={colors.text}
-          />
-          <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
-            {folder.archived ? 'Unarchive' : 'Archive'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={styles.folderDropdownItem}
-          onPress={() => {
-            setFolderMenuId(null);
-            setFolderDropdownLayout(null);
-            handleDeleteFolder(folder);
-          }}
-        >
-          <Ionicons name="trash-outline" size={18} color={colors.danger} />
-          <Text style={[styles.folderDropdownItemText, { color: colors.danger }]}>Delete</Text>
-        </Pressable>
+        {renderFolderMenuItems(folder, isBuiltIn)}
       </View>
     );
   }
@@ -656,18 +708,36 @@ export default function WorkoutsScreen() {
     );
   }
 
-  function renderBuiltInFolderSection(folder: TemplateFolder) {
-    const templatesInFolder = builtInByFolder[folder.id] ?? [];
+  function renderBuiltInFolderSection(
+    folder: TemplateFolder,
+    templatesInFolder: WorkoutTemplate[],
+    muted?: boolean
+  ) {
     const expanded = isFolderExpanded(folder.id);
     return (
-      <View key={folder.id} style={styles.folderGroup}>
-        {renderGroupHeader({
-          label: folder.name,
-          count: templatesInFolder.length,
-          expanded,
-          onToggle: () => toggleFolderExpanded(folder.id),
-          icon: 'folder-outline',
-        })}
+      <View key={folder.id} style={[styles.folderGroup, muted && styles.dimmedGroup]}>
+        <View style={styles.folderSectionHeaderWrap}>
+          {renderGroupHeader({
+            label: folder.name,
+            count: templatesInFolder.length,
+            expanded,
+            onToggle: () => toggleFolderExpanded(folder.id),
+            icon: 'folder-outline',
+            muted,
+            trailing: (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Options for ${folder.name}`}
+                hitSlop={8}
+                onPress={() => setFolderMenuId((id) => (id === folder.id ? null : folder.id))}
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
+              </Pressable>
+            ),
+          })}
+          {folderMenuId === folder.id && renderFolderDropdown(folder, true)}
+        </View>
         {expanded && templatesInFolder.length > 0 && (
           <View style={styles.groupContent}>
             {templatesInFolder.map((template) => renderTemplateCard(template, true))}
@@ -990,7 +1060,9 @@ export default function WorkoutsScreen() {
               />
               <View style={styles.groupContent}>
                 {builtInUncategorized.map((template) => renderTemplateCard(template, true))}
-                {visibleBuiltInFolders.map((f) => renderBuiltInFolderSection(f))}
+                {visibleBuiltInFolders.map((f) =>
+                  renderBuiltInFolderSection(f, builtInByFolder[f.id] ?? [])
+                )}
 
                 {hiddenBuiltIn.length > 0 && (
                   <View style={styles.folderGroup}>
@@ -1004,7 +1076,10 @@ export default function WorkoutsScreen() {
                     })}
                     {isFolderExpanded(HIDDEN_BUILT_IN_SECTION) && (
                       <View style={[styles.groupContent, styles.dimmedGroup]}>
-                        {hiddenBuiltIn.map((template) => renderTemplateCard(template, true))}
+                        {hiddenBuiltInFolders.map(({ folder, templates: folderTemplates }) =>
+                          renderBuiltInFolderSection(folder, folderTemplates, true)
+                        )}
+                        {hiddenBuiltInLoose.map((template) => renderTemplateCard(template, true))}
                       </View>
                     )}
                   </View>
@@ -1143,105 +1218,28 @@ export default function WorkoutsScreen() {
 
       {/* Folder dropdown overlay: tap outside to close */}
       {folderDropdownLayout !== null && folderMenuId !== null && (() => {
-        const folder = folders.find((f) => f.id === folderMenuId);
+        const builtInFolder = BUILT_IN_FOLDERS.find((f) => f.id === folderMenuId);
+        const folder = builtInFolder ?? folders.find((f) => f.id === folderMenuId);
         if (!folder) return null;
         return (
           <Modal visible transparent animationType="none">
             <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={() => {
-                  setFolderMenuId(null);
-                  setFolderDropdownLayout(null);
-                }}
-              />
+              <Pressable style={StyleSheet.absoluteFill} onPress={closeFolderMenu} />
               <View
                 style={[
                   styles.folderDropdown,
                   {
                     position: 'absolute',
-                    left: folderDropdownLayout!.x,
-                    top: folderDropdownLayout!.y,
-                    width: folderDropdownLayout!.width,
+                    left: folderDropdownLayout.x,
+                    top: folderDropdownLayout.y,
+                    width: folderDropdownLayout.width,
                     backgroundColor: colors.surfaceElevated,
                     borderColor: colors.border,
                   },
                 ]}
                 onStartShouldSetResponder={() => true}
               >
-                <Pressable
-                  style={[
-                    styles.folderDropdownItem,
-                    styles.folderDropdownItemBorder,
-                    { borderBottomColor: colors.border },
-                  ]}
-                  onPress={() => {
-                    setEditingFolder(folder);
-                    setEditingFolderName(folder.name);
-                    setFolderMenuId(null);
-                    setFolderDropdownLayout(null);
-                  }}
-                >
-                  <Ionicons name="pencil-outline" size={18} color={colors.text} />
-                  <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
-                    Rename
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.folderDropdownItem,
-                    styles.folderDropdownItemBorder,
-                    { borderBottomColor: colors.border },
-                  ]}
-                  onPress={() => {
-                    setFolderMenuId(null);
-                    setFolderDropdownLayout(null);
-                    updateFolder(folder.id, { favorite: !folder.favorite });
-                  }}
-                >
-                  <Ionicons
-                    name={folder.favorite ? 'star' : 'star-outline'}
-                    size={18}
-                    color={folder.favorite ? colors.warning : colors.text}
-                  />
-                  <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
-                    {folder.favorite ? 'Unpin from top' : 'Pin to top'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.folderDropdownItem,
-                    styles.folderDropdownItemBorder,
-                    { borderBottomColor: colors.border },
-                  ]}
-                  onPress={() => {
-                    setFolderMenuId(null);
-                    setFolderDropdownLayout(null);
-                    updateFolder(folder.id, { archived: !folder.archived });
-                  }}
-                >
-                  <Ionicons
-                    name={folder.archived ? 'arrow-undo-outline' : 'archive-outline'}
-                    size={18}
-                    color={colors.text}
-                  />
-                  <Text style={[styles.folderDropdownItemText, { color: colors.text }]}>
-                    {folder.archived ? 'Unarchive' : 'Archive'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.folderDropdownItem}
-                  onPress={() => {
-                    setFolderMenuId(null);
-                    setFolderDropdownLayout(null);
-                    handleDeleteFolder(folder);
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                  <Text style={[styles.folderDropdownItemText, { color: colors.danger }]}>
-                    Delete
-                  </Text>
-                </Pressable>
+                {renderFolderMenuItems(folder, builtInFolder != null)}
               </View>
             </View>
           </Modal>

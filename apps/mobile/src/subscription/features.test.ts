@@ -13,8 +13,8 @@ describe('pro gates', () => {
     expect(requiresProToStart({})).toBe(true);
   });
 
-  it('keeps five built-in programs for the Basic tier', () => {
-    expect(BUILT_IN_TEMPLATES).toHaveLength(5);
+  it('keeps built-in programs for the Basic tier', () => {
+    expect(BUILT_IN_TEMPLATES).toHaveLength(9);
     expect(BUILT_IN_TEMPLATES.every((t) => t.isBuiltIn)).toBe(true);
   });
 

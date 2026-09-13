@@ -230,8 +230,8 @@ export async function setTemplateFolders(folders: TemplateFolder[]): Promise<voi
   await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify(folders));
 }
 
-export async function getHiddenBuiltInTemplateIds(): Promise<string[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEYS.hiddenBuiltInTemplateIds);
+async function getStringIdList(key: string): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(key);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -242,8 +242,20 @@ export async function getHiddenBuiltInTemplateIds(): Promise<string[]> {
   }
 }
 
+export async function getHiddenBuiltInTemplateIds(): Promise<string[]> {
+  return getStringIdList(STORAGE_KEYS.hiddenBuiltInTemplateIds);
+}
+
 export async function setHiddenBuiltInTemplateIds(ids: string[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInTemplateIds, JSON.stringify(ids));
+}
+
+export async function getHiddenBuiltInFolderIds(): Promise<string[]> {
+  return getStringIdList(STORAGE_KEYS.hiddenBuiltInFolderIds);
+}
+
+export async function setHiddenBuiltInFolderIds(ids: string[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInFolderIds, JSON.stringify(ids));
 }
 
 export async function getSessions(): Promise<WorkoutSession[]> {
@@ -456,6 +468,7 @@ const ALL_APP_KEYS = [
   STORAGE_KEYS.templates,
   STORAGE_KEYS.templateFolders,
   STORAGE_KEYS.hiddenBuiltInTemplateIds,
+  STORAGE_KEYS.hiddenBuiltInFolderIds,
   STORAGE_KEYS.sessions,
   STORAGE_KEYS.recovery,
   STORAGE_KEYS.health,

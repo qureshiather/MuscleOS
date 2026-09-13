@@ -32,7 +32,7 @@ export const PRO_FEATURES_LIST = [
 
 /** Basic tier highlights for comparison on the paywall. */
 export const BASIC_FEATURES_LIST = [
-  '5 built-in programs (PPL & Strong Lifts)',
+  'Built-in PPL, Upper/Lower & Strong Lifts',
   'Full set logging & rest timers',
   'Exercise library',
   'Recovery map',

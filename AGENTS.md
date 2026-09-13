@@ -85,12 +85,12 @@ apps/mobile/
 │   ├── workout-preview.tsx
 │   └── ...
 ├── src/
-│   ├── components/         # Reusable UI (MuscleDiagram, PlateCalculator, etc.)
+│   ├── components/         # Reusable UI (MuscleDiagram, etc.)
 │   ├── data/               # Static data (exercises, builtInTemplates)
 │   ├── storage/            # AsyncStorage/SecureStore wrappers + keys
 │   ├── store/              # Zustand stores (authStore, templatesStore, etc.)
 │   ├── theme/              # ThemeProvider, useTheme, colors
-│   └── utils/              # Helpers (weightUnits, relativeTime, plateCalculator)
+│   └── utils/              # Helpers (weightUnits, relativeTime, etc.)
 └── assets/
 ```
 
