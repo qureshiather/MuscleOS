@@ -32,7 +32,7 @@ import {
   SuggestedWorkoutsGrid,
 } from '@/components/workouts/WorkoutHomeSections';
 import { TemplateCard } from '@/components/workouts/TemplateCard';
-import { computeHomeStats } from '@/utils/homeStats';
+import { computeHomeStats, homeHeadline } from '@/utils/homeStats';
 import { requiresProToStart } from '@/subscription/features';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -221,21 +221,10 @@ export default function WorkoutsScreen() {
     return map;
   }, [sessions]);
 
-  const { sessionsThisWeek, weekStreak } = useMemo(
-    () => computeHomeStats(sessions),
-    [sessions]
-  );
-
-  const headerStats = useMemo(() => {
-    const parts: string[] = [];
-    if (sessionsThisWeek > 0) {
-      parts.push(`${sessionsThisWeek} this week`);
-    }
-    if (weekStreak > 1) {
-      parts.push(`${weekStreak}-week streak`);
-    }
-    return parts.join('  ·  ');
-  }, [sessionsThisWeek, weekStreak]);
+  const headline = useMemo(() => {
+    const now = new Date();
+    return homeHeadline(computeHomeStats(sessions, now), now);
+  }, [sessions]);
 
   /**
    * Basic accounts keep their custom templates but cannot start one, so they are
@@ -773,13 +762,9 @@ export default function WorkoutsScreen() {
       <ScrollView contentContainerStyle={screenHeaderStyles.scrollContent}>
         <View style={screenHeaderStyles.headerInScroll}>
           <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Workouts</Text>
-          {headerStats ? (
-            <Text style={[styles.headerStats, { color: colors.textSecondary }]}>{headerStats}</Text>
-          ) : (
-            <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-              Pick a template or start from scratch
-            </Text>
-          )}
+          <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
+            {headline}
+          </Text>
 
           {/* Start Empty Workout - hero CTA */}
           <Pressable
@@ -1600,12 +1585,6 @@ export default function WorkoutsScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerStats: {
-    fontFamily: typography.data.fontFamily,
-    fontSize: 12.5,
-    lineHeight: 18,
-    marginTop: 2,
-  },
   startEmptyCard: {
     marginTop: spacing.md,
     borderRadius: radius.lg,
