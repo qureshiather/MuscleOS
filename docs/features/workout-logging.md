@@ -270,7 +270,7 @@ covering the feature with the most state and the most edge cases.
 Indirectly covered: `src/utils/weightUnits.test.ts` (unit conversion),
 `src/utils/oneRepMax.test.ts` (the 1RM used by analytics, not by this screen).
 
-Highest-value missing tests:
+Not currently covered:
 
 - `activeWorkoutStore`: start / finish / discard, persist and hydrate round-trip, rest-key
   remapping when exercises are reordered or removed, prefill on complete and on add-set

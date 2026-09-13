@@ -29,7 +29,7 @@ the product assumptions baked in, and its tier gating.
 
 | Doc | What it covers |
 |-----|----------------|
-| [engineering/testing.md](engineering/testing.md) | Test coverage per feature, known gaps, priority order for new tests |
+| [engineering/testing.md](engineering/testing.md) | Current test coverage and infrastructure by feature |
 | [supabase/setup.md](supabase/setup.md) | Supabase schema, exercise catalog, sync tables, local setup |
 | [mobile/eas-build.md](mobile/eas-build.md) | EAS build profiles, env vars, store submission |
 
@@ -43,7 +43,6 @@ These docs cover the money and the plumbing behind it.
 | [monetization/pricing.md](monetization/pricing.md) | Plans, USD list prices, store product IDs |
 | [monetization/technical.md](monetization/technical.md) | RevenueCat + Supabase integration, subscription store |
 | [monetization/revenuecat-setup.md](monetization/revenuecat-setup.md) | Dashboard and store console runbook |
-| [monetization/launch-checklist.md](monetization/launch-checklist.md) | Pre-launch verification checklist |
 
 ---
 
@@ -52,6 +51,11 @@ These docs cover the money and the plumbing behind it.
 **Describe what is implemented, not what is planned.** Anything not yet built goes in an
 explicit "Not implemented" or "Open questions" section, never in the main body. A reader
 should be able to trust that everything stated in a spec body is true of the shipped app.
+
+**Keep project work in Linear, not in specs.** Do not add TODO lists, launch checklists,
+roadmaps, issue status, or implementation queues to `docs/`. Specs may state that a capability
+is not implemented when that distinction is necessary to describe the current product, but
+the work to change it belongs in Linear.
 
 **Cite the code.** Behavioural rules reference the file that enforces them, e.g.
 `apps/mobile/src/utils/recovery.ts`. Exact formulas and constants are quoted or tabulated

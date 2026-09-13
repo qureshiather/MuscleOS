@@ -57,9 +57,7 @@ Create a subscription group for monthly + annual on iOS.
 
 - Use an **Expo development build** (not Expo Go) with sandbox Apple/Google accounts.
 - In dev, enable **Grant Pro (testing)** on the Subscription screen, or set `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true`.
-- Verify: monthly purchase, annual purchase, restore, and lapse after sandbox expiry.
-
-See [launch-checklist.md](launch-checklist.md) for the full checklist.
+- Verify monthly purchase, annual purchase, restore, and lapse behavior in the store sandbox.
 
 ## Phase 2 (optional)
 

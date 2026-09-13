@@ -43,7 +43,7 @@ Full detail, including where each gate is enforced: [subscriptions.md](subscript
 
 ## Spec and test status
 
-Test coverage detail and gap priorities: [engineering/testing.md](../engineering/testing.md).
+Current test coverage detail: [engineering/testing.md](../engineering/testing.md).
 
 | Area | Spec | Automated tests |
 |------|------|-----------------|

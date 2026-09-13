@@ -232,7 +232,7 @@ Not covered:
 
 - **`recoveryFromSessions()`** — the core derivation. No test for skipping incomplete sessions,
   skipping exercises with no completed set, latest-per-muscle selection, or catalog fallback
-  lookup. This is the most valuable missing test in the feature.
+  lookup.
 - `recoveryStore` load/persist round-trip, and recompute-on-delete
 - `formatRecoveryReady` weekday and far-future branches
 - `MuscleDiagram` state derivation and shared-region behaviour

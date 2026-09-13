@@ -15,7 +15,7 @@ This document helps AI agents and future prompts work effectively with the Muscl
 | [`docs/README.md`](docs/README.md) | Doc index and the rules for keeping specs in sync |
 | [`docs/product/overview.md`](docs/product/overview.md) | What the app is, design principles, screen map, cross-cutting assumptions |
 | [`docs/features/README.md`](docs/features/README.md) | Feature index, Basic/Pro tier matrix, spec + test status |
-| [`docs/engineering/testing.md`](docs/engineering/testing.md) | Test coverage, gaps, and priority order |
+| [`docs/engineering/testing.md`](docs/engineering/testing.md) | Current test coverage and infrastructure |
 
 **Feature specs:** [templates](docs/features/templates.md) · [workout-logging](docs/features/workout-logging.md) · [recovery](docs/features/recovery.md) · [exercise-library](docs/features/exercise-library.md) · [history-analytics](docs/features/history-analytics.md) · [subscriptions](docs/features/subscriptions.md) · [accounts-and-data](docs/features/accounts-and-data.md)
 
@@ -29,6 +29,7 @@ Docs rot silently, so treat them as part of the change rather than follow-up wor
 4. **Edit, don't append.** These are specs describing the current app, not a changelog. Git history is the changelog.
 5. **If code and spec disagree, that's a bug.** Fix it rather than working around it, and say which one you treated as correct.
 6. **Add tests for new pure logic.** No test infrastructure is required for pure functions, so there's no excuse for skipping them. If something genuinely isn't testable with the current setup, note it in that spec's **Tests** section instead of leaving it silently uncovered.
+7. **Keep work tracking in Linear.** Do not add TODO lists, roadmaps, launch checklists, issue status, or implementation queues to `docs/`. Specs describe the current product; Linear owns planned work.
 
 Do not add spec READMEs under `apps/` or other code directories — all specs live in `docs/`.
 
@@ -184,7 +185,7 @@ apps/mobile/
 3. **New store**: Follow `authStore`/`templatesStore` pattern — load on app init from layout if needed.
 4. **New screen**: Add file under `app/`; use `Stack`/`Tabs` screen options for layout. Add it to the [screen map](docs/product/overview.md#screen-map).
 5. **New component**: Place in `src/components/`, use `@/` imports and `useTheme()` for colors.
-6. **Tests**: Put `*.test.ts` next to domain helpers (`src/utils`, `@muscleos/types`). CI runs `pnpm check` (Biome + `tsc` + Vitest via Turbo). Coverage gaps and priorities: [`docs/engineering/testing.md`](docs/engineering/testing.md).
+6. **Tests**: Put `*.test.ts` next to domain helpers (`src/utils`, `@muscleos/types`). CI runs `pnpm check` (Biome + `tsc` + Vitest via Turbo). Current coverage: [`docs/engineering/testing.md`](docs/engineering/testing.md).
 
 ### Behaviours that are easy to break
 

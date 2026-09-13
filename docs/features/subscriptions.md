@@ -12,7 +12,6 @@ happens when a subscription lapses.
 | Prices and store product IDs | [monetization/pricing.md](../monetization/pricing.md) |
 | RevenueCat / Supabase implementation | [monetization/technical.md](../monetization/technical.md) |
 | Dashboard and store console runbook | [monetization/revenuecat-setup.md](../monetization/revenuecat-setup.md) |
-| Pre-launch checks | [monetization/launch-checklist.md](../monetization/launch-checklist.md) |
 | Code | `apps/mobile/src/subscription/features.ts`, `src/hooks/useProGate.ts` |
 
 ## Tiers

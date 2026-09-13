@@ -1,10 +1,10 @@
 # Testing
 
-Where test coverage stands, what's missing, and the order in which to close the gaps.
+Where test coverage stands and what infrastructure currently exists.
 
 **Goal:** every behavioural rule stated in a [feature spec](../features/README.md) is eventually
-backed by a test. We're a long way from that — this doc tracks the distance honestly so the gaps
-are a known quantity rather than a surprise.
+backed by a test. Planned testing work and its priority live in Linear; this document records only
+the current state.
 
 ## Running tests
 
@@ -49,60 +49,6 @@ without new infrastructure.
 | [Templates](../features/templates.md) | Partial | Built-in integrity good; store CRUD and validation untested |
 | [Exercise library](../features/exercise-library.md) | Partial | Search and normalization good; store and sync untested |
 | [History & analytics](../features/history-analytics.md) | Partial | 1RM and home stats good; strength standards and volume untested |
-
-## Priority gaps
-
-Ordered by risk — how likely a regression is, multiplied by how much it would hurt.
-
-### P0 — silent data loss or corruption
-
-Bugs here lose a user's workout or their history, which is unrecoverable and unforgivable.
-
-1. **`activeWorkoutStore` lifecycle** — start, finish, discard, and the persist/hydrate round-trip.
-   A regression here loses an in-progress workout.
-2. **Rest-key remapping on structural edits** — reordering, removing, or replacing an exercise
-   remaps `restDurationsBetweenSets` and `restAfter` by index. Index remapping is exactly the kind
-   of code that breaks quietly.
-3. **Replace-exercise preserves sets** — the documented contract is that all logged sets, warm-ups,
-   and rest carry over.
-4. **Sync merge policy** — all five branches in `mergePolicy.ts`, especially local-wins-when-dirty
-   and last-write-wins ties. A merge bug can overwrite real training history.
-5. **`deleteSession` side effects** — recovery recompute and previous-map rebuild.
-
-### P1 — revenue and correctness
-
-6. **Gate enforcement** — assert that a Basic user hitting each entry in the
-   [gate map](../features/subscriptions.md#gate-map) is redirected to the paywall. Particularly the
-   `active-workout` start-from-params path, which is the deep-link and notification-tap hole.
-7. **`recoveryFromSessions()`** — the derivation behind the signature feature: skipping
-   incomplete sessions, requiring a completed set, latest-per-muscle, catalog fallback.
-8. **`strengthStandards.ts`** — band selection, sex tables, next-level targets, and the
-   unsupported-exercise path. Currently zero coverage on user-facing numbers.
-9. **Set completion and prefill rules** — `reps > 0` to complete, warm-ups not starting rest,
-   weight carrying to the next set only within the same set kind.
-
-### P2 — behavioural polish
-
-10. **`templatesStore` CRUD** — including the folder-delete cascade and the documented
-    folder-not-cleared-on-edit quirk (write the test for the intended behaviour and fix it).
-11. **`exercisesStore`** — seed application, cache merge, delta watermark advancement.
-12. **Volume calculation** — and a decision on whether warm-up sets should count
-    (see [history-analytics.md](../features/history-analytics.md#volume)).
-13. **Export payload** — assert its documented contents *and* its documented omissions.
-14. **Search ranking** — metadata matching, multi-token ordering, score tie-breaks.
-15. **`formatRelative`** — the day/week branches and absolute-date fallback.
-
-## What would unblock most of this
-
-The P0 and P1 lists are mostly blocked on test infrastructure rather than on effort:
-
-- **An AsyncStorage mock** would make every Zustand store testable. This alone unblocks items
-  1, 2, 3, 5, 10, and 11 — the majority of the highest-risk gaps, and the single highest-leverage
-  investment available.
-- **A React Native test renderer** (`@testing-library/react-native`) would allow component and gate
-  tests, unblocking item 6.
-- Items 7, 8, 12, and 15 are **pure functions and need no new infrastructure** — they can be written
-  today. Start there.
 
 ## Conventions
 
