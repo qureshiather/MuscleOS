@@ -20,6 +20,7 @@ import {
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
+import { withAlpha } from '@/theme/palette';
 import { typography } from '@/theme/typography';
 import { fontScaleCap, useBottomSpace, useDenseRowMetrics, useModalMaxHeight } from '@/theme/layout';
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
@@ -158,17 +159,87 @@ function ExerciseMenuContent({
     </>
   );
 }
+function SetIndexMark({
+  label,
+  isWarmUp,
+  completed,
+  isCurrent,
+  isFuture,
+  colors,
+}: {
+  label: string;
+  isWarmUp: boolean;
+  completed: boolean;
+  isCurrent: boolean;
+  isFuture: boolean;
+  colors: {
+    primary: string;
+    primaryOn: string;
+    success: string;
+    successOn: string;
+    text: string;
+    textSecondary: string;
+    textMuted: string;
+    border: string;
+  };
+}) {
+  const filled = completed || isCurrent;
+  return (
+    <View
+      style={[
+        styles.setIndexMark,
+        isWarmUp && styles.setIndexMarkWarmUp,
+        {
+          backgroundColor: completed ? colors.success : isCurrent ? colors.primary : 'transparent',
+          borderColor: filled ? 'transparent' : colors.border,
+          borderWidth: filled ? 0 : StyleSheet.hairlineWidth,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.setIndexMarkText,
+          isWarmUp && styles.setLabelWarmUp,
+          {
+            color: completed
+              ? colors.successOn
+              : isCurrent
+                ? colors.primaryOn
+                : isWarmUp
+                  ? colors.textSecondary
+                  : isFuture
+                    ? colors.textMuted
+                    : colors.text,
+          },
+        ]}
+        maxFontSizeMultiplier={fontScaleCap.fixed}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function SetDonePressable({
   completed,
+  isCurrent,
   disabled,
   mutedFill,
   colors,
   onPress,
 }: {
   completed: boolean;
+  isCurrent?: boolean;
   disabled?: boolean;
   mutedFill: string;
-  colors: { primary: string; border: string; textMuted: string; success: string; successOn: string };
+  colors: {
+    primary: string;
+    primarySurface: string;
+    border: string;
+    textMuted: string;
+    success: string;
+    successOn: string;
+  };
   onPress: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -202,7 +273,9 @@ function SetDonePressable({
         disabled={disabled && !completed}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
-        accessibilityLabel={completed ? 'Mark set incomplete' : 'Complete set'}
+        accessibilityLabel={
+          completed ? 'Mark set incomplete' : isCurrent ? 'Complete current set' : 'Complete set'
+        }
         style={styles.doneBtnHit}
       >
         <View
@@ -210,10 +283,24 @@ function SetDonePressable({
             styles.doneBtn,
             completed
               ? { backgroundColor: colors.success }
-              : { backgroundColor: mutedFill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+              : isCurrent
+                ? {
+                    backgroundColor: colors.primarySurface,
+                    borderWidth: 1.5,
+                    borderColor: colors.primary,
+                  }
+                : {
+                    backgroundColor: mutedFill,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: colors.border,
+                  },
           ]}
         >
-          <Ionicons name="checkmark" size={17} color={completed ? colors.successOn : colors.textMuted} />
+          <Ionicons
+            name="checkmark"
+            size={17}
+            color={completed ? colors.successOn : isCurrent ? colors.primary : colors.textMuted}
+          />
         </View>
       </Pressable>
     </Animated.View>
@@ -279,7 +366,14 @@ function ActiveRestGap({
   reserved: boolean;
   restSecondsLeft: number;
   restTotalSeconds: number;
-  colors: { primary: string; text: string; textSecondary: string; textMuted: string; primarySurface: string; border: string };
+  colors: {
+    primary: string;
+    text: string;
+    textSecondary: string;
+    textMuted: string;
+    primarySurface: string;
+    border: string;
+  };
   onPress?: () => void;
 }) {
   const opacity = useRef(new Animated.Value(active ? 1 : 0)).current;
@@ -301,38 +395,42 @@ function ActiveRestGap({
   const timeLabel = `${Math.floor(restSecondsLeft / 60)}:${(restSecondsLeft % 60).toString().padStart(2, '0')}`;
 
   const inner = (
-    <Animated.View style={[styles.restGapInner, { opacity }]}>
-      <View style={styles.restGapTimeRow}>
-        <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
-        <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
-        <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
-      </View>
+    <View style={styles.restGapInner}>
+      {active ? (
+        <Animated.View style={[styles.restGapTimeRow, { opacity }]}>
+          <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
+          <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
+          <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
+        </Animated.View>
+      ) : (
+        <View style={styles.restGapTimeRow} />
+      )}
       <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
-        <View
-          style={[
-            styles.restGapFill,
-            { width: `${progress}%`, backgroundColor: colors.primary },
-          ]}
-        />
+        {active ? (
+          <View
+            style={[
+              styles.restGapFill,
+              { width: `${progress}%`, backgroundColor: colors.primary },
+            ]}
+          />
+        ) : null}
       </View>
-    </Animated.View>
+    </View>
   );
 
   return (
     <View style={[styles.restGapBlock, { height: REST_GAP_HEIGHT }]}>
-      {active ? (
-        onPress ? (
-          <Pressable
-            onPress={onPress}
-            accessibilityRole="button"
-            accessibilityLabel="Open rest timer controls"
-          >
-            {inner}
-          </Pressable>
-        ) : (
-          inner
-        )
-      ) : null}
+      {active && onPress ? (
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel="Open rest timer controls"
+        >
+          {inner}
+        </Pressable>
+      ) : (
+        inner
+      )}
     </View>
   );
 }
@@ -1242,16 +1340,21 @@ export default function ActiveWorkoutScreen() {
                   ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
                   : '—';
 
-                const completedRowTint = isDark ? colors.surfaceElevated : colors.successSurface;
-                const warmUpRowTint = colors.rowWarmUp;
+                const completedRowTint = withAlpha(colors.success, isDark ? 0.22 : 0.16);
+                const currentRowTint = withAlpha(colors.primary, isDark ? 0.22 : 0.16);
+                const statusAccent = set.completed
+                  ? colors.success
+                  : isCurrentSet
+                    ? colors.primary
+                    : null;
                 const rowBg = set.completed
                   ? completedRowTint
-                  : isWarmUp
-                    ? warmUpRowTint
-                    : isFutureSet
-                      ? colors.rowFuture
-                      : isDark
-                        ? colors.surface
+                  : isCurrentSet
+                    ? currentRowTint
+                    : isWarmUp
+                      ? colors.rowWarmUp
+                      : isFutureSet
+                        ? colors.rowFuture
                         : colors.surface;
                 const mutedFill = colors.surfaceElevated;
 
@@ -1284,7 +1387,7 @@ export default function ActiveWorkoutScreen() {
                   repsBorderColor = colors.primary;
                 } else if (isCurrentSet) {
                   kgFill = colors.surface;
-                  kgBorderColor = isDark ? colors.border : colors.inputBorder;
+                  kgBorderColor = colors.primary;
                   repsFill = mutedFill;
                 }
 
@@ -1306,10 +1409,7 @@ export default function ActiveWorkoutScreen() {
                     <View
                       style={[
                         setRowStyle,
-                        {
-                          backgroundColor: rowBg,
-                          borderBottomColor: colors.border,
-                        },
+                        { backgroundColor: 'transparent' },
                       ]}
                     >
                       <Pressable
@@ -1323,24 +1423,14 @@ export default function ActiveWorkoutScreen() {
                         }}
                         delayLongPress={350}
                       >
-                        <Text
-                          style={[
-                            styles.setLabel,
-                            isWarmUp && styles.setLabelWarmUp,
-                            {
-                              color: set.completed
-                                ? colors.text
-                                : isWarmUp
-                                  ? colors.textSecondary
-                                  : isFutureSet
-                                    ? colors.textMuted
-                                    : colors.text,
-                              fontWeight: '600',
-                            },
-                          ]}
-                        >
-                          {setLabelText}
-                        </Text>
+                        <SetIndexMark
+                          label={setLabelText}
+                          isWarmUp={isWarmUp}
+                          completed={set.completed}
+                          isCurrent={isCurrentSet}
+                          isFuture={isFutureSet}
+                          colors={colors}
+                        />
                         <Text
                           style={[
                             styles.setRestDuration,
@@ -1434,6 +1524,7 @@ export default function ActiveWorkoutScreen() {
                       </View>
                       <SetDonePressable
                         completed={set.completed}
+                        isCurrent={isCurrentSet}
                         disabled={!set.completed && !(set.reps != null && set.reps > 0)}
                         mutedFill={mutedFill}
                         colors={colors}
@@ -1463,7 +1554,20 @@ export default function ActiveWorkoutScreen() {
                 );
 
                 return (
-                  <View key={setIdx}>
+                  <View
+                    key={setIdx}
+                    style={[
+                      styles.setStatusBlock,
+                      { backgroundColor: rowBg, borderBottomColor: colors.border },
+                    ]}
+                    accessibilityState={isCurrentSet ? { selected: true } : undefined}
+                  >
+                    {statusAccent ? (
+                      <View
+                        pointerEvents="none"
+                        style={[styles.setStatusAccent, { backgroundColor: statusAccent }]}
+                      />
+                    ) : null}
                     {canDeleteSet ? (
                       <SetRowSwipeable
                         dangerColor={colors.danger}
@@ -2464,7 +2568,26 @@ const styles = StyleSheet.create({
   },
   setLabelCol: {
     minHeight: SET_INPUT_MIN_HEIGHT,
-    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setIndexMark: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setIndexMarkWarmUp: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  setIndexMarkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: typography.data.fontFamily,
+    textAlign: 'center',
   },
   colPrev: {
     flex: 1,
@@ -2484,13 +2607,11 @@ const styles = StyleSheet.create({
   setLabel: { fontSize: 13, textAlign: 'center' },
   setLabelWarmUp: { fontSize: 11 },
   setRestDuration: {
-    position: 'absolute',
-    bottom: 1,
-    left: 0,
-    right: 0,
     fontSize: 9,
     fontFamily: typography.data.fontFamily,
     textAlign: 'center',
+    marginTop: 1,
+    lineHeight: 11,
   },
   prevCell: {
     fontSize: 10,
@@ -2503,8 +2624,18 @@ const styles = StyleSheet.create({
     gap: TABLE_COL_GAP,
     paddingVertical: 3,
     paddingHorizontal: TABLE_H_PAD,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     minHeight: SET_ROW_MIN_HEIGHT,
+  },
+  setStatusBlock: {
+    position: 'relative',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  setStatusAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
   },
   setInputWrap: {
     flex: 1,
@@ -2538,7 +2669,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   restGapBlock: {
-    paddingHorizontal: 2,
+    paddingHorizontal: 10,
     justifyContent: 'center',
   },
   restGapInner: {
@@ -2549,6 +2680,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 2,
+    minHeight: 16,
   },
   restGapTime: {
     fontFamily: typography.data.fontFamily,

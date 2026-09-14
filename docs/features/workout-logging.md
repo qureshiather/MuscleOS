@@ -94,9 +94,10 @@ session, and queues a cloud sync.
 Columns: **SET · PREVIOUS · KG/LB · REPS · Done**.
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
-- Completed rows tint to the success surface; warm-ups and not-yet-reached sets have their own tints.
-- The first incomplete set is the "current" one; later incomplete sets render muted.
+- The first incomplete set is the **current** set: primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Later incomplete sets render muted with an outlined number.
+- Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint.
 - After a set is completed, the actual rest taken is displayed under its number.
+- A fixed rest slot sits under the current working set (and under the resting set while the timer runs) so completing a set does not shove the rows below. The slot is empty until rest starts; the countdown fills that same space. Warm-ups do not reserve a slot.
 
 ### Previous values and prefill
 
@@ -144,6 +145,9 @@ per exercise within a session. Per-exercise rest applies after **every** set inc
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
 and app restarts. **Skip rest** records the elapsed time and clears the timer; recorded durations
 are kept per set and shown in the set row.
+
+A **fixed-height slot** under the current working set (and under the resting set while the timer
+runs) is reserved even before rest starts, so the rows below do not jump when a set is completed.
 
 ### Sounds
 
