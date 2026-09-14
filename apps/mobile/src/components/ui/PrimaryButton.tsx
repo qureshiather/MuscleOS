@@ -6,28 +6,31 @@ import { fontScaleCap } from '@/theme/layout';
 
 type PrimaryButtonProps = PressableProps & {
   label: string;
-  variant?: 'filled' | 'outline';
+  variant?: 'filled' | 'outline' | 'danger';
 };
 
 export function PrimaryButton({ label, variant = 'filled', style, disabled, ...rest }: PrimaryButtonProps) {
   const { colors } = useTheme();
-  const isFilled = variant === 'filled';
+  const isOutline = variant === 'outline';
+  const backgroundColor = variant === 'danger' ? colors.danger : variant === 'filled' ? colors.primary : 'transparent';
+  const labelColor = isOutline ? colors.text : colors.primaryOn;
 
   return (
     <Pressable
       style={(state) => [
         styles.btn,
-        isFilled
-          ? { backgroundColor: colors.primary, opacity: disabled ? 0.5 : state.pressed ? 0.9 : 1 }
-          : { borderColor: colors.border, opacity: disabled ? 0.5 : state.pressed ? 0.85 : 1 },
-        !isFilled && styles.outline,
+        {
+          backgroundColor,
+          opacity: disabled ? 0.5 : state.pressed ? (isOutline ? 0.85 : 0.9) : 1,
+        },
+        isOutline && [styles.outline, { borderColor: colors.border }],
         typeof style === 'function' ? style(state) : style,
       ]}
       disabled={disabled}
       {...rest}
     >
       <Text
-        style={[typography.button, styles.label, { color: isFilled ? colors.primaryOn : colors.text }]}
+        style={[typography.button, styles.label, { color: labelColor }]}
         maxFontSizeMultiplier={fontScaleCap.chrome}
       >
         {label}

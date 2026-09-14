@@ -23,6 +23,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { fontScaleCap, useBottomSpace, useDenseRowMetrics, useModalMaxHeight } from '@/theme/layout';
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import {
   requiresProToStart,
@@ -467,6 +468,7 @@ export default function ActiveWorkoutScreen() {
   const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
   const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
@@ -756,6 +758,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   function handleCancel() {
+    setShowCancelConfirm(false);
     leavingWorkoutRef.current = true;
     useActiveWorkoutStore.getState().discardWorkout();
     router.replace('/(tabs)');
@@ -891,6 +894,14 @@ export default function ActiveWorkoutScreen() {
       sessionExerciseIds.some((id, i) => templateExerciseIds[i] !== id));
 
   const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
+  const completedSetCount = session.exercises.reduce(
+    (n, ex) => n + ex.sets.filter((s) => s.completed).length,
+    0
+  );
+  const cancelWorkoutMeta =
+    completedSetCount > 0
+      ? `${formatElapsed(elapsedMs)} · ${completedSetCount} set${completedSetCount === 1 ? '' : 's'}`
+      : undefined;
   const completedSetsByExercise = session.exercises.map((se) => ({
     name: getExercise(se.exerciseId)?.name ?? se.exerciseId,
     completed: se.sets.filter((s) => s.completed).length,
@@ -1033,24 +1044,11 @@ export default function ActiveWorkoutScreen() {
 
             <Pressable
               style={styles.cancelWorkoutBtn}
-              onPress={() => {
-                Alert.alert(
-                  'Cancel workout',
-                  'This workout will not be saved. Are you sure?',
-                  [
-                    { text: 'Keep', style: 'cancel' },
-                    {
-                      text: 'Cancel workout',
-                      style: 'destructive',
-                      onPress: () => {
-                        leavingWorkoutRef.current = true;
-                        useActiveWorkoutStore.getState().discardWorkout();
-                        router.replace('/(tabs)');
-                      },
-                    },
-                  ]
-                );
-              }}
+              testID="cancel-workout-footer"
+              accessibilityRole="button"
+              accessibilityLabel="Cancel workout"
+              accessibilityHint="Discards this workout without saving"
+              onPress={() => setShowCancelConfirm(true)}
             >
               <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>Cancel workout</Text>
             </Pressable>
@@ -1500,6 +1498,20 @@ export default function ActiveWorkoutScreen() {
             </View>
           );
         }}
+      />
+
+      <ConfirmDialog
+        visible={showCancelConfirm}
+        title="Cancel workout?"
+        meta={cancelWorkoutMeta}
+        message="This workout will not be saved."
+        cancelLabel="Keep workout"
+        confirmLabel="Discard workout"
+        destructive
+        onCancel={() => setShowCancelConfirm(false)}
+        onConfirm={handleCancel}
+        cancelTestID="cancel-workout-keep"
+        confirmTestID="cancel-workout-discard"
       />
 
       <Modal visible={showRestPicker} transparent animationType="fade">

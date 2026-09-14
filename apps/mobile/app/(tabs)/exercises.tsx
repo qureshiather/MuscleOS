@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen, SheetFrame } from '@/components/layout';
+import { useBottomSpace, useModalMaxHeight } from '@/theme/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -55,10 +56,16 @@ function exerciseMatchesMuscleFilter(e: Exercise, muscleFilter: string | null): 
   return e.muscles.includes(muscleFilter as MuscleId);
 }
 
+/** Approximate detail-sheet header (title + Close + padding + hairline). */
+const DETAIL_HEADER_HEIGHT = 64;
+
 export default function ExercisesScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { isPro, gatePro } = useProGate();
+  const sheetMaxHeight = useModalMaxHeight();
+  const sheetBottomPad = useBottomSpace(spacing.xl);
+  const detailScrollMaxHeight = Math.max(160, sheetMaxHeight - sheetBottomPad - DETAIL_HEADER_HEIGHT);
   const getAllExercises = useExercisesStore((s) => s.getAllExercises);
   const removeExercise = useExercisesStore((s) => s.removeExercise);
   const notes = useExerciseNotesStore((s) => s.notes);
@@ -350,29 +357,45 @@ export default function ExercisesScreen() {
           setSelected(null);
         }}
       >
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => {
-            if (selected) void setNote(selected.id, noteDraft);
-            setSelected(null);
-          }}
-        >
-          <SheetFrame onStartShouldSetResponder={() => true}>
-            {selected && (
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          {/* Sibling backdrop — nesting ScrollView in Pressable breaks pans on Android (MUS-31). */}
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => {
+              if (selected) void setNote(selected.id, noteDraft);
+              setSelected(null);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss exercise details"
+          />
+          <SheetFrame style={styles.sheet}>
+            {selected ? (
               <>
-                <View style={[styles.modalHeader, { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <View
+                  style={[
+                    styles.modalHeader,
+                    { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+                  ]}
+                >
                   <Text style={[styles.modalTitle, { color: colors.text }]}>{selected.name}</Text>
                   <Pressable
                     onPress={() => {
                       void setNote(selected.id, noteDraft);
                       setSelected(null);
                     }}
+                    hitSlop={8}
                   >
                     <Text style={[styles.modalClose, { color: colors.primary }]}>Close</Text>
                   </Pressable>
                 </View>
-                <MuscleDiagram muscleIds={selected.muscles} size={0.9} />
-                <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+                <ScrollView
+                  style={[styles.modalScroll, { maxHeight: detailScrollMaxHeight }]}
+                  contentContainerStyle={styles.modalBody}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                >
+                  <MuscleDiagram muscleIds={selected.muscles} size={0.9} />
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Muscles</Text>
                   <Text style={[styles.bodyText, { color: colors.text }]}>
                     {formatMuscleLabels(selected.muscles)}
@@ -420,14 +443,14 @@ export default function ExercisesScreen() {
                       </Pressable>
                     </View>
                   ) : null}
-                  {selected.instructions && (
+                  {selected.instructions ? (
                     <>
                       <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Instructions</Text>
                       <Text style={[styles.bodyText, { color: colors.text }]}>
                         {selected.instructions}
                       </Text>
                     </>
-                  )}
+                  ) : null}
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Your notes</Text>
                   <Text style={[styles.noteHint, { color: colors.textMuted }]}>
                     Seat height, lever settings, and other personal adjustments. Synced to your account.
@@ -451,9 +474,9 @@ export default function ExercisesScreen() {
                   />
                 </ScrollView>
               </>
-            )}
+            ) : null}
           </SheetFrame>
-        </Pressable>
+        </View>
       </Modal>
     </Screen>
   );
@@ -540,11 +563,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    borderTopLeftRadius: radius.lg + 8,
-    borderTopRightRadius: radius.lg + 8,
-    maxHeight: '90%',
-    paddingBottom: 40,
+  sheet: {
+    flexShrink: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -554,7 +574,11 @@ const styles = StyleSheet.create({
   },
   modalTitle: { ...typography.sectionTitle, flex: 1 },
   modalClose: { ...typography.label },
-  modalBody: { padding: spacing.lg + 4 },
+  modalScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  modalBody: { padding: spacing.lg + 4, paddingTop: spacing.md },
   sectionLabel: { ...typography.caption, fontFamily: typography.label.fontFamily, marginTop: spacing.lg, marginBottom: spacing.xs },
   bodyText: { ...typography.body },
   noteHint: { ...typography.caption, marginBottom: spacing.sm },

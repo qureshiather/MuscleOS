@@ -80,7 +80,7 @@ chevron-down minimises back to the tabs without ending anything.
 
 | Action | Behaviour |
 |--------|-----------|
-| **Cancel workout** (footer) | Alert "This workout will not be saved…" then discard |
+| **Cancel workout** (footer) | Themed confirm dialog: "This workout will not be saved." If any sets are completed, also shows elapsed time and set count. **Keep workout** (or tap the overlay) dismisses; **Discard workout** discards. |
 | **Discard** (finish modal) | Discard without saving |
 | **Resume pill X** | Discard immediately, no confirmation |
 | **Finish** | Enabled only once at least one set is completed |

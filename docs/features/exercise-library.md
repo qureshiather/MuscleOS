@@ -194,7 +194,7 @@ equipment labels.
 **Detail sheet** (tap a row): name, body diagram, muscle labels, type and equipment, Edit/Delete
 for customs, instructions when present, and **Your notes** — a free-text field ("Seat height,
 lever settings…") keyed by exercise id and synced to your account. Notes save on close, on overlay
-tap, and on end-editing.
+tap, and on end-editing. Content below the title scrolls when it exceeds the sheet max height.
 
 There are **no favourites** on this tab, and no links to the PR or progression screens (those are
 reached from History).
