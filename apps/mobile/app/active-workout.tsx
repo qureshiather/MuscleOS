@@ -17,7 +17,7 @@ import {
   Dimensions,
   type KeyboardEvent,
 } from 'react-native';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, Swipeable, FlatList as GestureFlatList } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
@@ -45,6 +45,17 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
 import type { MuscleId, SessionExercise } from '@muscleos/types';
 import { searchExercises } from '@/utils/exerciseSearch';
+import { NumericKeypad } from '@/components/NumericKeypad';
+import {
+  keypadAdjust,
+  keypadAppendDigit,
+  keypadBackspace,
+  REPS_MAX_DIGITS,
+  REPS_STEP,
+  WEIGHT_MAX_DIGITS,
+  WEIGHT_STEP_KG,
+  WEIGHT_STEP_LB,
+} from '@/utils/keypadInput';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -78,10 +89,6 @@ const COL_PREV_MIN_WIDTH = 64;
 const COL_INPUT_MIN_WIDTH = 52;
 const TABLE_H_PAD = 4;
 const TABLE_COL_GAP = 4;
-
-function digitsOnly(text: string): string {
-  return text.replace(/[^\d]/g, '');
-}
 
 function alertCannotEditBuiltIn() {
   Alert.alert(
@@ -523,8 +530,9 @@ export default function ActiveWorkoutScreen() {
       ? null
       : Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [editingWeightExIdx, setEditingWeightExIdx] = useState<number | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
+  const [keypadHeight, setKeypadHeight] = useState(0);
+  const listRef = useRef<GestureFlatList<SessionExercise> | null>(null);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
   const [exercisePicker, setExercisePicker] = useState<
     { mode: 'add' } | { mode: 'replace'; exIdx: number } | null
@@ -755,6 +763,22 @@ export default function ActiveWorkoutScreen() {
       setShowRestControls(false);
     }
   }, [restSecondsLeft]);
+
+  // When a cell is focused, bring its exercise up so the keypad never hides the row being
+  // edited. Keyed on the exercise (not the field) so hopping weight→reps doesn't re-scroll.
+  const focusedExIdx = focusedCell?.exIdx ?? null;
+  useEffect(() => {
+    if (focusedExIdx == null) return;
+    const id = setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index: focusedExIdx, viewPosition: 0, animated: true });
+      } catch {
+        // scrollToIndex can throw for a not-yet-measured row; the reserved padding still
+        // leaves the cell reachable by hand.
+      }
+    }, 60);
+    return () => clearTimeout(id);
+  }, [focusedExIdx]);
 
   async function handleFinish(updateCustomTemplate?: boolean) {
     if (!session) return;
@@ -1007,6 +1031,96 @@ export default function ActiveWorkoutScreen() {
     sets: se.sets.filter((s) => s.completed),
   }));
 
+  // ── In-app numeric keypad ──────────────────────────────────────────────────
+  // Shown whenever a set cell is focused, unless a sheet/modal owns the bottom.
+  const keypadModalOpen =
+    reorderMode ||
+    exercisePicker !== null ||
+    restTimersExIdx !== null ||
+    noteEditExIdx !== null ||
+    showFinishSummary ||
+    showRestPicker ||
+    showRestControls ||
+    showCancelConfirm ||
+    showSaveAsTemplateModal;
+
+  const focusedExercise =
+    focusedCell != null ? session.exercises[focusedCell.exIdx] : undefined;
+  const keypadSet =
+    focusedCell != null ? focusedExercise?.sets[focusedCell.setIdx] : undefined;
+  const keypadVisible = focusedCell != null && keypadSet != null && !keypadModalOpen;
+  const keypadIsWeight = focusedCell?.field === 'kg';
+  const keypadExerciseName = focusedExercise
+    ? getExercise(focusedExercise.exerciseId)?.name ?? focusedExercise.exerciseId
+    : '';
+  const currentKeypadValue: number | undefined = keypadSet
+    ? keypadIsWeight
+      ? keypadSet.weightKg != null
+        ? kgToDisplay(keypadSet.weightKg, weightUnit)
+        : undefined
+      : keypadSet.reps
+    : undefined;
+  const keypadValueText = currentKeypadValue != null ? String(currentKeypadValue) : '';
+  const keypadStep = keypadIsWeight
+    ? weightUnit === 'lb'
+      ? WEIGHT_STEP_LB
+      : WEIGHT_STEP_KG
+    : REPS_STEP;
+
+  // Done is only meaningful once the set has reps to log.
+  const keypadCanComplete = keypadSet != null && keypadSet.reps != null && keypadSet.reps > 0;
+
+  function applyKeypadValue(next: number | undefined) {
+    if (!focusedCell) return;
+    const { exIdx, setIdx, field } = focusedCell;
+    if (field === 'reps') {
+      setSetRecord(exIdx, setIdx, { reps: next });
+    } else {
+      setSetRecord(exIdx, setIdx, {
+        weightKg: next == null ? undefined : displayToKg(next, weightUnit),
+      });
+    }
+  }
+  function handleKeypadDigit(digit: string) {
+    const maxDigits = keypadIsWeight ? WEIGHT_MAX_DIGITS : REPS_MAX_DIGITS;
+    applyKeypadValue(keypadAppendDigit(currentKeypadValue, digit, maxDigits));
+  }
+  function handleKeypadBackspace() {
+    applyKeypadValue(keypadBackspace(currentKeypadValue));
+  }
+  function handleKeypadAdjust(delta: number) {
+    applyKeypadValue(keypadAdjust(currentKeypadValue, delta));
+  }
+  // Weight → jump to reps of the same set.
+  function handleKeypadNext() {
+    if (!focusedCell) return;
+    setFocusedCell({ exIdx: focusedCell.exIdx, setIdx: focusedCell.setIdx, field: 'reps' });
+  }
+  // Reps → complete the set (starting rest for a working set) and drop the pad, since the
+  // rest usually comes next rather than the following set.
+  function handleKeypadComplete() {
+    if (!focusedCell || !session) return;
+    const { exIdx, setIdx } = focusedCell;
+    const se = session.exercises[exIdx];
+    const targetSet = se?.sets[setIdx];
+    if (!targetSet) return;
+    if (!(targetSet.reps != null && targetSet.reps > 0)) return;
+    if (!targetSet.completed) {
+      completeSet(exIdx, setIdx);
+      if (workoutSoundsEnabled) {
+        void playWorkoutSound('setComplete');
+      }
+      if (targetSet.isWarmUp !== true) {
+        startRest(exIdx, setIdx, se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
+      }
+    }
+    setFocusedCell(null);
+  }
+
+  const listBottomPadding = keypadVisible
+    ? keypadHeight + 16
+    : listPaddingBottom;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <Screen kind="chrome">
@@ -1080,6 +1194,7 @@ export default function ActiveWorkoutScreen() {
       </View>
 
       <DraggableFlatList
+        ref={listRef}
         data={session.exercises}
         keyExtractor={(item, index) => `${item.exerciseId}-${index}`}
         onDragEnd={({ from, to }) => {
@@ -1087,8 +1202,10 @@ export default function ActiveWorkoutScreen() {
         }}
         activationDistance={reorderMode ? 8 : 9999}
         containerStyle={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: listPaddingBottom }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: listBottomPadding }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollToIndexFailed={() => {}}
         ListHeaderComponent={
           <View>
             <Text style={[styles.workoutTitle, { color: colors.text }]} numberOfLines={2}>
@@ -1454,74 +1571,60 @@ export default function ActiveWorkoutScreen() {
                           {prevLabel}
                         </Text>
                       </View>
-                      <View
+                      <Pressable
+                        onPress={() => setFocusedCell({ exIdx, setIdx, field: 'kg' })}
                         style={[
                           setInputWrapStyle,
+                          styles.setCell,
                           {
                             backgroundColor: kgFill,
                             borderColor: kgBorderColor,
-                            borderWidth: 1,
+                            borderWidth: isKgFocused ? 2 : 1,
                           },
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          set.weightKg != null
+                            ? `Weight ${kgToDisplay(set.weightKg, weightUnit)} ${weightUnit}`
+                            : 'Weight, empty'
+                        }
                       >
-                        <TextInput
-                          style={[styles.setInput, { color: colors.text }]}
+                        <Text
+                          style={[
+                            styles.setInput,
+                            { color: set.weightKg != null ? colors.text : colors.textMuted },
+                          ]}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
-                          placeholder="0"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="number-pad"
-                          inputMode="numeric"
-                          autoCorrect={false}
-                          spellCheck={false}
-                          underlineColorAndroid="transparent"
-                          value={set.weightKg !== undefined ? String(kgToDisplay(set.weightKg, weightUnit)) : ''}
-                          onChangeText={(t) => {
-                            const digits = digitsOnly(t);
-                            setSetRecord(exIdx, setIdx, {
-                              weightKg: digits === '' ? undefined : displayToKg(parseInt(digits, 10), weightUnit),
-                            });
-                          }}
-                          onFocus={() => {
-                            setFocusedCell({ exIdx, setIdx, field: 'kg' });
-                            setEditingWeightExIdx(exIdx);
-                          }}
-                          onBlur={() => {
-                            setFocusedCell(null);
-                            setEditingWeightExIdx(null);
-                          }}
-                        />
-                      </View>
-                      <View
+                          numberOfLines={1}
+                        >
+                          {set.weightKg != null ? String(kgToDisplay(set.weightKg, weightUnit)) : '0'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
                         style={[
                           setInputWrapStyle,
+                          styles.setCell,
                           {
                             backgroundColor: repsFill,
                             borderColor: repsBorderColor,
-                            borderWidth: 1,
+                            borderWidth: isRepsFocused ? 2 : 1,
                           },
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={set.reps != null ? `Reps ${set.reps}` : 'Reps, empty'}
                       >
-                        <TextInput
-                          style={[styles.setInput, { color: colors.text }]}
+                        <Text
+                          style={[
+                            styles.setInput,
+                            { color: set.reps != null ? colors.text : colors.textMuted },
+                          ]}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
-                          placeholder="0"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="number-pad"
-                          inputMode="numeric"
-                          autoCorrect={false}
-                          spellCheck={false}
-                          underlineColorAndroid="transparent"
-                          value={set.reps !== undefined ? String(set.reps) : ''}
-                          onChangeText={(t) => {
-                            const digits = digitsOnly(t);
-                            setSetRecord(exIdx, setIdx, {
-                              reps: digits === '' ? undefined : parseInt(digits, 10),
-                            });
-                          }}
-                          onFocus={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
-                          onBlur={() => setFocusedCell(null)}
-                        />
-                      </View>
+                          numberOfLines={1}
+                        >
+                          {set.reps != null ? String(set.reps) : '0'}
+                        </Text>
+                      </Pressable>
                       <SetDonePressable
                         completed={set.completed}
                         isCurrent={isCurrentSet}
@@ -1603,6 +1706,24 @@ export default function ActiveWorkoutScreen() {
           );
         }}
       />
+
+      {keypadVisible ? (
+        <NumericKeypad
+          exerciseName={keypadExerciseName}
+          field={keypadIsWeight ? 'weight' : 'reps'}
+          unitLabel={keypadIsWeight ? weightUnit : ''}
+          valueText={keypadValueText}
+          step={keypadStep}
+          canComplete={keypadCanComplete}
+          onDigit={handleKeypadDigit}
+          onBackspace={handleKeypadBackspace}
+          onAdjust={handleKeypadAdjust}
+          onNext={handleKeypadNext}
+          onComplete={handleKeypadComplete}
+          onDismiss={() => setFocusedCell(null)}
+          onHeight={setKeypadHeight}
+        />
+      ) : null}
 
       <ConfirmDialog
         visible={showCancelConfirm}
@@ -2654,6 +2775,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     backgroundColor: 'transparent',
+  },
+  setCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
   },
   doneBtnHit: {
     width: DONE_BTN_SIZE,

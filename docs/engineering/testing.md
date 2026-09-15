@@ -18,7 +18,7 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**12 test files.** All are pure-function unit tests. There are **no component tests, no store
+**13 test files.** All are pure-function unit tests. There are **no component tests, no store
 tests, and no integration tests** — the testing setup has no React Native renderer or
 AsyncStorage mock, so anything touching a store, a screen, or persistence is currently untestable
 without new infrastructure.
@@ -30,6 +30,7 @@ without new infrastructure.
 | `apps/mobile/src/utils/recommendTemplates.test.ts` | Skipping unrecovered templates, diversification |
 | `apps/mobile/src/utils/relativeTime.test.ts` | `formatRelative` and `formatRecoveryReady` basics |
 | `apps/mobile/src/utils/weightUnits.test.ts` | kg/lb and cm/in conversion round-trips |
+| `apps/mobile/src/utils/keypadInput.test.ts` | In-app number pad: digit append/backspace, digit caps, ± plate-step clamping |
 | `apps/mobile/src/utils/exerciseSearch.test.ts` | Normalization, alias ranking, typo tolerance |
 | `apps/mobile/src/utils/exerciseNormalize.test.ts` | Category inference, invalid-value stripping |
 | `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist** |
@@ -42,7 +43,7 @@ without new infrastructure.
 
 | Feature | Coverage | Notes |
 |---------|----------|-------|
-| [Workout logging](../features/workout-logging.md) | **None** | The core of the app, most state, most edge cases, zero tests |
+| [Workout logging](../features/workout-logging.md) | **Minimal** | Only the in-app number pad's entry logic (`keypadInput`) is covered; the store, screen, and set rules have zero tests |
 | [Accounts & sync](../features/accounts-and-data.md) | **Minimal** | Unit conversion only. Merge policy and auth untested |
 | [Subscriptions](../features/subscriptions.md) | Partial | The predicate is tested; **gate enforcement is not** |
 | [Recovery](../features/recovery.md) | Partial | Constants and timing tested; `recoveryFromSessions` untested |

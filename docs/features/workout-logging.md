@@ -7,13 +7,14 @@ recovery, and analytics are views over the sessions this screen produces.
 |--|--|
 | Screen | `apps/mobile/app/active-workout.tsx` |
 | Store | `apps/mobile/src/store/activeWorkoutStore.ts` |
+| Number pad | `apps/mobile/src/components/NumericKeypad.tsx`, `src/utils/keypadInput.ts` |
 | Finished sessions | `apps/mobile/src/store/sessionsStore.ts` |
 | Notifications | `apps/mobile/src/hooks/useWorkoutNotification.ts`, `src/components/WorkoutNotificationHandler.tsx` |
 | Sounds | `apps/mobile/src/utils/workoutSounds.ts` |
 | Types | `packages/types/src/session.ts` |
 
-The whole screen is implemented in `active-workout.tsx` — `src/components/workouts/` holds home
-screen template cards, not set-logging UI.
+The whole screen is implemented in `active-workout.tsx`, save the in-app number pad
+(`NumericKeypad`) — `src/components/workouts/` holds home screen template cards, not set-logging UI.
 
 ## Data model
 
@@ -118,9 +119,30 @@ Template targets are never used, because templates don't store any.
 
 ### Entering values
 
-Number pad, **digits only** — no decimal input. Weight is displayed via the user's unit and
-converted back to kg on write. Since kg is canonical and input is integer, lb users get exact
-integers and kg is stored to 2dp after conversion.
+Tapping a weight or reps cell opens the **in-app number pad** (`NumericKeypad`), not the OS
+keyboard — so it never covers the sets above it, and a set completes on the **first** tap (the old
+OS keyboard stole that tap, which is why completing used to need a double tap). The focused cell is
+highlighted with an accent ring — there is no text caret, since the pad owns editing. The pad's
+context bar names the exercise and field and echoes the running value, and the focused exercise is
+scrolled up so the pad never hides the row being edited.
+
+- **Whole numbers only** — no decimal key. Weight is displayed in the user's unit and converted
+  back to kg on write; lb users get exact integers and kg is stored to 2dp after conversion. Entry
+  is capped at **4 digits for weight, 3 for reps**.
+- **− / +** nudge the focused field by a plate step — **2.5 kg / 5 lb** for weight, **1** for reps —
+  clamping to empty at zero.
+- The **action key adapts to the field**, because logging a weight and finishing a set are
+  different intents:
+  - **Weight** shows a primary **Next** that jumps to the same set's reps, plus a reserved
+    **Plates** slot (a plate calculator, later).
+  - **Reps** shows a success **Done** (check) that **completes the set** — starting rest for a
+    working set — and then dismisses the pad, since a rest usually follows rather than the next
+    set. Done is disabled until reps > 0. It sits beside a reserved **RPE** slot for logging effort
+    later, to inform recovery windows.
+- The chevron key hides the pad. Neither reserved slot (Plates / RPE) is wired to anything yet.
+
+The pure entry maths (append, backspace, ± clamping, digit caps) lives in `src/utils/keypadInput.ts`
+and is unit-tested.
 
 ### Completing, adding, removing
 
@@ -250,6 +272,9 @@ them, so there is no cached value to invalidate. See
 | Rest-end sound grace window | 1500 ms |
 | Minimum sets per exercise | 1 (no maximum) |
 | kg ↔ lb factor | 2.20462 |
+| Number pad ± step (weight) | 2.5 kg / 5 lb |
+| Number pad ± step (reps) | 1 |
+| Number pad digit cap | 4 weight / 3 reps |
 | Confetti pieces | 48 |
 
 ## Assumptions
@@ -258,7 +283,8 @@ them, so there is no cached value to invalidate. See
 |------------|------|
 | One workout at a time | Enforced in the store and at every entry point |
 | Weight × reps is the only logging mode | `Exercise.trackingType` is ignored by this screen |
-| Integer weight input | No decimal keypad; lb→kg conversion still rounds to 2dp |
+| Whole-number typed input | The in-app number pad has no decimal key; its −/+ keys still step by 2.5 kg / 5 lb, so a kg field can hold 2.5. lb→kg conversion rounds to 2dp |
+| Sets are logged on a custom in-app pad | The OS keyboard is never raised for set entry, which is what makes Done single-tap and keeps rows visible |
 | Rest runs after the last set of an exercise too | Simpler than special-casing; skip it if unwanted |
 | Warm-ups don't trigger rest | But they *do* count as "completed" for recovery and volume |
 | "Previous" is one snapshot per exercise | Best weighted set within the most recent qualifying session, not an all-time best or set-by-set history |
@@ -268,9 +294,10 @@ them, so there is no cached value to invalidate. See
 
 ## Tests
 
-There are **no tests for this screen or its store** — the largest coverage gap in the codebase,
+The **screen and its store still have no tests** — the largest coverage gap in the codebase,
 covering the feature with the most state and the most edge cases.
 
+Directly covered: `src/utils/keypadInput.test.ts` (the in-app number pad's entry maths).
 Indirectly covered: `src/utils/weightUnits.test.ts` (unit conversion),
 `src/utils/oneRepMax.test.ts` (the 1RM used by analytics, not by this screen).
 
