@@ -108,6 +108,7 @@ export default function WorkoutsScreen() {
   } | null>(null);
   const [showResumeConfirm, setShowResumeConfirm] = useState(false);
   const [pendingStart, setPendingStart] = useState<PendingStart | null>(null);
+  const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<WorkoutTemplate | null>(null);
   const folderDropdownRef = useRef<View>(null);
 
   useEffect(() => {
@@ -343,20 +344,14 @@ export default function WorkoutsScreen() {
   }
 
   function handleDeleteTemplate(template: WorkoutTemplate) {
-    Alert.alert(
-      'Delete template',
-      `Delete "${template.name}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteTemplate(template.id);
-          },
-        },
-      ]
-    );
+    setDeleteTemplateTarget(template);
+  }
+
+  async function handleConfirmDeleteTemplate() {
+    if (deleteTemplateTarget == null) return;
+    const id = deleteTemplateTarget.id;
+    setDeleteTemplateTarget(null);
+    await deleteTemplate(id);
   }
 
   function handleDeleteFolder(folder: TemplateFolder) {
@@ -1405,6 +1400,7 @@ export default function WorkoutsScreen() {
                   closeTemplateMenu();
                   if (target) handleDeleteTemplate(target);
                 }}
+                testID="template-menu-delete"
               >
                 <Ionicons name="trash-outline" size={18} color={colors.danger} />
                 <Text style={[styles.templateMenuItemText, { color: colors.danger }]}>Delete</Text>
@@ -1609,6 +1605,21 @@ export default function WorkoutsScreen() {
         onConfirm={handleResumeWorkout}
         cancelTestID="resume-workout-cancel"
         confirmTestID="resume-workout-confirm"
+      />
+
+      <ConfirmDialog
+        visible={deleteTemplateTarget != null}
+        title="Delete template"
+        message={`Delete "${deleteTemplateTarget?.name ?? 'this template'}"? This cannot be undone.`}
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setDeleteTemplateTarget(null)}
+        onConfirm={() => {
+          void handleConfirmDeleteTemplate();
+        }}
+        cancelTestID="delete-template-keep"
+        confirmTestID="delete-template-confirm"
       />
     </Screen>
   );

@@ -135,7 +135,10 @@ in progress, the same "Workout in progress" dialog as the empty-workout hero is 
 | Move to folder | — | ● | `custom_templates` |
 | Edit | — | ● | `custom_templates` |
 | Hide / Unhide | ● | ● | none |
-| Delete | — | ● (confirm alert) | none |
+| Delete | — | ● (themed confirm) | none |
+
+Deleting a custom template shows a themed confirm: **Delete "{name}"? This cannot be undone.**
+**Cancel** (or tap the overlay) dismisses; **Delete** removes it.
 
 Folder menus: custom folders support rename, pin/unpin, archive/unarchive, and delete (with a
 choice of keeping or deleting the templates inside). Built-in folders support hide/unhide only,
