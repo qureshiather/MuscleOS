@@ -13,14 +13,21 @@ type ConfirmDialogProps = {
   meta?: string;
   confirmLabel: string;
   cancelLabel: string;
-  destructive?: boolean;
+  /** Which action is danger. `true` means the confirm action (Keep / Discard). */
+  destructive?: boolean | 'cancel' | 'confirm';
   onConfirm: () => void;
   onCancel: () => void;
+  /** Overlay / back. Defaults to `onCancel`. Use when overlay should not run the cancel action. */
+  onDismiss?: () => void;
   confirmTestID?: string;
   cancelTestID?: string;
 };
 
-/** Centered confirm card — used instead of system `Alert.alert` for in-app decisions. */
+/** Centered confirm card — used instead of system `Alert.alert` for in-app decisions.
+ *  Destructive confirm: stay action is filled, confirm is danger.
+ *  Destructive cancel: cancel is danger, confirm is the filled primary.
+ *  Otherwise confirm is the filled primary.
+ */
 export function ConfirmDialog({
   visible,
   title,
@@ -31,17 +38,28 @@ export function ConfirmDialog({
   destructive = false,
   onConfirm,
   onCancel,
+  onDismiss,
   confirmTestID,
   cancelTestID,
 }: ConfirmDialogProps) {
   const { colors } = useTheme();
+  const destructiveSide =
+    destructive === true || destructive === 'confirm'
+      ? 'confirm'
+      : destructive === 'cancel'
+        ? 'cancel'
+        : null;
+  const handleDismiss = onDismiss ?? onCancel;
+  const cancelVariant =
+    destructiveSide === 'cancel' ? 'danger' : destructiveSide === 'confirm' ? 'filled' : 'outline';
+  const confirmVariant = destructiveSide === 'confirm' ? 'danger' : 'filled';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleDismiss}>
       <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={onCancel}
+          onPress={handleDismiss}
           accessibilityRole="button"
           accessibilityLabel="Dismiss"
         />
@@ -73,7 +91,7 @@ export function ConfirmDialog({
           <View style={styles.actions}>
             <PrimaryButton
               label={cancelLabel}
-              variant="filled"
+              variant={cancelVariant}
               onPress={onCancel}
               testID={cancelTestID}
               accessibilityRole="button"
@@ -81,7 +99,7 @@ export function ConfirmDialog({
             />
             <PrimaryButton
               label={confirmLabel}
-              variant={destructive ? 'danger' : 'outline'}
+              variant={confirmVariant}
               onPress={onConfirm}
               testID={confirmTestID}
               accessibilityRole="button"

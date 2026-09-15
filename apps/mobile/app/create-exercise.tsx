@@ -13,6 +13,7 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useExercisesStore } from '@/store/exercisesStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import {
   EQUIPMENT_LABELS,
   EXERCISE_CATEGORIES,
@@ -45,7 +46,13 @@ export default function CreateExerciseScreen() {
   const isPro = useRequirePro('custom_exercises');
   const { colors } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string; name?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    name?: string;
+    origin?: string;
+    workoutMode?: string;
+    workoutExIdx?: string;
+  }>();
   const editId = typeof params.id === 'string' ? params.id : undefined;
   const addExercise = useExercisesStore((s) => s.addExercise);
   const updateExercise = useExercisesStore((s) => s.updateExercise);
@@ -92,7 +99,18 @@ export default function CreateExerciseScreen() {
     if (isEdit && editId) {
       await updateExercise(editId, payload);
     } else {
-      await addExercise(payload);
+      const created = await addExercise(payload);
+      // Launched from the mid-workout picker: drop the new exercise into the live session so the
+      // user lands back on their workout with it already added (or swapped in for replace).
+      if (params.origin === 'active-workout') {
+        const workout = useActiveWorkoutStore.getState();
+        const exIdx = Number(params.workoutExIdx);
+        if (params.workoutMode === 'replace' && Number.isInteger(exIdx)) {
+          workout.replaceExercise(exIdx, created.id);
+        } else {
+          workout.addExercise(created.id);
+        }
+      }
     }
     router.back();
   }

@@ -53,7 +53,7 @@ writes it), rest-pause, tempo, or duration/distance-based work. Every set is wei
 |-------------|--------------|
 | Template (built-in or custom) | Home → preview → `/active-workout` with `templateId`, `exerciseIds`, optional `defaultSets` |
 | Empty / ad-hoc workout (Pro) | Home → `/active-workout` with `templateId: '_empty'`, no exercises |
-| Resume | Tab-bar pill, notification tap, or the "Workout in progress" alert — no params |
+| Resume | Tab-bar pill, notification tap, or the "Workout in progress" themed dialog — no params |
 | Deep link | `muscleos:///active-workout`, and notifications carrying `screen: 'active-workout'` |
 
 A new session creates `defaultSets ?? 3` blank sets per exercise.
@@ -64,7 +64,10 @@ and starting a custom template needs `custom_templates`. The check applies only 
 a session already in flight when a subscription lapses can still be finished.
 
 **Only one workout at a time.** `startWorkout` no-ops if a session exists, and the home screen
-blocks a second start with a "Workout in progress — Finish or cancel" alert.
+blocks a second start with a themed confirm dialog: "Workout in progress — Finish or cancel
+your current workout before starting another." **Cancel workout** discards the in-progress
+session (no extra confirm) and continues the start that was blocked; **Resume workout** opens
+it; tap the overlay to dismiss and keep it.
 
 ### Persisting and resuming
 
@@ -82,6 +85,7 @@ chevron-down minimises back to the tabs without ending anything.
 | Action | Behaviour |
 |--------|-----------|
 | **Cancel workout** (footer) | Themed confirm dialog: "This workout will not be saved." If any sets are completed, also shows elapsed time and set count. **Keep workout** (or tap the overlay) dismisses; **Discard workout** discards. |
+| **Cancel workout** (in-progress start dialog) | Discard immediately, then continue the blocked start |
 | **Discard** (finish modal) | Discard without saving |
 | **Resume pill X** | Discard immediately, no confirmation |
 | **Finish** | Enabled only once at least one set is completed |
@@ -95,8 +99,9 @@ session, and queues a cloud sync.
 Columns: **SET · PREVIOUS · KG/LB · REPS · Done**.
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
-- The first incomplete set is the **current** set: primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Later incomplete sets render muted with an outlined number.
+- Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including those in later exercises — renders muted with an outlined number; there is never more than one highlighted set at a time.
 - Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint.
+- When every set in an exercise is completed, the card is marked done: a green border and a **Done** badge in its header.
 - After a set is completed, the actual rest taken is displayed under its number.
 - A fixed rest slot sits under the current working set (and under the resting set while the timer runs) so completing a set does not shove the rows below. The slot is empty until rest starts; the countdown fills that same space. Warm-ups do not reserve a slot.
 
@@ -220,14 +225,17 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 | **Exercise note** | Basic | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
 | **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets |
 | **Replace exercise** | Pro `replace_exercise_mid_workout` | **All logged sets, warm-ups, and rest carry over**; only `exerciseId` changes |
-| **Remove exercise** | No direct gate | Blocked only for a Basic user editing a built-in workout; otherwise removes it and remaps recorded rest |
+| **Remove exercise** | No direct gate | Blocked only for a Basic user editing a built-in workout; otherwise a themed confirm ("Remove {name} from this workout?") removes it and remaps recorded rest. **Cancel** (or tap the overlay) dismisses; **Remove** removes. |
 
 On a **built-in** template, add/replace/remove are blocked for Basic users with the built-in
 alert rather than the paywall — the intended path is to edit the session and save it as a new
 template (Pro). On Basic the button reads **"Pro: Add Exercise"**.
 
-The exercise picker searches the full catalog plus your customs. A search with no match offers
-**Create "<query>"**, gated on `custom_exercises`.
+The exercise picker searches the full catalog plus your customs. Whenever the search box has text
+the picker also offers **Create "<query>"** (gated on `custom_exercises`), so a missing movement can
+be added even when the search has partial matches. It routes to `/create-exercise` pre-filled with
+the query; saving returns to the workout and drops the new exercise straight in — added to the end
+for the **Add** flow, or swapped in for the **Replace** flow.
 
 ## Finish flow
 

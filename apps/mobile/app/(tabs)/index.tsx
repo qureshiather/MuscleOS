@@ -25,6 +25,7 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
 import { recommendTemplates } from '@/utils/recommendTemplates';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import {
@@ -42,6 +43,8 @@ import type { WorkoutTemplate, TemplateFolder, MuscleId } from '@muscleos/types'
 const ARCHIVED_SECTION = '_archived';
 const HIDDEN_CUSTOM_SECTION = '_hidden_custom';
 const HIDDEN_BUILT_IN_SECTION = '_hidden_builtin';
+
+type PendingStart = { kind: 'empty' } | { kind: 'template'; template: WorkoutTemplate };
 
 export default function WorkoutsScreen() {
   const { colors, isDark } = useTheme();
@@ -71,6 +74,7 @@ export default function WorkoutsScreen() {
   const getExercise = useExercisesStore((s) => s.getExercise);
   const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
+  const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
 
   const { width: screenWidth } = useDeviceMetrics();
   const modalMaxHeight = useModalMaxHeight();
@@ -102,6 +106,8 @@ export default function WorkoutsScreen() {
     width: number;
     height: number;
   } | null>(null);
+  const [showResumeConfirm, setShowResumeConfirm] = useState(false);
+  const [pendingStart, setPendingStart] = useState<PendingStart | null>(null);
   const folderDropdownRef = useRef<View>(null);
 
   useEffect(() => {
@@ -458,22 +464,15 @@ export default function WorkoutsScreen() {
     );
   }
 
-  function handleStartTemplate(template: WorkoutTemplate) {
-    if (!isPro && requiresProToStart(template)) {
-      gatePro('custom_templates');
+  function navigateToStart(start: PendingStart) {
+    if (start.kind === 'empty') {
+      router.push({
+        pathname: '/active-workout',
+        params: { templateId: '_empty', exerciseIds: '' },
+      });
       return;
     }
-    if (activeSession) {
-      Alert.alert(
-        'Workout in progress',
-        'Finish or cancel your current workout before starting another.',
-        [
-          { text: 'Resume workout', onPress: () => router.push('/active-workout') },
-          { text: 'OK', style: 'cancel' },
-        ]
-      );
-      return;
-    }
+    const { template } = start;
     router.push({
       pathname: '/workout-preview',
       params: {
@@ -484,25 +483,42 @@ export default function WorkoutsScreen() {
     });
   }
 
-  function handleStartEmptyWorkout() {
-    if (activeSession) {
-      Alert.alert(
-        'Workout in progress',
-        'Finish or cancel your current workout before starting another.',
-        [
-          { text: 'Resume workout', onPress: () => router.push('/active-workout') },
-          { text: 'OK', style: 'cancel' },
-        ]
-      );
+  function promptResumeIfActive(start: PendingStart): boolean {
+    if (!activeSession) return false;
+    setPendingStart(start);
+    setShowResumeConfirm(true);
+    return true;
+  }
+
+  function handleStartTemplate(template: WorkoutTemplate) {
+    if (!isPro && requiresProToStart(template)) {
+      gatePro('custom_templates');
       return;
     }
-    router.push({
-      pathname: '/active-workout',
-      params: {
-        templateId: '_empty',
-        exerciseIds: '',
-      },
-    });
+    if (promptResumeIfActive({ kind: 'template', template })) return;
+    navigateToStart({ kind: 'template', template });
+  }
+
+  function handleStartEmptyWorkout() {
+    if (promptResumeIfActive({ kind: 'empty' })) return;
+    navigateToStart({ kind: 'empty' });
+  }
+
+  function handleDismissResumeConfirm() {
+    setShowResumeConfirm(false);
+    setPendingStart(null);
+  }
+
+  function handleResumeWorkout() {
+    handleDismissResumeConfirm();
+    router.push('/active-workout');
+  }
+
+  function handleCancelInProgressWorkout() {
+    const start = pendingStart;
+    handleDismissResumeConfirm();
+    discardWorkout();
+    if (start) navigateToStart(start);
   }
 
   const sectionStyle = [
@@ -1580,6 +1596,20 @@ export default function WorkoutsScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      <ConfirmDialog
+        visible={showResumeConfirm}
+        title="Workout in progress"
+        message="Finish or cancel your current workout before starting another."
+        cancelLabel="Cancel workout"
+        confirmLabel="Resume workout"
+        destructive="cancel"
+        onDismiss={handleDismissResumeConfirm}
+        onCancel={handleCancelInProgressWorkout}
+        onConfirm={handleResumeWorkout}
+        cancelTestID="resume-workout-cancel"
+        confirmTestID="resume-workout-confirm"
+      />
     </Screen>
   );
 }

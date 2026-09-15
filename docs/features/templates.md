@@ -99,6 +99,8 @@ Renders top to bottom:
 **2. Empty workout hero.** Starts a session with no exercises, adding them as you go. Pro; on
 Basic the subtitle reads "Included with Pro" with a lock icon and tapping opens the paywall.
 Skips the preview screen and goes straight to `/active-workout` with `templateId: '_empty'`.
+If a session is already in progress, the themed "Workout in progress" dialog is shown instead
+(see [workout-logging](workout-logging.md#starting)).
 
 **3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid, chosen by
 [recommendTemplates](#suggested-templates).
@@ -122,7 +124,8 @@ subfolders open. Contents: visible folders, then a nested **Hidden** group.
 Each card shows the name, optional description, `Last done: <relative>` when a session exists
 for it, and the exercise count. A lock icon appears when the template requires Pro to start.
 
-Tapping a card opens **`/workout-preview`**, not the workout directly.
+Tapping a card opens **`/workout-preview`**, not the workout directly. If a session is already
+in progress, the same "Workout in progress" dialog as the empty-workout hero is shown instead.
 
 ### Context menus
 

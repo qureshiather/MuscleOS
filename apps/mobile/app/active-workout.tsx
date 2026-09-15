@@ -156,7 +156,7 @@ function ExerciseMenuContent({
         <Ionicons name="create-outline" size={18} color={colors.text} />
         <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit note</Text>
       </Pressable>
-      <Pressable style={styles.exerciseDropdownItem} onPress={onRemove}>
+      <Pressable style={styles.exerciseDropdownItem} onPress={onRemove} testID="exercise-menu-remove">
         <Ionicons name="trash-outline" size={18} color={removeColor} />
         <Text style={[styles.exerciseDropdownItemText, styles.exerciseDropdownItemTextGrow, { color: removeColor }]}>
           Remove exercise
@@ -575,6 +575,10 @@ export default function ActiveWorkoutScreen() {
   const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [removeExerciseTarget, setRemoveExerciseTarget] = useState<{
+    exIdx: number;
+    name: string;
+  } | null>(null);
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
@@ -600,6 +604,27 @@ export default function ActiveWorkoutScreen() {
   const closeExercisePicker = () => {
     setExercisePicker(null);
     setAddExerciseSearch('');
+  };
+
+  /**
+   * Route to the custom-exercise builder pre-filled with the current search. On save the builder
+   * returns here and drops the new exercise straight into the workout (add) or swaps it in
+   * (replace) — see create-exercise.tsx.
+   */
+  const createExerciseFromSearch = () => {
+    const name = addExerciseSearch.trim();
+    if (!name || !gatePro('custom_exercises')) return;
+    const picker = exercisePicker;
+    closeExercisePicker();
+    router.push({
+      pathname: '/create-exercise',
+      params: {
+        name,
+        origin: 'active-workout',
+        workoutMode: picker?.mode === 'replace' ? 'replace' : 'add',
+        ...(picker?.mode === 'replace' ? { workoutExIdx: String(picker.exIdx) } : {}),
+      },
+    });
   };
 
   const positionExerciseMenu = (exIdx: number) => {
@@ -1031,6 +1056,10 @@ export default function ActiveWorkoutScreen() {
     sets: se.sets.filter((s) => s.completed),
   }));
 
+  // Only ONE set is "current" across the whole workout — the next unlogged set of the first
+  // exercise that still has work left. Every other exercise shows no active highlight.
+  const activeExerciseIdx = session.exercises.findIndex((ex) => ex.sets.some((s) => !s.completed));
+
   // ── In-app numeric keypad ──────────────────────────────────────────────────
   // Shown whenever a set cell is focused, unless a sheet/modal owns the bottom.
   const keypadModalOpen =
@@ -1042,6 +1071,7 @@ export default function ActiveWorkoutScreen() {
     showRestPicker ||
     showRestControls ||
     showCancelConfirm ||
+    removeExerciseTarget != null ||
     showSaveAsTemplateModal;
 
   const focusedExercise =
@@ -1304,12 +1334,19 @@ export default function ActiveWorkoutScreen() {
 
           const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
           const exerciseNote = exerciseNotes[se.exerciseId];
+          const isActiveExercise = exIdx === activeExerciseIdx;
+          const exerciseComplete = se.sets.length > 0 && se.sets.every((s) => s.completed);
 
           return (
             <View
               style={[
                 styles.exerciseCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: exerciseComplete
+                    ? withAlpha(colors.success, isDark ? 0.45 : 0.4)
+                    : colors.border,
+                },
                 !isDark && styles.exerciseCardShadow,
               ]}
             >
@@ -1365,6 +1402,23 @@ export default function ActiveWorkoutScreen() {
                     </View>
                   </Pressable>
                   <View style={styles.exerciseCardActions}>
+                    {exerciseComplete ? (
+                      <View
+                        style={[
+                          styles.exerciseDoneBadge,
+                          {
+                            backgroundColor: colors.successSurface,
+                            borderColor: withAlpha(colors.success, 0.5),
+                          },
+                        ]}
+                        accessibilityLabel="Exercise complete"
+                      >
+                        <Ionicons name="checkmark-circle" size={13} color={colors.success} />
+                        <Text style={[styles.exerciseDoneBadgeText, { color: colors.success }]}>
+                          Done
+                        </Text>
+                      </View>
+                    ) : null}
                     <View
                       ref={(node) => {
                         menuAnchorRefs.current[exIdx] = node;
@@ -1434,7 +1488,8 @@ export default function ActiveWorkoutScreen() {
                 const firstIncompleteIdx = se.sets.findIndex((s) => !s.completed);
                 const isFutureSet =
                   firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
-                const isCurrentSet = firstIncompleteIdx === setIdx && !set.completed;
+                const isCurrentSet =
+                  isActiveExercise && firstIncompleteIdx === setIdx && !set.completed;
                 const restDurationKey = `${exIdx}-${setIdx}`;
                 const recordedRestSec = restDurationsBetweenSets[restDurationKey];
                 const isActiveRestGap =
@@ -1739,6 +1794,23 @@ export default function ActiveWorkoutScreen() {
         confirmTestID="cancel-workout-discard"
       />
 
+      <ConfirmDialog
+        visible={removeExerciseTarget != null}
+        title="Remove exercise"
+        message={`Remove ${removeExerciseTarget?.name ?? 'this exercise'} from this workout?`}
+        cancelLabel="Cancel"
+        confirmLabel="Remove"
+        destructive
+        onCancel={() => setRemoveExerciseTarget(null)}
+        onConfirm={() => {
+          if (removeExerciseTarget == null) return;
+          removeExercise(removeExerciseTarget.exIdx);
+          setRemoveExerciseTarget(null);
+        }}
+        cancelTestID="remove-exercise-keep"
+        confirmTestID="remove-exercise-confirm"
+      />
+
       <Modal visible={showRestPicker} transparent animationType="fade">
         <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowRestPicker(false)}>
           <View
@@ -1856,14 +1928,10 @@ export default function ActiveWorkoutScreen() {
                       alertCannotEditBuiltIn();
                       return;
                     }
-                    Alert.alert(
-                      'Remove exercise',
-                      `Remove ${exercise?.name ?? se.exerciseId} from this workout?`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Remove', style: 'destructive', onPress: () => removeExercise(exIdx) },
-                      ]
-                    );
+                    setRemoveExerciseTarget({
+                      exIdx,
+                      name: exercise?.name ?? se.exerciseId,
+                    });
                   }}
                   replaceTestID="exercise-menu-replace"
                 />
@@ -2302,28 +2370,27 @@ export default function ActiveWorkoutScreen() {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               ListEmptyComponent={
-                addExerciseSearch.trim() ? (
-                  <Pressable
-                    style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      if (gatePro('custom_exercises')) {
-                        closeExercisePicker();
-                        router.push({
-                          pathname: '/create-exercise',
-                          params: { name: addExerciseSearch.trim() },
-                        });
-                      }
-                    }}
-                  >
-                    <Text style={[typography.bodyMedium, { color: colors.primary }]}>
-                      Create “{addExerciseSearch.trim()}”
-                    </Text>
-                  </Pressable>
-                ) : (
+                addExerciseSearch.trim() ? null : (
                   <Text style={[styles.addExerciseEmpty, { color: colors.textMuted }]}>
                     No matching exercises
                   </Text>
                 )
+              }
+              ListFooterComponent={
+                addExerciseSearch.trim() ? (
+                  <Pressable
+                    style={[
+                      styles.addExerciseRow,
+                      { borderBottomColor: colors.border, justifyContent: 'flex-start', gap: 10 },
+                    ]}
+                    onPress={createExerciseFromSearch}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                    <Text style={[typography.bodyMedium, { color: colors.primary, flex: 1 }]}>
+                      Create “{addExerciseSearch.trim()}”
+                    </Text>
+                  </Pressable>
+                ) : null
               }
               renderItem={({ item }) => (
                 <Pressable
@@ -2656,6 +2723,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exerciseDoneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  exerciseDoneBadgeText: {
+    fontFamily: typography.label.fontFamily,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   exerciseHeaderIcon: { padding: 4, marginTop: 1 },
   tableInset: {
     borderRadius: 10,
@@ -2767,13 +2849,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   setInput: {
-    minHeight: SET_INPUT_MIN_HEIGHT,
-    paddingVertical: 5,
     paddingHorizontal: 3,
     fontSize: 15,
     fontFamily: typography.data.fontFamily,
     fontWeight: '600',
     textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
     backgroundColor: 'transparent',
   },
   setCell: {
