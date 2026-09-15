@@ -17,8 +17,8 @@ import {
   Dimensions,
   type KeyboardEvent,
 } from 'react-native';
-import { GestureHandlerRootView, Swipeable, FlatList as GestureFlatList } from 'react-native-gesture-handler';
-import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView, Swipeable, type FlatList as GestureFlatList } from 'react-native-gesture-handler';
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
 import { typography } from '@/theme/typography';
@@ -901,7 +901,15 @@ export default function ActiveWorkoutScreen() {
       ? allTemplates().find((t) => t.id === session.templateId)
       : undefined;
     setSaveAsTemplateName(template && session?.templateId !== '_empty' ? template.name : `Workout ${dateLabel}`);
+    // Switch the finish-summary modal to its "name" step. This intentionally does NOT open a
+    // second <Modal>: stacking two native modals deadlocks/freezes on physical iOS devices.
     setShowSaveAsTemplateModal(true);
+  }
+
+  /** Dismisses the whole finish flow (summary + name step) so neither reopens mid-step. */
+  function closeFinishFlow() {
+    setShowFinishSummary(false);
+    setShowSaveAsTemplateModal(false);
   }
 
   function handleCancel() {
@@ -2115,8 +2123,65 @@ export default function ActiveWorkoutScreen() {
         </Pressable>
       </Modal>
 
-      <Modal visible={showFinishSummary} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowFinishSummary(false)}>
+      {/*
+        Finish flow is a SINGLE native modal that swaps between the summary and the "name your
+        template" step. Rendering the name step as a second <Modal> stacked on top froze the app
+        on physical iOS devices (present-modal-over-modal + keyboard). One modal works on both
+        iOS and Android.
+      */}
+      <Modal
+        visible={showFinishSummary}
+        transparent
+        animationType="fade"
+        onRequestClose={closeFinishFlow}
+      >
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={closeFinishFlow}
+        >
+          {showSaveAsTemplateModal ? (
+            <View
+              style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[styles.summaryTitle, { color: colors.text }]}>Save as template</Text>
+              <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>
+                Name this workout to use it again later.
+              </Text>
+              <TextInput
+                style={[
+                  styles.saveAsTemplateInput,
+                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                ]}
+                placeholder="Template name"
+                placeholderTextColor={colors.textMuted}
+                value={saveAsTemplateName}
+                onChangeText={setSaveAsTemplateName}
+                autoFocus
+              />
+              <View style={styles.summaryActions}>
+                <Pressable
+                  style={[
+                    styles.summarySaveBtn,
+                    { backgroundColor: colors.primary, opacity: savingAsTemplate ? 0.5 : 1 },
+                  ]}
+                  onPress={() => void handleSaveAsTemplate()}
+                  disabled={savingAsTemplate}
+                >
+                  <Text style={styles.summarySaveBtnText}>
+                    {savingAsTemplate ? 'Saving…' : 'Save'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowSaveAsTemplateModal(false)}
+                  style={styles.summaryCancelBtn}
+                  disabled={savingAsTemplate}
+                >
+                  <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
           <View
             style={[styles.summaryCard, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}
             onStartShouldSetResponder={() => true}
@@ -2239,57 +2304,12 @@ export default function ActiveWorkoutScreen() {
                   </Pressable>
                 </>
               )}
-              <Pressable onPress={() => setShowFinishSummary(false)} style={styles.summaryCancelBtn}>
+              <Pressable onPress={closeFinishFlow} style={styles.summaryCancelBtn}>
                 <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
               </Pressable>
             </View>
           </View>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={showSaveAsTemplateModal} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowSaveAsTemplateModal(false)}>
-          <View
-            style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
-          >
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>Save as template</Text>
-            <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>
-              Name this workout to use it again later.
-            </Text>
-            <TextInput
-              style={[
-                styles.saveAsTemplateInput,
-                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-              ]}
-              placeholder="Template name"
-              placeholderTextColor={colors.textMuted}
-              value={saveAsTemplateName}
-              onChangeText={setSaveAsTemplateName}
-              autoFocus
-            />
-            <View style={styles.summaryActions}>
-              <Pressable
-                style={[
-                  styles.summarySaveBtn,
-                  { backgroundColor: colors.primary, opacity: savingAsTemplate ? 0.5 : 1 },
-                ]}
-                onPress={() => void handleSaveAsTemplate()}
-                disabled={savingAsTemplate}
-              >
-                <Text style={styles.summarySaveBtnText}>
-                  {savingAsTemplate ? 'Saving…' : 'Save'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowSaveAsTemplateModal(false)}
-                style={styles.summaryCancelBtn}
-                disabled={savingAsTemplate}
-              >
-                <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Cancel</Text>
-              </Pressable>
-            </View>
-          </View>
+          )}
         </Pressable>
       </Modal>
 

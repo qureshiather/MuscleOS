@@ -251,6 +251,11 @@ what you started from and whether you changed the exercise list:
 
 "Overwrite" updates only the template's `exerciseIds` — names and folders are untouched.
 
+Choosing **Save as template** / **Save as new template** swaps the summary to a name step
+**within the same modal** (Save · Back) where you name the template before it's created. This is a
+single native modal on purpose — stacking a second modal on top froze the app on physical iOS
+devices.
+
 On finish:
 
 - `completedAt` is set and the **entire session is saved, including incomplete sets**
