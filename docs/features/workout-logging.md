@@ -175,6 +175,8 @@ are kept per set and shown in the set row.
 
 A **fixed-height slot** under the current working set (and under the resting set while the timer
 runs) is reserved even before rest starts, so the rows below do not jump when a set is completed.
+The slot shows the countdown and a progress bar in full — time label and track are not clipped.
+Tapping it opens rest controls with the remaining time, ±30 s, and Skip rest.
 
 ### Sounds
 

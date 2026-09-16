@@ -22,7 +22,13 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-
 import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
 import { typography } from '@/theme/typography';
-import { fontScaleCap, useBottomSpace, useDenseRowMetrics, useModalMaxHeight } from '@/theme/layout';
+import {
+  fontScaleCap,
+  useBottomSpace,
+  useDenseRowMetrics,
+  useModalMaxHeight,
+  useTextScaledSize,
+} from '@/theme/layout';
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
@@ -79,7 +85,7 @@ const REST_BETWEEN_SETS_CHOICES = [
 ] as const;
 
 /** Fixed slot under the active/resting set — keeps rows from jumping on complete. */
-const REST_GAP_HEIGHT = 30;
+const REST_GAP_HEIGHT = 38;
 /** Compact but still tappable during a workout. */
 const SET_ROW_MIN_HEIGHT = 40;
 const SET_INPUT_MIN_HEIGHT = 36;
@@ -384,6 +390,7 @@ function ActiveRestGap({
   onPress?: () => void;
 }) {
   const opacity = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const gapHeight = useTextScaledSize(REST_GAP_HEIGHT, fontScaleCap.chrome);
 
   useEffect(() => {
     Animated.timing(opacity, {
@@ -406,8 +413,18 @@ function ActiveRestGap({
       {active ? (
         <Animated.View style={[styles.restGapTimeRow, { opacity }]}>
           <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
-          <Text style={[styles.restGapTime, { color: colors.text }]}>{timeLabel}</Text>
-          <Text style={[styles.restGapLabel, { color: colors.textMuted }]}>rest</Text>
+          <Text
+            style={[styles.restGapTime, { color: colors.text }]}
+            maxFontSizeMultiplier={fontScaleCap.chrome}
+          >
+            {timeLabel}
+          </Text>
+          <Text
+            style={[styles.restGapLabel, { color: colors.textMuted }]}
+            maxFontSizeMultiplier={fontScaleCap.chrome}
+          >
+            rest
+          </Text>
         </Animated.View>
       ) : (
         <View style={styles.restGapTimeRow} />
@@ -426,10 +443,11 @@ function ActiveRestGap({
   );
 
   return (
-    <View style={[styles.restGapBlock, { height: REST_GAP_HEIGHT }]}>
+    <View style={[styles.restGapBlock, { height: gapHeight }]}>
       {active && onPress ? (
         <Pressable
           onPress={onPress}
+          style={styles.restGapPressable}
           accessibilityRole="button"
           accessibilityLabel="Open rest timer controls"
         >
@@ -2539,6 +2557,9 @@ const styles = StyleSheet.create({
   restControlsTimer: {
     ...typography.dataLarge,
     fontSize: 44,
+    // dataLarge's lineHeight is 28 — leaving it clips these digits vertically.
+    lineHeight: 52,
+    includeFontPadding: false,
   },
   restControlsRow: {
     flexDirection: 'row',
@@ -2901,6 +2922,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     justifyContent: 'center',
   },
+  restGapPressable: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   restGapInner: {
     gap: 4,
   },
@@ -2909,19 +2934,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 2,
-    minHeight: 16,
+    minHeight: 14,
   },
   restGapTime: {
     fontFamily: typography.data.fontFamily,
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: '600',
+    includeFontPadding: false,
   },
   restGapLabel: {
     fontSize: 10,
+    lineHeight: 14,
     fontWeight: '500',
+    includeFontPadding: false,
   },
   restGapTrack: {
-    height: 2,
+    height: 3,
     borderRadius: 2,
     overflow: 'hidden',
   },
