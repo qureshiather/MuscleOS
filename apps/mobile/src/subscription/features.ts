@@ -51,6 +51,25 @@ export function requiresProToStart(template: { isBuiltIn?: boolean }): boolean {
   return template.isBuiltIn !== true;
 }
 
+/**
+ * The gate that must block *starting* a workout from route params, or null to proceed.
+ *
+ * `/active-workout` is reachable directly by deep link and notification tap, so this is the last
+ * line of defence: a lapsed subscription must not start Pro-only work here. Pro users are never
+ * blocked, and an unknown/missing template is allowed through (nothing to gate on).
+ * See docs/features/workout-logging.md#starting.
+ */
+export function blockedStartFeature(args: {
+  isPro: boolean;
+  templateId: string;
+  template: { isBuiltIn?: boolean } | undefined;
+}): ProFeature | null {
+  if (args.isPro) return null;
+  if (args.templateId === '_empty') return 'empty_workout';
+  if (args.template != null && requiresProToStart(args.template)) return 'custom_templates';
+  return null;
+}
+
 export function subscriptionPaywallPath(feature?: ProFeature): `/subscription${string}` {
   return feature ? `/subscription?feature=${feature}` : '/subscription';
 }

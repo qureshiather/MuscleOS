@@ -32,11 +32,7 @@ import {
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import {
-  requiresProToStart,
-  subscriptionPaywallPath,
-  type ProFeature,
-} from '@/subscription/features';
+import { blockedStartFeature, subscriptionPaywallPath } from '@/subscription/features';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useProGate } from '@/hooks/useProGate';
@@ -62,6 +58,18 @@ import {
   WEIGHT_STEP_KG,
   WEIGHT_STEP_LB,
 } from '@/utils/keypadInput';
+import {
+  finishFlowVariant,
+  finishSaveOptions,
+  templateListChanged as computeTemplateListChanged,
+} from '@/utils/workoutFinish';
+import { isCurrentSet as computeIsCurrentSet, setLabel } from '@/utils/workoutSetView';
+import {
+  canCompleteSet,
+  parseStartParams,
+  shouldStartRestAfterComplete,
+  startPrefillPatch,
+} from '@/store/activeWorkoutLogic';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -676,24 +684,20 @@ export default function ActiveWorkoutScreen() {
     // Last line of defence: notifications and deep links reach this screen directly, so
     // a lapsed subscription must not be able to start Pro-only work here either. An
     // already-running session is untouched — this only blocks starting a new one.
-    if (!isPro) {
-      let blockedBy: ProFeature | null = null;
-      if (params.templateId === '_empty') {
-        blockedBy = 'empty_workout';
-      } else {
-        const requested = allTemplates().find((t) => t.id === params.templateId);
-        if (requested != null && requiresProToStart(requested)) blockedBy = 'custom_templates';
-      }
-      if (blockedBy != null) {
-        router.replace(subscriptionPaywallPath(blockedBy) as Href);
-        return;
-      }
+    const blockedBy = blockedStartFeature({
+      isPro,
+      templateId: params.templateId,
+      template: allTemplates().find((t) => t.id === params.templateId),
+    });
+    if (blockedBy != null) {
+      router.replace(subscriptionPaywallPath(blockedBy) as Href);
+      return;
     }
     startedFromParamsRef.current = true;
-    const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
-    const defaultSets =
-      params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
-    const sets = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0 ? defaultSets : undefined;
+    const { exerciseIds: ids, defaultSets: sets } = parseStartParams(
+      params.exerciseIds,
+      params.defaultSets
+    );
     startWorkout(params.templateId, ids, sets);
   }, [
     params.templateId,
@@ -727,8 +731,9 @@ export default function ActiveWorkoutScreen() {
         const p = prev[se.exerciseId];
         if (!p) continue;
         for (const [setIdx, set] of se.sets.entries()) {
-          if (set.weightKg == null && set.reps == null) {
-            setSetRecord(exIdx, setIdx, { weightKg: p.weightKg, reps: p.reps });
+          const patch = startPrefillPatch(set, p);
+          if (patch) {
+            setSetRecord(exIdx, setIdx, patch);
           }
         }
       }
@@ -1063,8 +1068,14 @@ export default function ActiveWorkoutScreen() {
   const sessionExerciseIds = session.exercises.map((e) => e.exerciseId);
   const templateListChanged =
     currentTemplate != null &&
-    (sessionExerciseIds.length !== templateExerciseIds.length ||
-      sessionExerciseIds.some((id, i) => templateExerciseIds[i] !== id));
+    computeTemplateListChanged(sessionExerciseIds, templateExerciseIds);
+  const finishFlowInput = {
+    isEmpty: isNoTemplateWorkout,
+    isBuiltIn: isBuiltInWorkout,
+    listChanged: templateListChanged,
+  };
+  const finishVariant = finishFlowVariant(finishFlowInput);
+  const finishOptions = finishSaveOptions(finishFlowInput);
 
   const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
   const completedSetCount = session.exercises.reduce(
@@ -1081,10 +1092,6 @@ export default function ActiveWorkoutScreen() {
     total: se.sets.length,
     sets: se.sets.filter((s) => s.completed),
   }));
-
-  // Only ONE set is "current" across the whole workout — the next unlogged set of the first
-  // exercise that still has work left. Every other exercise shows no active highlight.
-  const activeExerciseIdx = session.exercises.findIndex((ex) => ex.sets.some((s) => !s.completed));
 
   // ── In-app numeric keypad ──────────────────────────────────────────────────
   // Shown whenever a set cell is focused, unless a sheet/modal owns the bottom.
@@ -1160,13 +1167,13 @@ export default function ActiveWorkoutScreen() {
     const se = session.exercises[exIdx];
     const targetSet = se?.sets[setIdx];
     if (!targetSet) return;
-    if (!(targetSet.reps != null && targetSet.reps > 0)) return;
+    if (!canCompleteSet(targetSet)) return;
     if (!targetSet.completed) {
       completeSet(exIdx, setIdx);
       if (workoutSoundsEnabled) {
         void playWorkoutSound('setComplete');
       }
-      if (targetSet.isWarmUp !== true) {
+      if (shouldStartRestAfterComplete(targetSet)) {
         startRest(exIdx, setIdx, se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
       }
     }
@@ -1360,7 +1367,6 @@ export default function ActiveWorkoutScreen() {
 
           const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
           const exerciseNote = exerciseNotes[se.exerciseId];
-          const isActiveExercise = exIdx === activeExerciseIdx;
           const exerciseComplete = se.sets.length > 0 && se.sets.every((s) => s.completed);
 
           return (
@@ -1514,8 +1520,7 @@ export default function ActiveWorkoutScreen() {
                 const firstIncompleteIdx = se.sets.findIndex((s) => !s.completed);
                 const isFutureSet =
                   firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
-                const isCurrentSet =
-                  isActiveExercise && firstIncompleteIdx === setIdx && !set.completed;
+                const isCurrentSet = computeIsCurrentSet(session.exercises, exIdx, setIdx);
                 const restDurationKey = `${exIdx}-${setIdx}`;
                 const recordedRestSec = restDurationsBetweenSets[restDurationKey];
                 const isActiveRestGap =
@@ -1525,13 +1530,7 @@ export default function ActiveWorkoutScreen() {
                   restSecondsLeft > 0;
 
                 const isWarmUp = set.isWarmUp === true;
-                const warmUpNumber = isWarmUp
-                  ? se.sets.slice(0, setIdx + 1).filter((s) => s.isWarmUp).length
-                  : 0;
-                const workingSetNumber = isWarmUp
-                  ? 0
-                  : se.sets.slice(0, setIdx + 1).filter((s) => !s.isWarmUp).length;
-                const setLabelText = isWarmUp ? `W${warmUpNumber}` : String(workingSetNumber);
+                const setLabelText = setLabel(se.sets, setIdx);
 
                 const prev = previousMap[se.exerciseId];
                 const prevLabel = prev
@@ -1709,7 +1708,7 @@ export default function ActiveWorkoutScreen() {
                       <SetDonePressable
                         completed={set.completed}
                         isCurrent={isCurrentSet}
-                        disabled={!set.completed && !(set.reps != null && set.reps > 0)}
+                        disabled={!set.completed && !canCompleteSet(set)}
                         mutedFill={mutedFill}
                         colors={colors}
                         onPress={() => {
@@ -1719,12 +1718,12 @@ export default function ActiveWorkoutScreen() {
                               clearRestTimer();
                             }
                           } else {
-                            if (!(set.reps != null && set.reps > 0)) return;
+                            if (!canCompleteSet(set)) return;
                             completeSet(exIdx, setIdx);
                             if (workoutSoundsEnabled) {
                               void playWorkoutSound('setComplete');
                             }
-                            if (!isWarmUp) {
+                            if (shouldStartRestAfterComplete(set)) {
                               startRest(
                                 exIdx,
                                 setIdx,
@@ -2240,88 +2239,62 @@ export default function ActiveWorkoutScreen() {
               </View>
             </ScrollView>
             <View style={styles.summaryActions}>
-              {isNoTemplateWorkout ? (
-                <>
-                  <Pressable
-                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                    onPress={openSaveAsTemplateModal}
-                  >
-                    <Text style={styles.summarySaveBtnText}>Save as template</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
-                    onPress={() => handleFinish(false)}
-                  >
-                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save values only</Text>
-                  </Pressable>
-                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
-                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
-                  </Pressable>
-                </>
-              ) : isBuiltInWorkout && templateListChanged ? (
-                <>
-                  <Pressable
-                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                    onPress={openSaveAsTemplateModal}
-                  >
-                    <Text style={styles.summarySaveBtnText}>Save as new template</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
-                    onPress={() => handleFinish(false)}
-                  >
-                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>Save values only</Text>
-                  </Pressable>
-                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
-                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
-                  </Pressable>
-                </>
-              ) : !isBuiltInWorkout && templateListChanged ? (
-                <>
-                  <Text style={[styles.summaryChangedHint, { color: colors.textMuted }]}>
-                    You changed the exercises in this workout.
-                  </Text>
-                  <Pressable
-                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => handleFinish(false)}
-                  >
-                    <Text style={styles.summarySaveBtnText}>Save values only</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
-                    onPress={() => {
-                      if (gatePro('save_as_template')) void handleFinish(true);
-                    }}
-                  >
-                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
-                      Overwrite this template
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]}
-                    onPress={openSaveAsTemplateModal}
-                  >
-                    <Text style={[styles.summarySecondaryBtnText, { color: colors.text }]}>
-                      Save as new template
-                    </Text>
-                  </Pressable>
-                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
-                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <Pressable
-                    style={[styles.summarySaveBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => handleFinish(false)}
-                  >
-                    <Text style={styles.summarySaveBtnText}>Save values</Text>
-                  </Pressable>
-                  <Pressable onPress={handleDiscardOnly} style={[styles.summaryCancelBtn, { marginTop: 4 }]}>
-                    <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Discard workout</Text>
-                  </Pressable>
-                </>
+              {/*
+                Rendered straight from finishSaveOptions() so the option set and labels have a
+                single source of truth (see @/utils/workoutFinish). Presentation only lives here:
+                the first option is the primary CTA, other save actions are secondary, and
+                "Discard" is the muted text button.
+              */}
+              {finishVariant === 'custom-changed' && (
+                <Text style={[styles.summaryChangedHint, { color: colors.textMuted }]}>
+                  You changed the exercises in this workout.
+                </Text>
               )}
+              {finishOptions.map((option, idx) => {
+                if (option.id === 'discard') {
+                  return (
+                    <Pressable
+                      key={option.id}
+                      onPress={handleDiscardOnly}
+                      style={[styles.summaryCancelBtn, { marginTop: 4 }]}
+                    >
+                      <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                }
+                const onPress =
+                  option.id === 'save_as_template'
+                    ? openSaveAsTemplateModal
+                    : option.id === 'overwrite'
+                      ? () => {
+                          if (gatePro('save_as_template')) void handleFinish(true);
+                        }
+                      : () => handleFinish(false);
+                const isPrimary = idx === 0;
+                return (
+                  <Pressable
+                    key={option.id}
+                    style={
+                      isPrimary
+                        ? [styles.summarySaveBtn, { backgroundColor: colors.primary }]
+                        : [styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]
+                    }
+                    onPress={onPress}
+                  >
+                    <Text
+                      style={
+                        isPrimary
+                          ? styles.summarySaveBtnText
+                          : [styles.summarySecondaryBtnText, { color: colors.text }]
+                      }
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
               <Pressable onPress={closeFinishFlow} style={styles.summaryCancelBtn}>
                 <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
               </Pressable>

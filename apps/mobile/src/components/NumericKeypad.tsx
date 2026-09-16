@@ -124,7 +124,7 @@ export function NumericKeypad({
       </View>
 
       <View style={styles.grid}>
-        {/* Number column: 1–9, then 0 and backspace. */}
+        {/* Number column: 1–9, then 0 and reserved Plates/RPE. */}
         <View style={styles.numberColumn}>
           <View style={styles.gridRow}>{['1', '2', '3'].map(numberKey)}</View>
           <View style={styles.gridRow}>{['4', '5', '6'].map(numberKey)}</View>
@@ -132,19 +132,22 @@ export function NumericKeypad({
           <View style={styles.gridRow}>
             <View style={styles.keyCell} />
             {numberKey('0')}
-            <KeypadKey
-              onPress={onBackspace}
-              onLongPress={onBackspace}
-              background={keyFace}
-              border={colors.border}
-              accessibilityLabel="Delete"
-            >
-              <Ionicons name="backspace-outline" size={24} color={colors.text} />
-            </KeypadKey>
+            {/* Reserved: plate calculator (weight) / RPE effort (reps) — feeds recovery later. */}
+            <View style={styles.keyCell}>
+              <View
+                style={[
+                  styles.reservedKey,
+                  { backgroundColor: keyFace, borderColor: colors.border, opacity: 0.5 },
+                ]}
+              >
+                <Text style={[styles.reservedLabel, { color: colors.textMuted }]}>{reservedLabel}</Text>
+                <Text style={[styles.reservedSoon, { color: colors.textMuted }]}>soon</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Utility column: dismiss · − / + · reserved · action. */}
+        {/* Utility column: dismiss · − / + · backspace · action. */}
         <View style={styles.utilityColumn}>
           <View style={styles.keyCell}>
             <KeypadKey
@@ -179,17 +182,16 @@ export function NumericKeypad({
             </View>
           </View>
 
-          {/* Reserved: plate calculator (weight) / RPE effort (reps) — feeds recovery later. */}
           <View style={styles.keyCell}>
-            <View
-              style={[
-                styles.reservedKey,
-                { backgroundColor: keyFace, borderColor: colors.border, opacity: 0.5 },
-              ]}
+            <KeypadKey
+              onPress={onBackspace}
+              onLongPress={onBackspace}
+              background={keyFace}
+              border={colors.border}
+              accessibilityLabel="Delete"
             >
-              <Text style={[styles.reservedLabel, { color: colors.textMuted }]}>{reservedLabel}</Text>
-              <Text style={[styles.reservedSoon, { color: colors.textMuted }]}>soon</Text>
-            </View>
+              <Ionicons name="backspace-outline" size={24} color={colors.text} />
+            </KeypadKey>
           </View>
 
           <View style={styles.keyCell}>

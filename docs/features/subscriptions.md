@@ -226,13 +226,16 @@ Covered (`src/subscription/features.test.ts`):
 - `requiresProToStart` — built-in vs custom
 - 9 built-in templates ship
 - `subscriptionPaywallPath` / `parseProFeatureParam` round-trip, including `personal_records`
+- **`blockedStartFeature`** — the deep-link / notification start guard: Basic is blocked from
+  `_empty` (`empty_workout`) and custom templates (`custom_templates`), built-ins pass, Pro is
+  never blocked, and an unknown template passes through. `active-workout.tsx` calls this predicate,
+  so the gate decision on the start-from-params path is covered.
 
 Not covered:
 
-- **Gate enforcement itself** — no test asserts that a Basic user hitting any of the entries in the
-  [gate map](#gate-map) is actually redirected. Given the gate map is the paywall, this is a
-  meaningful gap.
-- The deep-link start-from-params gate in `active-workout.tsx`
+- **Gate enforcement wiring in the UI** — no test asserts the redirect actually fires for every
+  entry in the [gate map](#gate-map); only the start-from-params decision (`blockedStartFeature`)
+  is covered as a predicate.
 - Downgrade rendering: locked cards, the Custom section banner, exclusion from Suggested/Recent
 - `subscriptionStore` load, purchase, restore, expiry, and the legacy `free` → `basic` migration
 - Paywall list length parity between Basic and Pro

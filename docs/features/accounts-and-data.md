@@ -359,7 +359,13 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 
 ## Tests
 
-Covered: `src/utils/weightUnits.test.ts` — kg/lb and cm/in conversion and formatting round-trips.
+Covered:
+
+- `src/utils/weightUnits.test.ts` — kg/lb and cm/in conversion and formatting round-trips
+- `src/storage/localStorage.activeWorkout.test.ts` — the `muscleos_active_workout` persist/resume
+  round-trip through an in-memory AsyncStorage harness (`src/test/mocks/`, aliased in
+  `vitest.config.mts`), including null-clear and the corrupt / missing-`exercises` guards. This is
+  the first storage-layer test; the harness is reusable for other keys.
 
 Not covered — the least-tested area of the codebase:
 

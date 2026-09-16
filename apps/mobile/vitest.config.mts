@@ -11,6 +11,12 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Node-based test harness stand-ins for native modules. See src/test/mocks/*.
+      '@react-native-async-storage/async-storage': path.resolve(
+        root,
+        'src/test/mocks/asyncStorage.ts'
+      ),
+      'react-native': path.resolve(root, 'src/test/mocks/reactNative.ts'),
       '@': path.resolve(root, 'src'),
     },
   },

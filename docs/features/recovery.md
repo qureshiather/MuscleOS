@@ -224,18 +224,17 @@ muscles trained in that session in the just-trained colour.
 ## Tests
 
 Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
-`apps/mobile/src/utils/relativeTime.test.ts`):
+`apps/mobile/src/utils/recovery.test.ts`, `relativeTime.test.ts`):
 
 - `getRecoveryHoursForMuscle` — 36/48/72 buckets, 72 default, not-natty halving
 - `getRecoveryUntil` — adds the correct hours to `trainedAt`
 - 17 muscle groups exist; label formatting
 - `formatRecoveryReady` — "later today" and "tomorrow" branches
+- **`recoveryFromSessions()`** — skips in-progress sessions, skips exercises with no completed
+  set, keeps the latest `completedAt` per muscle, and uses `completedAt` rather than `startedAt`
 
 Not covered:
 
-- **`recoveryFromSessions()`** — the core derivation. No test for skipping incomplete sessions,
-  skipping exercises with no completed set, latest-per-muscle selection, or catalog fallback
-  lookup.
 - `recoveryStore` load/persist round-trip, and recompute-on-delete
 - `formatRecoveryReady` weekday and far-future branches
 - `MuscleDiagram` state derivation and shared-region behaviour

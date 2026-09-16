@@ -11,6 +11,7 @@ import { useActiveWorkoutStore, type RestAfter } from '@/store/activeWorkoutStor
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
+import { workoutNotificationCopy } from '@/utils/workoutNotificationCopy';
 import type { WorkoutSession } from '@muscleos/types';
 
 const WORKOUT_NOTIFICATION_ID = 'active-workout';
@@ -51,69 +52,13 @@ function formatRestEndClock(restEndTime: number): string {
   });
 }
 
-type NotificationCopy = {
-  restBody: string;
-  idleBody: string;
-  alertBody: string;
-};
-
-function hasIncompleteSets(se: WorkoutSession['exercises'][number] | undefined): boolean {
-  return !!se && se.sets.some((s) => !s.completed);
-}
-
-/**
- * Rest always starts after a working set, including the last one. Name the
- * upcoming work — not the exercise whose sets are already done.
- */
-function getWorkoutNotificationCopy(
-  session: WorkoutSession,
-  restAfter: RestAfter | null
-): NotificationCopy {
+function getWorkoutNotificationCopy(session: WorkoutSession, restAfter: RestAfter | null) {
   const getExercise = useExercisesStore.getState().getExercise;
-  const nameOf = (exerciseId: string) => getExercise(exerciseId)?.name ?? exerciseId;
-
-  const forExercise = (name: string, advancing: boolean): NotificationCopy =>
-    advancing
-      ? {
-          restBody: `Continue to ${name}`,
-          idleBody: `Continue to ${name}`,
-          alertBody: `Time for ${name}`,
-        }
-      : {
-          restBody: `Next: ${name}`,
-          idleBody: `Next: ${name}`,
-          alertBody: `Time for ${name}`,
-        };
-
-  const done: NotificationCopy = {
-    restBody: 'Finish your workout',
-    idleBody: 'Finish your workout',
-    alertBody: 'Time to finish your workout',
-  };
-
-  const findIncompleteFrom = (start: number, end: number) => {
-    for (let i = start; i < end; i++) {
-      const se = session.exercises[i];
-      if (hasIncompleteSets(se)) return se;
-    }
-    return undefined;
-  };
-
-  if (restAfter != null) {
-    const current = session.exercises[restAfter.exIdx];
-    if (hasIncompleteSets(current)) {
-      return forExercise(nameOf(current.exerciseId), false);
-    }
-    const next =
-      findIncompleteFrom(restAfter.exIdx + 1, session.exercises.length) ??
-      findIncompleteFrom(0, restAfter.exIdx);
-    if (next) return forExercise(nameOf(next.exerciseId), true);
-    return done;
-  }
-
-  const next = findIncompleteFrom(0, session.exercises.length);
-  if (next) return forExercise(nameOf(next.exerciseId), false);
-  return done;
+  return workoutNotificationCopy(
+    session,
+    restAfter,
+    (exerciseId) => getExercise(exerciseId)?.name ?? exerciseId
+  );
 }
 
 async function ensureChannels() {

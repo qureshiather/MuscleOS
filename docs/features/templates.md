@@ -280,10 +280,13 @@ Covered:
 - `src/utils/recommendTemplates.test.ts` — skips mostly-recovering templates; diversifies away
   from recently worked muscles
 - `src/subscription/features.test.ts` — `requiresProToStart` for built-in vs custom; 9 built-ins
+- `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
+  de-dupes; built-in hides by id **or** folder while a custom hides only via its own flag; and
+  deleting a folder keeps every template inside it, clearing only their `folderId`
 
 Not covered:
 
-- `templatesStore` CRUD, hide, and folder-delete cascade behaviour
+- `templatesStore` persistence and sync notifications (the store wraps the tested pure reducers)
 - `create-template.tsx` validation, create vs edit, and the folder-not-cleared quirk
 - `workout-preview.tsx` entry guards
 - Full `recommendTemplates` scoring arithmetic (only two behavioural cases are asserted)

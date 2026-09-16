@@ -18,10 +18,17 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**15 test files.** All are pure-function unit tests. There are **no component tests, no store
-tests, and no integration tests** — the testing setup has no React Native renderer or
-AsyncStorage mock, so anything touching a store, a screen, or persistence is currently untestable
-without new infrastructure.
+**22 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
+the screens themselves and a store's live wiring (debounced persist, `AppState` listener) aren't
+exercised end-to-end. The workflow *rules* those layers enforce have been pulled out into pure
+modules (`activeWorkoutLogic`, `workoutFinish`, `workoutSetView`, `templatesLogic`,
+`workoutNotificationCopy`) that the store, screen, and notification hook import, so the documented
+behaviour is covered without a renderer.
+
+A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` aliases) swaps
+`@react-native-async-storage/async-storage` for an in-memory store and `react-native` for a minimal
+`AppState`/`Platform` stub. This lets the storage layer be tested against real reads/writes — see
+`localStorage.activeWorkout.test.ts` for the persist/resume round-trip.
 
 | Test file | Covers |
 |-----------|--------|
@@ -37,6 +44,13 @@ without new infrastructure.
 | `apps/mobile/src/sync/catalogMerge.test.ts` | Seed overlay vs cache; delta merge by id |
 | `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist** |
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, paywall path parsing |
+| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill, add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, `reps > 0` complete rule, warm-up-skips-rest, start prefill, param parsing, hydrate expired-timer discard |
+| `apps/mobile/src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, null clear, corrupt/invalid-payload guards (via AsyncStorage harness) |
+| `apps/mobile/src/utils/workoutNotificationCopy.test.ts` | "Next:" / "Continue to" / "Finish your workout" selection from the first exercise with unlogged sets |
+| `apps/mobile/src/utils/workoutFinish.test.ts` | Finish save-options matrix (empty/built-in/custom × list-changed), `templateListChanged`, built-in can't be overwritten |
+| `apps/mobile/src/utils/workoutSetView.test.ts` | Warm-up (W1…) vs working (1,2,3…) numbering, single "current" set selection |
+| `apps/mobile/src/store/templatesLogic.test.ts` | `allTemplates` ordering, soft-hide toggle, built-in vs custom hidden, folder-delete keeps templates |
+| `apps/mobile/src/utils/recovery.test.ts` | `recoveryFromSessions`: completed-only, latest `completedAt` per muscle |
 | `packages/types/src/recovery.test.ts` | Per-muscle hours, not-natty halving, `getRecoveryUntil` |
 | `packages/types/src/muscles.test.ts` | 17 muscle groups, label formatting |
 | `packages/types/src/exercise.test.ts` | Category enum completeness, equipment labels |
@@ -45,11 +59,11 @@ without new infrastructure.
 
 | Feature | Coverage | Notes |
 |---------|----------|-------|
-| [Workout logging](../features/workout-logging.md) | **Minimal** | Only the in-app number pad's entry logic (`keypadInput`) is covered; the store, screen, and set rules have zero tests |
-| [Accounts & sync](../features/accounts-and-data.md) | **Minimal** | Unit conversion only. Merge policy and auth untested |
-| [Subscriptions](../features/subscriptions.md) | Partial | The predicate is tested; **gate enforcement is not** |
-| [Recovery](../features/recovery.md) | Partial | Constants and timing tested; `recoveryFromSessions` untested |
-| [Templates](../features/templates.md) | Partial | Built-in integrity good; store CRUD and validation untested |
+| [Workout logging](../features/workout-logging.md) | Partial | Number pad, set-logging rules (prefill, warm-up numbering, current-set, `reps > 0`, warm-up-skips-rest), rest-key remapping, finish save-options, best-set/previous snapshot, persist/resume round-trip, hydrate expired-timer discard, and notification copy are covered; the screen's live rendering and the debounced-persist/`AppState` wiring are not |
+| [Accounts & sync](../features/accounts-and-data.md) | **Minimal** | Unit conversion + active-workout persist/resume round-trip. Merge policy and auth untested |
+| [Subscriptions](../features/subscriptions.md) | Partial | `requiresProToStart` and the deep-link start guard (`blockedStartFeature`) are tested; the paywall UI itself is not |
+| [Recovery](../features/recovery.md) | Partial | Constants, timing, and `recoveryFromSessions` covered |
+| [Templates](../features/templates.md) | Partial | Built-in integrity, recommendation, `allTemplates` ordering, soft-hide, and folder-delete cascade covered; screen validation untested |
 | [Exercise library](../features/exercise-library.md) | Partial | Search, title-case names, catalog merge, and normalization good; store and sync untested |
 | [History & analytics](../features/history-analytics.md) | Partial | 1RM and home stats good; strength standards and volume untested |
 

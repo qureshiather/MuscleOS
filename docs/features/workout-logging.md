@@ -138,13 +138,15 @@ scrolled up so the pad never hides the row being edited.
   clamping to empty at zero.
 - The **action key adapts to the field**, because logging a weight and finishing a set are
   different intents:
-  - **Weight** shows a primary **Next** that jumps to the same set's reps, plus a reserved
-    **Plates** slot (a plate calculator, later).
+  - **Weight** shows a primary **Next** that jumps to the same set's reps. A reserved **Plates**
+    slot (a plate calculator, later) sits to the right of **0**.
   - **Reps** shows a success **Done** (check) that **completes the set** — starting rest for a
     working set — and then dismisses the pad, since a rest usually follows rather than the next
-    set. Done is disabled until reps > 0. It sits beside a reserved **RPE** slot for logging effort
-    later, to inform recovery windows.
-- The chevron key hides the pad. Neither reserved slot (Plates / RPE) is wired to anything yet.
+    set. Done is disabled until reps > 0. A reserved **RPE** slot for logging effort later (to
+    inform recovery windows) sits to the right of **0**.
+- **Backspace** is in the right-hand column, above Next/Done — the same place delete lives on a
+  normal keyboard. The chevron key hides the pad. Neither reserved slot (Plates / RPE) is wired
+  to anything yet.
 
 The pure entry maths (append, backspace, ± clamping, digit caps) lives in `src/utils/keypadInput.ts`
 and is unit-tested.
@@ -309,20 +311,34 @@ them, so there is no cached value to invalidate. See
 
 ## Tests
 
-The **screen and its store still have no tests** — the largest coverage gap in the codebase,
-covering the feature with the most state and the most edge cases.
+The store's set-logging rules and the finish-flow decision are extracted into pure modules so
+they can be unit-tested without a React Native renderer. The store (`activeWorkoutStore`) and the
+screen (`active-workout.tsx`) import these, so the tests cover the real logic rather than a copy.
 
-Directly covered: `src/utils/keypadInput.test.ts` (the in-app number pad's entry maths).
-Indirectly covered: `src/utils/weightUnits.test.ts` (unit conversion),
-`src/utils/oneRepMax.test.ts` (the 1RM used by analytics, not by this screen).
+Covered:
 
-Not currently covered:
+- `src/store/activeWorkoutLogic.test.ts` — `createEmptySession` (default 3 / `defaultSets`),
+  set-complete weight prefill (same warm-up/working kind only, never reps), add-set carry-over,
+  `bestCompletedSet` / `buildPreviousSnapshot` (highest weight then reps; can move down; keeps a
+  prior snapshot when nothing qualifies), warm-up insert bumping rest keys, rest-key remap on
+  reorder / remove, `canCompleteSet` (`reps > 0`), `shouldStartRestAfterComplete` (warm-ups don't),
+  `startPrefillPatch` (empty sets only), `parseStartParams`, and `normalizeHydratedState`
+  (an expired rest timer is dropped on boot)
+- `src/utils/workoutSetView.test.ts` — warm-up (`W1…`) vs working (`1,2,3…`) numbering and the
+  single "current" set rule (first incomplete set of the first unfinished exercise)
+- `src/utils/workoutFinish.test.ts` — `templateListChanged`, the finish `variant` classifier, and
+  the save-options matrix: a built-in is never offered "Overwrite"; a changed built-in only forks
+  to a new template (Pro); a changed custom offers Overwrite + Save-as-new (both Pro)
+- `src/storage/localStorage.activeWorkout.test.ts` — the persist/resume round-trip through the
+  in-memory AsyncStorage harness, including null-clear and corrupt/invalid-payload guards
+- `src/utils/workoutNotificationCopy.test.ts` — "Next:" / "Continue to" / "Finish your workout"
+  selection, including wrap-around to an earlier unfinished exercise
+- Deep-link Pro gate: `src/subscription/features.test.ts` (`blockedStartFeature`)
+- Number pad entry maths: `src/utils/keypadInput.test.ts`. Indirectly: `weightUnits`, `oneRepMax`
 
-- `activeWorkoutStore`: start / finish / discard, persist and hydrate round-trip, rest-key
-  remapping when exercises are reordered or removed, prefill on complete and on add-set
-- Set completion rules (`reps > 0`), warm-up numbering, warm-up not starting rest
-- Replace-exercise preserving sets; add/remove remapping recorded rest
-- Finish flow branches and the built-in vs custom save options
-- Pro gate enforcement on the start-from-params path (the deep-link hole)
-- Incomplete sets persisted but excluded from previous/recovery/summary
-- Notification copy selection and schedule/cancel paths
+Not currently covered (need a React Native renderer):
+
+- The screen's live rendering, and the debounced-persist / `AppState`-backgrounding write wiring
+  inside `activeWorkoutStore` (the pure pieces it delegates to are covered above)
+- The notification *scheduling* side effects (channel setup, `scheduleNotificationAsync` timing)
+  as opposed to the body copy

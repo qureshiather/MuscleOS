@@ -10,13 +10,18 @@ import {
   getHiddenBuiltInFolderIds,
   setHiddenBuiltInFolderIds,
 } from '@/storage/localStorage';
-import { BUILT_IN_TEMPLATES, isBuiltInHidden } from '@/data/builtInTemplates';
 import {
   notifyTemplateUpsert,
   notifyTemplateDelete,
   notifyFolderUpsert,
   notifyFolderDelete,
 } from '@/sync';
+import {
+  allTemplates as computeAllTemplates,
+  deleteFolderCascade,
+  isTemplateHidden,
+  toggleHiddenId,
+} from '@/store/templatesLogic';
 
 export interface TemplatesState {
   userTemplates: WorkoutTemplate[];
@@ -92,10 +97,7 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
 
   setTemplateHidden: async (template, hidden) => {
     if (template.isBuiltIn) {
-      const current = new Set(get().hiddenBuiltInIds);
-      if (hidden) current.add(template.id);
-      else current.delete(template.id);
-      const next = [...current];
+      const next = toggleHiddenId(get().hiddenBuiltInIds, template.id, hidden);
       set({ hiddenBuiltInIds: next });
       await setHiddenBuiltInTemplateIds(next);
       return;
@@ -104,20 +106,13 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
   },
 
   setBuiltInFolderHidden: async (folderId, hidden) => {
-    const current = new Set(get().hiddenBuiltInFolderIds);
-    if (hidden) current.add(folderId);
-    else current.delete(folderId);
-    const next = [...current];
+    const next = toggleHiddenId(get().hiddenBuiltInFolderIds, folderId, hidden);
     set({ hiddenBuiltInFolderIds: next });
     await setHiddenBuiltInFolderIds(next);
   },
 
-  isTemplateHidden: (template) => {
-    if (template.isBuiltIn) {
-      return isBuiltInHidden(template, get().hiddenBuiltInIds, get().hiddenBuiltInFolderIds);
-    }
-    return template.hidden === true;
-  },
+  isTemplateHidden: (template) =>
+    isTemplateHidden(template, get().hiddenBuiltInIds, get().hiddenBuiltInFolderIds),
 
   addFolder: async (f) => {
     const next = [...get().folders, f];
@@ -135,10 +130,10 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
   },
 
   deleteFolder: async (id) => {
-    const { folders, userTemplates } = get();
-    const nextFolders = folders.filter((f) => f.id !== id);
-    const nextTemplates = userTemplates.map((t) =>
-      t.folderId === id ? { ...t, folderId: undefined } : t
+    const { folders: nextFolders, templates: nextTemplates } = deleteFolderCascade(
+      get().folders,
+      get().userTemplates,
+      id
     );
     set({ folders: nextFolders, userTemplates: nextTemplates });
     await Promise.all([setTemplateFolders(nextFolders), setTemplates(nextTemplates)]);
@@ -146,8 +141,5 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     for (const t of nextTemplates) notifyTemplateUpsert(t);
   },
 
-  allTemplates: () => {
-    const { userTemplates } = get();
-    return [...BUILT_IN_TEMPLATES, ...userTemplates];
-  },
+  allTemplates: () => computeAllTemplates(get().userTemplates),
 }));

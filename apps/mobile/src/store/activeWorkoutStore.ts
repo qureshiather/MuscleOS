@@ -19,44 +19,24 @@ import {
   notifyExercisePreviousSnapshot,
   syncAfterWorkout,
 } from '@/sync';
+import {
+  DEFAULT_REST_SECONDS,
+  buildAddedSet,
+  bumpRestKeysForInsertedSet,
+  buildPreviousSnapshot,
+  completeSetInSets,
+  createEmptySession,
+  dropRestKeysForRemovedSet,
+  normalizeHydratedState,
+  oldToNewForRemove,
+  oldToNewForReorder,
+  remapRestAfter,
+  remapRestDurations,
+  type RestAfter,
+} from '@/store/activeWorkoutLogic';
 
-const DEFAULT_SETS_PER_EXERCISE = 3;
-
-export const DEFAULT_REST_SECONDS = 120;
-
-export interface RestAfter {
-  exIdx: number;
-  setIdx: number;
-}
-
-function restKey(exIdx: number, setIdx: number): string {
-  return `${exIdx}-${setIdx}`;
-}
-
-/** Remap "exIdx-setIdx" rest duration keys after exercises move. */
-function remapRestDurations(
-  durations: Record<string, number>,
-  oldToNew: number[]
-): Record<string, number> {
-  const next: Record<string, number> = {};
-  for (const [key, seconds] of Object.entries(durations)) {
-    const [exStr, setStr] = key.split('-');
-    const oldEx = parseInt(exStr, 10);
-    const setIdx = parseInt(setStr, 10);
-    if (Number.isNaN(oldEx) || Number.isNaN(setIdx)) continue;
-    const newEx = oldToNew[oldEx];
-    if (newEx == null) continue;
-    next[restKey(newEx, setIdx)] = seconds;
-  }
-  return next;
-}
-
-function remapRestAfter(restAfter: RestAfter | null, oldToNew: number[]): RestAfter | null {
-  if (!restAfter) return null;
-  const newEx = oldToNew[restAfter.exIdx];
-  if (newEx == null) return null;
-  return { exIdx: newEx, setIdx: restAfter.setIdx };
-}
+export { DEFAULT_REST_SECONDS } from '@/store/activeWorkoutLogic';
+export type { RestAfter } from '@/store/activeWorkoutLogic';
 
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
@@ -98,65 +78,6 @@ export interface ActiveWorkoutState {
   clearRestTimer: () => void;
   /** Record rest duration when timer completes or is skipped; merge into restDurationsBetweenSets */
   recordRestDuration: (exIdx: number, setIdx: number, seconds: number) => void;
-}
-
-function createEmptySession(
-  templateId: string,
-  exerciseIds: string[],
-  defaultSets?: number
-): WorkoutSession {
-  const numSets = defaultSets ?? DEFAULT_SETS_PER_EXERCISE;
-  const sets = Array.from({ length: numSets }, () => ({ completed: false }));
-  return {
-    id: 'session_' + Date.now(),
-    templateId,
-    startedAt: new Date().toISOString(),
-    exercises: exerciseIds.map((exerciseId) => ({
-      exerciseId,
-      sets: [...sets],
-    })),
-  };
-}
-
-function bumpRestKeysForInsertedSet(
-  durations: Record<string, number>,
-  exIdx: number
-): Record<string, number> {
-  const next = { ...durations };
-  const keys = Object.keys(durations)
-    .map((k) => {
-      const [exStr, setStr] = k.split('-');
-      return { k, ex: parseInt(exStr, 10), set: parseInt(setStr, 10) };
-    })
-    .filter((x) => x.ex === exIdx && !Number.isNaN(x.set))
-    .sort((a, b) => b.set - a.set);
-
-  for (const { k, set } of keys) {
-    next[restKey(exIdx, set + 1)] = durations[k];
-    delete next[k];
-  }
-  return next;
-}
-
-function dropRestKeysForRemovedSet(
-  durations: Record<string, number>,
-  exIdx: number,
-  removedSetIdx: number
-): Record<string, number> {
-  const next: Record<string, number> = {};
-  for (const [key, seconds] of Object.entries(durations)) {
-    const [exStr, setStr] = key.split('-');
-    const ex = parseInt(exStr, 10);
-    const set = parseInt(setStr, 10);
-    if (Number.isNaN(ex) || Number.isNaN(set)) continue;
-    if (ex !== exIdx) {
-      next[key] = seconds;
-      continue;
-    }
-    if (set === removedSetIdx) continue;
-    next[restKey(exIdx, set > removedSetIdx ? set - 1 : set)] = seconds;
-  }
-  return next;
 }
 
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
@@ -202,23 +123,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     if (!session) return;
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
-    if (!ex) return;
-    const sets = [...ex.sets];
-    if (!sets[setIndex]) return;
-    const completed = { ...sets[setIndex], completed: true };
-    sets[setIndex] = completed;
-    // Auto-fill next set weight from this set when empty (same warm-up/working kind).
-    const nextIdx = setIndex + 1;
-    const next = sets[nextIdx];
-    if (
-      next &&
-      next.weightKg == null &&
-      completed.weightKg != null &&
-      (completed.isWarmUp === true) === (next.isWarmUp === true)
-    ) {
-      sets[nextIdx] = { ...next, weightKg: completed.weightKg };
-    }
-    exercises[exerciseIndex] = { ...ex, sets };
+    if (!ex || !ex.sets[setIndex]) return;
+    exercises[exerciseIndex] = { ...ex, sets: completeSetInSets(ex.sets, setIndex) };
     set({ session: { ...session, exercises } });
   },
 
@@ -241,15 +147,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
     if (!ex) return;
-    const lastSet = ex.sets[ex.sets.length - 1];
-    const newSet = {
-      completed: false,
-      ...(lastSet?.weightKg != null && { weightKg: lastSet.weightKg }),
-      ...(lastSet?.reps != null && { reps: lastSet.reps }),
-    };
     exercises[exerciseIndex] = {
       ...ex,
-      sets: [...ex.sets, newSet],
+      sets: [...ex.sets, buildAddedSet(ex.sets)],
     };
     set({ session: { ...session, exercises } });
   },
@@ -344,7 +244,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const { session, restAfter, restDurationsBetweenSets } = get();
     if (!session) return;
     const exercises = session.exercises.filter((_, i) => i !== exerciseIndex);
-    const oldToNew = session.exercises.map((_, i) => (i < exerciseIndex ? i : i === exerciseIndex ? -1 : i - 1));
+    const oldToNew = oldToNewForRemove(session.exercises.length, exerciseIndex);
     const remappedDurations = remapRestDurations(restDurationsBetweenSets, oldToNew);
     const clearRest = restAfter?.exIdx === exerciseIndex;
     set({
@@ -375,15 +275,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const [moved] = exercises.splice(fromIndex, 1);
     exercises.splice(toIndex, 0, moved);
 
-    const oldToNew = session.exercises.map((_, oldIdx) => {
-      if (oldIdx === fromIndex) return toIndex;
-      if (fromIndex < toIndex) {
-        if (oldIdx > fromIndex && oldIdx <= toIndex) return oldIdx - 1;
-      } else {
-        if (oldIdx >= toIndex && oldIdx < fromIndex) return oldIdx + 1;
-      }
-      return oldIdx;
-    });
+    const oldToNew = oldToNewForReorder(session.exercises.length, fromIndex, toIndex);
 
     set({
       session: { ...session, exercises },
@@ -404,18 +296,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     await setSessions(allSessions);
 
     // Update previous weight/reps per exercise (best completed set by weight, then reps)
-    const prev = await getExercisePrevious();
-    for (const se of completed.exercises) {
-      const best = se.sets
-        .filter((s) => s.completed && s.weightKg != null && s.weightKg > 0)
-        .sort((a, b) => (b.weightKg ?? 0) - (a.weightKg ?? 0) || (b.reps ?? 0) - (a.reps ?? 0))[0];
-      if (best) {
-        prev[se.exerciseId] = {
-          weightKg: best.weightKg!,
-          reps: best.reps,
-        };
-      }
-    }
+    const prev = buildPreviousSnapshot(completed.exercises, await getExercisePrevious());
     await setExercisePrevious(prev);
 
     const merged = recoveryFromSessions(allSessions, (id) =>
@@ -570,13 +451,7 @@ export function hydrateActiveWorkout(): Promise<void> {
       const saved = await getActiveWorkout();
       // A workout started while we were reading (deep link, resume tap) wins.
       if (saved && !useActiveWorkoutStore.getState().session) {
-        useActiveWorkoutStore.setState({
-          session: saved.session,
-          restEndTime: saved.restEndTime != null && saved.restEndTime > Date.now() ? saved.restEndTime : null,
-          restTotalSeconds: saved.restTotalSeconds ?? DEFAULT_REST_SECONDS,
-          restAfter: saved.restAfter ?? null,
-          restDurationsBetweenSets: saved.restDurationsBetweenSets ?? {},
-        });
+        useActiveWorkoutStore.setState(normalizeHydratedState(saved));
       }
     } finally {
       useActiveWorkoutStore.setState({ hydrated: true });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  blockedStartFeature,
   parseProFeatureParam,
   requiresProToStart,
   subscriptionPaywallPath,
@@ -24,5 +25,35 @@ describe('pro gates', () => {
     expect(subscriptionPaywallPath('custom_templates')).toBe(
       '/subscription?feature=custom_templates'
     );
+  });
+});
+
+describe('blockedStartFeature (deep-link / notification start guard)', () => {
+  const builtIn = { isBuiltIn: true };
+  const custom = { isBuiltIn: false };
+
+  it('never blocks a Pro user', () => {
+    expect(blockedStartFeature({ isPro: true, templateId: '_empty', template: undefined })).toBeNull();
+    expect(blockedStartFeature({ isPro: true, templateId: 'tpl_1', template: custom })).toBeNull();
+  });
+
+  it('blocks a Basic user from starting an empty workout', () => {
+    expect(blockedStartFeature({ isPro: false, templateId: '_empty', template: undefined })).toBe(
+      'empty_workout'
+    );
+  });
+
+  it('blocks a Basic user from starting a custom template', () => {
+    expect(blockedStartFeature({ isPro: false, templateId: 'tpl_1', template: custom })).toBe(
+      'custom_templates'
+    );
+  });
+
+  it('lets a Basic user start a built-in template', () => {
+    expect(blockedStartFeature({ isPro: false, templateId: 'ppl-push', template: builtIn })).toBeNull();
+  });
+
+  it('allows an unknown template through (nothing to gate on)', () => {
+    expect(blockedStartFeature({ isPro: false, templateId: 'tpl_missing', template: undefined })).toBeNull();
   });
 });

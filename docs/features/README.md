@@ -47,10 +47,10 @@ Current test coverage detail: [engineering/testing.md](../engineering/testing.md
 
 | Area | Spec | Automated tests |
 |------|------|-----------------|
-| Templates | Complete | Partial — built-in integrity, recommendation behaviour, home stats |
-| Workout logging | Complete | **None** — highest-risk gap in the codebase |
-| Recovery | Complete | Partial — per-muscle hours and `getRecoveryUntil` covered; `recoveryFromSessions` untested |
+| Templates | Complete | Partial — built-in integrity, recommendation, home stats, `allTemplates` ordering, soft-hide, folder-delete cascade |
+| Workout logging | Complete | Partial — set-logging rules, prefill, warm-up numbering, current-set, rest-key remap, finish save-options, persist/resume round-trip, hydrate expired-timer discard, and notification copy covered; only the screen's live rendering and debounced-persist wiring remain |
+| Recovery | Complete | Partial — per-muscle hours, `getRecoveryUntil`, and `recoveryFromSessions` covered |
 | Exercise library | Complete | Partial — search ranking, title-case names, catalog merge, and normalization covered; store and sync untested |
 | History & analytics | Complete | Partial — 1RM and home stats covered; strength standards and volume untested |
-| Subscriptions | Complete | Partial — `requiresProToStart` and paywall paths covered; gate enforcement untested |
-| Accounts & data | Complete | Minimal — unit conversion only; auth, sync, and merge untested |
+| Subscriptions | Complete | Partial — `requiresProToStart`, paywall paths, and the deep-link start guard (`blockedStartFeature`) covered; UI gate wiring untested |
+| Accounts & data | Complete | Minimal — unit conversion + active-workout persist/resume round-trip; auth, sync, and merge untested |
