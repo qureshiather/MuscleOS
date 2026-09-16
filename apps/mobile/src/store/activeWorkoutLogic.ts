@@ -232,11 +232,12 @@ export function normalizeHydratedState(
   saved: PersistedActiveWorkout,
   now: number = Date.now()
 ): HydratedState {
+  const restEndTime = saved.restEndTime != null && saved.restEndTime > now ? saved.restEndTime : null;
   return {
     session: saved.session,
-    restEndTime: saved.restEndTime != null && saved.restEndTime > now ? saved.restEndTime : null,
+    restEndTime,
     restTotalSeconds: saved.restTotalSeconds ?? DEFAULT_REST_SECONDS,
-    restAfter: saved.restAfter ?? null,
+    restAfter: restEndTime != null ? saved.restAfter ?? null : null,
     restDurationsBetweenSets: saved.restDurationsBetweenSets ?? {},
   };
 }

@@ -269,6 +269,7 @@ describe('normalizeHydratedState', () => {
   it('discards a rest timer that expired while the app was dead', () => {
     const state = normalizeHydratedState(saved, 20_000);
     expect(state.restEndTime).toBeNull();
+    expect(state.restAfter).toBeNull();
   });
 
   it('falls back to defaults for missing rest fields', () => {

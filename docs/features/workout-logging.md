@@ -117,7 +117,7 @@ Prefill rules:
 | When | Behaviour |
 |------|-----------|
 | Session starts | For any set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Partially filled sets are left alone. |
-| Completing a set | Copy that set's weight (not reps) into the next set if it's empty — only when both are the same kind (warm-up vs working). |
+| Completing a set | Copy that set's weight (not reps) into the next set if the next set's weight is empty — only when both are the same kind (warm-up vs working). |
 | Adding a set | Copy the last set's weight and reps if present. |
 
 Template targets are never used, because templates don't store any.
@@ -250,7 +250,7 @@ what you started from and whether you changed the exercise list:
 |--------------|---------|
 | Empty workout | Save as template (Pro) · Save values only · Discard |
 | Built-in, list changed | Save as new template (Pro) · Save values only · Discard |
-| Custom, list changed | Overwrite this template (Pro) · Save as new template (Pro) · Save values only · Discard |
+| Custom, list changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard |
 | List unchanged | Save values · Discard |
 
 "Overwrite" updates only the template's `exerciseIds` — names and folders are untouched.
