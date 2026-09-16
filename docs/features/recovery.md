@@ -177,7 +177,10 @@ The diagram uses three states when a "just trained" subset is supplied, otherwis
 Renders, in order:
 
 1. **Header** — title "Recovery"; subtitle is `All clear — every muscle group is ready` when
-   nothing is recovering, else `Muscles still recovering from recent training`.
+   nothing is recovering, else `Muscles still recovering from recent training`. A `help-circle`
+   icon button on the right opens the **How recovery works** explainer (`RecoveryInfoModal`) —
+   a dismissible modal that describes the per-muscle timer model, the faster/slower buckets, and
+   the diagram colours. It adds a line noting timers are halved when the "not natty" setting is on.
 2. **Loading** — a 220×220 circular skeleton.
 3. **All-clear state** — the diagram with every muscle highlighted green.
 4. **Active state** — the diagram with a legend (Just trained / In recovery / Ready), then an

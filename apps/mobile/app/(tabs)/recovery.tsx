@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
@@ -11,6 +12,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { MUSCLE_GROUPS, muscleLabel } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { RecoveryInfoModal } from '@/components/RecoveryInfoModal';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRecoveryReady } from '@/utils/relativeTime';
@@ -24,7 +26,9 @@ export default function RecoveryScreen() {
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
   const isLoading = useRecoveryStore((s) => s.isLoading);
   const profile = useSettingsStore((s) => s.profile);
+  const notNatty = profile?.notNatty ?? false;
   const diagramVariant = profile?.sex === 'female' ? 'female' : 'male';
+  const [infoVisible, setInfoVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,13 +48,35 @@ export default function RecoveryScreen() {
   return (
     <Screen kind="tab">
       <View style={screenHeaderStyles.headerFixed}>
-        <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Recovery</Text>
-        <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-          {active.length === 0
-            ? 'All clear — every muscle group is ready'
-            : 'Muscles still recovering from recent training'}
-        </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTextBlock}>
+            <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Recovery</Text>
+            <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
+              {active.length === 0
+                ? 'All clear — every muscle group is ready'
+                : 'Muscles still recovering from recent training'}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => setInfoVisible(true)}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              pressed && styles.iconButtonPressed,
+            ]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="How recovery works"
+          >
+            <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
+          </Pressable>
+        </View>
       </View>
+      <RecoveryInfoModal
+        visible={infoVisible}
+        onClose={() => setInfoVisible(false)}
+        notNatty={notNatty}
+      />
       {isLoading ? (
         <View style={styles.placeholder}>
           <Skeleton width={220} height={220} borderRadius={110} />
@@ -118,6 +144,25 @@ export default function RecoveryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTextBlock: {
+    flex: 1,
+    marginRight: spacing.sm,
+    minWidth: 0,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconButtonPressed: { opacity: 0.8 },
   placeholder: { flex: 1, padding: spacing.lg, justifyContent: 'center', alignItems: 'center' },
   readyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   diagramWrap: { alignItems: 'center', marginBottom: spacing.xl },
