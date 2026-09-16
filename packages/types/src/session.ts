@@ -7,6 +7,15 @@ export interface SetRecord {
   isWarmUp?: boolean;
   /** Optional note */
   note?: string;
+  /**
+   * `weightKg` is an auto-filled suggestion (from "previous" or carried over), not user-entered.
+   * The keypad overwrites it on the first digit instead of appending, and it renders as a muted
+   * ghost. Cleared once the field is edited or the set is completed. Never persisted to finished
+   * sessions.
+   */
+  weightPrefilled?: boolean;
+  /** `reps` is an auto-filled suggestion, not user-entered. See {@link weightPrefilled}. */
+  repsPrefilled?: boolean;
 }
 
 /** One exercise within a workout session */

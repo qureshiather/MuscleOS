@@ -140,7 +140,14 @@ export function oldToNewForReorder(length: number, fromIndex: number, toIndex: n
 export function completeSetInSets(sets: SetRecord[], setIndex: number): SetRecord[] {
   if (!sets[setIndex]) return sets;
   const next = [...sets];
-  const completed = { ...next[setIndex], completed: true };
+  // Completing a set confirms its values, so they are no longer overwrite-on-first-digit
+  // suggestions — a later re-open edits them normally.
+  const completed = {
+    ...next[setIndex],
+    completed: true,
+    weightPrefilled: false,
+    repsPrefilled: false,
+  };
   next[setIndex] = completed;
   const nextIdx = setIndex + 1;
   const following = next[nextIdx];
@@ -150,7 +157,8 @@ export function completeSetInSets(sets: SetRecord[], setIndex: number): SetRecor
     completed.weightKg != null &&
     (completed.isWarmUp === true) === (following.isWarmUp === true)
   ) {
-    next[nextIdx] = { ...following, weightKg: completed.weightKg };
+    // Carried weight is a suggestion for the next set: overwrite it on first digit.
+    next[nextIdx] = { ...following, weightKg: completed.weightKg, weightPrefilled: true };
   }
   return next;
 }
@@ -160,8 +168,23 @@ export function buildAddedSet(sets: SetRecord[]): SetRecord {
   const lastSet = sets[sets.length - 1];
   return {
     completed: false,
-    ...(lastSet?.weightKg != null && { weightKg: lastSet.weightKg }),
-    ...(lastSet?.reps != null && { reps: lastSet.reps }),
+    // Carried values are suggestions: overwrite on first digit, render as ghost.
+    ...(lastSet?.weightKg != null && { weightKg: lastSet.weightKg, weightPrefilled: true }),
+    ...(lastSet?.reps != null && { reps: lastSet.reps, repsPrefilled: true }),
+  };
+}
+
+/**
+ * Prefill flags are transient editing state, so strip them before a session is stored/synced.
+ * Returns a new session; the input is untouched.
+ */
+export function stripPrefillFlags(session: WorkoutSession): WorkoutSession {
+  return {
+    ...session,
+    exercises: session.exercises.map((ex) => ({
+      ...ex,
+      sets: ex.sets.map(({ weightPrefilled, repsPrefilled, ...rest }) => rest),
+    })),
   };
 }
 
@@ -198,10 +221,16 @@ export function shouldStartRestAfterComplete(set: Pick<SetRecord, 'isWarmUp'>): 
 export function startPrefillPatch(
   set: Pick<SetRecord, 'weightKg' | 'reps'>,
   previous: PreviousSnapshot | undefined
-): { weightKg: number; reps?: number } | null {
+): Partial<SetRecord> | null {
   if (!previous) return null;
   if (set.weightKg != null || set.reps != null) return null;
-  return { weightKg: previous.weightKg, reps: previous.reps };
+  // Mark both fields as suggestions so the keypad overwrites them on the first digit
+  // rather than making the user backspace an auto-loaded value.
+  return {
+    weightKg: previous.weightKg,
+    weightPrefilled: true,
+    ...(previous.reps != null && { reps: previous.reps, repsPrefilled: true }),
+  };
 }
 
 /** Parsed route params for starting a workout from a deep link / template preview. */

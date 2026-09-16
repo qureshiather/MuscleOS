@@ -18,6 +18,7 @@ import {
   remapRestDurations,
   shouldStartRestAfterComplete,
   startPrefillPatch,
+  stripPrefillFlags,
 } from './activeWorkoutLogic';
 
 describe('createEmptySession', () => {
@@ -85,14 +86,28 @@ describe('completeSetInSets', () => {
     ];
     expect(completeSetInSets(warmups, 0)[1].weightKg).toBe(40);
   });
+
+  it('clears the completed set suggestion flags and marks the carried weight as a suggestion', () => {
+    const suggested: SetRecord[] = [
+      { completed: false, weightKg: 100, weightPrefilled: true, reps: 5, repsPrefilled: true },
+      { completed: false },
+    ];
+    const next = completeSetInSets(suggested, 0);
+    expect(next[0].weightPrefilled).toBe(false);
+    expect(next[0].repsPrefilled).toBe(false);
+    expect(next[1].weightKg).toBe(100);
+    expect(next[1].weightPrefilled).toBe(true);
+  });
 });
 
 describe('buildAddedSet', () => {
-  it('carries the last set weight and reps forward', () => {
+  it('carries the last set weight and reps forward as suggestions', () => {
     expect(buildAddedSet([{ completed: true, weightKg: 80, reps: 8 }])).toEqual({
       completed: false,
       weightKg: 80,
+      weightPrefilled: true,
       reps: 8,
+      repsPrefilled: true,
     });
   });
 
@@ -218,8 +233,20 @@ describe('shouldStartRestAfterComplete', () => {
 describe('startPrefillPatch', () => {
   const previous = { weightKg: 80, reps: 8 };
 
-  it('prefills a completely empty set from the previous snapshot', () => {
-    expect(startPrefillPatch({}, previous)).toEqual({ weightKg: 80, reps: 8 });
+  it('prefills a completely empty set from the previous snapshot, flagged as a suggestion', () => {
+    expect(startPrefillPatch({}, previous)).toEqual({
+      weightKg: 80,
+      weightPrefilled: true,
+      reps: 8,
+      repsPrefilled: true,
+    });
+  });
+
+  it('flags only weight when the snapshot has no reps', () => {
+    expect(startPrefillPatch({}, { weightKg: 80 })).toEqual({
+      weightKg: 80,
+      weightPrefilled: true,
+    });
   });
 
   it('leaves partially filled sets alone', () => {
@@ -229,6 +256,23 @@ describe('startPrefillPatch', () => {
 
   it('does nothing when there is no previous snapshot', () => {
     expect(startPrefillPatch({}, undefined)).toBeNull();
+  });
+});
+
+describe('stripPrefillFlags', () => {
+  it('removes prefill flags from every set without mutating the input', () => {
+    const session = createEmptySession('t', ['a'], 1, 1000);
+    session.exercises[0].sets[0] = {
+      completed: false,
+      weightKg: 80,
+      weightPrefilled: true,
+      reps: 8,
+      repsPrefilled: true,
+    };
+    const stripped = stripPrefillFlags(session);
+    expect(stripped.exercises[0].sets[0]).toEqual({ completed: false, weightKg: 80, reps: 8 });
+    // input untouched
+    expect(session.exercises[0].sets[0].weightPrefilled).toBe(true);
   });
 });
 

@@ -7,6 +7,12 @@
     },
     "android": {
       "package": "com.twaxter.muscleos"
+    },
+    "ios": {
+      "bundleIdentifier": "com.twaxter.muscleos",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     }
   }
 }

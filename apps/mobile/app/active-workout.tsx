@@ -1133,20 +1133,32 @@ export default function ActiveWorkoutScreen() {
   // Done is only meaningful once the set has reps to log.
   const keypadCanComplete = keypadSet != null && keypadSet.reps != null && keypadSet.reps > 0;
 
+  // The focused field still holds an auto-loaded suggestion the user hasn't touched.
+  const focusedFieldIsPrefill = keypadSet
+    ? keypadIsWeight
+      ? keypadSet.weightPrefilled === true
+      : keypadSet.repsPrefilled === true
+    : false;
+
+  // Any keypad edit confirms the field, clearing its suggestion flag so later keystrokes append.
   function applyKeypadValue(next: number | undefined) {
     if (!focusedCell) return;
     const { exIdx, setIdx, field } = focusedCell;
     if (field === 'reps') {
-      setSetRecord(exIdx, setIdx, { reps: next });
+      setSetRecord(exIdx, setIdx, { reps: next, repsPrefilled: false });
     } else {
       setSetRecord(exIdx, setIdx, {
         weightKg: next == null ? undefined : displayToKg(next, weightUnit),
+        weightPrefilled: false,
       });
     }
   }
   function handleKeypadDigit(digit: string) {
     const maxDigits = keypadIsWeight ? WEIGHT_MAX_DIGITS : REPS_MAX_DIGITS;
-    applyKeypadValue(keypadAppendDigit(currentKeypadValue, digit, maxDigits));
+    // A suggestion is treated as selected: the first digit replaces it instead of appending,
+    // so a fresh workout never needs a backspace before typing.
+    const base = focusedFieldIsPrefill ? undefined : currentKeypadValue;
+    applyKeypadValue(keypadAppendDigit(base, digit, maxDigits));
   }
   function handleKeypadBackspace() {
     applyKeypadValue(keypadBackspace(currentKeypadValue));
@@ -1672,7 +1684,12 @@ export default function ActiveWorkoutScreen() {
                         <Text
                           style={[
                             styles.setInput,
-                            { color: set.weightKg != null ? colors.text : colors.textMuted },
+                            {
+                              color:
+                                set.weightKg != null && set.weightPrefilled !== true
+                                  ? colors.text
+                                  : colors.textMuted,
+                            },
                           ]}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
                           numberOfLines={1}
@@ -1697,7 +1714,12 @@ export default function ActiveWorkoutScreen() {
                         <Text
                           style={[
                             styles.setInput,
-                            { color: set.reps != null ? colors.text : colors.textMuted },
+                            {
+                              color:
+                                set.reps != null && set.repsPrefilled !== true
+                                  ? colors.text
+                                  : colors.textMuted,
+                            },
                           ]}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
                           numberOfLines={1}

@@ -32,6 +32,7 @@ import {
   oldToNewForReorder,
   remapRestAfter,
   remapRestDurations,
+  stripPrefillFlags,
   type RestAfter,
 } from '@/store/activeWorkoutLogic';
 
@@ -288,7 +289,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const { session } = get();
     if (!session) return;
     const completed: WorkoutSession = {
-      ...session,
+      ...stripPrefillFlags(session),
       completedAt: new Date().toISOString(),
     };
     const sessions = await getSessions();

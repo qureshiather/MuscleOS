@@ -25,6 +25,8 @@ interface SetRecord {
   completed: boolean;
   isWarmUp?: boolean;
   note?: string;          // in the type, unused by the UI
+  weightPrefilled?: boolean;  // weightKg is an auto-suggestion, not user input (see prefill)
+  repsPrefilled?: boolean;    // reps is an auto-suggestion, not user input
 }
 
 interface SessionExercise {
@@ -121,6 +123,14 @@ Prefill rules:
 | Adding a set | Copy the last set's weight and reps if present. |
 
 Template targets are never used, because templates don't store any.
+
+**Prefilled values are suggestions, not typed input.** Each prefilled field is flagged
+(`weightPrefilled` / `repsPrefilled`) and rendered as muted ghost text. On the number pad the
+suggestion behaves as if selected: the **first digit overwrites** it instead of appending, so a
+fresh workout never needs a backspace before typing. Any edit to the field (a digit, backspace, or
+±) or completing the set clears the flag, so re-opening a value you entered or logged edits it
+normally (backspace to change). The flags are transient editing state — they are **stripped when
+the session is saved on finish**, so stored and synced sessions never carry them.
 
 ### Entering values
 
@@ -322,8 +332,9 @@ Covered:
   `bestCompletedSet` / `buildPreviousSnapshot` (highest weight then reps; can move down; keeps a
   prior snapshot when nothing qualifies), warm-up insert bumping rest keys, rest-key remap on
   reorder / remove, `canCompleteSet` (`reps > 0`), `shouldStartRestAfterComplete` (warm-ups don't),
-  `startPrefillPatch` (empty sets only), `parseStartParams`, and `normalizeHydratedState`
-  (an expired rest timer is dropped on boot)
+  `startPrefillPatch` (empty sets only, flagged as suggestions), suggestion flags set on
+  prefill/carry-over and cleared on complete, `stripPrefillFlags` (dropped before save),
+  `parseStartParams`, and `normalizeHydratedState` (an expired rest timer is dropped on boot)
 - `src/utils/workoutSetView.test.ts` — warm-up (`W1…`) vs working (`1,2,3…`) numbering and the
   single "current" set rule (first incomplete set of the first unfinished exercise)
 - `src/utils/workoutFinish.test.ts` — `templateListChanged`, the finish `variant` classifier, and
