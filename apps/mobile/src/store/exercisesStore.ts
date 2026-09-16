@@ -8,7 +8,8 @@ import {
 } from '@/storage/localStorage';
 import { CATALOG_SEED, CATALOG_SEED_UPDATED_AT } from '@/data/catalogSeed';
 import { notifyCustomExerciseUpsert, notifyCustomExerciseDelete } from '@/sync';
-import { fetchCatalogDelta, mergeCatalogById } from '@/sync/catalogPull';
+import { applyCatalogSeed, mergeCatalogById } from '@/sync/catalogMerge';
+import { fetchCatalogDelta } from '@/sync/catalogPull';
 import { buildExerciseAliasMap } from '@/utils/exerciseSearch';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 
@@ -61,7 +62,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
       !cache.seedAppliedAt || cache.seedAppliedAt < CATALOG_SEED_UPDATED_AT || catalog.length === 0;
 
     if (seedNeedsApply) {
-      catalog = mergeCatalogById(CATALOG_SEED, catalog);
+      catalog = applyCatalogSeed(CATALOG_SEED, catalog);
       if (CATALOG_SEED_UPDATED_AT > watermark) watermark = CATALOG_SEED_UPDATED_AT;
       await setCatalogCache({
         exercises: catalog,

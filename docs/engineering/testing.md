@@ -18,7 +18,7 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**13 test files.** All are pure-function unit tests. There are **no component tests, no store
+**15 test files.** All are pure-function unit tests. There are **no component tests, no store
 tests, and no integration tests** — the testing setup has no React Native renderer or
 AsyncStorage mock, so anything touching a store, a screen, or persistence is currently untestable
 without new infrastructure.
@@ -33,6 +33,8 @@ without new infrastructure.
 | `apps/mobile/src/utils/keypadInput.test.ts` | In-app number pad: digit append/backspace, digit caps, ± plate-step clamping |
 | `apps/mobile/src/utils/exerciseSearch.test.ts` | Normalization, alias ranking, typo tolerance |
 | `apps/mobile/src/utils/exerciseNormalize.test.ts` | Category inference, invalid-value stripping |
+| `apps/mobile/src/utils/exerciseTitleCase.test.ts` | Catalog name title case, including a full-seed check |
+| `apps/mobile/src/sync/catalogMerge.test.ts` | Seed overlay vs cache; delta merge by id |
 | `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist** |
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, paywall path parsing |
 | `packages/types/src/recovery.test.ts` | Per-muscle hours, not-natty halving, `getRecoveryUntil` |
@@ -48,7 +50,7 @@ without new infrastructure.
 | [Subscriptions](../features/subscriptions.md) | Partial | The predicate is tested; **gate enforcement is not** |
 | [Recovery](../features/recovery.md) | Partial | Constants and timing tested; `recoveryFromSessions` untested |
 | [Templates](../features/templates.md) | Partial | Built-in integrity good; store CRUD and validation untested |
-| [Exercise library](../features/exercise-library.md) | Partial | Search and normalization good; store and sync untested |
+| [Exercise library](../features/exercise-library.md) | Partial | Search, title-case names, catalog merge, and normalization good; store and sync untested |
 | [History & analytics](../features/history-analytics.md) | Partial | 1RM and home stats good; strength standards and volume untested |
 
 ## Conventions

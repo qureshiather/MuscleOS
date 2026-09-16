@@ -50,7 +50,7 @@ Current test coverage detail: [engineering/testing.md](../engineering/testing.md
 | Templates | Complete | Partial — built-in integrity, recommendation behaviour, home stats |
 | Workout logging | Complete | **None** — highest-risk gap in the codebase |
 | Recovery | Complete | Partial — per-muscle hours and `getRecoveryUntil` covered; `recoveryFromSessions` untested |
-| Exercise library | Complete | Partial — search ranking and normalization covered; store and sync untested |
+| Exercise library | Complete | Partial — search ranking, title-case names, catalog merge, and normalization covered; store and sync untested |
 | History & analytics | Complete | Partial — 1RM and home stats covered; strength standards and volume untested |
 | Subscriptions | Complete | Partial — `requiresProToStart` and paywall paths covered; gate enforcement untested |
 | Accounts & data | Complete | Minimal — unit conversion only; auth, sync, and merge untested |

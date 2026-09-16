@@ -57,6 +57,11 @@ id so old sessions render, just hidden from browsing.
 
 By category: 206 free weight, 93 bodyweight, 54 machine, 46 cable.
 
+**Names are title case.** Content words are capitalized; `a` / `an` / `the` / `and` / `with` /
+`on` / `in` / `to` / `of` stay lowercase unless they are the first or last word. Hyphenated
+segments are capitalized (`Push-Up`, `T-Bar`). Short acronyms stay uppercase (`EZ`, `L-Sit`).
+Custom exercise names are not rewritten.
+
 ### Pipeline
 
 ```
@@ -81,6 +86,10 @@ server-side instructions.
 On load the store reads custom exercises and the catalog cache in parallel, applies the bundled
 seed if the cache is empty or the seed is newer, and sets state **without waiting on the network**.
 A catalog refresh then runs in the background.
+
+When the seed is newer, **seed fields replace cached rows** so name and category fixes ship in
+the app binary. Instructions already pulled from the server are kept — the bundled seed omits
+them. Cache-only ids (from a later delta) stay.
 
 The delta pull queries `catalog_exercises` for rows with `updated_at >` the stored watermark,
 merges them by id (later row wins), and advances the watermark. Catalog sync is pull-only and
@@ -239,6 +248,8 @@ Covered:
   tolerance (`bnch` → Barbell Bench Press) and a negative case
 - `src/utils/exerciseNormalize.test.ts` — equipment-based category inference, invalid equipment
   stripped, default muscles, snake_case tracking type, `is_published: false` mapping
+- `src/utils/exerciseTitleCase.test.ts` — title-case helper; every catalog name matches it
+- `src/sync/catalogMerge.test.ts` — seed overlay keeps cached instructions; incoming delta replaces by id
 - `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels
 - `src/data/builtInTemplates.test.ts` — every built-in template exercise id exists in the catalog
 

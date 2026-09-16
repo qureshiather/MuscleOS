@@ -1,0 +1,55 @@
+-- Title-case catalog names and strip leftover scrape-title suffixes.
+-- Bumps updated_at so existing clients pick up the rename via catalog delta.
+
+update public.catalog_exercises as c
+set
+  name = v.name,
+  updated_at = timestamptz '2026-09-16T00:00:00.000Z'
+from (values
+  ('barbell-hack-squat', 'Barbell Hack Squat'),
+  ('behind-the-neck-press', 'Behind the Neck Press'),
+  ('bodyweight-curl', 'Bodyweight Curl'),
+  ('bodyweight-leg-curl', 'Bodyweight Leg Curl'),
+  ('body-weight-lunge', 'Bodyweight Lunge'),
+  ('cable-curl-with-bar', 'Cable Curl with Bar'),
+  ('cable-curl-with-rope', 'Cable Curl with Rope'),
+  ('cable-lateral-raise', 'Cable Lateral Raise'),
+  ('cable-rear-delt-row', 'Cable Rear Delt Row'),
+  ('clean-and-jerk', 'Clean and Jerk'),
+  ('dead-bugs-with-dumbbells', 'Dead Bug with Dumbbells'),
+  ('decline-push-up', 'Decline Push-Up'),
+  ('dumbbell-horizontal-internal-shoulder-rotation', 'Dumbbell Horizontal Internal Shoulder Rotation'),
+  ('lunges', 'Dumbbell Lunge'),
+  ('lying-dumbbell-internal-shoulder-rotation', 'Dumbbell Lying Internal Shoulder Rotation on Bench'),
+  ('heel-walks', 'Heel Walk'),
+  ('hip-thrust-with-band-around-knees', 'Hip Thrust with Band Around Knees'),
+  ('fat-bar-deadlift', 'Fat Bar Deadlift'),
+  ('reverse-cable-fly', 'Reverse Cable Fly'),
+  ('incline-push-up', 'Incline Push-Up'),
+  ('inverted-row-with-underhand-grip', 'Inverted Row with Underhand Grip'),
+  ('kneeling-push-up', 'Kneeling Push-Up'),
+  ('landmine-hack-squat', 'Landmine Hack Squat'),
+  ('landmine-squat', 'Landmine Squat'),
+  ('lat-pulldown-with-neutral-grip', 'Lat Pulldown with Neutral Grip'),
+  ('lat-pulldown', 'Lat Pulldown with Pronated Grip'),
+  ('lat-pulldown-with-supinated-grip', 'Lat Pulldown with Supinated Grip'),
+  ('lateral-walk-with-band', 'Lateral Walk with Band'),
+  ('leg-curl-on-ball', 'Leg Curl on Ball'),
+  ('leg-press', 'Leg Press'),
+  ('machine-lateral-raise', 'Machine Lateral Raise'),
+  ('oblique-crunch', 'Oblique Crunch'),
+  ('one-legged-glute-bridge', 'One Legged Glute Bridge'),
+  ('plank-with-leg-lifts', 'Plank with Leg Lifts'),
+  ('plate-pinch', 'Plate Pinch'),
+  ('pull-ups-with-a-neutral-grip', 'Pull-Up with a Neutral Grip'),
+  ('push-ups-with-feet-in-rings', 'Push-Ups with Feet in Rings'),
+  ('resistance-band-chest-fly', 'Resistance Band Chest Fly'),
+  ('rowing-machine', 'Rowing Machine'),
+  ('seated-calf-raise', 'Seated Calf Raise'),
+  ('standing-leg-curl', 'Standing Leg Curl'),
+  ('stationary-bike', 'Stationary Bike'),
+  ('trap-bar-deadlift-with-low-handles', 'Trap Bar Deadlift'),
+  ('trap-bar-deadlift-with-high-handles', 'Trap Bar Deadlift with High Handles'),
+  ('tricep-pushdown', 'Tricep Pushdown with Rope')
+) as v(id, name)
+where c.id = v.id;

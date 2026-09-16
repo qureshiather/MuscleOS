@@ -33,10 +33,3 @@ export async function fetchCatalogDelta(
   };
 }
 
-export function mergeCatalogById(base: Exercise[], incoming: Exercise[]): Exercise[] {
-  const map = new Map(base.map((e) => [e.id, e]));
-  for (const exercise of incoming) {
-    map.set(exercise.id, exercise);
-  }
-  return Array.from(map.values());
-}
