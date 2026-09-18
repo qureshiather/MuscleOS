@@ -1,7 +1,7 @@
 import type { Exercise } from '@muscleos/types';
 
 /** Bundled catalog floor. Same rows as the SQL seed. Generated — do not edit by hand. */
-export const CATALOG_SEED_UPDATED_AT = "2026-09-16T00:00:00.000Z";
+export const CATALOG_SEED_UPDATED_AT = "2026-09-18T00:00:00.000Z";
 
 export const CATALOG_SEED: Exercise[] = [
   { id: "air-squat", name: "Air Squat", muscles: ["quads", "glutes", "calves"], equipment: ["bodyweight"], category: "bodyweight" },
@@ -66,7 +66,7 @@ export const CATALOG_SEED: Exercise[] = [
   { id: "internal-shoulder-rotations", name: "Cable Internal Shoulder Rotation", muscles: ["front_delts"], equipment: ["cable"], category: "cable" },
   { id: "cable-lateral-raise", name: "Cable Lateral Raise", muscles: ["side_delts", "front_delts"], equipment: ["cable"], category: "cable" },
   { id: "cable-machine-hip-abduction", name: "Cable Machine Hip Abduction", muscles: ["glutes"], equipment: ["cable", "machine"], category: "cable" },
-  { id: "cable-machine-hip-adduction", name: "Cable Machine Hip Adduction", muscles: ["glutes"], equipment: ["cable", "machine"], category: "cable" },
+  { id: "cable-machine-hip-adduction", name: "Cable Machine Hip Adduction", muscles: ["adductors"], equipment: ["cable", "machine"], category: "cable" },
   { id: "cable-pull-through", name: "Cable Pull Through", muscles: ["glutes", "lower_back", "hamstrings"], equipment: ["cable"], category: "cable" },
   { id: "cable-rear-delt-row", name: "Cable Rear Delt Row", muscles: ["rear_delts", "traps", "biceps"], equipment: ["cable"], category: "cable" },
   { id: "cable-wide-grip-seated-row", name: "Cable Seated Wide Grip Row", muscles: ["lats", "traps", "rear_delts", "biceps", "forearms"], equipment: ["cable"], category: "cable" },
@@ -89,7 +89,7 @@ export const CATALOG_SEED: Exercise[] = [
   { id: "close-grip-push-up", name: "Close-Grip Push-Up", muscles: ["triceps", "abs", "chest", "front_delts"], equipment: ["bodyweight"], category: "bodyweight" },
   { id: "cobra-push-up", name: "Cobra Push-Up", muscles: ["chest", "triceps", "abs", "front_delts"], equipment: ["bodyweight"], category: "bodyweight" },
   { id: "concentration-curl", name: "Concentration Curl", muscles: ["biceps", "forearms"], equipment: ["other"], category: "free_weight" },
-  { id: "copenhagen-plank", name: "Copenhagen Plank", muscles: ["abs", "obliques"], equipment: ["bodyweight"], category: "bodyweight" },
+  { id: "copenhagen-plank", name: "Copenhagen Plank", muscles: ["abs", "obliques", "adductors"], equipment: ["bodyweight"], category: "bodyweight" },
   { id: "core-twist", name: "Core Twist", muscles: ["obliques", "abs"], equipment: ["other"], category: "free_weight" },
   { id: "cossack-squat", name: "Cossack Squat", muscles: ["glutes", "quads", "hamstrings"], equipment: ["other"], category: "free_weight" },
   { id: "crossbody-cable-triceps-extension", name: "Crossbody Cable Triceps Extension", muscles: ["triceps"], equipment: ["cable"], category: "cable" },
@@ -169,10 +169,10 @@ export const CATALOG_SEED: Exercise[] = [
   { id: "heel-walks", name: "Heel Walk", muscles: ["calves"], equipment: ["other"], category: "free_weight" },
   { id: "high-to-low-wood-chop-with-band", name: "High to Low Wood Chop with Band", muscles: ["obliques", "abs"], equipment: ["band"], category: "cable" },
   { id: "cable-machine-wood-chop-high-to-low", name: "High to Low Wood Chop with Cable", muscles: ["obliques", "abs"], equipment: ["cable", "machine"], category: "cable" },
-  { id: "hip-abductor", name: "Hip Abduction", muscles: ["glutes"], equipment: ["machine"], category: "machine", aliases: ["hip-abduction-machine"] },
+  { id: "hip-abductor", name: "Hip Abduction Machine", muscles: ["glutes"], equipment: ["machine"], category: "machine", aliases: ["hip-abduction-machine", "hip-abductor-machine", "hip-abductors-machine"] },
   { id: "hip-abduction-against-band", name: "Hip Abduction Against Band", muscles: ["glutes"], equipment: ["band"], category: "free_weight" },
-  { id: "hip-adduction-against-band", name: "Hip Adduction Against Band", muscles: ["glutes"], equipment: ["band"], category: "free_weight" },
-  { id: "hip-adductor", name: "Hip Adduction Machine", muscles: ["glutes"], equipment: ["machine"], category: "machine", aliases: ["hip-adduction-machine"] },
+  { id: "hip-adduction-against-band", name: "Hip Adduction Against Band", muscles: ["adductors"], equipment: ["band"], category: "free_weight" },
+  { id: "hip-adductor", name: "Hip Adduction Machine", muscles: ["adductors"], equipment: ["machine"], category: "machine", aliases: ["hip-adduction-machine", "hip-adductor-machine", "hip-adductors-machine"] },
   { id: "hip-thrust", name: "Hip Thrust", muscles: ["glutes", "quads"], equipment: ["barbell"], category: "free_weight" },
   { id: "hip-thrust-machine", name: "Hip Thrust Machine", muscles: ["glutes", "quads"], equipment: ["machine"], category: "machine" },
   { id: "hip-thrust-with-band-around-knees", name: "Hip Thrust with Band Around Knees", muscles: ["glutes", "quads"], equipment: ["band"], category: "free_weight" },

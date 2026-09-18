@@ -40,6 +40,10 @@ const LEGACY_ID_BY_SLUG = {
   'lying-leg-curl': 'leg-curl',
   'hip-abduction-machine': 'hip-abductor',
   'hip-adduction-machine': 'hip-adductor',
+  'hip-abductor-machine': 'hip-abductor',
+  'hip-abductors-machine': 'hip-abductor',
+  'hip-adductor-machine': 'hip-adductor',
+  'hip-adductors-machine': 'hip-adductor',
   'dumbbell-lunge': 'lunges',
   'standing-calf-raise': 'calf-raise',
   'barbell-hip-thrust': 'hip-thrust',
@@ -79,9 +83,9 @@ const MANUAL_MUSCLES_BY_SLUG = {
   'machine-overhead-triceps-extension': ['triceps'],
   'fire-hydrants': ['glutes'],
   'heel-walks': ['calves'],
-  'hip-adduction-against-band': ['glutes'],
-  'hip-adduction-machine': ['glutes'],
-  'cable-machine-hip-adduction': ['glutes'],
+  'hip-adduction-against-band': ['adductors'],
+  'hip-adduction-machine': ['adductors'],
+  'cable-machine-hip-adduction': ['adductors'],
   'dumbbell-wrist-extension': ['forearms'],
   'side-lunges-bodyweight': ['quads', 'glutes'],
   'smith-machine-lunge': ['quads', 'glutes'],
@@ -150,6 +154,9 @@ const MUSCLE_MAP = {
   calf: 'calves',
   gastrocnemius: 'calves',
   soleus: 'calves',
+  adductors: 'adductors',
+  adductor: 'adductors',
+  'inner thigh': 'adductors',
 };
 
 const CATEGORY_MUSCLES = {

@@ -29,7 +29,7 @@ import { searchExercises } from '@/utils/exerciseSearch';
 
 /** Large muscle groups for filtering: small muscle IDs in each. */
 const LARGE_MUSCLE_GROUPS: Record<string, MuscleId[]> = {
-  legs: ['quads', 'hamstrings', 'glutes', 'calves'],
+  legs: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves'],
   back: ['lats', 'traps', 'lower_back', 'rhomboids'],
   chest: ['chest'],
   shoulders: ['front_delts', 'side_delts', 'rear_delts'],

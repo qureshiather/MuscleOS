@@ -20,7 +20,7 @@ load, not sets, not sleep — changes that number. This is a deliberate simplifi
 
 ## Muscle taxonomy
 
-17 muscle groups, defined in `packages/types/src/muscles.ts`. `MuscleId` is a closed union;
+18 muscle groups, defined in `packages/types/src/muscles.ts`. `MuscleId` is a closed union;
 every exercise maps to one or more of these.
 
 | Region | Muscles |
@@ -28,7 +28,7 @@ every exercise maps to one or more of these.
 | `upper_front` | `chest`, `front_delts`, `side_delts`, `abs`, `obliques` |
 | `upper_back` | `rear_delts`, `traps`, `lats`, `rhomboids`, `lower_back` |
 | `arms` | `biceps`, `triceps`, `forearms` |
-| `lower_front` | `quads` |
+| `lower_front` | `quads`, `adductors` |
 | `lower_back` | `hamstrings`, `glutes`, `calves` |
 
 `region` is layout metadata for the diagram only. There is **no** push/pull/legs taxonomy in
@@ -74,7 +74,7 @@ From `packages/types/src/recovery.ts`:
 | Bucket | Hours | Muscles |
 |--------|------:|---------|
 | Small | **36** | `abs`, `obliques`, `biceps`, `triceps`, `forearms` |
-| Medium | **48** | `front_delts`, `side_delts`, `rear_delts`, `calves` |
+| Medium | **48** | `front_delts`, `side_delts`, `rear_delts`, `calves`, `adductors` |
 | Large | **72** | `chest`, `traps`, `lats`, `rhomboids`, `lower_back`, `quads`, `hamstrings`, `glutes` |
 
 `DEFAULT_RECOVERY_HOURS = 72` is the fallback for any muscle not in the table.
@@ -142,7 +142,7 @@ side by side** — always both, with no toggle. The figure is male by default an
 
 ### Muscle id → SVG region
 
-17 muscle ids map onto **14** diagram regions, so some ids share a region and cannot be
+18 muscle ids map onto **15** diagram regions, so some ids share a region and cannot be
 distinguished visually:
 
 | Diagram region | Muscle ids |
@@ -154,9 +154,12 @@ distinguished visually:
 | `biceps` / `triceps` / `forearm` | `biceps` / `triceps` / `forearms` |
 | `abs` / `obliques` / `lower-back` | `abs` / `obliques` / `lower_back` |
 | `quadriceps` / `hamstring` / `gluteal` / `calves` | `quads` / `hamstrings` / `glutes` / `calves` |
+| `adductors` | `adductors` |
 
-Front, side, and rear delts always shade together; so do lats and rhomboids. The per-muscle
-list on the Recovery tab is where that distinction stays visible.
+Front, side, and rear delts always shade together; so do lats and rhomboids. Hip abductors are
+glute med/min, so they stay on `glutes` / `gluteal` — the diagram library has no separate
+abductor region. Adductors (inner thigh) are their own region. The per-muscle list on the
+Recovery tab is where shared-region distinction stays visible.
 
 ### Colours
 
@@ -228,7 +231,7 @@ Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
 
 - `getRecoveryHoursForMuscle` — 36/48/72 buckets, 72 default, not-natty halving
 - `getRecoveryUntil` — adds the correct hours to `trainedAt`
-- 17 muscle groups exist; label formatting
+- 18 muscle groups exist; label formatting
 - `formatRecoveryReady` — "later today" and "tomorrow" branches
 - **`recoveryFromSessions()`** — skips in-progress sessions, skips exercises with no completed
   set, keeps the latest `completedAt` per muscle, and uses `completedAt` rather than `startedAt`

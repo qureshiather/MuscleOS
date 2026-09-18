@@ -11,6 +11,7 @@ describe('getRecoveryHoursForMuscle', () => {
     expect(getRecoveryHoursForMuscle('biceps')).toBe(36);
     expect(getRecoveryHoursForMuscle('chest')).toBe(72);
     expect(getRecoveryHoursForMuscle('calves')).toBe(48);
+    expect(getRecoveryHoursForMuscle('adductors')).toBe(48);
     expect(DEFAULT_RECOVERY_HOURS).toBe(72);
   });
 

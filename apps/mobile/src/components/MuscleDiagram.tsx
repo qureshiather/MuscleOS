@@ -37,6 +37,7 @@ const MUSCLE_ID_TO_SLUG: Record<MuscleId, Slug> = {
   quads: 'quadriceps',
   hamstrings: 'hamstring',
   glutes: 'gluteal',
+  adductors: 'adductors',
   calves: 'calves',
 };
 

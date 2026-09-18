@@ -38,7 +38,7 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | `apps/mobile/src/utils/relativeTime.test.ts` | `formatRelative` and `formatRecoveryReady` basics |
 | `apps/mobile/src/utils/weightUnits.test.ts` | kg/lb and cm/in conversion round-trips |
 | `apps/mobile/src/utils/keypadInput.test.ts` | In-app number pad: digit append/backspace, digit caps, ± plate-step clamping |
-| `apps/mobile/src/utils/exerciseSearch.test.ts` | Normalization, alias ranking, typo tolerance |
+| `apps/mobile/src/utils/exerciseSearch.test.ts` | Normalization, alias ranking, typo tolerance, abductor/adductor stems |
 | `apps/mobile/src/utils/exerciseNormalize.test.ts` | Category inference, invalid-value stripping |
 | `apps/mobile/src/utils/exerciseTitleCase.test.ts` | Catalog name title case, including a full-seed check |
 | `apps/mobile/src/sync/catalogMerge.test.ts` | Seed overlay vs cache; delta merge by id |
@@ -52,7 +52,7 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | `apps/mobile/src/store/templatesLogic.test.ts` | `allTemplates` ordering, soft-hide toggle, built-in vs custom hidden, folder-delete keeps templates |
 | `apps/mobile/src/utils/recovery.test.ts` | `recoveryFromSessions`: completed-only, latest `completedAt` per muscle |
 | `packages/types/src/recovery.test.ts` | Per-muscle hours, not-natty halving, `getRecoveryUntil` |
-| `packages/types/src/muscles.test.ts` | 17 muscle groups, label formatting |
+| `packages/types/src/muscles.test.ts` | 18 muscle groups, label formatting |
 | `packages/types/src/exercise.test.ts` | Category enum completeness, equipment labels |
 
 ## Coverage by feature
