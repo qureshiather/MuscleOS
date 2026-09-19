@@ -115,7 +115,7 @@ aliases against the catalog before looking up, so renamed exercises don't orphan
 |-------|:--------:|-------|
 | Name | ● | Non-empty after trim; no maximum length |
 | Type (category) | ● | One of the 4 categories |
-| Muscles | ● | At least one; any of the 17 |
+| Muscles | ● | At least one; any of the 18 |
 | Equipment | ○ | May be empty |
 | Instructions | ○ | Free text |
 
@@ -177,6 +177,9 @@ Field weighting on top of the tier: name +80, id +40, alias +20. Matches found *
 metadata (category label, equipment, muscle labels) are capped at 350 so a name match always
 outranks an equipment match.
 
+Query tokens also stem `abductor(s)` ↔ `abduction` and `adductor(s)` ↔ `adduction`, so
+"hip adductors machine" finds Hip Adduction Machine.
+
 > **There is no abbreviation dictionary.** `"ohp"` will not find Overhead Press — it isn't a
 > substring or within fuzzy distance. Aliases are legacy *slug* redirects for id resolution, and
 > only help search if you happen to type the slug.
@@ -189,7 +192,7 @@ Header shows `<count> movements · tap for muscle map` and a **+** button (Pro) 
 Tapping an active chip clears that filter.
 
 - **Type** — All plus the 4 categories
-- **Muscle** — All, 4 coarse groups (legs, back, chest, shoulders), or any of the 17 individual muscles
+- **Muscle** — All, 4 coarse groups (legs, back, chest, shoulders), or any of the 18 individual muscles
 
 Filters AND together with the search query. Despite the placeholder "Search by name, muscle,
 equipment…", **there is no equipment filter** in the UI — equipment is only reachable through
@@ -245,7 +248,7 @@ Browsing, searching, filtering, viewing instructions, and writing notes are all 
 Covered:
 
 - `src/utils/exerciseSearch.test.ts` — diacritic/punctuation normalization; alias ranking; typo
-  tolerance (`bnch` → Barbell Bench Press) and a negative case
+  tolerance (`bnch` → Barbell Bench Press) and a negative case; abductor/adductor stem matching
 - `src/utils/exerciseNormalize.test.ts` — equipment-based category inference, invalid equipment
   stripped, default muscles, snake_case tracking type, `is_published: false` mapping
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper; every catalog name matches it

@@ -38,3 +38,28 @@ describe('exercise search', () => {
     expect(searchExercises([bench, row], 'squat')).toEqual([]);
   });
 });
+
+const hipAbduction: Exercise = {
+  id: 'hip-abductor',
+  name: 'Hip Abduction Machine',
+  muscles: ['glutes'],
+  equipment: ['machine'],
+  category: 'machine',
+};
+
+const hipAdduction: Exercise = {
+  id: 'hip-adductor',
+  name: 'Hip Adduction Machine',
+  muscles: ['adductors'],
+  equipment: ['machine'],
+  category: 'machine',
+};
+
+describe('hip abductor/adductor search', () => {
+  it('finds the machines from abductor/adductor wording', () => {
+    const catalog = [hipAbduction, hipAdduction, bench];
+    expect(searchExercises(catalog, 'hip abduction machine')[0]?.id).toBe('hip-abductor');
+    expect(searchExercises(catalog, 'hip adductors machine')[0]?.id).toBe('hip-adductor');
+    expect(searchExercises(catalog, 'hip abductor machine')[0]?.id).toBe('hip-abductor');
+  });
+});

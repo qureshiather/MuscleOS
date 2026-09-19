@@ -19,6 +19,20 @@ function dropTrailingPlural(value: string): string {
   return value;
 }
 
+/** Map abductor(s) ↔ abduction and adductor(s) ↔ adduction so machine searches hit. */
+const MOVEMENT_STEMS: Record<string, string> = {
+  abductor: 'abduction',
+  abductors: 'abduction',
+  abduction: 'abduction',
+  adductor: 'adduction',
+  adductors: 'adduction',
+  adduction: 'adduction',
+};
+
+function searchStem(value: string): string {
+  return MOVEMENT_STEMS[value] ?? dropTrailingPlural(value);
+}
+
 function levenshtein(a: string, b: string, max: number): number {
   if (a === b) return 0;
   if (Math.abs(a.length - b.length) > max) return max + 1;
@@ -56,7 +70,7 @@ function maxEditDistance(length: number): number {
 function tokenMatchesHaystack(token: string, normalized: string, words: string[]): boolean {
   if (!token) return true;
   if (normalized.includes(token)) return true;
-  const stemmed = dropTrailingPlural(token);
+  const stemmed = searchStem(token);
   if (stemmed !== token && normalized.includes(stemmed)) return true;
 
   const max = maxEditDistance(token.length);
@@ -64,6 +78,11 @@ function tokenMatchesHaystack(token: string, normalized: string, words: string[]
   for (const word of words) {
     if (levenshtein(token, word, max) <= max) return true;
     if (stemmed !== token && levenshtein(stemmed, word, max) <= max) return true;
+    const wordStem = searchStem(word);
+    if (wordStem !== word && levenshtein(token, wordStem, max) <= max) return true;
+    if (stemmed !== token && wordStem !== word && levenshtein(stemmed, wordStem, max) <= max) {
+      return true;
+    }
   }
   return false;
 }
@@ -76,8 +95,8 @@ export function scoreSearchText(haystack: string, normalizedQuery: string): numb
 
   const compactQuery = normalizedQuery.replace(/ /g, '');
   const compactHaystack = normalized.replace(/ /g, '');
-  const compactQueryStem = dropTrailingPlural(compactQuery);
-  const compactHaystackStem = dropTrailingPlural(compactHaystack);
+  const compactQueryStem = searchStem(compactQuery);
+  const compactHaystackStem = searchStem(compactHaystack);
 
   if (normalized === normalizedQuery || compactHaystack === compactQuery) return 1000;
   if (compactHaystackStem === compactQueryStem && compactQueryStem.length > 0) return 960;
@@ -93,7 +112,12 @@ export function scoreSearchText(haystack: string, normalizedQuery: string): numb
   const tokens = normalizedQuery.split(' ');
   const words = normalized.split(' ');
   if (tokens.every((token) => tokenMatchesHaystack(token, normalized, words))) {
-    const inOrder = normalized.includes(tokens.join(' ')) || compactHaystack.includes(compactQuery);
+    const stemmedQuery = tokens.map(searchStem).join(' ');
+    const stemmedHaystack = words.map(searchStem).join(' ');
+    const inOrder =
+      normalized.includes(tokens.join(' ')) ||
+      compactHaystack.includes(compactQuery) ||
+      stemmedHaystack.includes(stemmedQuery);
     return inOrder ? 520 : 400;
   }
 

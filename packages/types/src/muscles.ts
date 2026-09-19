@@ -16,6 +16,7 @@ export type MuscleId =
   | 'quads'
   | 'hamstrings'
   | 'glutes'
+  | 'adductors'
   | 'calves';
 
 export interface MuscleGroup {
@@ -42,6 +43,7 @@ export const MUSCLE_GROUPS: Record<MuscleId, MuscleGroup> = {
   quads: { id: 'quads', name: 'Quads', region: 'lower_front' },
   hamstrings: { id: 'hamstrings', name: 'Hamstrings', region: 'lower_back' },
   glutes: { id: 'glutes', name: 'Glutes', region: 'lower_back' },
+  adductors: { id: 'adductors', name: 'Adductors', region: 'lower_front' },
   calves: { id: 'calves', name: 'Calves', region: 'lower_back' },
 };
 
