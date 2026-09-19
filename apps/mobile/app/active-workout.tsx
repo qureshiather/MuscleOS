@@ -2355,8 +2355,8 @@ export default function ActiveWorkoutScreen() {
                 {exercisePicker?.mode === 'replace' ? (
                   <Text style={[styles.addExerciseModalHint, { color: colors.textMuted }]} numberOfLines={2}>
                     {replaceExcludeId
-                      ? `Swapping ${getExercise(replaceExcludeId)?.name ?? 'this exercise'}. Sets transfer over.`
-                      : 'Sets, rest, and warm-ups stay with the new movement.'}
+                      ? `Swapping ${getExercise(replaceExcludeId)?.name ?? 'this exercise'}. Previous weights for the new exercise load in.`
+                      : 'Previous weights for the new exercise load in.'}
                   </Text>
                 ) : null}
               </View>
@@ -2431,11 +2431,11 @@ export default function ActiveWorkoutScreen() {
                   onPress={() => {
                     if (!session) return;
                     if (exercisePicker?.mode === 'replace') {
-                      replaceExercise(exercisePicker.exIdx, item.id);
+                      replaceExercise(exercisePicker.exIdx, item.id, previousMap[item.id]);
                       closeExercisePicker();
                       return;
                     }
-                    addExercise(item.id);
+                    addExercise(item.id, previousMap[item.id]);
                     closeExercisePicker();
                   }}
                 >

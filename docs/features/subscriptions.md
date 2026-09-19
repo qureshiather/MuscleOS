@@ -63,7 +63,7 @@ stored tier value `free` is legacy and migrates to `basic` on read.
 | Custom exercises | `custom_exercises` |
 | Empty / ad-hoc workout | `empty_workout` |
 | Add an exercise mid-workout | `add_exercise_mid_workout` |
-| Replace an exercise mid-workout (sets carry over) | `replace_exercise_mid_workout` |
+| Replace an exercise mid-workout (new exercise's previous loads in) | `replace_exercise_mid_workout` |
 | Personal records & estimated 1RM | `personal_records` |
 | Exercise progression charts | `exercise_progression` |
 | Monthly training calendar | `monthly_calendar` |

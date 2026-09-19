@@ -91,6 +91,21 @@ export function bumpRestKeysForInsertedSet(
   return next;
 }
 
+/** Drop every rest-duration key belonging to one exercise index (used when that slot is replaced). */
+export function dropRestKeysForExercise(
+  durations: Record<string, number>,
+  exIdx: number
+): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [key, seconds] of Object.entries(durations)) {
+    const [exStr] = key.split('-');
+    const ex = parseInt(exStr, 10);
+    if (Number.isNaN(ex) || ex === exIdx) continue;
+    next[key] = seconds;
+  }
+  return next;
+}
+
 export function dropRestKeysForRemovedSet(
   durations: Record<string, number>,
   exIdx: number,
@@ -214,9 +229,9 @@ export function shouldStartRestAfterComplete(set: Pick<SetRecord, 'isWarmUp'>): 
 }
 
 /**
- * At session start, a set that is completely empty (no weight *and* no reps) is prefilled from the
- * exercise's previous snapshot. Partially filled sets are left alone. Returns the patch to apply,
- * or null when there is nothing to prefill.
+ * When a new exercise appears in the session (start, add, or replace), a set that is completely
+ * empty (no weight *and* no reps) is prefilled from the exercise's previous snapshot. Partially
+ * filled sets are left alone. Returns the patch to apply, or null when there is nothing to prefill.
  */
 export function startPrefillPatch(
   set: Pick<SetRecord, 'weightKg' | 'reps'>,
@@ -230,6 +245,38 @@ export function startPrefillPatch(
     weightKg: previous.weightKg,
     weightPrefilled: true,
     ...(previous.reps != null && { reps: previous.reps, repsPrefilled: true }),
+  };
+}
+
+/** Default blank sets, prefilled from a previous snapshot when one exists (same rule as session start). */
+export function createPrefillingSets(
+  previous?: PreviousSnapshot,
+  count: number = DEFAULT_SETS_PER_EXERCISE
+): SetRecord[] {
+  return Array.from({ length: count }, () => {
+    const empty: SetRecord = { completed: false };
+    const patch = startPrefillPatch(empty, previous);
+    return patch ? { ...empty, ...patch } : empty;
+  });
+}
+
+/**
+ * Swap a slot to a different movement. Logged sets, warm-ups, and per-set rest of the old
+ * exercise are discarded — they belong to a different movement. The slot keeps its rest
+ * preset and starts with default empty sets prefilled from the new exercise's previous
+ * snapshot (PREVIOUS + weight/reps), not the movement it replaced.
+ */
+export function buildReplacedExercise(
+  current: SessionExercise,
+  newExerciseId: string,
+  previous?: PreviousSnapshot
+): SessionExercise {
+  return {
+    exerciseId: newExerciseId,
+    sets: createPrefillingSets(previous),
+    ...(current.restBetweenSetsSeconds != null
+      ? { restBetweenSetsSeconds: current.restBetweenSetsSeconds }
+      : {}),
   };
 }
 

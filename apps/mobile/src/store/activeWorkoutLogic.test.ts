@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import type { SetRecord, SessionExercise } from '@muscleos/types';
 import type { PersistedActiveWorkout } from '@/storage/localStorage';
 import {
+  DEFAULT_SETS_PER_EXERCISE,
   bestCompletedSet,
   buildAddedSet,
   buildPreviousSnapshot,
+  buildReplacedExercise,
   bumpRestKeysForInsertedSet,
   canCompleteSet,
   completeSetInSets,
   createEmptySession,
+  createPrefillingSets,
+  dropRestKeysForExercise,
   dropRestKeysForRemovedSet,
   normalizeHydratedState,
   oldToNewForRemove,
@@ -212,6 +216,10 @@ describe('rest-key remapping', () => {
       '1-0': 60,
     });
   });
+
+  it('dropRestKeysForExercise drops every rest key for that index and leaves others', () => {
+    expect(dropRestKeysForExercise({ '0-0': 90, '0-1': 120, '1-0': 60 }, 0)).toEqual({ '1-0': 60 });
+  });
 });
 
 describe('canCompleteSet', () => {
@@ -256,6 +264,67 @@ describe('startPrefillPatch', () => {
 
   it('does nothing when there is no previous snapshot', () => {
     expect(startPrefillPatch({}, undefined)).toBeNull();
+  });
+});
+
+describe('createPrefillingSets', () => {
+  it('creates the default number of blank sets when there is no previous snapshot', () => {
+    expect(createPrefillingSets()).toEqual([
+      { completed: false },
+      { completed: false },
+      { completed: false },
+    ]);
+    expect(createPrefillingSets(undefined, DEFAULT_SETS_PER_EXERCISE)).toHaveLength(3);
+  });
+
+  it('prefills every set from the previous snapshot, flagged as suggestions', () => {
+    expect(createPrefillingSets({ weightKg: 30, reps: 10 }, 2)).toEqual([
+      {
+        completed: false,
+        weightKg: 30,
+        weightPrefilled: true,
+        reps: 10,
+        repsPrefilled: true,
+      },
+      {
+        completed: false,
+        weightKg: 30,
+        weightPrefilled: true,
+        reps: 10,
+        repsPrefilled: true,
+      },
+    ]);
+  });
+});
+
+describe('buildReplacedExercise', () => {
+  const current: SessionExercise = {
+    exerciseId: 'leg-extension',
+    restBetweenSetsSeconds: 90,
+    sets: [
+      { completed: true, weightKg: 50, reps: 12 },
+      { completed: false, weightKg: 50, reps: 12, weightPrefilled: true, repsPrefilled: true },
+      { completed: false, isWarmUp: true, weightKg: 20 },
+    ],
+  };
+
+  it('swaps the id and prefills default sets from the new exercise previous, not the old one', () => {
+    const next = buildReplacedExercise(current, 'lying-leg-curl', { weightKg: 30, reps: 10 });
+    expect(next.exerciseId).toBe('lying-leg-curl');
+    expect(next.restBetweenSetsSeconds).toBe(90);
+    expect(next.sets).toHaveLength(DEFAULT_SETS_PER_EXERCISE);
+    expect(next.sets.every((s) => s.completed === false && s.isWarmUp !== true)).toBe(true);
+    expect(next.sets.every((s) => s.weightKg === 30 && s.reps === 10)).toBe(true);
+    expect(next.sets.some((s) => s.weightKg === 50)).toBe(false);
+  });
+
+  it('starts with blank sets when the new exercise has no previous snapshot', () => {
+    const next = buildReplacedExercise(current, 'lying-leg-curl');
+    expect(next.sets).toEqual([
+      { completed: false },
+      { completed: false },
+      { completed: false },
+    ]);
   });
 });
 

@@ -44,7 +44,7 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | `apps/mobile/src/sync/catalogMerge.test.ts` | Seed overlay vs cache; delta merge by id |
 | `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist** |
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, paywall path parsing |
-| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill, add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, `reps > 0` complete rule, warm-up-skips-rest, start prefill, param parsing, hydrate expired-timer discard |
+| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill, add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, replace-exercise reset + new-exercise prefill, `reps > 0` complete rule, warm-up-skips-rest, start prefill, param parsing, hydrate expired-timer discard |
 | `apps/mobile/src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, null clear, corrupt/invalid-payload guards (via AsyncStorage harness) |
 | `apps/mobile/src/utils/workoutNotificationCopy.test.ts` | "Next:" / "Continue to" / "Finish your workout" selection from the first exercise with unlogged sets |
 | `apps/mobile/src/utils/workoutFinish.test.ts` | Finish save-options matrix (empty/built-in/custom × list-changed), `templateListChanged`, built-in can't be overwritten |
@@ -59,7 +59,7 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 
 | Feature | Coverage | Notes |
 |---------|----------|-------|
-| [Workout logging](../features/workout-logging.md) | Partial | Number pad, set-logging rules (prefill, warm-up numbering, current-set, `reps > 0`, warm-up-skips-rest), rest-key remapping, finish save-options, best-set/previous snapshot, persist/resume round-trip, hydrate expired-timer discard, and notification copy are covered; the screen's live rendering and the debounced-persist/`AppState` wiring are not |
+| [Workout logging](../features/workout-logging.md) | Partial | Number pad, set-logging rules (prefill, warm-up numbering, current-set, `reps > 0`, warm-up-skips-rest), rest-key remapping, replace-exercise reset + new-exercise prefill, finish save-options, best-set/previous snapshot, persist/resume round-trip, hydrate expired-timer discard, and notification copy are covered; the screen's live rendering and the debounced-persist/`AppState` wiring are not |
 | [Accounts & sync](../features/accounts-and-data.md) | **Minimal** | Unit conversion + active-workout persist/resume round-trip. Merge policy and auth untested |
 | [Subscriptions](../features/subscriptions.md) | Partial | `requiresProToStart` and the deep-link start guard (`blockedStartFeature`) are tested; the paywall UI itself is not |
 | [Recovery](../features/recovery.md) | Partial | Constants, timing, and `recoveryFromSessions` covered |
