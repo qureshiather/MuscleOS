@@ -22,10 +22,13 @@ import {
 import {
   DEFAULT_REST_SECONDS,
   buildAddedSet,
+  buildReplacedExercise,
   bumpRestKeysForInsertedSet,
   buildPreviousSnapshot,
   completeSetInSets,
   createEmptySession,
+  createPrefillingSets,
+  dropRestKeysForExercise,
   dropRestKeysForRemovedSet,
   normalizeHydratedState,
   oldToNewForRemove,
@@ -33,11 +36,12 @@ import {
   remapRestAfter,
   remapRestDurations,
   stripPrefillFlags,
+  type PreviousSnapshot,
   type RestAfter,
 } from '@/store/activeWorkoutLogic';
 
 export { DEFAULT_REST_SECONDS } from '@/store/activeWorkoutLogic';
-export type { RestAfter } from '@/store/activeWorkoutLogic';
+export type { PreviousSnapshot, RestAfter } from '@/store/activeWorkoutLogic';
 
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
@@ -59,9 +63,13 @@ export interface ActiveWorkoutState {
   /** Inserts a warm-up set at the start of the exercise. */
   addWarmUpSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
-  addExercise: (exerciseId: string) => void;
-  /** Swap the exercise at index; sets, rest, and warm-ups stay in place. */
-  replaceExercise: (exerciseIndex: number, newExerciseId: string) => void;
+  addExercise: (exerciseId: string, previous?: PreviousSnapshot) => void;
+  /** Swap the exercise at index; sets reset and prefill from the new exercise's previous snapshot. */
+  replaceExercise: (
+    exerciseIndex: number,
+    newExerciseId: string,
+    previous?: PreviousSnapshot
+  ) => void;
   removeExercise: (exerciseIndex: number) => void;
   moveExerciseUp: (exerciseIndex: number) => void;
   moveExerciseDown: (exerciseIndex: number) => void;
@@ -212,12 +220,12 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  addExercise: (exerciseId) => {
+  addExercise: (exerciseId, previous) => {
     const { session } = get();
     if (!session) return;
     const newEx: SessionExercise = {
       exerciseId,
-      sets: [{ completed: false }, { completed: false }, { completed: false }],
+      sets: createPrefillingSets(previous),
     };
     set({
       session: {
@@ -227,18 +235,19 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  replaceExercise: (exerciseIndex, newExerciseId) => {
-    const { session } = get();
+  replaceExercise: (exerciseIndex, newExerciseId, previous) => {
+    const { session, restAfter, restDurationsBetweenSets } = get();
     if (!session) return;
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
     if (!ex || ex.exerciseId === newExerciseId) return;
-    exercises[exerciseIndex] = {
-      ...ex,
-      exerciseId: newExerciseId,
-      sets: ex.sets.map((s) => ({ ...s })),
-    };
-    set({ session: { ...session, exercises } });
+    exercises[exerciseIndex] = buildReplacedExercise(ex, newExerciseId, previous);
+    const clearRest = restAfter?.exIdx === exerciseIndex;
+    set({
+      session: { ...session, exercises },
+      restDurationsBetweenSets: dropRestKeysForExercise(restDurationsBetweenSets, exerciseIndex),
+      ...(clearRest ? { restEndTime: null, restAfter: null } : {}),
+    });
   },
 
   removeExercise: (exerciseIndex) => {

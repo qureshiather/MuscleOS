@@ -119,6 +119,7 @@ Prefill rules:
 | When | Behaviour |
 |------|-----------|
 | Session starts | For any set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Partially filled sets are left alone. |
+| Add or replace exercise | Same as session start, for the **new** exercise's snapshot. A replace discards the old movement's set values first — they are not carried over. |
 | Completing a set | Copy that set's weight (not reps) into the next set if the next set's weight is empty — only when both are the same kind (warm-up vs working). |
 | Adding a set | Copy the last set's weight and reps if present. |
 
@@ -237,8 +238,8 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 | **Reorder exercises** | Basic | Long-press an exercise title to enter drag mode |
 | **Edit rest for an exercise** | Basic | 90/120/180 s |
 | **Exercise note** | Basic | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
-| **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets |
-| **Replace exercise** | Pro `replace_exercise_mid_workout` | **All logged sets, warm-ups, and rest carry over**; only `exerciseId` changes |
+| **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists |
+| **Replace exercise** | Pro `replace_exercise_mid_workout` | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement). The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. |
 | **Remove exercise** | No direct gate | Blocked only for a Basic user editing a built-in workout; otherwise a themed confirm ("Remove {name} from this workout?") removes it and remaps recorded rest. **Cancel** (or tap the overlay) dismisses; **Remove** removes. |
 
 On a **built-in** template, add/replace/remove are blocked for Basic users with the built-in
@@ -331,10 +332,12 @@ Covered:
   set-complete weight prefill (same warm-up/working kind only, never reps), add-set carry-over,
   `bestCompletedSet` / `buildPreviousSnapshot` (highest weight then reps; can move down; keeps a
   prior snapshot when nothing qualifies), warm-up insert bumping rest keys, rest-key remap on
-  reorder / remove, `canCompleteSet` (`reps > 0`), `shouldStartRestAfterComplete` (warm-ups don't),
+  reorder / remove / replace, `canCompleteSet` (`reps > 0`), `shouldStartRestAfterComplete` (warm-ups don't),
   `startPrefillPatch` (empty sets only, flagged as suggestions), suggestion flags set on
   prefill/carry-over and cleared on complete, `stripPrefillFlags` (dropped before save),
-  `parseStartParams`, and `normalizeHydratedState` (an expired rest timer is dropped on boot)
+  `buildReplacedExercise` (resets to default sets and prefills from the **new** exercise, not
+  the one it replaced), `parseStartParams`, and `normalizeHydratedState` (an expired rest timer
+  is dropped on boot)
 - `src/utils/workoutSetView.test.ts` — warm-up (`W1…`) vs working (`1,2,3…`) numbering and the
   single "current" set rule (first incomplete set of the first unfinished exercise)
 - `src/utils/workoutFinish.test.ts` — `templateListChanged`, the finish `variant` classifier, and
