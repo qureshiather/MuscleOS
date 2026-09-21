@@ -24,8 +24,9 @@ type Mode = 'signin' | 'signup';
 export default function AuthEmailScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { linkWithEmail, signInWithEmailOnly } = useSignIn();
+  const { linkWithEmail, signInWithEmailOnly, sendPasswordReset } = useSignIn();
   const [mode, setMode] = useState<Mode>('signin');
+  const [resetting, setResetting] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -33,16 +34,20 @@ export default function AuthEmailScreen() {
 
   async function handleSubmit() {
     setLoading(true);
-    const ok =
-      mode === 'signin'
+    const ok = resetting
+      ? await sendPasswordReset(email.trim())
+      : mode === 'signin'
         ? await signInWithEmailOnly(email.trim(), password)
         : await linkWithEmail(email.trim(), password, displayName.trim() || undefined);
     setLoading(false);
-    if (ok) router.replace('/(tabs)');
+    if (ok && !resetting) router.replace('/(tabs)');
+    if (ok && resetting) setResetting(false);
   }
 
-  const isSignIn = mode === 'signin';
-  const canSubmit = email.trim().length > 0 && password.length >= 6;
+  const isSignIn = mode === 'signin' && !resetting;
+  const canSubmit = resetting
+    ? email.trim().length > 0
+    : email.trim().length > 0 && password.length >= 6;
 
   return (
     <Screen>
@@ -50,31 +55,42 @@ export default function AuthEmailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
       >
-        <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
+        <Pressable
+          onPress={() => {
+            if (resetting) setResetting(false);
+            else router.back();
+          }}
+          style={styles.backRow}
+          hitSlop={8}
+        >
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
           <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
 
         <Text style={[typography.screenTitle, { color: colors.text }]}>
-          {isSignIn ? 'Sign in' : 'Create account'}
+          {resetting ? 'Reset password' : isSignIn ? 'Sign in' : 'Create account'}
         </Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-          {isSignIn
-            ? 'If you already used Apple or Google with this email, this is the same account — not a second backup.'
-            : ACCOUNT_PER_EMAIL_COPY}
+          {resetting
+            ? 'We email a link to this address. Open it on this phone to choose a new password.'
+            : isSignIn
+              ? 'If you already used Apple or Google with this email, this is the same account — not a second backup.'
+              : ACCOUNT_PER_EMAIL_COPY}
         </Text>
 
-        <SegmentedControl
-          options={[
-            { value: 'signin', label: 'Sign in' },
-            { value: 'signup', label: 'Create' },
-          ]}
-          value={mode}
-          onChange={setMode}
-        />
+        {!resetting ? (
+          <SegmentedControl
+            options={[
+              { value: 'signin', label: 'Sign in' },
+              { value: 'signup', label: 'Create' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+        ) : null}
 
         <View style={styles.form}>
-          {!isSignIn && (
+          {!isSignIn && !resetting ? (
             <TextInput
               style={[
                 styles.input,
@@ -86,7 +102,7 @@ export default function AuthEmailScreen() {
               onChangeText={setDisplayName}
               autoCapitalize="words"
             />
-          )}
+          ) : null}
           <TextInput
             style={[
               styles.input,
@@ -100,20 +116,29 @@ export default function AuthEmailScreen() {
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
-            ]}
-            placeholder="Password (min 6 characters)"
-            placeholderTextColor={colors.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          {!resetting ? (
+            <TextInput
+              style={[
+                styles.input,
+                { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
+              ]}
+              placeholder="Password (min 6 characters)"
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          ) : null}
+          {isSignIn ? (
+            <Pressable onPress={() => setResetting(true)} style={styles.forgot} hitSlop={8}>
+              <Text style={[typography.caption, { color: colors.primary }]}>Forgot password?</Text>
+            </Pressable>
+          ) : null}
           <PrimaryButton
-            label={loading ? 'Please wait…' : isSignIn ? 'Sign in' : 'Create account'}
+            label={
+              loading ? 'Please wait…' : resetting ? 'Send reset link' : isSignIn ? 'Sign in' : 'Create account'
+            }
             onPress={handleSubmit}
             disabled={loading || !canSubmit}
           />
@@ -134,6 +159,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   subtitle: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  forgot: { alignSelf: 'flex-start', marginBottom: spacing.md, marginTop: -spacing.xs },
   form: { marginTop: spacing.xl },
   input: {
     borderWidth: 1,

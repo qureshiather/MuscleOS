@@ -151,3 +151,35 @@ APPLE_PRIVATE_KEY=
 ```
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.
+
+### 5. Google Sign-In (Android)
+
+Continue with Google on Android uses the native Play Sign-In SDK (`@react-native-google-signin/google-signin`) and sends the **id token** to Supabase. iOS still uses `expo-auth-session` until an iOS OAuth client is added.
+
+**Google Cloud Console** (APIs & Services → Credentials):
+
+1. Create an OAuth **Web** client. Copy its client ID into `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and into Supabase → Authentication → Providers → Google (client ID + secret).
+2. Create an OAuth **Android** client: package `com.muscleos.app`, SHA-1 of every signing cert you use.
+
+Debug SHA-1 (from `apps/mobile`):
+
+```bash
+keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android
+```
+
+EAS / Play SHA-1: Play Console → App integrity (upload key and **app signing** key), or `eas credentials -p android`.
+
+Rebuild the Android native app after adding the plugin (`pnpm --filter mobile android`). Expo Go cannot load this module.
+
+Authorized redirect in the Web client / Supabase: `https://<project-ref>.supabase.co/auth/v1/callback`.
+
+### 6. Email confirmation and password reset
+
+Signup and **Forgot password** send the user to `https://muscleos.app/auth/confirm`. That page opens `muscleos://auth-callback` with the Supabase tokens. A recovery link then shows **New password**.
+
+In the hosted project → Authentication → URL configuration:
+
+- Site URL: `https://muscleos.app`
+- Additional redirect URLs: `https://muscleos.app/auth/confirm` and `muscleos://**`
+
+Authentication → Providers → Email: turn **Confirm email** on before store review. Until that is on, signup still creates a session immediately. The app already blocks sign-in when Supabase says the email is not confirmed.

@@ -75,8 +75,8 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 | Provider | Platforms | Implementation |
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
-| **Google** | iOS + Android | `expo-auth-session` OAuth + the same link-then-sign-in fallback; needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` |
-| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password |
+| **Google** | iOS + Android | **Android:** `@react-native-google-signin/google-signin` (Play Services, id token). **iOS:** `expo-auth-session` OAuth until a native iOS client is added. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client) plus an Android OAuth client (`com.muscleos.app` + SHA-1). |
+| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Signup and password reset redirect to `https://muscleos.app/auth/confirm`, which opens `muscleos://auth-callback`. Forgot password is on the email sign-in screen. A recovery link opens **New password**. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
 keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
@@ -120,7 +120,8 @@ uses SecureStore were inaccurate.
 ### Required env vars
 
 `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and optionally
-`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** client ID — required for Google Sign-In
+on Android).
 
 ## Profile
 

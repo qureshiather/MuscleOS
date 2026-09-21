@@ -1,7 +1,8 @@
 import 'react-native-gesture-handler';
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { View, ActivityIndicator, AppState } from 'react-native';
-import { Stack } from 'expo-router';
+import { View, ActivityIndicator, AppState, Alert } from 'react-native';
+import { Stack, useRouter, type Href } from 'expo-router';
+import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -16,6 +17,8 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { hydrateActiveWorkout } from '@/store/activeWorkoutStore';
 import { syncNow } from '@/sync';
 import { useSyncStore } from '@/store/syncStore';
+import { parseEmailCallback } from '@/auth/emailCallback';
+import { completeEmailCallback } from '@/auth/completeEmailCallback';
 
 // expo-notifications is not supported in Expo Go (SDK 53+). Load only in dev builds / production.
 const WorkoutNotificationHandler = lazy(() =>
@@ -26,6 +29,42 @@ const isExpoGo = Constants.appOwnership === 'expo';
 
 // Defer mounting so native module registry is ready (avoids Android crash: "Cannot create event emitter for module not in registry").
 const NOTIFICATION_HANDLER_DELAY_MS = 800;
+
+function EmailAuthLinks() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    const seen = new Set<string>();
+
+    async function onUrl(url: string | null) {
+      if (!url || seen.has(url) || !parseEmailCallback(url)) return;
+      seen.add(url);
+      const outcome = await completeEmailCallback(url);
+      if (cancelled || outcome.result === 'ignored') return;
+      if (outcome.result === 'failed') {
+        Alert.alert('Could not open link', outcome.message);
+        return;
+      }
+      router.replace(
+        (outcome.result === 'recovery' ? '/auth-new-password' : '/(tabs)') as Href
+      );
+    }
+
+    void Linking.getInitialURL().then((url) => {
+      void onUrl(url);
+    });
+    const sub = Linking.addEventListener('url', (event) => {
+      void onUrl(event.url);
+    });
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [router]);
+
+  return null;
+}
 
 function ThemedStack() {
   const { colors, isDark } = useTheme();
@@ -126,6 +165,7 @@ export default function RootLayout() {
             <WorkoutNotificationHandler />
           </Suspense>
         )}
+        <EmailAuthLinks />
         <ThemedStack />
       </ThemeProvider>
     </SafeAreaProvider>

@@ -53,4 +53,4 @@ Current test coverage detail: [engineering/testing.md](../engineering/testing.md
 | Exercise library | Complete | Partial — search ranking, title-case names, catalog merge, and normalization covered; store and sync untested |
 | History & analytics | Complete | Partial — 1RM and home stats covered; strength standards and volume untested |
 | Subscriptions | Complete | Partial — `requiresProToStart`, paywall paths, and the deep-link start guard (`blockedStartFeature`) covered; UI gate wiring untested |
-| Accounts & data | Complete | Partial — unit conversion, active-workout persist/resume, linked Apple/Google/email provider resolution, already-linked identity sign-in vs in-place guest upgrade, and Delete account local wipe + anonymous rebootstrap; live auth, sync, and merge untested |
+| Accounts & data | Complete | Partial — unit conversion, active-workout persist/resume, linked provider resolution, already-linked identity vs in-place upgrade, Delete account wipe, and email confirm/recovery link parsing; live auth, sync, and merge untested |

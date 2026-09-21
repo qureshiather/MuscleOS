@@ -12,6 +12,7 @@ import {
   startFreshAnonymousGuest,
   wipeDeviceAfterAccountDeletion,
 } from '@/auth/deleteAccount';
+import { signOutGoogle } from '@/auth/googleSignIn';
 
 const AUTH_INIT_TIMEOUT_MS = 10_000;
 
@@ -132,6 +133,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     try {
+      await signOutGoogle();
       await supabase.auth.signOut();
       const { data } = await supabase.auth.signInAnonymously();
       const user = data.user;
@@ -166,6 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw new Error(await edgeFunctionErrorMessage(error, data));
     }
 
+    await signOutGoogle();
     try {
       await supabase.auth.signOut();
     } catch {

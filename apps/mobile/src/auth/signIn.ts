@@ -5,6 +5,8 @@ import { applyAuthUser, useAuthStore } from '@/store/authStore';
 import { withTimeout } from '@/lib/withTimeout';
 import { setAppleAuthorizationCode } from '@/auth/appleAuthCode';
 import { identityAlreadyLinked } from '@/auth/attachAccount';
+import { getGoogleTokens, googleWebClientId } from '@/auth/googleSignIn';
+import { EMAIL_AUTH_REDIRECT } from '@/auth/emailCallback';
 
 const AUTH_REQUEST_TIMEOUT_MS = 15_000;
 
@@ -43,6 +45,32 @@ async function attachAppleAfterNativeSignIn(
     if (!identityAlreadyLinked(linked.error)) return { error: linked.error };
   }
   return signInWithAppleIdToken(idToken);
+}
+
+async function attachGoogleAfterIdToken(
+  idToken: string,
+  accessToken?: string
+): Promise<{ error: { message: string } | null }> {
+  const hasSession = await ensureAuthSession();
+  if (hasSession) {
+    const linked = await supabase.auth.linkIdentity({
+      provider: 'google',
+      token: idToken,
+      access_token: accessToken,
+    });
+    if (!linked.error) return { error: null };
+    if (!identityAlreadyLinked(linked.error)) return { error: linked.error };
+  }
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'google',
+    token: idToken,
+    access_token: accessToken,
+  });
+  if (error) return { error };
+  if (data.session?.user) {
+    applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
+  }
+  return { error: null };
 }
 
 function authTimeoutMessage(): string {
@@ -106,63 +134,20 @@ export function useSignIn() {
       Alert.alert('Not configured', 'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
       return false;
     }
-    const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
-    if (!clientId) {
+    if (!googleWebClientId()) {
       Alert.alert(
         'Google Sign-In not configured',
-        'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to .env and configure Google OAuth in Supabase dashboard. Use @react-native-google-signin/google-signin for native flows.'
+        'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to .env (the Web OAuth client ID) and enable Google in the Supabase Auth providers.'
       );
       return false;
     }
     try {
-      const { makeRedirectUri } = await import('expo-auth-session');
-      const { AuthRequest } = await import('expo-auth-session');
-      const { ResponseType } = await import('expo-auth-session');
-      const { maybeCompleteAuthSession } = await import('expo-web-browser');
-
-      const redirectUri = makeRedirectUri({ scheme: 'muscleos', path: 'auth' });
-      maybeCompleteAuthSession();
-
-      const request = new AuthRequest({
-        clientId,
-        redirectUri,
-        scopes: ['openid', 'profile', 'email'],
-        responseType: ResponseType.IdToken,
-        usePKCE: true,
-      });
-
-      const discovery = {
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenEndpoint: 'https://oauth2.googleapis.com/token',
-      };
-      const result = await request.promptAsync(discovery);
-
-      if (result.type !== 'success' || !result.params?.id_token) {
+      const tokens = await getGoogleTokens();
+      if (!tokens || tokens === 'cancelled') return false;
+      const { error } = await attachGoogleAfterIdToken(tokens.idToken, tokens.accessToken);
+      if (error) {
+        Alert.alert('Google Sign-In failed', error.message);
         return false;
-      }
-
-      const linked = await supabase.auth.linkIdentity({
-        provider: 'google',
-        token: result.params.id_token,
-        access_token: result.params.access_token,
-      });
-      if (linked.error && !identityAlreadyLinked(linked.error)) {
-        Alert.alert('Sign in failed', linked.error.message);
-        return false;
-      }
-      if (linked.error) {
-        const { data, error } = await supabase.auth.signInWithIdToken({
-          provider: 'google',
-          token: result.params.id_token,
-          access_token: result.params.access_token,
-        });
-        if (error) {
-          Alert.alert('Sign in failed', error.message);
-          return false;
-        }
-        if (data.session?.user) {
-          applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
-        }
       }
       return true;
     } catch (e) {
@@ -219,7 +204,10 @@ export function useSignIn() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: displayName }, emailRedirectTo: undefined },
+        options: {
+          data: { full_name: displayName },
+          emailRedirectTo: EMAIL_AUTH_REDIRECT,
+        },
       });
       if (error) {
         if (error.message.includes('already registered') || error.message.includes('already been registered')) {
@@ -243,11 +231,33 @@ export function useSignIn() {
     }
   }
 
+  async function sendPasswordReset(email: string): Promise<boolean> {
+    if (!isSupabaseConfigured()) {
+      Alert.alert('Not configured', 'Supabase is not configured.');
+      return false;
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: EMAIL_AUTH_REDIRECT,
+      });
+      if (error) {
+        Alert.alert('Reset failed', error.message);
+        return false;
+      }
+      Alert.alert('Check your email', 'We sent a link to choose a new password. Open it on this phone.');
+      return true;
+    } catch (e) {
+      Alert.alert('Reset failed', (e as Error).message);
+      return false;
+    }
+  }
+
   return {
     signInWithApple: linkWithApple,
     signInWithGoogle: linkWithGoogle,
     signInWithEmail: linkWithEmail,
     signInWithEmailOnly,
+    sendPasswordReset,
     linkWithApple,
     linkWithGoogle,
     linkWithEmail,
