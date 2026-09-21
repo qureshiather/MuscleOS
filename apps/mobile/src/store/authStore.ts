@@ -1,15 +1,23 @@
 import { create } from 'zustand';
 import type { AuthChangeEvent, User } from '@supabase/supabase-js';
-import type { UserProfile, AuthProvider } from '@muscleos/types';
+import type { UserProfile } from '@muscleos/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { revenueCatLogOut, revenueCatLogIn } from '@/utils/revenueCat';
 import { withTimeout } from '@/lib/withTimeout';
+import { getAppleAuthorizationCode } from '@/auth/appleAuthCode';
+import { linkedAuthProvider } from '@/auth/accountProvider';
+import { accountLinkSideEffect } from '@/auth/attachAccount';
+import { edgeFunctionErrorMessage } from '@/auth/edgeFunctionError';
+import {
+  startFreshAnonymousGuest,
+  wipeDeviceAfterAccountDeletion,
+} from '@/auth/deleteAccount';
 
 const AUTH_INIT_TIMEOUT_MS = 10_000;
 
 function userToProfile(user: User): UserProfile | null {
   if (user.is_anonymous) return null;
-  const provider = (user.app_metadata?.provider as AuthProvider) ?? 'email';
+  const provider = linkedAuthProvider(user);
   return {
     id: user.id,
     accountId: user.id,
@@ -20,7 +28,8 @@ function userToProfile(user: User): UserProfile | null {
 }
 
 /** Apply a signed-in user to local state and run link/sync side effects. */
-export function applyAuthUser(u: User, event: AuthChangeEvent, wasAnonymous: boolean): void {
+export function applyAuthUser(u: User, _event: AuthChangeEvent, wasAnonymous: boolean): void {
+  const previousUserId = useAuthStore.getState().user?.id ?? null;
   useAuthStore.setState({
     user: u,
     isAnonymous: u.is_anonymous ?? false,
@@ -28,9 +37,15 @@ export function applyAuthUser(u: User, event: AuthChangeEvent, wasAnonymous: boo
   });
 
   const isNowLinked = !(u.is_anonymous ?? false);
-  if (isNowLinked && wasAnonymous) {
+  const sideEffect = accountLinkSideEffect({
+    previousUserId,
+    nextUserId: u.id,
+    wasAnonymous,
+    isNowLinked,
+  });
+  if (sideEffect === 'upload_local') {
     void import('@/sync').then((m) => m.onAccountLinked());
-  } else if (isNowLinked && event === 'SIGNED_IN') {
+  } else if (sideEffect === 'sync') {
     void import('@/sync').then((m) => m.syncNow());
   }
 
@@ -46,6 +61,7 @@ export interface AuthState {
   isLoading: boolean;
   init: () => Promise<string | null>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -131,6 +147,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       set({ user: null, isAnonymous: true, profile: null });
     }
+  },
+
+  deleteAccount: async () => {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Accounts are not configured.');
+    }
+    const { user, isAnonymous } = get();
+    if (!user || isAnonymous) {
+      throw new Error('No account to delete.');
+    }
+
+    const appleAuthorizationCode = await getAppleAuthorizationCode();
+    const { data, error } = await supabase.functions.invoke('delete-account', {
+      body: { appleAuthorizationCode: appleAuthorizationCode ?? undefined },
+    });
+    if (error) {
+      throw new Error(await edgeFunctionErrorMessage(error, data));
+    }
+
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // The auth user is already gone; local session keys may still need a fresh guest.
+    }
+
+    const { useActiveWorkoutStore } = await import('@/store/activeWorkoutStore');
+    useActiveWorkoutStore.getState().discardWorkout();
+    await wipeDeviceAfterAccountDeletion();
+    await startFreshAnonymousGuest({
+      signInAnonymously: async () => {
+        const { data } = await supabase.auth.signInAnonymously();
+        return { user: data.user ? { id: data.user.id } : null };
+      },
+      revenueCatLogOut,
+      revenueCatLogIn,
+    });
+    const {
+      data: { user: nextUser },
+    } = await supabase.auth.getUser();
+    set({
+      user: nextUser,
+      isAnonymous: true,
+      profile: null,
+    });
   },
 }));
 

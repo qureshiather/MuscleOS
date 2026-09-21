@@ -84,7 +84,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
 | **Exercises** | `/(tabs)/exercises` | Browse and search the ~399-exercise catalog; muscle maps, instructions, personal notes | [exercise-library.md](../features/exercise-library.md) |
 | **History** | `/(tabs)/history` | Reverse-chronological list of finished sessions with duration, volume, and every completed set | [history-analytics.md](../features/history-analytics.md) |
-| **Profile** | `/(tabs)/profile` | Account state, body data used by recovery and strength standards, links to settings and subscription | [accounts-and-data.md](../features/accounts-and-data.md) |
+| **Profile** | `/(tabs)/profile` | Settings, biodata, then Account (subscription, data, deletion, legal) | [accounts-and-data.md](../features/accounts-and-data.md) |
 
 ### Pushed screens
 
@@ -98,7 +98,8 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Exercise progression | `/exercise-progression` | Estimated-1RM chart over time for one exercise | **Pro** | [history-analytics.md](../features/history-analytics.md#exercise-progression) |
 | Monthly calendar | `/history-monthly` | Month grid of training days | **Pro** | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
 | Subscription | `/subscription` | Paywall, plan selection, restore purchases | — | [subscriptions.md](../features/subscriptions.md) |
-| Settings | `/settings` | Theme, units, sounds, sync, export, clear data | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Settings | `/settings` | Appearance, units, sounds | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Data | `/data` | Sync, export, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Auth | `/auth`, `/auth-email` | Link an account via Apple, Google, or email | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 
 ## Cross-cutting assumptions
@@ -145,6 +146,5 @@ Listed so they don't get re-proposed as bugs or half-specified in future work.
 | Live PR detection during a workout | PRs are computed on read on the PR screen, not surfaced mid-session. |
 | HealthKit / Google Fit | No integration. `healthStore` holds macro/BMR helpers with no UI. |
 | Data import | Export is one-way JSON. |
-| Account deletion | No in-app flow. |
 | Program periodization, RPE, drop sets, supersets | No data model support. |
 | Cardio, distance, or duration tracking | Out of scope. |

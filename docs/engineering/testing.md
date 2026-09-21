@@ -18,7 +18,7 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**23 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
+**27 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
 the screens themselves and a store's live wiring (debounced persist, `AppState` listener) aren't
 exercised end-to-end. The workflow *rules* those layers enforce have been pulled out into pure
 modules (`activeWorkoutLogic`, `workoutFinish`, `workoutSetView`, `templatesLogic`,
@@ -47,6 +47,10 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, paywall path parsing |
 | `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill (working sets only), add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, replace-exercise reset + new-exercise prefill, `reps > 0` complete rule, warm-up-skips-rest, start prefill, per-exercise start params, hydrate expired-timer discard |
 | `apps/mobile/src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, null clear, corrupt/invalid-payload guards (via AsyncStorage harness) |
+| `apps/mobile/src/auth/deleteAccount.test.ts` | Delete-account device wipe (sessions, templates, active workout, sync transport, Apple auth code) and anonymous RevenueCat rebootstrap |
+| `apps/mobile/src/auth/accountProvider.test.ts` | Linked Apple / Google / email vs leftover anonymous identity |
+| `apps/mobile/src/auth/attachAccount.test.ts` | Already-linked identity → sign into that user; in-place guest upgrade vs new-device pull |
+| `apps/mobile/src/auth/edgeFunctionError.test.ts` | Prefers function JSON error body over the generic non-2xx client message |
 | `apps/mobile/src/utils/workoutNotificationCopy.test.ts` | "Next:" / "Continue to" / "Finish your workout" selection from the first exercise with unlogged sets |
 | `apps/mobile/src/utils/workoutFinish.test.ts` | Finish save-options matrix (empty/built-in/custom × list-or-set-structure-changed), `templateListChanged`, `templateStructureChanged`, built-in can't be overwritten |
 | `apps/mobile/src/utils/workoutSetView.test.ts` | Warm-up (W1…) vs working (1,2,3…) numbering, single "current" set selection |
@@ -61,7 +65,7 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | Feature | Coverage | Notes |
 |---------|----------|-------|
 | [Workout logging](../features/workout-logging.md) | Partial | Number pad, set-logging rules (prefill, warm-up numbering, current-set, `reps > 0`, warm-up-skips-rest), rest-key remapping, replace-exercise reset + new-exercise prefill, finish save-options, best-set/previous snapshot, persist/resume round-trip, hydrate expired-timer discard, and notification copy are covered; the screen's live rendering and the debounced-persist/`AppState` wiring are not |
-| [Accounts & sync](../features/accounts-and-data.md) | **Minimal** | Unit conversion + active-workout persist/resume round-trip. Merge policy and auth untested |
+| [Accounts & sync](../features/accounts-and-data.md) | Partial | Unit conversion, active-workout persist/resume, linked Apple/Google/email provider resolution, already-linked identity sign-in vs in-place guest upgrade, and the Delete account local wipe + anonymous RevenueCat rebootstrap. Merge policy and live auth/sync untested |
 | [Subscriptions](../features/subscriptions.md) | Partial | `requiresProToStart` and the deep-link start guard (`blockedStartFeature`) are tested; the paywall UI itself is not |
 | [Recovery](../features/recovery.md) | Partial | Constants, timing, and `recoveryFromSessions` covered |
 | [Templates](../features/templates.md) | Partial | Built-in integrity, per-exercise set/warm-up resolve, recommendation, `allTemplates` ordering, soft-hide, and folder-delete cascade covered; screen validation untested |

@@ -18,7 +18,8 @@
       "!**/out",
       "!**/coverage",
       "!**/.turbo",
-      "!**/pnpm-lock.yaml"
+      "!**/pnpm-lock.yaml",
+      "!**/supabase/functions/**"
     ]
   },
   "formatter": {

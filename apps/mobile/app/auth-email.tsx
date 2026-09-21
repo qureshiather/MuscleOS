@@ -15,6 +15,7 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
+import { ACCOUNT_PER_EMAIL_COPY } from '@/auth/accountCopy';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
@@ -59,8 +60,8 @@ export default function AuthEmailScreen() {
         </Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
           {isSignIn
-            ? 'Use email to subscribe and restore Pro on any device.'
-            : 'Create an account to subscribe and restore on any device.'}
+            ? 'If you already used Apple or Google with this email, this is the same account — not a second backup.'
+            : ACCOUNT_PER_EMAIL_COPY}
         </Text>
 
         <SegmentedControl

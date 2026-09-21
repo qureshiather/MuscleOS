@@ -12,12 +12,12 @@ type ConfirmDialogProps = {
   /** Optional fact line under the title (elapsed time, set count, …). */
   meta?: string;
   confirmLabel: string;
-  cancelLabel: string;
+  cancelLabel?: string;
   /** Which action is danger. `true` means the confirm action (Keep / Discard). */
   destructive?: boolean | 'cancel' | 'confirm';
   onConfirm: () => void;
-  onCancel: () => void;
-  /** Overlay / back. Defaults to `onCancel`. Use when overlay should not run the cancel action. */
+  onCancel?: () => void;
+  /** Overlay / back. Defaults to `onCancel`, then `onConfirm`. */
   onDismiss?: () => void;
   confirmTestID?: string;
   cancelTestID?: string;
@@ -49,10 +49,11 @@ export function ConfirmDialog({
       : destructive === 'cancel'
         ? 'cancel'
         : null;
-  const handleDismiss = onDismiss ?? onCancel;
+  const handleDismiss = onDismiss ?? onCancel ?? onConfirm;
   const cancelVariant =
     destructiveSide === 'cancel' ? 'danger' : destructiveSide === 'confirm' ? 'filled' : 'outline';
   const confirmVariant = destructiveSide === 'confirm' ? 'danger' : 'filled';
+  const showCancel = Boolean(cancelLabel && onCancel);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleDismiss}>
@@ -89,14 +90,16 @@ export function ConfirmDialog({
             {message}
           </Text>
           <View style={styles.actions}>
-            <PrimaryButton
-              label={cancelLabel}
-              variant={cancelVariant}
-              onPress={onCancel}
-              testID={cancelTestID}
-              accessibilityRole="button"
-              accessibilityLabel={cancelLabel}
-            />
+            {showCancel ? (
+              <PrimaryButton
+                label={cancelLabel!}
+                variant={cancelVariant}
+                onPress={onCancel}
+                testID={cancelTestID}
+                accessibilityRole="button"
+                accessibilityLabel={cancelLabel}
+              />
+            ) : null}
             <PrimaryButton
               label={confirmLabel}
               variant={confirmVariant}

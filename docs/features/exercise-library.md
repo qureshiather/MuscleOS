@@ -95,7 +95,7 @@ The delta pull queries `catalog_exercises` for rows with `updated_at >` the stor
 merges them by id (later row wins), and advances the watermark. Catalog sync is pull-only and
 runs for **all users including anonymous ones** — it's shared content, not user data.
 
-Refresh triggers: app launch, app foreground, and Settings → Sync now.
+Refresh triggers: app launch, app foreground, and Data → Sync now.
 
 **Offline:** the library is fully usable from the bundled seed plus cache; no network needed.
 

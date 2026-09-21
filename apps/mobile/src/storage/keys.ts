@@ -22,4 +22,6 @@ export const STORAGE_KEYS = {
   syncMeta: 'muscleos_sync_meta',
   /** Android only: whether we already asked for the "Alarms & reminders" access */
   exactAlarmPromptShown: 'muscleos_exact_alarm_prompt_shown',
+  /** Short-lived Apple authorization code, kept so account deletion can revoke Sign in with Apple. */
+  appleAuthorizationCode: 'muscleos_apple_authorization_code',
 } as const;

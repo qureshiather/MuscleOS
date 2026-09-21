@@ -3,8 +3,47 @@ import { Platform, Alert } from 'react-native';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { applyAuthUser, useAuthStore } from '@/store/authStore';
 import { withTimeout } from '@/lib/withTimeout';
+import { setAppleAuthorizationCode } from '@/auth/appleAuthCode';
+import { identityAlreadyLinked } from '@/auth/attachAccount';
 
 const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+/** Guest session is required to upgrade-in-place with linkIdentity. */
+async function ensureAuthSession(): Promise<boolean> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.access_token) return true;
+  const { data, error } = await supabase.auth.signInAnonymously();
+  return !error && Boolean(data.session?.access_token);
+}
+
+async function signInWithAppleIdToken(idToken: string): Promise<{ error: { message: string } | null }> {
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: idToken,
+  });
+  if (error) return { error };
+  if (data.session?.user) {
+    applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
+  }
+  return { error: null };
+}
+
+async function attachAppleAfterNativeSignIn(
+  idToken: string
+): Promise<{ error: { message: string } | null }> {
+  const hasSession = await ensureAuthSession();
+  if (hasSession) {
+    const linked = await supabase.auth.linkIdentity({
+      provider: 'apple',
+      token: idToken,
+    });
+    if (!linked.error) return { error: null };
+    if (!identityAlreadyLinked(linked.error)) return { error: linked.error };
+  }
+  return signInWithAppleIdToken(idToken);
+}
 
 function authTimeoutMessage(): string {
   if (Platform.OS === 'android') {
@@ -35,13 +74,16 @@ export function useSignIn() {
         Alert.alert('Sign in failed', 'Apple did not return an identity token.');
         return false;
       }
-      const { error } = await supabase.auth.linkIdentity({
-        provider: 'apple',
-        token: idToken,
-      });
+      const { error } = await attachAppleAfterNativeSignIn(idToken);
       if (error) {
-        Alert.alert('Link failed', error.message);
+        Alert.alert('Sign in failed', error.message);
         return false;
+      }
+      if (cred.authorizationCode) {
+        await setAppleAuthorizationCode(cred.authorizationCode);
+        void supabase.functions.invoke('save-apple-token', {
+          body: { authorizationCode: cred.authorizationCode },
+        });
       }
       if (cred.fullName) {
         const fullName = [cred.fullName.givenName, cred.fullName.familyName].filter(Boolean).join(' ');
@@ -99,14 +141,28 @@ export function useSignIn() {
         return false;
       }
 
-      const { error } = await supabase.auth.linkIdentity({
+      const linked = await supabase.auth.linkIdentity({
         provider: 'google',
         token: result.params.id_token,
         access_token: result.params.access_token,
       });
-      if (error) {
-        Alert.alert('Link failed', error.message);
+      if (linked.error && !identityAlreadyLinked(linked.error)) {
+        Alert.alert('Sign in failed', linked.error.message);
         return false;
+      }
+      if (linked.error) {
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: result.params.id_token,
+          access_token: result.params.access_token,
+        });
+        if (error) {
+          Alert.alert('Sign in failed', error.message);
+          return false;
+        }
+        if (data.session?.user) {
+          applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
+        }
       }
       return true;
     } catch (e) {

@@ -10,7 +10,7 @@ account is optional and adds backup plus multi-device sync; it is never required
 |--|--|
 | Root layout | `apps/mobile/app/_layout.tsx` |
 | Auth | `apps/mobile/src/store/authStore.ts`, `src/lib/supabase.ts`, `app/auth.tsx`, `app/auth-email.tsx` |
-| Profile / settings | `app/(tabs)/profile.tsx`, `app/settings.tsx`, `src/store/settingsStore.ts` |
+| Profile / settings | `app/(tabs)/profile.tsx`, `app/settings.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
 | Storage | `apps/mobile/src/storage/keys.ts`, `src/storage/localStorage.ts` |
 | Sync | `apps/mobile/src/sync/` |
 | Theme | `apps/mobile/src/theme/` |
@@ -27,7 +27,7 @@ nested Tabs navigator. `/` redirects to `/(tabs)`.
 `barbell-outline`, `pulse-outline`, `list-outline`, `time-outline`, `person-outline`. The tab bar is
 custom (`TabBarWithResumePill`) so it can host the resume-workout pill.
 
-**Pushed screens:** `/auth`, `/auth-email`, `/settings`, `/subscription`, `/create-template`,
+**Pushed screens:** `/auth`, `/auth-email`, `/settings`, `/data`, `/subscription`, `/create-template`,
 `/create-exercise`, `/workout-preview`, `/active-workout`, `/history-monthly`,
 `/exercise-progression`, `/personal-records`. `/templates` is a legacy redirect to the tabs.
 
@@ -74,23 +74,41 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 
 | Provider | Platforms | Implementation |
 |----------|-----------|----------------|
-| **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity` |
-| **Google** | iOS + Android | `expo-auth-session` OAuth + `linkIdentity`; needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` |
+| **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
+| **Google** | iOS + Android | `expo-auth-session` OAuth + the same link-then-sign-in fallback; needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` |
 | **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password |
 
-Apple and Google use `linkIdentity` so an anonymous account upgrades in place, preserving its id.
-**Email does not** — it uses `signUp`/`signInWithPassword`, which is an inconsistency worth knowing
-about when reasoning about data migration on link.
+On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
+keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
+original user, so link fails with "already linked" and the app signs into that user instead. Empty
+local then takes remote on sync — sessions, templates, customs, notes, previous, biodata.
 
-**On linking**, an anonymous session triggers `onAccountLinked()`, which uploads a full snapshot of
-local data and then syncs. Any signed-in user also gets `revenueCatLogIn(user.id)` so the
-entitlement follows the identity.
+**Email does not** upgrade the current guest in place — `signUp`/`signInWithPassword` is always a
+different user id unless that email already belongs to an Apple or Google account. Cloud backup is
+**per email**: Apple, Google, or a password with the same address is the same MuscleOS account. The
+sign-in screens and Profile Account state that; Delete account warns that all three go together.
+
+**On an in-place link**, `onAccountLinked()` uploads a full snapshot of local data and then syncs.
+**On signing into an existing account** (new device, or email password), the app `syncNow()` —
+pull first — so an empty phone fills from the cloud. Any signed-in user also gets
+`revenueCatLogIn(user.id)` so the entitlement follows the identity.
 
 **Sign out** signs out of Supabase, immediately creates a **new anonymous session**, and re-points
 RevenueCat at it. **Local workout data is not cleared** — you keep your history on the device, and
 the subscription stays attached to the account you signed out of.
 
-**Account deletion is not implemented.**
+**Delete account** (linked accounts only) lives on Profile under Account. Two themed confirms
+(`ConfirmDialog`, not the system alert). Copy says this email's Apple, Google, and password sign-in
+are the same account. It calls the `delete-account` Edge Function, which revokes
+a Sign in with Apple token when present and hard-deletes the Supabase user (`sync_records` and
+`user_exercises` cascade). Then this device is wiped — `clearAllData` plus the in-progress workout
+and sync transport — and a **new anonymous session** starts, same as first launch. An App Store or
+Google Play subscription is **not** cancelled; the confirm copy says to cancel it in store settings.
+Anonymous users have no account to delete; they still have Profile → Data → Clear all data.
+
+After a successful Apple link, the app stores the short-lived `authorizationCode` and invokes
+`save-apple-token` so a refresh token can be kept for later revoke. Reviewers who delete
+immediately can still send that code on delete.
 
 ### Token storage
 
@@ -106,8 +124,9 @@ uses SecureStore were inaccurate.
 
 ## Profile
 
-Two distinct things share the Profile screen: the **account** (read-only, from Supabase) and
-**biodata** (`UserAppProfile`, editable, stored locally and synced as app settings).
+The tab is three headed cards: **Settings**, **Biodata**, then **Account**.
+
+**Biodata** is `UserAppProfile` — editable, stored locally and synced as app settings.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
@@ -119,9 +138,21 @@ Two distinct things share the Profile screen: the **account** (read-only, from S
 
 Not collected: display name (set at sign-in), birthdate, experience level, training goals.
 
-The screen's subtitle says biodata is "Used for recovery estimates", which is true of `notNatty` and
+The Biodata caption says it is "Used for recovery estimates", which is true of `notNatty` and
 `sex`; `weightKg` is used for strength standards elsewhere, and `age`/`heightCm` are currently
 unused by any surfaced feature.
+
+**Account** is identity plus the account-owned destinations. Linked accounts show the sign-in
+provider as **Apple ID**, **Google**, or **Email** (resolved from Supabase identities, not the
+anonymous bootstrap provider), then display name, email, and a caption that cloud data is stored
+per email (Apple / Google / password with the same address is one account). Then a tap-to-sync
+row and Sign out. Guests see a Sign in CTA plus the same per-email caption. Sign out does not wipe
+local workouts.
+
+Rows under Account: Subscription, Data (`/data`), Delete account (linked only), Privacy Policy,
+Terms of Service. Legal lives only here — Settings does not repeat it.
+
+**Settings** on this tab is a single row into `/settings`.
 
 ## Settings
 
@@ -136,9 +167,15 @@ unused by any surfaced feature.
 The three unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
 A legacy migration promotes older single-unit preferences to `unit_system: imperial`.
 
-**Actions:** Sync now (linked accounts only), Export my data, Clear all data. Clearing data resets
-the theme and wipes app keys but **keeps the auth session** — and notably does *not* clear the
-active workout, sync outbox, sync meta, or the exact-alarm prompt flag.
+Settings is **Appearance**, **Units**, and **Sounds** only.
+
+**Data** (`/data`, from Profile → Account): Sync now (linked accounts only), Export my data, Clear
+all data. Clearing data resets the theme and wipes app keys but **keeps the auth session** — and
+notably does *not* clear the active workout, sync outbox, sync meta, or the exact-alarm prompt
+flag.
+
+Privacy and Terms open `https://muscleos.app/privacy` and `https://muscleos.app/terms` from
+Profile → Account.
 
 **Not settings:** rest timer default (a 120 s code constant, overridable per exercise in a session),
 haptics (none exist), and notification preferences beyond sounds.
@@ -200,7 +237,7 @@ Local-first, in `src/sync/mergePolicy.ts`:
 ### Triggers
 
 App launch, app foreground, account link (full snapshot upload), finishing a workout,
-pull-to-refresh on History, the Profile sync row, Settings → Sync now, and a 2-second debounced
+pull-to-refresh on History, the Profile sync row, Data → Sync now, and a 2-second debounced
 push after any local mutation.
 
 ### What is NOT backed up
@@ -218,6 +255,7 @@ Worth being precise about, because users will assume an account means everything
 | Sync outbox and meta | `muscleos_sync_outbox`, `muscleos_sync_meta` |
 | Dev Pro override | `muscleos_dev_pro_override` |
 | Exact-alarm prompt flag | `muscleos_exact_alarm_prompt_shown` |
+| Apple authorization code | `muscleos_apple_authorization_code` — used only to revoke Sign in with Apple on delete |
 
 Of these, hidden built-in ids are the only genuine user intent that doesn't survive a device change.
 
@@ -243,6 +281,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_sync_outbox`, `muscleos_sync_meta` | Sync transport | ○ |
 | `muscleos_dev_pro_override` | Dev testing | ○ |
 | `muscleos_exact_alarm_prompt_shown` | Android prompt-once flag | ○ |
+| `muscleos_apple_authorization_code` | Short-lived Apple auth code for Sign in with Apple revoke | ○ |
 
 ### Migrations
 
@@ -295,7 +334,7 @@ Derived: `primarySurface`, `primaryBorder`, `successSurface`, `tableHeader`, `ro
 
 ## Export
 
-Settings → **Export my data**. Basic tier. Writes pretty-printed JSON to the cache as
+Profile → Data → **Export my data**. Basic tier. Writes pretty-printed JSON to the cache as
 `muscleos-export-YYYY-MM-DD.json` and opens the share sheet (`expo-sharing`,
 `application/json`).
 
@@ -340,6 +379,7 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 | Local-first; an account is optional | Everything works offline |
 | Anonymous session on first launch | No signup wall |
 | Sign-out keeps local data | You don't lose history by signing out |
+| Delete account wipes this device | Stronger than sign-out; you continue as a guest. Store billing is separate |
 | Local wins on sync conflict when dirty | The device you're holding is the one you just used |
 | Recovery is never synced | Derived from sessions; recomputed after merge |
 | kg and cm canonical in storage | Units are a display concern only |
@@ -349,7 +389,6 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 
 ## Not implemented
 
-- Account deletion
 - Data import
 - SecureStore-backed auth (uses AsyncStorage)
 - Email account **linking** (uses sign-up/sign-in, unlike Apple/Google)
@@ -367,6 +406,8 @@ Covered:
   round-trip through an in-memory AsyncStorage harness (`src/test/mocks/`, aliased in
   `vitest.config.mts`), including null-clear and the corrupt / missing-`exercises` guards. This is
   the first storage-layer test; the harness is reusable for other keys.
+- `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
+  sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest re-points RevenueCat.
 
 Not covered — the least-tested area of the codebase:
 

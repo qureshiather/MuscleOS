@@ -205,7 +205,7 @@ the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 
 ## Export
 
-Reached from **Settings → Export my data** (not from these screens). Basic tier. Writes
+Reached from **Profile → Data → Export my data** (not from these screens). Basic tier. Writes
 pretty-printed JSON named `muscleos-export-YYYY-MM-DD.json` and hands it to the share sheet.
 
 Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export).

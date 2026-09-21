@@ -97,10 +97,12 @@ Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabas
 | Finish workout | Immediate push |
 | Link account (Apple/Google/email) | Upload local data, then sync |
 | History pull-to-refresh | Force sync |
-| Settings → Sync now | Force sync |
+| Data → Sync now | Force sync |
 | Profile → sync row tap | Force sync |
 
 Anonymous users stay device-only until they link an account.
+
+**Hosted project:** Authentication → Providers → **Anonymous** must be on. The app signs in anonymously on first launch, then Apple/Google `linkIdentity` upgrades that same user. If anonymous is off, Apple sign-in has nobody to link to (`Linking requires a valid user access token`).
 
 ### 3. Env vars
 
@@ -120,3 +122,32 @@ SUPABASE_DB_PASSWORD=
 ```
 
 Do not put access tokens or database passwords in the mobile app or EAS env.
+
+### 4. Account deletion functions
+
+Linked accounts delete themselves from Profile → Account. The app calls two Edge Functions:
+
+| Function | When | What it does |
+|----------|------|----------------|
+| `save-apple-token` | Right after Sign in with Apple succeeds | Exchanges the Apple `authorizationCode` for a refresh token and stores it on `auth.users.app_metadata` |
+| `delete-account` | Profile → Account → Delete account | Revokes the Apple token if present, then `auth.admin.deleteUser`. `sync_records` and `user_exercises` cascade |
+
+Anonymous users cannot call either function. Missing Apple secrets skip revoke but still delete the user.
+
+Deploy from the repo root (or `supabase/`):
+
+```bash
+pnpm supabase functions deploy save-apple-token
+pnpm supabase functions deploy delete-account
+```
+
+Apple revoke secrets (hosted project → Edge Functions → Secrets). Native Sign in with Apple uses the app's bundle id as `APPLE_CLIENT_ID`:
+
+```
+APPLE_CLIENT_ID=com.muscle-os.app
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY=
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.

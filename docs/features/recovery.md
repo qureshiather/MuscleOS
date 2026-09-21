@@ -109,7 +109,7 @@ to storage (`muscleos_recovery`), and sets it in memory.
 | Finishing a workout | `src/store/activeWorkoutStore.ts` |
 | Deleting a session | `src/store/sessionsStore.ts` + History screen reload |
 | Cloud sync merge | `src/sync/merge.ts` |
-| Settings → Sync now / Clear data | `app/settings.tsx` |
+| Data → Sync now / Clear data | `app/data.tsx` |
 
 Because it is always derived, deleting a session correctly reverses its recovery impact, and
 recovery is **never synced** from the server — the merge step recomputes it locally from the

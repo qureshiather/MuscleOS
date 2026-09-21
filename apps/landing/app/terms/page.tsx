@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { LegalPageLayout } from '../components/LegalPageLayout';
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
+import { LEGAL_LAST_UPDATED } from '../data/legal';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — MuscleOS',
@@ -10,9 +11,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <LegalPageLayout title="Terms of Service">
-      <p className="text-text-secondary mb-6">
-        Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-      </p>
+      <p className="text-text-secondary mb-6">Last updated: {LEGAL_LAST_UPDATED}</p>
 
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-text mb-3">1. Acceptance of Terms</h2>
@@ -99,7 +98,21 @@ export default function TermsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">8. Contact</h2>
+        <h2 className="text-xl font-semibold text-text mb-3">8. Accounts and deletion</h2>
+        <p className="mb-3">
+          An account is optional. You can use MuscleOS as a guest with data stored only on the device. Linking
+          Apple, Google, or email enables backup, sync, and Pro restore. Cloud data is stored per email —
+          those sign-in methods with the same address are the same account.
+        </p>
+        <p>
+          You can delete a linked account in the app: Profile → Account → Delete account. That removes the account and
+          the synced copy from our systems and wipes this device. It does <strong>not</strong> cancel an App
+          Store or Google Play subscription — cancel that in your Apple or Google account settings.
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-text mb-3">9. Contact</h2>
         <p>
           For questions about these Terms of Service, please contact us at{' '}
           <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>.
