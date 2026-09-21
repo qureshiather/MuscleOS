@@ -16,8 +16,8 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen, SheetFrame } from '@/components/layout';
 import { typography } from '@/theme/typography';
-import { radius, spacing } from '@/theme/tokens';
-import { useBottomSpace, useModalMaxHeight } from '@/theme/layout';
+import { radius, spacing, touch } from '@/theme/tokens';
+import { fontScaleCap, useBottomSpace, useModalMaxHeight } from '@/theme/layout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -31,6 +31,13 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRequirePro } from '@/hooks/useProGate';
 import { searchExercises } from '@/utils/exerciseSearch';
+import type { ThemeColors } from '@/theme/palette';
+import {
+  DEFAULT_SETS_PER_EXERCISE,
+  resolveTemplateExercises,
+  serializeTemplateExercises,
+  type ResolvedTemplateExercise,
+} from '@/utils/templateExercises';
 
 export default function CreateTemplateScreen() {
   const isPro = useRequirePro('custom_templates');
@@ -60,7 +67,7 @@ export default function CreateTemplateScreen() {
   useEffect(() => {
     if (existingTemplate) {
       setName(existingTemplate.name);
-      setSelectedIds([...existingTemplate.exerciseIds]);
+      setSelected(resolveTemplateExercises(existingTemplate));
       setFolderId(existingTemplate.folderId);
     }
   }, [existingTemplate?.id]);
@@ -69,7 +76,7 @@ export default function CreateTemplateScreen() {
   const allExercises = useExercisesStore((s) => s.getAllExercises)();
 
   const [name, setName] = useState('');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selected, setSelected] = useState<ResolvedTemplateExercise[]>([]);
   const [folderId, setFolderId] = useState<string | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
@@ -78,17 +85,27 @@ export default function CreateTemplateScreen() {
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const selectedIds = selected.map((ex) => ex.exerciseId);
+
   const pickerExercises = useMemo(() => {
     return searchExercises(allExercises, pickerSearch).filter((e) => !selectedIds.includes(e.id));
   }, [allExercises, pickerSearch, selectedIds]);
 
   function addExerciseId(id: string) {
-    if (!selectedIds.includes(id)) setSelectedIds((prev) => [...prev, id]);
+    if (selectedIds.includes(id)) return;
+    setSelected((prev) => [
+      ...prev,
+      { exerciseId: id, sets: DEFAULT_SETS_PER_EXERCISE, warmUpSets: 0 },
+    ]);
     setPickerSearch('');
   }
 
   function removeExerciseId(id: string) {
-    setSelectedIds((prev) => prev.filter((x) => x !== id));
+    setSelected((prev) => prev.filter((ex) => ex.exerciseId !== id));
+  }
+
+  function updateExercise(id: string, patch: Partial<ResolvedTemplateExercise>) {
+    setSelected((prev) => prev.map((ex) => (ex.exerciseId === id ? { ...ex, ...patch } : ex)));
   }
 
   function closePicker() {
@@ -128,18 +145,19 @@ export default function CreateTemplateScreen() {
     savingRef.current = true;
     setSaving(true);
     try {
+      const payload = serializeTemplateExercises(selected);
       if (isEditMode && existingTemplate) {
         await updateTemplate(existingTemplate.id, {
           name: name.trim(),
-          exerciseIds: selectedIds,
+          ...payload,
           ...(folderId !== undefined && { folderId }),
         });
       } else {
         const template: WorkoutTemplate = {
           id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
           name: name.trim(),
-          exerciseIds: selectedIds,
           isBuiltIn: false,
+          ...payload,
           ...(folderId && { folderId }),
         };
         await addTemplate(template);
@@ -169,9 +187,9 @@ export default function CreateTemplateScreen() {
         backIcon="close"
       />
       <DraggableFlatList
-        data={selectedIds}
-        keyExtractor={(id) => id}
-        onDragEnd={({ data }) => setSelectedIds(data)}
+        data={selected}
+        keyExtractor={(item) => item.exerciseId}
+        onDragEnd={({ data }) => setSelected(data)}
         activationDistance={9999}
         containerStyle={styles.scroll}
         contentContainerStyle={[styles.form, { paddingBottom: bottomSpace }]}
@@ -315,11 +333,11 @@ export default function CreateTemplateScreen() {
             />
           </View>
         }
-        renderItem={({ item: id, getIndex, drag, isActive }: RenderItemParams<string>) => {
+        renderItem={({ item, getIndex, drag, isActive }: RenderItemParams<ResolvedTemplateExercise>) => {
           const index = getIndex() ?? 0;
-          const ex = getExercise(id);
+          const ex = getExercise(item.exerciseId);
           const isFirst = index === 0;
-          const isLast = index === selectedIds.length - 1;
+          const isLast = index === selected.length - 1;
           return (
             <ScaleDecorator>
               <View
@@ -338,24 +356,48 @@ export default function CreateTemplateScreen() {
                   isActive && styles.selectedRowActive,
                 ]}
               >
+                <View style={styles.selectedRowBody}>
+                  <Pressable
+                    onLongPress={canReorder ? drag : undefined}
+                    delayLongPress={120}
+                    style={styles.selectedRowMain}
+                  >
+                    {canReorder ? (
+                      <View style={styles.dragHandle}>
+                        <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
+                      </View>
+                    ) : null}
+                    <Text style={[typography.data, styles.index, { color: colors.textMuted }]}>
+                      {String(index + 1).padStart(2, '0')}
+                    </Text>
+                    <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+                      {ex?.name ?? item.exerciseId}
+                    </Text>
+                  </Pressable>
+                  <View style={styles.countsRow}>
+                    <CountStepper
+                      label="Sets"
+                      value={item.sets}
+                      min={1}
+                      colors={colors}
+                      onChange={(sets) => updateExercise(item.exerciseId, { sets })}
+                    />
+                    <CountStepper
+                      label="Warm-up"
+                      value={item.warmUpSets}
+                      min={0}
+                      colors={colors}
+                      onChange={(warmUpSets) => updateExercise(item.exerciseId, { warmUpSets })}
+                    />
+                  </View>
+                </View>
                 <Pressable
-                  onLongPress={canReorder ? drag : undefined}
-                  delayLongPress={120}
-                  style={styles.selectedRowMain}
+                  hitSlop={8}
+                  onPress={() => removeExerciseId(item.exerciseId)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${ex?.name ?? item.exerciseId}`}
+                  style={styles.removeBtn}
                 >
-                  {canReorder ? (
-                    <View style={styles.dragHandle}>
-                      <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
-                    </View>
-                  ) : null}
-                  <Text style={[typography.data, styles.index, { color: colors.textMuted }]}>
-                    {String(index + 1).padStart(2, '0')}
-                  </Text>
-                  <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>
-                    {ex?.name ?? id}
-                  </Text>
-                </Pressable>
-                <Pressable hitSlop={8} onPress={() => removeExerciseId(id)}>
                   <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                 </Pressable>
               </View>
@@ -473,6 +515,63 @@ export default function CreateTemplateScreen() {
   );
 }
 
+function CountStepper({
+  label,
+  value,
+  min,
+  colors,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  colors: ThemeColors;
+  onChange: (n: number) => void;
+}) {
+  const atMin = value <= min;
+  return (
+    <View style={styles.stepper}>
+      <Text
+        style={[typography.caption, { color: colors.textMuted }]}
+        maxFontSizeMultiplier={fontScaleCap.chrome}
+      >
+        {label}
+      </Text>
+      <View style={styles.stepperControls}>
+        <Pressable
+          onPress={() => onChange(value - 1)}
+          disabled={atMin}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`Decrease ${label}`}
+          style={[
+            styles.stepperBtn,
+            { borderColor: colors.border, opacity: atMin ? 0.4 : 1 },
+          ]}
+        >
+          <Ionicons name="remove" size={16} color={colors.text} />
+        </Pressable>
+        <Text
+          style={[typography.data, styles.stepperValue, { color: colors.text }]}
+          maxFontSizeMultiplier={fontScaleCap.tabular}
+          accessibilityLabel={`${value} ${label}`}
+        >
+          {value}
+        </Text>
+        <Pressable
+          onPress={() => onChange(value + 1)}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`Increase ${label}`}
+          style={[styles.stepperBtn, { borderColor: colors.border }]}
+        >
+          <Ionicons name="add" size={16} color={colors.text} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
@@ -498,7 +597,7 @@ const styles = StyleSheet.create({
   reorderHint: { marginBottom: spacing.sm, marginTop: -spacing.xs },
   selectedRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
     paddingVertical: spacing.sm + 2,
     paddingRight: spacing.md,
@@ -507,13 +606,50 @@ const styles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  selectedRowMain: {
+  selectedRowBody: {
     flex: 1,
     minWidth: 0,
+  },
+  selectedRowMain: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  countsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    paddingLeft: 4,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  stepper: {
+    gap: 4,
+  },
+  stepperControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  stepperBtn: {
+    width: touch.min - 8,
+    height: touch.min - 8,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    minWidth: 22,
+    textAlign: 'center',
+  },
+  removeBtn: {
+    minWidth: touch.min - 8,
+    minHeight: touch.min - 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
   },
   dragHandle: {
     width: 28,

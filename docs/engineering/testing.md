@@ -18,7 +18,7 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**22 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
+**23 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
 the screens themselves and a store's live wiring (debounced persist, `AppState` listener) aren't
 exercised end-to-end. The workflow *rules* those layers enforce have been pulled out into pure
 modules (`activeWorkoutLogic`, `workoutFinish`, `workoutSetView`, `templatesLogic`,
@@ -42,12 +42,13 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | `apps/mobile/src/utils/exerciseNormalize.test.ts` | Category inference, invalid-value stripping |
 | `apps/mobile/src/utils/exerciseTitleCase.test.ts` | Catalog name title case, including a full-seed check |
 | `apps/mobile/src/sync/catalogMerge.test.ts` | Seed overlay vs cache; delta merge by id |
-| `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist** |
+| `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist**, Strong Lifts 5 working sets |
+| `apps/mobile/src/utils/templateExercises.test.ts` | Per-exercise set/warm-up resolve, serialize, legacy `defaultSets` migrate, session→template counts |
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, paywall path parsing |
-| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill, add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, replace-exercise reset + new-exercise prefill, `reps > 0` complete rule, warm-up-skips-rest, start prefill, param parsing, hydrate expired-timer discard |
+| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill (working sets only), add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, replace-exercise reset + new-exercise prefill, `reps > 0` complete rule, warm-up-skips-rest, start prefill, per-exercise start params, hydrate expired-timer discard |
 | `apps/mobile/src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, null clear, corrupt/invalid-payload guards (via AsyncStorage harness) |
 | `apps/mobile/src/utils/workoutNotificationCopy.test.ts` | "Next:" / "Continue to" / "Finish your workout" selection from the first exercise with unlogged sets |
-| `apps/mobile/src/utils/workoutFinish.test.ts` | Finish save-options matrix (empty/built-in/custom × list-changed), `templateListChanged`, built-in can't be overwritten |
+| `apps/mobile/src/utils/workoutFinish.test.ts` | Finish save-options matrix (empty/built-in/custom × list-or-set-structure-changed), `templateListChanged`, `templateStructureChanged`, built-in can't be overwritten |
 | `apps/mobile/src/utils/workoutSetView.test.ts` | Warm-up (W1…) vs working (1,2,3…) numbering, single "current" set selection |
 | `apps/mobile/src/store/templatesLogic.test.ts` | `allTemplates` ordering, soft-hide toggle, built-in vs custom hidden, folder-delete keeps templates |
 | `apps/mobile/src/utils/recovery.test.ts` | `recoveryFromSessions`: completed-only, latest `completedAt` per muscle |
@@ -63,7 +64,7 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | [Accounts & sync](../features/accounts-and-data.md) | **Minimal** | Unit conversion + active-workout persist/resume round-trip. Merge policy and auth untested |
 | [Subscriptions](../features/subscriptions.md) | Partial | `requiresProToStart` and the deep-link start guard (`blockedStartFeature`) are tested; the paywall UI itself is not |
 | [Recovery](../features/recovery.md) | Partial | Constants, timing, and `recoveryFromSessions` covered |
-| [Templates](../features/templates.md) | Partial | Built-in integrity, recommendation, `allTemplates` ordering, soft-hide, and folder-delete cascade covered; screen validation untested |
+| [Templates](../features/templates.md) | Partial | Built-in integrity, per-exercise set/warm-up resolve, recommendation, `allTemplates` ordering, soft-hide, and folder-delete cascade covered; screen validation untested |
 | [Exercise library](../features/exercise-library.md) | Partial | Search, title-case names, catalog merge, and normalization good; store and sync untested |
 | [History & analytics](../features/history-analytics.md) | Partial | 1RM and home stats good; strength standards and volume untested |
 

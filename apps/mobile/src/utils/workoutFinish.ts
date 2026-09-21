@@ -2,16 +2,17 @@
  * Pure decision logic for the finish-workout summary.
  *
  * The active-workout screen offers a different set of save options depending on what the
- * session was started from (empty / built-in / custom) and whether the exercise list was
- * changed during the workout. Built-in templates are immutable, so the only way to keep a
- * modified built-in is to save it as a *new* custom template (Pro). See
- * docs/features/workout-logging.md#finish-flow and docs/features/templates.md#built-in-vs-custom.
+ * session was started from (empty / built-in / custom) and whether the template was
+ * changed during the workout — exercise list *or* per-exercise working/warm-up set counts.
+ * Built-in templates are immutable, so the only way to keep a modified built-in is to save
+ * it as a *new* custom template (Pro). See docs/features/workout-logging.md#finish-flow and
+ * docs/features/templates.md#built-in-vs-custom.
  *
  * This module is the single source of truth for that matrix so it can be unit-tested against
  * the spec; the screen renders from it rather than re-deriving the branches inline.
  */
 
-/** Where the finished workout was started from, combined with whether its list was edited. */
+/** Where the finished workout was started from, combined with whether its template was edited. */
 export type FinishFlowVariant = 'empty' | 'builtin-changed' | 'custom-changed' | 'unchanged';
 
 export interface FinishFlowInput {
@@ -19,7 +20,10 @@ export interface FinishFlowInput {
   isEmpty: boolean;
   /** The originating template is a built-in program. */
   isBuiltIn: boolean;
-  /** The session's exercise list differs from the template it started from. */
+  /**
+   * The session no longer matches the template it started from: exercise list (identity/order)
+   * or per-exercise working/warm-up row counts.
+   */
   listChanged: boolean;
 }
 
@@ -32,6 +36,12 @@ export interface FinishOption {
   requiresPro: boolean;
 }
 
+export type TemplatePlanSlot = {
+  exerciseId: string;
+  sets: number;
+  warmUpSets: number;
+};
+
 /**
  * The exercise list is "changed" when it no longer matches the template it started from,
  * either in length or in order. An `_empty` / ad-hoc workout has no template to compare against,
@@ -43,6 +53,26 @@ export function templateListChanged(
 ): boolean {
   if (sessionExerciseIds.length !== templateExerciseIds.length) return true;
   return sessionExerciseIds.some((id, i) => templateExerciseIds[i] !== id);
+}
+
+/**
+ * True when the session's exercise identity/order *or* working/warm-up row counts differ from
+ * the template plan it started from. Incomplete rows still count — this is structure, not
+ * which sets were logged.
+ */
+export function templateStructureChanged(
+  sessionPlan: readonly TemplatePlanSlot[],
+  templatePlan: readonly TemplatePlanSlot[]
+): boolean {
+  if (sessionPlan.length !== templatePlan.length) return true;
+  return sessionPlan.some((ex, i) => {
+    const planned = templatePlan[i];
+    return (
+      ex.exerciseId !== planned.exerciseId ||
+      ex.sets !== planned.sets ||
+      ex.warmUpSets !== planned.warmUpSets
+    );
+  });
 }
 
 /** Classify the finish flow into one of four mutually exclusive variants. */

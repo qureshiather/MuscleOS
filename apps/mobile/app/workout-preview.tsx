@@ -19,6 +19,8 @@ import { formatWeight } from '@/utils/weightUnits';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { parseStartParams, encodeStartParams } from '@/store/activeWorkoutLogic';
+import { formatTemplateSetLabel } from '@/utils/templateExercises';
 
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
@@ -28,6 +30,8 @@ export default function WorkoutPreviewScreen() {
   const params = useLocalSearchParams<{
     templateId?: string;
     exerciseIds?: string;
+    sets?: string;
+    warmUpSets?: string;
     defaultSets?: string;
   }>();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
@@ -35,9 +39,13 @@ export default function WorkoutPreviewScreen() {
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
 
   const templateId = params.templateId ?? '';
-  const exerciseIds = (params.exerciseIds ?? '').split(',').filter(Boolean);
-  const defaultSets = params.defaultSets != null ? parseInt(params.defaultSets, 10) : undefined;
-  const defaultSetsValid = defaultSets != null && !Number.isNaN(defaultSets) && defaultSets > 0;
+  const plan = parseStartParams({
+    exerciseIds: params.exerciseIds,
+    sets: params.sets,
+    warmUpSets: params.warmUpSets,
+    defaultSets: params.defaultSets,
+  });
+  const exerciseIds = plan.map((p) => p.exerciseId);
 
   const template = allTemplates().find((t) => t.id === templateId);
   const templateName = template?.name ?? 'Workout';
@@ -71,8 +79,7 @@ export default function WorkoutPreviewScreen() {
       pathname: '/active-workout',
       params: {
         templateId,
-        exerciseIds: exerciseIds.join(','),
-        ...(defaultSetsValid && { defaultSets: params.defaultSets! }),
+        ...encodeStartParams(plan),
       },
     });
   }
@@ -148,6 +155,9 @@ export default function WorkoutPreviewScreen() {
                   </Text>
                   <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
                     {muscleNames}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
+                    {formatTemplateSetLabel(plan[index]?.sets ?? 3, plan[index]?.warmUpSets ?? 0)}
                   </Text>
                   {prev ? (
                     <Text style={[typography.caption, styles.previous, { color: colors.primary }]}>

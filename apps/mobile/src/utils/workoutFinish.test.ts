@@ -3,6 +3,7 @@ import {
   finishFlowVariant,
   finishSaveOptions,
   templateListChanged,
+  templateStructureChanged,
   type FinishActionId,
 } from './workoutFinish';
 
@@ -26,6 +27,38 @@ describe('templateListChanged', () => {
 
   it('is true when an exercise is replaced', () => {
     expect(templateListChanged(['a', 'x', 'c'], ['a', 'b', 'c'])).toBe(true);
+  });
+});
+
+describe('templateStructureChanged', () => {
+  const slot = (exerciseId: string, sets: number, warmUpSets = 0) => ({
+    exerciseId,
+    sets,
+    warmUpSets,
+  });
+
+  it('is false when identity, order, and set counts all match', () => {
+    expect(
+      templateStructureChanged(
+        [slot('a', 3), slot('b', 5, 2)],
+        [slot('a', 3), slot('b', 5, 2)]
+      )
+    ).toBe(false);
+  });
+
+  it('is true when working or warm-up counts differ, even if the exercise list matches', () => {
+    expect(
+      templateStructureChanged([slot('a', 4), slot('b', 3)], [slot('a', 3), slot('b', 3)])
+    ).toBe(true);
+    expect(
+      templateStructureChanged([slot('a', 3, 2), slot('b', 3)], [slot('a', 3), slot('b', 3)])
+    ).toBe(true);
+  });
+
+  it('is true when the exercise list changed', () => {
+    expect(templateStructureChanged([slot('a', 3), slot('c', 3)], [slot('a', 3), slot('b', 3)])).toBe(
+      true
+    );
   });
 });
 

@@ -14,6 +14,7 @@ import type {
 import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
 import { STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
+import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
 
 const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
@@ -194,17 +195,25 @@ function migrateTemplateFromDays(t: Record<string, unknown>): WorkoutTemplate {
   return t as unknown as WorkoutTemplate;
 }
 
+function coerceWorkoutTemplate(t: Record<string, unknown>): WorkoutTemplate {
+  const base =
+    t.days && Array.isArray(t.days) && (t.days as unknown[]).length > 0
+      ? migrateTemplateFromDays(t)
+      : (t as unknown as WorkoutTemplate);
+  return normalizeWorkoutTemplate(base);
+}
+
 export async function getTemplates(): Promise<WorkoutTemplate[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.templates);
   if (!raw) return [];
   try {
     const list = JSON.parse(raw) as Record<string, unknown>[];
-    const migrated = list.map((t) =>
-      t.days && Array.isArray(t.days) && (t.days as unknown[]).length > 0
-        ? migrateTemplateFromDays(t)
-        : (t as unknown as WorkoutTemplate)
+    const migrated = list.map(coerceWorkoutTemplate);
+    const needsPersist = list.some(
+      (t) =>
+        (t.days && Array.isArray(t.days) && (t.days as unknown[]).length > 0) ||
+        t.defaultSets != null
     );
-    const needsPersist = list.some((t) => t.days && Array.isArray(t.days));
     if (needsPersist) await setTemplates(migrated);
     return migrated;
   } catch {

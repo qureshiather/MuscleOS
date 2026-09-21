@@ -22,6 +22,7 @@ import {
   isTemplateHidden,
   toggleHiddenId,
 } from '@/store/templatesLogic';
+import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
 
 export interface TemplatesState {
   userTemplates: WorkoutTemplate[];
@@ -74,14 +75,17 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
   },
 
   addTemplate: async (t) => {
-    const next = [...get().userTemplates, t];
+    const normalized = normalizeWorkoutTemplate(t);
+    const next = [...get().userTemplates, normalized];
     set({ userTemplates: next });
     await setTemplates(next);
-    notifyTemplateUpsert(t);
+    notifyTemplateUpsert(normalized);
   },
 
   updateTemplate: async (id, patch) => {
-    const next = get().userTemplates.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    const next = get().userTemplates.map((t) =>
+      t.id === id ? normalizeWorkoutTemplate({ ...t, ...patch }) : t
+    );
     set({ userTemplates: next });
     await setTemplates(next);
     const updated = next.find((t) => t.id === id);

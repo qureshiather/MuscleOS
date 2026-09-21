@@ -1,6 +1,6 @@
 import { AppState } from 'react-native';
 import { create } from 'zustand';
-import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
+import type { WorkoutSession, SessionExercise, SetRecord, TemplateExercise } from '@muscleos/types';
 import {
   getSessions,
   setSessions,
@@ -53,7 +53,7 @@ export interface ActiveWorkoutState {
   restAfter: RestAfter | null;
   /** Saved rest durations keyed by "exIdx-setIdx" for display after timer ends */
   restDurationsBetweenSets: Record<string, number>;
-  startWorkout: (templateId: string, exerciseIds: string[], defaultSets?: number) => void;
+  startWorkout: (templateId: string, plan: readonly TemplateExercise[]) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   /** Applies to all rests for this exercise (after each set, including the last). */
   setExerciseRestBetweenSets: (exerciseIndex: number, seconds: number) => void;
@@ -97,10 +97,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   restAfter: null,
   restDurationsBetweenSets: {},
 
-  startWorkout: (templateId, exerciseIds, defaultSets) => {
+  startWorkout: (templateId, plan) => {
     if (get().session) return; // Only one workout at a time
     set({
-      session: createEmptySession(templateId, exerciseIds, defaultSets),
+      session: createEmptySession(templateId, plan),
     });
   },
 

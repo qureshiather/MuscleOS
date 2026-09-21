@@ -1,5 +1,13 @@
-import type { SetRecord, SessionExercise, WorkoutSession } from '@muscleos/types';
+import type { SetRecord, SessionExercise, TemplateExercise, WorkoutSession } from '@muscleos/types';
 import type { PersistedActiveWorkout } from '@/storage/localStorage';
+import {
+  DEFAULT_SETS_PER_EXERCISE,
+  clampWarmUpSets,
+  clampWorkingSets,
+  type ResolvedTemplateExercise,
+} from '@/utils/templateExercises';
+
+export { DEFAULT_SETS_PER_EXERCISE } from '@/utils/templateExercises';
 
 /**
  * Pure session-transformation logic for the active workout.
@@ -10,7 +18,6 @@ import type { PersistedActiveWorkout } from '@/storage/localStorage';
  * them and persists the result.
  */
 
-export const DEFAULT_SETS_PER_EXERCISE = 3;
 export const DEFAULT_REST_SECONDS = 120;
 
 export interface RestAfter {
@@ -22,22 +29,28 @@ export function restKey(exIdx: number, setIdx: number): string {
   return `${exIdx}-${setIdx}`;
 }
 
-/** A new session with `defaultSets ?? 3` blank sets per exercise. */
+function plannedSetsForExercise(sets?: number, warmUpSets?: number): SetRecord[] {
+  const working = clampWorkingSets(sets);
+  const warmUps = clampWarmUpSets(warmUpSets);
+  const rows: SetRecord[] = [];
+  for (let i = 0; i < warmUps; i++) rows.push({ completed: false, isWarmUp: true });
+  for (let i = 0; i < working; i++) rows.push({ completed: false });
+  return rows;
+}
+
+/** A new session with the template's per-exercise working and warm-up rows. */
 export function createEmptySession(
   templateId: string,
-  exerciseIds: string[],
-  defaultSets?: number,
+  plan: readonly TemplateExercise[],
   now: number = Date.now()
 ): WorkoutSession {
-  const numSets = defaultSets ?? DEFAULT_SETS_PER_EXERCISE;
-  const sets = Array.from({ length: numSets }, () => ({ completed: false }));
   return {
     id: 'session_' + now,
     templateId,
     startedAt: new Date(now).toISOString(),
-    exercises: exerciseIds.map((exerciseId) => ({
-      exerciseId,
-      sets: sets.map((s) => ({ ...s })),
+    exercises: plan.map((item) => ({
+      exerciseId: item.exerciseId,
+      sets: plannedSetsForExercise(item.sets, item.warmUpSets),
     })),
   };
 }
@@ -234,10 +247,11 @@ export function shouldStartRestAfterComplete(set: Pick<SetRecord, 'isWarmUp'>): 
  * filled sets are left alone. Returns the patch to apply, or null when there is nothing to prefill.
  */
 export function startPrefillPatch(
-  set: Pick<SetRecord, 'weightKg' | 'reps'>,
+  set: Pick<SetRecord, 'weightKg' | 'reps' | 'isWarmUp'>,
   previous: PreviousSnapshot | undefined
 ): Partial<SetRecord> | null {
   if (!previous) return null;
+  if (set.isWarmUp === true) return null;
   if (set.weightKg != null || set.reps != null) return null;
   // Mark both fields as suggestions so the keypad overwrites them on the first digit
   // rather than making the user backspace an auto-loaded value.
@@ -280,15 +294,58 @@ export function buildReplacedExercise(
   };
 }
 
+export type StartWorkoutParams = {
+  exerciseIds?: string;
+  /** Parallel working-set counts, e.g. "3,5,3". */
+  sets?: string;
+  /** Parallel warm-up counts, e.g. "1,0,0". */
+  warmUpSets?: string;
+  /** Legacy template-wide working-set default. */
+  defaultSets?: string;
+};
+
+function parseCountList(raw: string | undefined, length: number): Array<number | undefined> {
+  if (raw == null || raw === '') return Array.from({ length });
+  const parts = raw.split(',');
+  return Array.from({ length }, (_, i) => {
+    const n = parseInt(parts[i] ?? '', 10);
+    return Number.isNaN(n) ? undefined : n;
+  });
+}
+
+function parsePositiveInt(raw?: string): number | undefined {
+  if (raw == null || raw === '') return undefined;
+  const n = parseInt(raw, 10);
+  return !Number.isNaN(n) && n > 0 ? n : undefined;
+}
+
 /** Parsed route params for starting a workout from a deep link / template preview. */
-export function parseStartParams(exerciseIds?: string, defaultSets?: string): {
-  exerciseIds: string[];
-  defaultSets: number | undefined;
+export function parseStartParams(params: StartWorkoutParams = {}): ResolvedTemplateExercise[] {
+  const ids = (params.exerciseIds ?? '').split(',').filter(Boolean);
+  const fallbackSets = parsePositiveInt(params.defaultSets) ?? DEFAULT_SETS_PER_EXERCISE;
+  const working = parseCountList(params.sets, ids.length);
+  const warmUps = parseCountList(params.warmUpSets, ids.length);
+  return ids.map((exerciseId, i) => ({
+    exerciseId,
+    sets: clampWorkingSets(working[i], fallbackSets),
+    warmUpSets: clampWarmUpSets(warmUps[i]),
+  }));
+}
+
+/** Encode a plan for `/workout-preview` and `/active-workout` route params. */
+export function encodeStartParams(plan: readonly ResolvedTemplateExercise[]): {
+  exerciseIds: string;
+  sets?: string;
+  warmUpSets?: string;
 } {
-  const ids = (exerciseIds ?? '').split(',').filter(Boolean);
-  const parsed = defaultSets != null ? parseInt(defaultSets, 10) : NaN;
-  const sets = !Number.isNaN(parsed) && parsed > 0 ? parsed : undefined;
-  return { exerciseIds: ids, defaultSets: sets };
+  const exerciseIds = plan.map((p) => p.exerciseId).join(',');
+  const allDefaultSets = plan.every((p) => p.sets === DEFAULT_SETS_PER_EXERCISE);
+  const allNoWarmUp = plan.every((p) => p.warmUpSets === 0);
+  return {
+    exerciseIds,
+    ...(!allDefaultSets && { sets: plan.map((p) => String(p.sets)).join(',') }),
+    ...(!allNoWarmUp && { warmUpSets: plan.map((p) => String(p.warmUpSets)).join(',') }),
+  };
 }
 
 export interface HydratedState {

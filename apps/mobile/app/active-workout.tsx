@@ -61,7 +61,7 @@ import {
 import {
   finishFlowVariant,
   finishSaveOptions,
-  templateListChanged as computeTemplateListChanged,
+  templateStructureChanged as computeTemplateStructureChanged,
 } from '@/utils/workoutFinish';
 import { isCurrentSet as computeIsCurrentSet, setLabel } from '@/utils/workoutSetView';
 import {
@@ -70,6 +70,11 @@ import {
   shouldStartRestAfterComplete,
   startPrefillPatch,
 } from '@/store/activeWorkoutLogic';
+import {
+  resolveTemplateExercises,
+  serializeTemplateExercises,
+  templateExercisesFromSession,
+} from '@/utils/templateExercises';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -498,6 +503,8 @@ export default function ActiveWorkoutScreen() {
   const params = useLocalSearchParams<{
     templateId?: string;
     exerciseIds?: string;
+    sets?: string;
+    warmUpSets?: string;
     defaultSets?: string;
   }>();
   const session = useActiveWorkoutStore((s) => s.session);
@@ -694,14 +701,18 @@ export default function ActiveWorkoutScreen() {
       return;
     }
     startedFromParamsRef.current = true;
-    const { exerciseIds: ids, defaultSets: sets } = parseStartParams(
-      params.exerciseIds,
-      params.defaultSets
-    );
-    startWorkout(params.templateId, ids, sets);
+    const plan = parseStartParams({
+      exerciseIds: params.exerciseIds,
+      sets: params.sets,
+      warmUpSets: params.warmUpSets,
+      defaultSets: params.defaultSets,
+    });
+    startWorkout(params.templateId, plan);
   }, [
     params.templateId,
     params.exerciseIds,
+    params.sets,
+    params.warmUpSets,
     params.defaultSets,
     session,
     startWorkout,
@@ -841,7 +852,7 @@ export default function ActiveWorkoutScreen() {
         return;
       }
       await updateTemplate(session.templateId, {
-        exerciseIds: session.exercises.map((e) => e.exerciseId),
+        ...serializeTemplateExercises(templateExercisesFromSession(session.exercises)),
       });
     }
 
@@ -906,8 +917,8 @@ export default function ActiveWorkoutScreen() {
       await addTemplate({
         id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         name,
-        exerciseIds: session.exercises.map((e) => e.exerciseId),
         isBuiltIn: false,
+        ...serializeTemplateExercises(templateExercisesFromSession(session.exercises)),
       });
       setSaveAsTemplateName('');
       await handleFinish(false);
@@ -1064,11 +1075,12 @@ export default function ActiveWorkoutScreen() {
 
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
   const isNoTemplateWorkout = session.templateId === '_empty';
-  const templateExerciseIds = currentTemplate?.exerciseIds ?? [];
-  const sessionExerciseIds = session.exercises.map((e) => e.exerciseId);
   const templateListChanged =
     currentTemplate != null &&
-    computeTemplateListChanged(sessionExerciseIds, templateExerciseIds);
+    computeTemplateStructureChanged(
+      templateExercisesFromSession(session.exercises),
+      resolveTemplateExercises(currentTemplate)
+    );
   const finishFlowInput = {
     isEmpty: isNoTemplateWorkout,
     isBuiltIn: isBuiltInWorkout,

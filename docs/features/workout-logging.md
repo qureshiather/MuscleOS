@@ -53,12 +53,13 @@ writes it), rest-pause, tempo, or duration/distance-based work. Every set is wei
 
 | Entry point | Route params |
 |-------------|--------------|
-| Template (built-in or custom) | Home → preview → `/active-workout` with `templateId`, `exerciseIds`, optional `defaultSets` |
+| Template (built-in or custom) | Home → preview → `/active-workout` with `templateId`, `exerciseIds`, optional parallel `sets` / `warmUpSets` (legacy `defaultSets` still accepted) |
 | Empty / ad-hoc workout (Pro) | Home → `/active-workout` with `templateId: '_empty'`, no exercises |
 | Resume | Tab-bar pill, notification tap, or the "Workout in progress" themed dialog — no params |
 | Deep link | `muscleos:///active-workout`, and notifications carrying `screen: 'active-workout'` |
 
-A new session creates `defaultSets ?? 3` blank sets per exercise.
+A new session creates each exercise's template plan: `warmUpSets` (default 0) blank warm-up
+rows, then `sets` (default 3) blank working rows. Strong Lifts slots ship with 5 working sets.
 
 **Pro gates are enforced here, not only on the home screen**, because `/active-workout` is
 reachable directly by deep link and notification tap: starting `_empty` needs `empty_workout`
@@ -118,12 +119,13 @@ Prefill rules:
 
 | When | Behaviour |
 |------|-----------|
-| Session starts | For any set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Partially filled sets are left alone. |
+| Session starts | For any **working** set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Warm-up rows are left empty. Partially filled sets are left alone. |
 | Add or replace exercise | Same as session start, for the **new** exercise's snapshot. A replace discards the old movement's set values first — they are not carried over. |
 | Completing a set | Copy that set's weight (not reps) into the next set if the next set's weight is empty — only when both are the same kind (warm-up vs working). |
 | Adding a set | Copy the last set's weight and reps if present. |
 
-Template targets are never used, because templates don't store any.
+Template targets are never used for weight or reps — only the number of warm-up and working
+rows comes from the template.
 
 **Prefilled values are suggestions, not typed input.** Each prefilled field is flagged
 (`weightPrefilled` / `repsPrefilled`) and rendered as muted ghost text. On the number pad the
@@ -255,16 +257,19 @@ for the **Add** flow, or swapped in for the **Replace** flow.
 ## Finish flow
 
 **Finish** is enabled once any set is completed. It opens a summary modal whose options depend on
-what you started from and whether you changed the exercise list:
+what you started from and whether you changed the template — the exercise list *or* per-exercise
+working/warm-up row counts (incomplete rows still count):
 
 | Started from | Options |
 |--------------|---------|
 | Empty workout | Save as template (Pro) · Save values only · Discard |
-| Built-in, list changed | Save as new template (Pro) · Save values only · Discard |
-| Custom, list changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard |
-| List unchanged | Save values · Discard |
+| Built-in, list or set structure changed | Save as new template (Pro) · Save values only · Discard |
+| Custom, list or set structure changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard |
+| Unchanged | Save values · Discard |
 
-"Overwrite" updates only the template's `exerciseIds` — names and folders are untouched.
+"Overwrite" updates the template's `exerciseIds` and per-exercise set structure from the
+session (working vs warm-up row counts, including incomplete rows) — names and folders are
+untouched. **Save as template** writes the same structure onto a new custom template.
 
 Choosing **Save as template** / **Save as new template** swaps the summary to a name step
 **within the same modal** (Save · Back) where you name the template before it's created. This is a
@@ -292,7 +297,7 @@ them, so there is no cached value to invalidate. See
 
 | Constant | Value |
 |----------|------:|
-| Default sets per exercise | 3 |
+| Default working sets per exercise | 3 |
 | Default rest | 120 s |
 | Rest adjust step / floor | 30 s / 30 s |
 | Persist debounce | 400 ms |
@@ -328,19 +333,21 @@ screen (`active-workout.tsx`) import these, so the tests cover the real logic ra
 
 Covered:
 
-- `src/store/activeWorkoutLogic.test.ts` — `createEmptySession` (default 3 / `defaultSets`),
+- `src/store/activeWorkoutLogic.test.ts` — `createEmptySession` (default 3 working / optional
+  warm-ups / per-exercise counts),
   set-complete weight prefill (same warm-up/working kind only, never reps), add-set carry-over,
   `bestCompletedSet` / `buildPreviousSnapshot` (highest weight then reps; can move down; keeps a
   prior snapshot when nothing qualifies), warm-up insert bumping rest keys, rest-key remap on
   reorder / remove / replace, `canCompleteSet` (`reps > 0`), `shouldStartRestAfterComplete` (warm-ups don't),
-  `startPrefillPatch` (empty sets only, flagged as suggestions), suggestion flags set on
+  `startPrefillPatch` (empty **working** sets only, flagged as suggestions; warm-ups skipped), suggestion flags set on
   prefill/carry-over and cleared on complete, `stripPrefillFlags` (dropped before save),
   `buildReplacedExercise` (resets to default sets and prefills from the **new** exercise, not
-  the one it replaced), `parseStartParams`, and `normalizeHydratedState` (an expired rest timer
+  the one it replaced), `parseStartParams` / `encodeStartParams`, and `normalizeHydratedState` (an expired rest timer
   is dropped on boot)
 - `src/utils/workoutSetView.test.ts` — warm-up (`W1…`) vs working (`1,2,3…`) numbering and the
   single "current" set rule (first incomplete set of the first unfinished exercise)
-- `src/utils/workoutFinish.test.ts` — `templateListChanged`, the finish `variant` classifier, and
+- `src/utils/workoutFinish.test.ts` — `templateListChanged`, `templateStructureChanged` (set/warm-up
+  counts count as a change), the finish `variant` classifier, and
   the save-options matrix: a built-in is never offered "Overwrite"; a changed built-in only forks
   to a new template (Pro); a changed custom offers Overwrite + Save-as-new (both Pro)
 - `src/storage/localStorage.activeWorkout.test.ts` — the persist/resume round-trip through the
