@@ -252,6 +252,7 @@ on read:
 | Migration | Where |
 |-----------|-------|
 | Template `days[]` → flat `exerciseIds` | `migrateTemplateFromDays()` on read |
+| Template `defaultSets` → per-exercise `exercises` | `normalizeWorkoutTemplate()` on read (and on every custom-template write) |
 | Legacy lb/in preference → `unit_system: imperial` | `getAppSettings` / `settingsStore.load` |
 | Remote `app_settings` missing `themePreference` | `normalizeAppSettings()` |
 | Any persisted subscription tier other than `'pro'` → `'basic'` | `getSubscription()` in `localStorage.ts` |

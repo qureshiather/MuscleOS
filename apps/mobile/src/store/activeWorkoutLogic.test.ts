@@ -14,6 +14,7 @@ import {
   createPrefillingSets,
   dropRestKeysForExercise,
   dropRestKeysForRemovedSet,
+  encodeStartParams,
   normalizeHydratedState,
   oldToNewForRemove,
   oldToNewForReorder,
@@ -26,23 +27,52 @@ import {
 } from './activeWorkoutLogic';
 
 describe('createEmptySession', () => {
-  it('creates 3 blank sets per exercise by default', () => {
-    const s = createEmptySession('_empty', ['a', 'b'], undefined, 1000);
+  it('creates 3 blank working sets per exercise by default', () => {
+    const s = createEmptySession(
+      '_empty',
+      [{ exerciseId: 'a' }, { exerciseId: 'b' }],
+      1000
+    );
     expect(s.templateId).toBe('_empty');
     expect(s.id).toBe('session_1000');
     expect(s.exercises).toHaveLength(2);
     expect(s.exercises[0].sets).toHaveLength(3);
-    expect(s.exercises[0].sets.every((set) => set.completed === false)).toBe(true);
+    expect(s.exercises[0].sets.every((set) => set.completed === false && set.isWarmUp !== true)).toBe(
+      true
+    );
     expect(s.completedAt).toBeUndefined();
   });
 
-  it('honours defaultSets (e.g. Strong Lifts 5x5)', () => {
-    const s = createEmptySession('sl-a', ['squat'], 5, 1000);
+  it('honours per-exercise working sets (e.g. Strong Lifts 5x5)', () => {
+    const s = createEmptySession('sl-a', [{ exerciseId: 'squat', sets: 5 }], 1000);
     expect(s.exercises[0].sets).toHaveLength(5);
+    expect(s.exercises[0].sets.every((set) => set.isWarmUp !== true)).toBe(true);
+  });
+
+  it('prepends warm-up rows before working sets', () => {
+    const s = createEmptySession(
+      't',
+      [{ exerciseId: 'bench-press', sets: 3, warmUpSets: 2 }],
+      1000
+    );
+    expect(s.exercises[0].sets).toEqual([
+      { completed: false, isWarmUp: true },
+      { completed: false, isWarmUp: true },
+      { completed: false },
+      { completed: false },
+      { completed: false },
+    ]);
   });
 
   it('gives every exercise its own independent set objects', () => {
-    const s = createEmptySession('t', ['a', 'b'], 2, 1000);
+    const s = createEmptySession(
+      't',
+      [
+        { exerciseId: 'a', sets: 2 },
+        { exerciseId: 'b', sets: 2 },
+      ],
+      1000
+    );
     s.exercises[0].sets[0].completed = true;
     expect(s.exercises[1].sets[0].completed).toBe(false);
   });
@@ -265,6 +295,10 @@ describe('startPrefillPatch', () => {
   it('does nothing when there is no previous snapshot', () => {
     expect(startPrefillPatch({}, undefined)).toBeNull();
   });
+
+  it('does not prefill warm-up sets from the previous working snapshot', () => {
+    expect(startPrefillPatch({ isWarmUp: true }, previous)).toBeNull();
+  });
 });
 
 describe('createPrefillingSets', () => {
@@ -330,7 +364,7 @@ describe('buildReplacedExercise', () => {
 
 describe('stripPrefillFlags', () => {
   it('removes prefill flags from every set without mutating the input', () => {
-    const session = createEmptySession('t', ['a'], 1, 1000);
+    const session = createEmptySession('t', [{ exerciseId: 'a', sets: 1 }], 1000);
     session.exercises[0].sets[0] = {
       completed: false,
       weightKg: 80,
@@ -347,15 +381,51 @@ describe('stripPrefillFlags', () => {
 
 describe('parseStartParams', () => {
   it('splits a comma-separated exercise id list, dropping blanks', () => {
-    expect(parseStartParams('a,b,,c').exerciseIds).toEqual(['a', 'b', 'c']);
-    expect(parseStartParams(undefined).exerciseIds).toEqual([]);
+    expect(parseStartParams({ exerciseIds: 'a,b,,c' }).map((p) => p.exerciseId)).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+    expect(parseStartParams({}).map((p) => p.exerciseId)).toEqual([]);
   });
 
-  it('parses a positive defaultSets and ignores invalid or non-positive values', () => {
-    expect(parseStartParams('a', '5').defaultSets).toBe(5);
-    expect(parseStartParams('a', '0').defaultSets).toBeUndefined();
-    expect(parseStartParams('a', 'abc').defaultSets).toBeUndefined();
-    expect(parseStartParams('a', undefined).defaultSets).toBeUndefined();
+  it('uses per-exercise sets and warm-ups, defaulting to 3 / 0', () => {
+    expect(parseStartParams({ exerciseIds: 'a,b', sets: '4,5', warmUpSets: '1,0' })).toEqual([
+      { exerciseId: 'a', sets: 4, warmUpSets: 1 },
+      { exerciseId: 'b', sets: 5, warmUpSets: 0 },
+    ]);
+    expect(parseStartParams({ exerciseIds: 'a' })).toEqual([
+      { exerciseId: 'a', sets: 3, warmUpSets: 0 },
+    ]);
+  });
+
+  it('falls back to a positive defaultSets when the sets list is absent', () => {
+    expect(parseStartParams({ exerciseIds: 'a,b', defaultSets: '5' })).toEqual([
+      { exerciseId: 'a', sets: 5, warmUpSets: 0 },
+      { exerciseId: 'b', sets: 5, warmUpSets: 0 },
+    ]);
+    expect(parseStartParams({ exerciseIds: 'a', defaultSets: '0' })[0].sets).toBe(3);
+    expect(parseStartParams({ exerciseIds: 'a', defaultSets: 'abc' })[0].sets).toBe(3);
+  });
+});
+
+describe('encodeStartParams', () => {
+  it('omits sets and warm-ups when every slot is the 3 / 0 default', () => {
+    expect(
+      encodeStartParams([
+        { exerciseId: 'a', sets: 3, warmUpSets: 0 },
+        { exerciseId: 'b', sets: 3, warmUpSets: 0 },
+      ])
+    ).toEqual({ exerciseIds: 'a,b' });
+  });
+
+  it('writes parallel count lists when any slot is non-default', () => {
+    expect(
+      encodeStartParams([
+        { exerciseId: 'a', sets: 5, warmUpSets: 2 },
+        { exerciseId: 'b', sets: 3, warmUpSets: 0 },
+      ])
+    ).toEqual({ exerciseIds: 'a,b', sets: '5,3', warmUpSets: '2,0' });
   });
 });
 

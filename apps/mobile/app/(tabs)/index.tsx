@@ -39,6 +39,8 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
 import type { WorkoutTemplate, TemplateFolder, MuscleId } from '@muscleos/types';
+import { encodeStartParams } from '@/store/activeWorkoutLogic';
+import { resolveTemplateExercises } from '@/utils/templateExercises';
 
 const ARCHIVED_SECTION = '_archived';
 const HIDDEN_CUSTOM_SECTION = '_hidden_custom';
@@ -472,8 +474,7 @@ export default function WorkoutsScreen() {
       pathname: '/workout-preview',
       params: {
         templateId: template.id,
-        exerciseIds: template.exerciseIds.join(','),
-        ...(template.defaultSets != null && { defaultSets: String(template.defaultSets) }),
+        ...encodeStartParams(resolveTemplateExercises(template)),
       },
     });
   }

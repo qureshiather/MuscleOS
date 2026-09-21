@@ -69,7 +69,11 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
     isBuiltIn: true,
     folderId: 'builtin_sl',
     exerciseIds: ['squat', 'bench-press', 'barbell-row'],
-    defaultSets: 5,
+    exercises: [
+      { exerciseId: 'squat', sets: 5 },
+      { exerciseId: 'bench-press', sets: 5 },
+      { exerciseId: 'barbell-row', sets: 5 },
+    ],
   },
   {
     id: 'sl-b',
@@ -78,7 +82,11 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
     isBuiltIn: true,
     folderId: 'builtin_sl',
     exerciseIds: ['squat', 'overhead-press', 'deadlift'],
-    defaultSets: 5,
+    exercises: [
+      { exerciseId: 'squat', sets: 5 },
+      { exerciseId: 'overhead-press', sets: 5 },
+      { exerciseId: 'deadlift', sets: 5 },
+    ],
   },
 ];
 

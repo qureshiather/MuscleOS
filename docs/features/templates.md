@@ -1,15 +1,15 @@
 # Workout Templates
 
-A template is an **ordered list of exercises** with a name. That is nearly all it is — templates
-do not carry target weights, reps, or per-exercise rest. Prescription is deliberately absent;
-the app records what you did rather than telling you what to do.
+A template is an **ordered list of exercises** with a name, plus how many working and warm-up
+sets each exercise should start with. Templates still do not carry target weights, reps, or
+per-exercise rest — they prescribe structure, not load.
 
 | | |
 |--|--|
 | Home screen | `apps/mobile/app/(tabs)/index.tsx` (tab title **Workouts**) |
 | Create / edit | `apps/mobile/app/create-template.tsx` |
 | Preview | `apps/mobile/app/workout-preview.tsx` |
-| Store | `apps/mobile/src/store/templatesStore.ts` |
+| Store | `apps/mobile/src/store/templatesStore.ts`, `src/utils/templateExercises.ts` |
 | Built-in content | `apps/mobile/src/data/builtInTemplates.ts` |
 | Suggestions | `apps/mobile/src/utils/recommendTemplates.ts` |
 | Home headline | `apps/mobile/src/utils/homeStats.ts` |
@@ -21,15 +21,22 @@ the app records what you did rather than telling you what to do.
 `packages/types/src/workout.ts`:
 
 ```ts
+interface TemplateExercise {
+  exerciseId: string;
+  sets?: number;         // working sets; omitted → 3
+  warmUpSets?: number;   // omitted → 0
+}
+
 interface WorkoutTemplate {
   id: string;
   name: string;
   description?: string;
-  exerciseIds: string[];   // ordered
-  defaultSets?: number;    // omitted → 3
+  exerciseIds: string[];          // ordered; kept in sync with exercises
+  exercises?: TemplateExercise[]; // per-exercise set structure
+  defaultSets?: number;           // legacy template-wide default; unused once exercises is present
   isBuiltIn?: boolean;
   folderId?: string;
-  hidden?: boolean;        // custom templates only
+  hidden?: boolean;               // custom templates only
 }
 
 interface TemplateFolder {
@@ -40,9 +47,15 @@ interface TemplateFolder {
 }
 ```
 
-Notably absent: sets/reps/rest per exercise, supersets, and any notion of a program week or
-day sequence. A template with `defaultSets: 5` (Strong Lifts) only changes how many blank set
-rows are created when the workout starts.
+`exerciseIds` stays the ordered list every reader already uses. `exercises` is the per-exercise
+plan written on every custom-template save. Omitted `sets` means 3 working sets; omitted
+`warmUpSets` means 0. `defaultSets` is only a read fallback for templates stored before this
+field existed — Strong Lifts used to set `defaultSets: 5` for the whole workout; it now stores
+`sets: 5` on each slot instead.
+
+Notably absent: target weight/reps, rest, supersets, and any notion of a program week or day
+sequence. The set counts only change how many blank warm-up and working rows are created when
+the workout starts.
 
 ## Built-in vs custom
 
@@ -84,7 +97,7 @@ against the exercise catalog in `src/data/builtInTemplates.test.ts`).
 |--------|-----------|---------------:|
 | **Push Pull Legs** (`builtin_ppl`) | Push, Pull, Legs | 6 |
 | **Upper Lower Splits** (`builtin_ul`) | Upper A, Lower A, Upper B, Lower B | 6 |
-| **Strong Lifts 5x5** (`builtin_sl`) | Workout A, Workout B | 3, `defaultSets: 5` |
+| **Strong Lifts 5x5** (`builtin_sl`) | Workout A, Workout B | 3 (5 working sets each) |
 
 Every `exerciseId` in a built-in template is asserted to exist in `CATALOG_SEED`, so a shipped
 template can never reference a missing exercise.
@@ -157,8 +170,11 @@ Flow:
 1. **Name** — required text input.
 2. **Folder** — chips, shown only if folders exist.
 3. **Exercises** — ordered list; long-press a handle to drag-reorder when there's more than one.
+   Each row has **Sets** (default 3, min 1) and **Warm-up** (default 0) steppers. Those counts
+   become the blank rows created when the workout starts — warm-ups first, then working sets.
 4. **Add exercises** — bottom sheet with search. If the search has no match, offers
-   **Create "<query>"** which routes to `/create-exercise`.
+   **Create "<query>"** which routes to `/create-exercise`. New exercises start at 3 working sets
+   and 0 warm-ups.
 5. **Muscles used** — body diagram derived from the selected exercises.
 6. **Save**.
 
@@ -183,7 +199,8 @@ remove a template from a folder.
 what you're in for and what you lifted last time.
 
 Shows a **Muscles used** diagram, `<N> exercises · review, then start`, and one card per
-exercise with its index, name, muscle labels, **Previous** (`weight × reps` from the best
+exercise with its index, name, muscle labels, the template's set prescription
+(`3 sets` or `2 warm-ups · 5 sets`), **Previous** (`weight × reps` from the best
 weighted set in the most recent qualifying session, or `—`), and a rest badge.
 
 > The rest badge always shows the app default of **2:00** — it is not template-specific, because
@@ -260,8 +277,8 @@ enforced at every entry point into a workout. See
 
 | Assumption | Note |
 |------------|------|
-| A template is just an **ordered exercise list** | No target weight, reps, rest, or supersets |
-| Default **3 sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden only by `defaultSets` on Strong Lifts (5) |
+| A template is an ordered exercise list **plus set structure** | Working sets default to 3, warm-ups to 0; no target weight, reps, rest, or supersets |
+| Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot |
 | Built-in templates are **immutable**; hide, don't delete | Keeps ids stable for historical sessions |
 | Custom templates require Pro to **run**, not only to create | Lapsed subscribers keep the data, visible but locked |
 | Templates are single-day | No program/week/phase structure |
@@ -274,7 +291,11 @@ enforced at every entry point into a workout. See
 Covered:
 
 - `src/data/builtInTemplates.test.ts` — folder ids, every template in a folder, hide-by-folder
-  vs hide-by-template, and **every built-in `exerciseId` exists in the catalog**
+  vs hide-by-template, **every built-in `exerciseId` exists in the catalog**, and Strong Lifts
+  resolves to 5 working sets / 0 warm-ups per exercise
+- `src/utils/templateExercises.test.ts` — resolve (defaults, legacy `defaultSets`, per-exercise
+  override, leftover-`defaultSets` ignored once `exercises` exists), serialize compact form,
+  normalize dropping `defaultSets`, session-to-template set counts, and set-label copy
 - `src/utils/homeStats.test.ts` — Monday-week counting, streak surviving a fresh week, streak
   breaking on a missed week, all headline branches
 - `src/utils/recommendTemplates.test.ts` — skips mostly-recovering templates; diversifies away

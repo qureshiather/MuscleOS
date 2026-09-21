@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATALOG_SEED } from './catalogSeed';
+import { resolveTemplateExercises } from '@/utils/templateExercises';
 import {
   BUILT_IN_FOLDERS,
   BUILT_IN_TEMPLATES,
@@ -51,5 +52,14 @@ describe('built-in templates', () => {
       t.exerciseIds.filter((id) => !catalogIds.has(id)).map((id) => `${t.id}:${id}`)
     );
     expect(missing).toEqual([]);
+  });
+
+  it('starts Strong Lifts with 5 working sets per exercise', () => {
+    for (const id of ['sl-a', 'sl-b']) {
+      const template = BUILT_IN_TEMPLATES.find((t) => t.id === id)!;
+      expect(resolveTemplateExercises(template).every((ex) => ex.sets === 5 && ex.warmUpSets === 0)).toBe(
+        true
+      );
+    }
   });
 });
