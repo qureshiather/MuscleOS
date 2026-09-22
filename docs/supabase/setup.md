@@ -188,4 +188,6 @@ In the hosted project → Authentication → URL configuration:
 - Site URL: `https://muscleos.app`
 - Additional redirect URLs: `https://muscleos.app/auth/confirm` and `muscleos://**`
 
-Authentication → Providers → Email: turn **Confirm email** on before store review. Until that is on, signup still creates a session immediately. The app already blocks sign-in when Supabase says the email is not confirmed.
+Authentication → Providers → Email: **Confirm email** is on. Signup does not create a session until the address is confirmed. The app blocks sign-in and shows a themed dialog when Supabase says the email is not confirmed.
+
+Day-to-day changes for mail, Google, and Apple are in [operations/live-services.md](../operations/live-services.md).

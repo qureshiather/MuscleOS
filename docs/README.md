@@ -31,6 +31,7 @@ the product assumptions baked in, and its tier gating.
 |-----|----------------|
 | [engineering/testing.md](engineering/testing.md) | Current test coverage and infrastructure by feature |
 | [supabase/setup.md](supabase/setup.md) | Supabase schema, exercise catalog, sync tables, local setup |
+| [operations/live-services.md](operations/live-services.md) | Day-to-day management of Supabase, Resend, Google, and Apple |
 | [mobile/eas-build.md](mobile/eas-build.md) | EAS build profiles, env vars, store submission |
 
 ## Commercial / billing
