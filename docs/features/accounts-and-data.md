@@ -85,8 +85,9 @@ local then takes remote on sync — sessions, templates, customs, notes, previou
 
 **Email does not** upgrade the current guest in place — `signUp`/`signInWithPassword` is always a
 different user id unless that email already belongs to an Apple or Google account. Cloud backup is
-**per email**: Apple, Google, or a password with the same address is the same MuscleOS account. The
-sign-in screens and Profile Account state that; Delete account warns that all three go together.
+**per email**: Apple, Google, or a password with the same address is the same MuscleOS account. That
+is stated on the email sign-in and create-account screen, and again on Delete account. Profile and
+the method picker only say why to sign in. Privacy and Terms state the rule in full.
 
 **On an in-place link**, `onAccountLinked()` uploads a full snapshot of local data and then syncs.
 **On signing into an existing account** (new device, or email password), the app `syncNow()` —
@@ -145,10 +146,10 @@ unused by any surfaced feature.
 
 **Account** is identity plus the account-owned destinations. Linked accounts show the sign-in
 provider as **Apple ID**, **Google**, or **Email** (resolved from Supabase identities, not the
-anonymous bootstrap provider), then display name, email, and a caption that cloud data is stored
-per email (Apple / Google / password with the same address is one account). Then a tap-to-sync
-row and Sign out. Guests see a Sign in CTA plus the same per-email caption. Sign out does not wipe
-local workouts.
+anonymous bootstrap provider), then display name and email. Then a tap-to-sync row and Sign out.
+Guests see “Sign in to back up your data and restore Pro on any device.” and a Sign in CTA. The
+method picker says linking an account backs up your data and restores Pro on any device. Sign
+out does not wipe local workouts.
 
 Rows under Account: Subscription, Data (`/data`), Delete account (linked only), Privacy Policy,
 Terms of Service. Legal lives only here — Settings does not repeat it.

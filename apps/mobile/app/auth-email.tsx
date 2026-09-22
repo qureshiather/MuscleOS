@@ -15,7 +15,6 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
-import { ACCOUNT_PER_EMAIL_COPY } from '@/auth/accountCopy';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PasswordField } from '@/components/ui/PasswordField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -91,9 +90,7 @@ export default function AuthEmailScreen() {
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
           {resetting
             ? 'We will email a link to reset the password if the email exists.'
-            : isSignIn
-              ? 'If you already used Apple or Google with this email, this is the same account — not a second backup.'
-              : ACCOUNT_PER_EMAIL_COPY}
+            : 'If you already used Apple or Google with this email, this is the same account.'}
         </Text>
 
         {!resetting ? (

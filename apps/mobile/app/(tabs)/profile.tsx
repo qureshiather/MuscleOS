@@ -26,7 +26,6 @@ import { syncNow } from '@/sync';
 import { formatRelative } from '@/utils/relativeTime';
 import { LEGAL_URLS } from '@/subscription/legal';
 import { authProviderLabel, linkedAuthProvider } from '@/auth/accountProvider';
-import { ACCOUNT_PER_EMAIL_COPY } from '@/auth/accountCopy';
 
 export default function ProfileScreen() {
   const { colors, setTheme } = useTheme();
@@ -295,11 +294,6 @@ export default function ProfileScreen() {
                 <Text style={[typography.body, { color: colors.textSecondary }]} numberOfLines={1}>
                   {authProfile?.email ?? 'Account linked'}
                 </Text>
-                {authProfile?.email ? (
-                  <Text style={[typography.caption, styles.emailNote, { color: colors.textMuted }]}>
-                    {ACCOUNT_PER_EMAIL_COPY}
-                  </Text>
-                ) : null}
               </View>
               <Pressable
                 onPress={() => void handleSyncTap()}
@@ -340,7 +334,7 @@ export default function ProfileScreen() {
           ) : (
             <>
               <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
-                Sign in to subscribe and restore purchases on other devices. {ACCOUNT_PER_EMAIL_COPY}
+                Sign in to back up your data and restore Pro on any device.
               </Text>
               <PrimaryButton label="Sign in" onPress={() => router.push('/auth')} />
             </>
@@ -537,7 +531,6 @@ const styles = StyleSheet.create({
   scrollExtra: { paddingBottom: 40 },
   section: { marginBottom: spacing.md },
   accountInfo: { marginBottom: spacing.sm },
-  emailNote: { marginTop: spacing.sm },
   providerRow: {
     flexDirection: 'row',
     alignItems: 'center',

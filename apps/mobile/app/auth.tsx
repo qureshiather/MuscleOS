@@ -8,7 +8,6 @@ import { radius, spacing, touch } from '@/theme/tokens';
 import { useScreenGutter } from '@/theme/layout';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
-import { ACCOUNT_PER_EMAIL_COPY } from '@/auth/accountCopy';
 
 export default function AuthScreen() {
   const { colors, isDark } = useTheme();
@@ -41,7 +40,7 @@ export default function AuthScreen() {
         <View style={styles.header}>
           <Text style={[typography.sectionTitle, styles.headerText, { color: colors.text }]}>Sign in</Text>
           <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-            Link an account to subscribe and restore Pro on any device. {ACCOUNT_PER_EMAIL_COPY}
+            Link an account to back up your data and restore Pro on any device.
           </Text>
         </View>
         {Platform.OS === 'ios' && (
