@@ -1652,19 +1652,11 @@ export default function ActiveWorkoutScreen() {
                           isFuture={isFutureSet}
                           colors={colors}
                         />
-                        <Text
-                          style={[
-                            styles.setRestDuration,
-                            {
-                              color: colors.textMuted,
-                              opacity: set.completed && recordedRestSec != null ? 1 : 0,
-                            },
-                          ]}
-                        >
-                          {set.completed && recordedRestSec != null
-                            ? formatElapsed(recordedRestSec * 1000)
-                            : '0:00'}
-                        </Text>
+                        {set.completed && recordedRestSec != null ? (
+                          <Text style={[styles.setRestDuration, { color: colors.textMuted }]}>
+                            {formatElapsed(recordedRestSec * 1000)}
+                          </Text>
+                        ) : null}
                       </Pressable>
                       <View style={colPrevStyle}>
                         <Text
@@ -1775,7 +1767,11 @@ export default function ActiveWorkoutScreen() {
                     key={setIdx}
                     style={[
                       styles.setStatusBlock,
-                      { backgroundColor: rowBg, borderBottomColor: colors.border },
+                      {
+                        backgroundColor: rowBg,
+                        borderBottomColor: colors.border,
+                        borderBottomWidth: setIdx === se.sets.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                      },
                     ]}
                     accessibilityState={isCurrentSet ? { selected: true } : undefined}
                   >
@@ -2790,6 +2786,7 @@ const styles = StyleSheet.create({
   tableInset: {
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
   tableHeaderStrip: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -3169,14 +3166,9 @@ const styles = StyleSheet.create({
   addSetBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    marginHorizontal: 6,
-    marginBottom: 4,
-    marginTop: 2,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    minHeight: 40,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    minHeight: 44,
   },
   addSetBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   addExerciseBtn: {

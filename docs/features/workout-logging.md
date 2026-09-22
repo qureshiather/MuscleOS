@@ -105,7 +105,7 @@ Columns: **SET · PREVIOUS · KG/LB · REPS · Done**.
 - Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including those in later exercises — renders muted with an outlined number; there is never more than one highlighted set at a time.
 - Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint.
 - When every set in an exercise is completed, the card is marked done: a green border and a **Done** badge in its header.
-- After a set is completed, the actual rest taken is displayed under its number.
+- After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
 - A fixed rest slot sits under the current working set (and under the resting set while the timer runs) so completing a set does not shove the rows below. The slot is empty until rest starts; the countdown fills that same space. Warm-ups do not reserve a slot.
 
 ### Previous values and prefill
@@ -168,7 +168,7 @@ and is unit-tested.
 
 - **Done** requires `reps > 0`; weight is optional. Completing a non-warm-up set **auto-starts
   the rest timer**; warm-ups do not.
-- **+ ADD SET** appends a set; the button label shows the current rest preset.
+- **+ ADD SET** appends a set; the button label shows the current rest preset. The control is a full-width footer of the set table, separated from the last row by the same divider as the set rows, and shares the table’s edges.
 - **Swipe right** or long-press a set number to delete. Minimum **1 set** per exercise; no maximum.
 - **Add warm-up** inserts a warm-up set at position 0.
 

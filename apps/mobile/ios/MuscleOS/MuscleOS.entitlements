@@ -10,5 +10,9 @@
     </array>
     <key>com.apple.developer.usernotifications.time-sensitive</key>
     <true/>
+    <key>keychain-access-groups</key>
+    <array>
+      <string>$(AppIdentifierPrefix)com.muscle-os.app</string>
+    </array>
   </dict>
 </plist>

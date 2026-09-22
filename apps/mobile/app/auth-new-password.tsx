@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/layout';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { radius, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PasswordField } from '@/components/ui/PasswordField';
 import { supabase } from '@/lib/supabase';
 
 export default function AuthNewPasswordScreen() {
@@ -15,6 +16,8 @@ export default function AuthNewPasswordScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
+  const passwordsMatch = password === confirm;
+  const showMismatch = confirm.length > 0 && !passwordsMatch;
 
   async function save() {
     if (password.length < 6) {
@@ -46,28 +49,21 @@ export default function AuthNewPasswordScreen() {
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
           Choose a password for this email account. Apple and Google sign-in are unchanged.
         </Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+        <PasswordField
           placeholder="New password (min 6 characters)"
-          placeholderTextColor={colors.textMuted}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
         />
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
-          placeholder="Confirm password"
-          placeholderTextColor={colors.textMuted}
-          value={confirm}
-          onChangeText={setConfirm}
-          secureTextEntry
-          autoCapitalize="none"
-        />
+        <PasswordField placeholder="Confirm password" value={confirm} onChangeText={setConfirm} />
+        {showMismatch ? (
+          <Text style={[typography.caption, styles.mismatch, { color: colors.danger }]}>
+            Passwords do not match.
+          </Text>
+        ) : null}
         <PrimaryButton
           label={saving ? 'Saving…' : 'Save password'}
           onPress={() => void save()}
-          disabled={saving || password.length < 6}
+          disabled={saving || password.length < 6 || !passwordsMatch}
         />
       </View>
     </Screen>
@@ -84,12 +80,5 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   subtitle: { marginTop: spacing.sm, marginBottom: spacing.lg },
-  input: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    fontSize: 16,
-    fontFamily: typography.body.fontFamily,
-    marginBottom: spacing.md,
-  },
+  mismatch: { marginTop: -spacing.sm, marginBottom: spacing.md },
 });

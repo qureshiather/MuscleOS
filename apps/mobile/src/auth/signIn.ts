@@ -10,6 +10,20 @@ import { EMAIL_AUTH_REDIRECT } from '@/auth/emailCallback';
 
 const AUTH_REQUEST_TIMEOUT_MS = 15_000;
 
+/** Supabase sometimes names a missing account. That must not become a dialog. */
+function isUnknownEmailError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = 'code' in error && typeof error.code === 'string' ? error.code : '';
+  const message =
+    'message' in error && typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  return (
+    code === 'user_not_found' ||
+    message.includes('user not found') ||
+    message.includes('email not found') ||
+    message.includes('user with this email')
+  );
+}
+
 /** Guest session is required to upgrade-in-place with linkIdentity. */
 async function ensureAuthSession(): Promise<boolean> {
   const {
@@ -195,7 +209,7 @@ export function useSignIn() {
     }
   }
 
-  async function linkWithEmail(email: string, password: string, displayName?: string): Promise<boolean> {
+  async function linkWithEmail(email: string, password: string, displayName?: string): Promise<boolean | 'confirm'> {
     if (!isSupabaseConfigured()) {
       Alert.alert('Not configured', 'Supabase is not configured.');
       return false;
@@ -220,34 +234,26 @@ export function useSignIn() {
         applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
         return true;
       }
-      Alert.alert(
-        'Confirm your email',
-        'We sent you a confirmation link. Open it to activate your account, then come back and sign in.'
-      );
-      return false;
+      return 'confirm';
     } catch (e) {
       Alert.alert('Sign up failed', (e as Error).message);
       return false;
     }
   }
 
-  async function sendPasswordReset(email: string): Promise<boolean> {
-    if (!isSupabaseConfigured()) {
-      Alert.alert('Not configured', 'Supabase is not configured.');
-      return false;
-    }
+  async function sendPasswordReset(email: string): Promise<boolean | 'missing'> {
+    if (!isSupabaseConfigured()) return false;
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: EMAIL_AUTH_REDIRECT,
       });
       if (error) {
-        Alert.alert('Reset failed', error.message);
+        if (isUnknownEmailError(error)) return 'missing';
         return false;
       }
-      Alert.alert('Check your email', 'We sent a link to choose a new password. Open it on this phone.');
       return true;
     } catch (e) {
-      Alert.alert('Reset failed', (e as Error).message);
+      if (isUnknownEmailError(e)) return 'missing';
       return false;
     }
   }

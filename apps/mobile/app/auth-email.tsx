@@ -17,6 +17,8 @@ import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
 import { ACCOUNT_PER_EMAIL_COPY } from '@/auth/accountCopy';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PasswordField } from '@/components/ui/PasswordField';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 type Mode = 'signin' | 'signup';
@@ -29,25 +31,41 @@ export default function AuthEmailScreen() {
   const [resetting, setResetting] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mailNotice, setMailNotice] = useState<null | 'confirm' | 'reset' | 'reset-failed'>(null);
 
   async function handleSubmit() {
     setLoading(true);
-    const ok = resetting
-      ? await sendPasswordReset(email.trim())
-      : mode === 'signin'
-        ? await signInWithEmailOnly(email.trim(), password)
-        : await linkWithEmail(email.trim(), password, displayName.trim() || undefined);
+    if (resetting) {
+      const sent = await sendPasswordReset(email.trim());
+      setLoading(false);
+      if (sent === 'missing') return;
+      setMailNotice(sent ? 'reset' : 'reset-failed');
+      if (sent) setResetting(false);
+      return;
+    }
+    if (mode === 'signin') {
+      const ok = await signInWithEmailOnly(email.trim(), password);
+      setLoading(false);
+      if (ok) router.replace('/(tabs)');
+      return;
+    }
+    const result = await linkWithEmail(email.trim(), password, displayName.trim() || undefined);
     setLoading(false);
-    if (ok && !resetting) router.replace('/(tabs)');
-    if (ok && resetting) setResetting(false);
+    if (result === true) router.replace('/(tabs)');
+    if (result === 'confirm') setMailNotice('confirm');
   }
 
+  const isSignUp = mode === 'signup' && !resetting;
   const isSignIn = mode === 'signin' && !resetting;
+  const passwordsMatch = password === confirmPassword;
   const canSubmit = resetting
     ? email.trim().length > 0
-    : email.trim().length > 0 && password.length >= 6;
+    : isSignUp
+      ? email.trim().length > 0 && password.length >= 6 && confirmPassword.length >= 6 && passwordsMatch
+      : email.trim().length > 0 && password.length >= 6;
 
   return (
     <Screen>
@@ -72,7 +90,7 @@ export default function AuthEmailScreen() {
         </Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
           {resetting
-            ? 'We email a link to this address. Open it on this phone to choose a new password.'
+            ? 'We will email a link to reset the password if the email exists.'
             : isSignIn
               ? 'If you already used Apple or Google with this email, this is the same account — not a second backup.'
               : ACCOUNT_PER_EMAIL_COPY}
@@ -117,18 +135,25 @@ export default function AuthEmailScreen() {
             autoCorrect={false}
           />
           {!resetting ? (
-            <TextInput
-              style={[
-                styles.input,
-                { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
-              ]}
+            <PasswordField
               placeholder="Password (min 6 characters)"
-              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
             />
+          ) : null}
+          {isSignUp ? (
+            <>
+              <PasswordField
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+              {confirmPassword.length > 0 && !passwordsMatch ? (
+                <Text style={[typography.caption, styles.mismatch, { color: colors.danger }]}>
+                  Passwords do not match.
+                </Text>
+              ) : null}
+            </>
           ) : null}
           {isSignIn ? (
             <Pressable onPress={() => setResetting(true)} style={styles.forgot} hitSlop={8}>
@@ -144,6 +169,25 @@ export default function AuthEmailScreen() {
           />
         </View>
       </KeyboardAvoidingView>
+      <ConfirmDialog
+        visible={mailNotice != null}
+        title={
+          mailNotice === 'reset-failed'
+            ? 'Could not send reset link'
+            : mailNotice === 'reset'
+              ? 'Check your email'
+              : 'Confirm your email'
+        }
+        message={
+          mailNotice === 'reset-failed'
+            ? 'Something went wrong sending the reset link. Try again in a moment.'
+            : mailNotice === 'reset'
+              ? 'If an account exists for that email, we sent a reset link. Open it on this phone.'
+              : 'We sent you a confirmation link. Open it to activate your account, then come back and sign in.'
+        }
+        confirmLabel="OK"
+        onConfirm={() => setMailNotice(null)}
+      />
     </Screen>
   );
 }
@@ -160,6 +204,7 @@ const styles = StyleSheet.create({
   },
   subtitle: { marginTop: spacing.sm, marginBottom: spacing.lg },
   forgot: { alignSelf: 'flex-start', marginBottom: spacing.md, marginTop: -spacing.xs },
+  mismatch: { marginTop: -spacing.sm, marginBottom: spacing.md },
   form: { marginTop: spacing.xl },
   input: {
     borderWidth: 1,

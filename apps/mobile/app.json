@@ -11,7 +11,10 @@
       "bundleIdentifier": "com.muscle-os.app",
       "usesAppleSignIn": true,
       "entitlements": {
-        "com.apple.developer.usernotifications.time-sensitive": true
+        "com.apple.developer.usernotifications.time-sensitive": true,
+        "keychain-access-groups": [
+          "$(AppIdentifierPrefix)com.muscle-os.app"
+        ]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
