@@ -175,7 +175,13 @@ Authorized redirect in the Web client / Supabase: `https://<project-ref>.supabas
 
 ### 6. Email confirmation and password reset
 
-Signup and **Forgot password** send the user to `https://muscleos.app/auth/confirm`. That page opens `muscleos://auth-callback` with the Supabase tokens. A recovery link then shows **New password**.
+Signup and **Forgot password** send the user to `https://muscleos.app/auth/confirm`. The message links to that page with `token_hash` and `type` (`signup` or `recovery`). The page opens `muscleos://auth-callback`, and the app calls `verifyOtp` only then, so a mail scanner that opens the link does not use up the one-time token. An expired or already-used link stays on the page and says to request a new one. A recovery link then shows **New password**.
+
+Auth email templates (Authentication → Emails):
+
+- Confirmation subject: `Confirm your email address with MuscleOS`. The link is `https://muscleos.app/auth/confirm?token_hash={{ .TokenHash }}&type=signup`.
+- Recovery subject: `Reset your MuscleOS password`. The link is `https://muscleos.app/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`.
+- Do not use `{{ .ConfirmationURL }}`. That URL verifies the token as soon as anything fetches it.
 
 In the hosted project → Authentication → URL configuration:
 

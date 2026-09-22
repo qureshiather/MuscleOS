@@ -170,7 +170,7 @@ export function useSignIn() {
     }
   }
 
-  async function signInWithEmailOnly(email: string, password: string): Promise<boolean> {
+  async function signInWithEmailOnly(email: string, password: string): Promise<boolean | 'confirm'> {
     if (!isSupabaseConfigured()) {
       Alert.alert('Not configured', 'Supabase is not configured.');
       return false;
@@ -188,10 +188,9 @@ export function useSignIn() {
       if (error) {
         const msg = error.message.toLowerCase();
         if (msg.includes('email not confirmed') || msg.includes('confirm your email')) {
-          Alert.alert('Confirm your email', 'Check your inbox for a confirmation link from Supabase, then try signing in again.');
-        } else {
-          Alert.alert('Sign in failed', error.message);
+          return 'confirm';
         }
+        Alert.alert('Sign in failed', error.message);
         return false;
       }
       if (data.session?.user) {

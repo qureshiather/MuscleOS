@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deletePhase, setDeletePhase] = useState<null | 'warn' | 'confirm' | 'done' | 'failed'>(null);
+  const [signOutVisible, setSignOutVisible] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
   const heightUnit = useSettingsStore((s) => s.heightUnit);
@@ -88,22 +89,10 @@ export default function ProfileScreen() {
 
   const syncStatusColor = lastSyncError && !isSyncing ? colors.danger : colors.textMuted;
 
-  async function handleSignOut() {
-    Alert.alert(
-      'Sign out',
-      'You will stay on this device as a guest. Your subscription stays on your account and can be restored on another device.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign out',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            loadSubscription();
-          },
-        },
-      ]
-    );
+  async function confirmSignOut() {
+    setSignOutVisible(false);
+    await signOut();
+    loadSubscription();
   }
 
   function handleDeleteAccount() {
@@ -327,7 +316,7 @@ export default function ProfileScreen() {
               <PrimaryButton
                 label="Sign out"
                 variant="outline"
-                onPress={handleSignOut}
+                onPress={() => setSignOutVisible(true)}
                 disabled={deletingAccount}
               />
             </>
@@ -503,6 +492,18 @@ export default function ProfileScreen() {
             return;
           }
           setDeletePhase('confirm');
+        }}
+      />
+      <ConfirmDialog
+        visible={signOutVisible}
+        title="Sign out"
+        message="You will stay on this device as a guest. Your subscription stays on your account and can be restored on another device."
+        cancelLabel="Cancel"
+        confirmLabel="Sign out"
+        destructive
+        onCancel={() => setSignOutVisible(false)}
+        onConfirm={() => {
+          void confirmSignOut();
         }}
       />
       <ConfirmDialog

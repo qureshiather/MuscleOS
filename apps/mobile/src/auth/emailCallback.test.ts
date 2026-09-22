@@ -34,4 +34,12 @@ describe('parseEmailCallback', () => {
   it('ignores unrelated links', () => {
     expect(parseEmailCallback('muscleos://active-workout')).toBeNull();
   });
+
+  it('ignores an expired email link', () => {
+    expect(
+      parseEmailCallback(
+        'https://muscleos.app/auth/confirm#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired'
+      )
+    ).toBeNull();
+  });
 });

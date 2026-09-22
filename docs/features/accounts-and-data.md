@@ -76,7 +76,7 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
 | **Google** | iOS + Android | **Android:** `@react-native-google-signin/google-signin` (Play Services, id token). **iOS:** `expo-auth-session` OAuth until a native iOS client is added. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client) plus an Android OAuth client (`com.muscleos.app` + SHA-1). |
-| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Signup and password reset redirect to `https://muscleos.app/auth/confirm`, which opens `muscleos://auth-callback`. The “check your email” notice is a themed `ConfirmDialog`. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. |
+| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
 keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
@@ -95,7 +95,7 @@ pull first — so an empty phone fills from the cloud. Any signed-in user also g
 `revenueCatLogIn(user.id)` so the entitlement follows the identity.
 
 **Sign out** signs out of Supabase, immediately creates a **new anonymous session**, and re-points
-RevenueCat at it. **Local workout data is not cleared** — you keep your history on the device, and
+RevenueCat at it. Profile asks with a themed `ConfirmDialog` first. **Local workout data is not cleared** — you keep your history on the device, and
 the subscription stays attached to the account you signed out of.
 
 **Delete account** (linked accounts only) lives on Profile under Account. Two themed confirms

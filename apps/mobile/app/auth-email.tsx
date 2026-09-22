@@ -48,7 +48,8 @@ export default function AuthEmailScreen() {
     if (mode === 'signin') {
       const ok = await signInWithEmailOnly(email.trim(), password);
       setLoading(false);
-      if (ok) router.replace('/(tabs)');
+      if (ok === 'confirm') setMailNotice('confirm');
+      if (ok === true) router.replace('/(tabs)');
       return;
     }
     const result = await linkWithEmail(email.trim(), password, displayName.trim() || undefined);
