@@ -80,9 +80,9 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 
 | Tab | Route | Purpose | Spec |
 |-----|-------|---------|------|
-| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from the template library | [templates.md](../features/templates.md) |
-| **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
 | **Exercises** | `/(tabs)/exercises` | Browse and search the ~399-exercise catalog; muscle maps, instructions, personal notes | [exercise-library.md](../features/exercise-library.md) |
+| **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
+| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from the template library | [templates.md](../features/templates.md) |
 | **History** | `/(tabs)/history` | Reverse-chronological list of finished sessions with duration, volume, and every completed set | [history-analytics.md](../features/history-analytics.md) |
 | **Profile** | `/(tabs)/profile` | Settings, biodata, then Account (subscription, data, deletion, legal) | [accounts-and-data.md](../features/accounts-and-data.md) |
 

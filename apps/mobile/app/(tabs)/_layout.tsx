@@ -21,6 +21,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="index"
       tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
@@ -43,11 +44,11 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="exercises"
         options={{
-          title: 'Workouts',
+          title: 'Exercises',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barbell-outline" size={size} color={color} />
+            <Ionicons name="list-outline" size={size} color={color} />
           ),
         }}
       />
@@ -61,11 +62,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="exercises"
+        name="index"
         options={{
-          title: 'Exercises',
+          title: 'Workouts',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+            <Ionicons name="barbell-outline" size={size} color={color} />
           ),
         }}
       />

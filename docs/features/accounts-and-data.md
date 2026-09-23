@@ -23,8 +23,8 @@ account is optional and adds backup plus multi-device sync; it is never required
 The root is a **Stack** with `headerShown: false` and `slide_from_right` by default; `(tabs)` is a
 nested Tabs navigator. `/` redirects to `/(tabs)`.
 
-**Tab bar order:** Workouts · Recovery · Exercises · History · Profile — with icons
-`barbell-outline`, `pulse-outline`, `list-outline`, `time-outline`, `person-outline`. The tab bar is
+**Tab bar order:** Exercises · Recovery · Workouts · History · Profile — with icons
+`list-outline`, `pulse-outline`, `barbell-outline`, `time-outline`, `person-outline`. The tab bar is
 custom (`TabBarWithResumePill`) so it can host the resume-workout pill.
 
 **Pushed screens:** `/auth`, `/auth-email`, `/settings`, `/data`, `/subscription`, `/create-template`,
