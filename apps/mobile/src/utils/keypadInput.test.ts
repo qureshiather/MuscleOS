@@ -1,11 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import {
+  appendRestTimeDigit,
+  backspaceRestTime,
   keypadAdjust,
   keypadAppendDigit,
   keypadBackspace,
   REPS_MAX_DIGITS,
+  restSecondsFromDigits,
+  restTimeDigits,
   WEIGHT_MAX_DIGITS,
 } from './keypadInput';
+
+describe('rest time entry', () => {
+  it('shifts digits into a clock from the right', () => {
+    let digits = '';
+    digits = appendRestTimeDigit(digits, '1', true) ?? digits;
+    expect(restSecondsFromDigits(digits)).toBe(1);
+    digits = appendRestTimeDigit(digits, '3', false) ?? digits;
+    expect(restSecondsFromDigits(digits)).toBe(13);
+    digits = appendRestTimeDigit(digits, '0', false) ?? digits;
+    expect(restSecondsFromDigits(digits)).toBe(90);
+    expect(digits).toBe('130');
+  });
+
+  it('replaces the current time on the first digit', () => {
+    const next = appendRestTimeDigit(restTimeDigits(120), '4', true);
+    expect(next).toBe('4');
+    expect(restSecondsFromDigits(next ?? '')).toBe(4);
+  });
+
+  it('rejects a seconds value over 59 and anything past 15:00', () => {
+    expect(appendRestTimeDigit('9', '9', false)).toBeNull();
+    expect(appendRestTimeDigit('1500', '1', false)).toBeNull();
+    expect(appendRestTimeDigit('150', '1', false)).toBeNull();
+  });
+
+  it('backspaces down to an empty 0:00', () => {
+    expect(backspaceRestTime('130')).toBe('13');
+    expect(restSecondsFromDigits('')).toBe(0);
+    expect(restTimeDigits(0)).toBe('');
+    expect(restTimeDigits(120)).toBe('200');
+  });
+});
 
 describe('keypadAppendDigit', () => {
   it('appends digits to build a number', () => {

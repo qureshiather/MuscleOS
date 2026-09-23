@@ -3,12 +3,16 @@ import type { SetRecord, SessionExercise } from '@muscleos/types';
 import type { PersistedActiveWorkout } from '@/storage/localStorage';
 import {
   DEFAULT_SETS_PER_EXERCISE,
+  REST_MAX_SECONDS,
+  REST_MIN_SECONDS,
+  adjustRestSeconds,
   bestCompletedSet,
   buildAddedSet,
   buildPreviousSnapshot,
   buildReplacedExercise,
   bumpRestKeysForInsertedSet,
   canCompleteSet,
+  clampRestSeconds,
   completeSetInSets,
   createEmptySession,
   createPrefillingSets,
@@ -21,10 +25,35 @@ import {
   parseStartParams,
   remapRestAfter,
   remapRestDurations,
-  shouldStartRestAfterComplete,
+  restDurationAfterComplete,
+  storedRestSeconds,
   startPrefillPatch,
   stripPrefillFlags,
 } from './activeWorkoutLogic';
+
+describe('rest duration', () => {
+  it('keeps the built-in presets on the 30-second grid', () => {
+    expect(clampRestSeconds(60)).toBe(60);
+    expect(clampRestSeconds(90)).toBe(90);
+    expect(clampRestSeconds(120)).toBe(120);
+    expect(clampRestSeconds(180)).toBe(180);
+  });
+
+  it('snaps an off-grid value and clamps to 30s–15:00', () => {
+    expect(clampRestSeconds(100)).toBe(90);
+    expect(clampRestSeconds(0)).toBe(REST_MIN_SECONDS);
+    expect(clampRestSeconds(REST_MAX_SECONDS + 90)).toBe(REST_MAX_SECONDS);
+    expect(clampRestSeconds(Number.NaN)).toBe(120);
+  });
+
+  it('steps by 30 seconds and stops at the floor and ceiling', () => {
+    expect(adjustRestSeconds(120, 1)).toBe(150);
+    expect(adjustRestSeconds(120, -1)).toBe(90);
+    expect(adjustRestSeconds(REST_MIN_SECONDS, -1)).toBe(REST_MIN_SECONDS);
+    expect(adjustRestSeconds(REST_MAX_SECONDS, 1)).toBe(REST_MAX_SECONDS);
+    expect(adjustRestSeconds(45, 1)).toBe(90);
+  });
+});
 
 describe('createEmptySession', () => {
   it('creates 3 blank working sets per exercise by default', () => {
@@ -260,11 +289,27 @@ describe('canCompleteSet', () => {
   });
 });
 
-describe('shouldStartRestAfterComplete', () => {
-  it('starts rest for a working set but not a warm-up', () => {
-    expect(shouldStartRestAfterComplete({})).toBe(true);
-    expect(shouldStartRestAfterComplete({ isWarmUp: false })).toBe(true);
-    expect(shouldStartRestAfterComplete({ isWarmUp: true })).toBe(false);
+describe('restDurationAfterComplete', () => {
+  it('starts the work-set rest, including the 120s default, and skips an explicit 0:00', () => {
+    expect(restDurationAfterComplete({}, {})).toBe(120);
+    expect(restDurationAfterComplete({ isWarmUp: false }, { restBetweenSetsSeconds: 75 })).toBe(75);
+    expect(restDurationAfterComplete({}, { restBetweenSetsSeconds: 0 })).toBeNull();
+  });
+
+  it('starts warm-up rest only when a duration is set', () => {
+    expect(restDurationAfterComplete({ isWarmUp: true }, {})).toBeNull();
+    expect(restDurationAfterComplete({ isWarmUp: true }, { warmUpRestSeconds: 0 })).toBeNull();
+    expect(restDurationAfterComplete({ isWarmUp: true }, { warmUpRestSeconds: 45 })).toBe(45);
+  });
+});
+
+describe('storedRestSeconds', () => {
+  it('keeps a typed clock time, including 0:00, and caps at 15:00', () => {
+    expect(storedRestSeconds(0)).toBe(0);
+    expect(storedRestSeconds(75)).toBe(75);
+    expect(storedRestSeconds(REST_MAX_SECONDS + 30)).toBe(REST_MAX_SECONDS);
+    expect(storedRestSeconds(Number.NaN)).toBe(0);
+    expect(storedRestSeconds(-10)).toBe(0);
   });
 });
 
@@ -335,6 +380,7 @@ describe('buildReplacedExercise', () => {
   const current: SessionExercise = {
     exerciseId: 'leg-extension',
     restBetweenSetsSeconds: 90,
+    warmUpRestSeconds: 45,
     sets: [
       { completed: true, weightKg: 50, reps: 12 },
       { completed: false, weightKg: 50, reps: 12, weightPrefilled: true, repsPrefilled: true },
@@ -346,6 +392,7 @@ describe('buildReplacedExercise', () => {
     const next = buildReplacedExercise(current, 'lying-leg-curl', { weightKg: 30, reps: 10 });
     expect(next.exerciseId).toBe('lying-leg-curl');
     expect(next.restBetweenSetsSeconds).toBe(90);
+    expect(next.warmUpRestSeconds).toBe(45);
     expect(next.sets).toHaveLength(DEFAULT_SETS_PER_EXERCISE);
     expect(next.sets.every((s) => s.completed === false && s.isWarmUp !== true)).toBe(true);
     expect(next.sets.every((s) => s.weightKg === 30 && s.reps === 10)).toBe(true);

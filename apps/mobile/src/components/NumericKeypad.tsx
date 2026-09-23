@@ -5,12 +5,18 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { fontScaleCap, useBottomSpace } from '@/theme/layout';
 
-export type KeypadField = 'weight' | 'reps';
+export type KeypadField = 'weight' | 'reps' | 'time';
 
 interface NumericKeypadProps {
   /** Exercise being edited — shown small so you know where the number is going. */
   exerciseName: string;
   field: KeypadField;
+  /** Shown in place of Weight/Reps. Used for a time field ("Work set", "Warm up"). */
+  fieldTitle?: string;
+  /** Time field only: Next advances to the other duration; Done hides the pad. */
+  timeAction?: 'next' | 'done';
+  /** Sit in document flow (inside a sheet) instead of docking over the screen. */
+  inline?: boolean;
   /** 'lb' / 'kg' for weight, '' for reps. */
   unitLabel: string;
   /** Current display value, '' when empty. */
@@ -45,6 +51,9 @@ const GRID_GAP = 7;
 export function NumericKeypad({
   exerciseName,
   field,
+  fieldTitle,
+  timeAction = 'done',
+  inline = false,
   unitLabel,
   valueText,
   step,
@@ -70,7 +79,9 @@ export function NumericKeypad({
   }, [enter]);
 
   const isWeight = field === 'weight';
-  const fieldLabel = isWeight ? 'Weight' : 'Reps';
+  const isTime = field === 'time';
+  const fieldLabel = fieldTitle ?? (isWeight ? 'Weight' : isTime ? 'Time' : 'Reps');
+  const showNext = isWeight || (isTime && timeAction === 'next');
   const keyFace = isDark ? colors.surface : colors.surfaceElevated;
   // Third utility slot is reserved for a per-field power feature we haven't built yet.
   const reservedLabel = isWeight ? 'Plates' : 'RPE';
@@ -94,6 +105,7 @@ export function NumericKeypad({
       onLayout={(e) => onHeight?.(e.nativeEvent.layout.height)}
       style={[
         styles.root,
+        inline && styles.inline,
         {
           backgroundColor: colors.surfaceElevated,
           borderTopColor: colors.border,
@@ -132,17 +144,19 @@ export function NumericKeypad({
           <View style={styles.gridRow}>
             <View style={styles.keyCell} />
             {numberKey('0')}
-            {/* Reserved: plate calculator (weight) / RPE effort (reps) — feeds recovery later. */}
+            {/* Reserved: plate calculator (weight) / RPE effort (reps). Time entry has neither. */}
             <View style={styles.keyCell}>
-              <View
-                style={[
-                  styles.reservedKey,
-                  { backgroundColor: keyFace, borderColor: colors.border, opacity: 0.5 },
-                ]}
-              >
-                <Text style={[styles.reservedLabel, { color: colors.textMuted }]}>{reservedLabel}</Text>
-                <Text style={[styles.reservedSoon, { color: colors.textMuted }]}>soon</Text>
-              </View>
+              {isTime ? null : (
+                <View
+                  style={[
+                    styles.reservedKey,
+                    { backgroundColor: keyFace, borderColor: colors.border, opacity: 0.5 },
+                  ]}
+                >
+                  <Text style={[styles.reservedLabel, { color: colors.textMuted }]}>{reservedLabel}</Text>
+                  <Text style={[styles.reservedSoon, { color: colors.textMuted }]}>soon</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -161,25 +175,27 @@ export function NumericKeypad({
           </View>
 
           <View style={styles.keyCell}>
-            <View style={[styles.adjustPair, { backgroundColor: keyFace, borderColor: colors.border }]}>
-              <Pressable
-                onPress={() => onAdjust(-step)}
-                style={styles.adjustHalf}
-                accessibilityRole="button"
-                accessibilityLabel={`Decrease ${step}`}
-              >
-                <Ionicons name="remove" size={22} color={colors.text} />
-              </Pressable>
-              <View style={[styles.adjustDivider, { backgroundColor: colors.border }]} />
-              <Pressable
-                onPress={() => onAdjust(step)}
-                style={styles.adjustHalf}
-                accessibilityRole="button"
-                accessibilityLabel={`Increase ${step}`}
-              >
-                <Ionicons name="add" size={22} color={colors.text} />
-              </Pressable>
-            </View>
+            {isTime ? null : (
+              <View style={[styles.adjustPair, { backgroundColor: keyFace, borderColor: colors.border }]}>
+                <Pressable
+                  onPress={() => onAdjust(-step)}
+                  style={styles.adjustHalf}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Decrease ${step}`}
+                >
+                  <Ionicons name="remove" size={22} color={colors.text} />
+                </Pressable>
+                <View style={[styles.adjustDivider, { backgroundColor: colors.border }]} />
+                <Pressable
+                  onPress={() => onAdjust(step)}
+                  style={styles.adjustHalf}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Increase ${step}`}
+                >
+                  <Ionicons name="add" size={22} color={colors.text} />
+                </Pressable>
+              </View>
+            )}
           </View>
 
           <View style={styles.keyCell}>
@@ -195,7 +211,7 @@ export function NumericKeypad({
           </View>
 
           <View style={styles.keyCell}>
-            {isWeight ? (
+            {showNext ? (
               <KeypadKey onPress={onNext} background={colors.primary} accessibilityLabel="Next field">
                 <Text style={[styles.actionLabel, { color: colors.primaryOn }]}>NEXT</Text>
               </KeypadKey>
@@ -204,7 +220,7 @@ export function NumericKeypad({
                 onPress={onComplete}
                 disabled={!canComplete}
                 background={colors.success}
-                accessibilityLabel="Complete set"
+                accessibilityLabel={isTime ? 'Done' : 'Complete set'}
               >
                 <View style={styles.doneInner}>
                   <Ionicons name="checkmark" size={20} color={colors.successOn} />
@@ -273,6 +289,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 12,
     elevation: 16,
+  },
+  inline: {
+    position: 'relative',
+    left: undefined,
+    right: undefined,
+    bottom: undefined,
   },
   contextBar: {
     flexDirection: 'row',

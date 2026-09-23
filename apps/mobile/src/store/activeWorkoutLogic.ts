@@ -19,6 +19,24 @@ export { DEFAULT_SETS_PER_EXERCISE } from '@/utils/templateExercises';
  */
 
 export const DEFAULT_REST_SECONDS = 120;
+/** Rest durations move in 30-second steps. */
+export const REST_STEP_SECONDS = 30;
+/** Floor for the running timer's ±30 step. A typed preset may be 0:00. */
+export const REST_MIN_SECONDS = 30;
+/** Longest rest a user can set, including time added to a running timer. */
+export const REST_MAX_SECONDS = 15 * 60;
+
+/** Snap a ±30 rest step onto the 30-second grid. Typed presets use {@link storedRestSeconds} instead. */
+export function clampRestSeconds(seconds: number): number {
+  if (!Number.isFinite(seconds)) return DEFAULT_REST_SECONDS;
+  const stepped = Math.round(seconds / REST_STEP_SECONDS) * REST_STEP_SECONDS;
+  return Math.min(REST_MAX_SECONDS, Math.max(REST_MIN_SECONDS, stepped));
+}
+
+/** Step a rest duration by ±30s, clamped to the allowed range. */
+export function adjustRestSeconds(seconds: number, direction: 1 | -1): number {
+  return clampRestSeconds(clampRestSeconds(seconds) + direction * REST_STEP_SECONDS);
+}
 
 export interface RestAfter {
   exIdx: number;
@@ -236,9 +254,26 @@ export function canCompleteSet(set: Pick<SetRecord, 'reps'>): boolean {
   return set.reps != null && set.reps > 0;
 }
 
-/** Completing a working set auto-starts rest; warm-ups do not. */
-export function shouldStartRestAfterComplete(set: Pick<SetRecord, 'isWarmUp'>): boolean {
-  return set.isWarmUp !== true;
+/**
+ * Seconds of rest to start after this set, or null when this set should not start a timer.
+ * Warm-ups rest only when `warmUpRestSeconds` is set. Working sets use
+ * `restBetweenSetsSeconds`, which defaults to 120. An explicit 0 is no rest.
+ */
+export function restDurationAfterComplete(
+  set: Pick<SetRecord, 'isWarmUp'>,
+  exercise: Pick<SessionExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'>
+): number | null {
+  const seconds =
+    set.isWarmUp === true
+      ? (exercise.warmUpRestSeconds ?? 0)
+      : (exercise.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
+  return seconds > 0 ? seconds : null;
+}
+
+/** A typed rest, including 0:00. Not snapped to the 30-second grid. */
+export function storedRestSeconds(seconds: number): number {
+  if (!Number.isFinite(seconds)) return 0;
+  return Math.min(REST_MAX_SECONDS, Math.max(0, Math.trunc(seconds)));
 }
 
 /**
@@ -291,6 +326,7 @@ export function buildReplacedExercise(
     ...(current.restBetweenSetsSeconds != null
       ? { restBetweenSetsSeconds: current.restBetweenSetsSeconds }
       : {}),
+    ...(current.warmUpRestSeconds != null ? { warmUpRestSeconds: current.warmUpRestSeconds } : {}),
   };
 }
 

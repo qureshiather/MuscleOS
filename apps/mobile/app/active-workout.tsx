@@ -49,11 +49,15 @@ import type { MuscleId, SessionExercise } from '@muscleos/types';
 import { searchExercises } from '@/utils/exerciseSearch';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import {
+  appendRestTimeDigit,
+  backspaceRestTime,
   keypadAdjust,
   keypadAppendDigit,
   keypadBackspace,
   REPS_MAX_DIGITS,
   REPS_STEP,
+  restSecondsFromDigits,
+  restTimeDigits,
   WEIGHT_MAX_DIGITS,
   WEIGHT_STEP_KG,
   WEIGHT_STEP_LB,
@@ -67,7 +71,7 @@ import { isCurrentSet as computeIsCurrentSet, setLabel } from '@/utils/workoutSe
 import {
   canCompleteSet,
   parseStartParams,
-  shouldStartRestAfterComplete,
+  restDurationAfterComplete,
   startPrefillPatch,
 } from '@/store/activeWorkoutLogic';
 import {
@@ -90,15 +94,6 @@ function formatRestDurationLabel(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-/** Shown in exercise menu → Rest timers; applies to every set in that exercise (including after the last). */
-const REST_BETWEEN_SETS_CHOICES = [
-  { label: '1:30', seconds: 90 },
-  { label: '2:00', seconds: 120 },
-  { label: '3:00', seconds: 180 },
-] as const;
-
-/** Fixed slot under the active/resting set — keeps rows from jumping on complete. */
-const REST_GAP_HEIGHT = 38;
 /** Compact but still tappable during a workout. */
 const SET_ROW_MIN_HEIGHT = 40;
 const SET_INPUT_MIN_HEIGHT = 36;
@@ -166,7 +161,7 @@ function ExerciseMenuContent({
         onPress={onEditRest}
       >
         <Ionicons name="timer-outline" size={18} color={colors.text} />
-        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Edit rest timer</Text>
+        <Text style={[styles.exerciseDropdownItemText, { color: colors.text }]}>Update rest timers</Text>
       </Pressable>
       <Pressable
         style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
@@ -378,98 +373,88 @@ function SetRowSwipeable({
   );
 }
 
-function ActiveRestGap({
+type RestBarColors = {
+  primary: string;
+  text: string;
+  textMuted: string;
+  border: string;
+};
+
+/** Rest duration on the divider after a working set. Tap opens the header rest dialogue. */
+function RestBetweenBar({
+  presetSeconds,
   active,
-  reserved,
   restSecondsLeft,
   restTotalSeconds,
   colors,
   onPress,
 }: {
-  /** Countdown is running for this set. */
+  presetSeconds: number;
   active: boolean;
-  /** Keep a fixed-height slot so completing a set doesn't shove rows. */
-  reserved: boolean;
   restSecondsLeft: number;
   restTotalSeconds: number;
-  colors: {
-    primary: string;
-    text: string;
-    textSecondary: string;
-    textMuted: string;
-    primarySurface: string;
-    border: string;
-  };
-  onPress?: () => void;
+  colors: RestBarColors;
+  onPress: () => void;
 }) {
-  const opacity = useRef(new Animated.Value(active ? 1 : 0)).current;
-  const gapHeight = useTextScaledSize(REST_GAP_HEIGHT, fontScaleCap.chrome);
-
-  useEffect(() => {
-    Animated.timing(opacity, {
-      toValue: active ? 1 : 0,
-      duration: 140,
-      useNativeDriver: true,
-    }).start();
-  }, [active, opacity]);
-
-  if (!reserved && !active) return null;
-
+  const minHeight = useTextScaledSize(28, fontScaleCap.chrome);
+  const [labelWidth, setLabelWidth] = useState(0);
+  const shownSeconds = active ? restSecondsLeft : presetSeconds;
+  const timeLabel = formatRestDurationLabel(shownSeconds);
   const progress =
     active && restTotalSeconds > 0
       ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100)
       : 0;
-  const timeLabel = `${Math.floor(restSecondsLeft / 60)}:${(restSecondsLeft % 60).toString().padStart(2, '0')}`;
 
-  const inner = (
-    <View style={styles.restGapInner}>
-      {active ? (
-        <Animated.View style={[styles.restGapTimeRow, { opacity }]}>
-          <Ionicons name="timer-outline" size={12} color={colors.textSecondary} />
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={active ? `Rest ${timeLabel} remaining` : `Rest ${timeLabel} after this set`}
+      accessibilityHint="Opens rest timer"
+      hitSlop={{ top: 4, bottom: 4 }}
+      style={[styles.restBarCollapsed, { minHeight }]}
+    >
+      <View style={[styles.restBarRule, { backgroundColor: colors.border }]} />
+      <View style={styles.restBarLabelWrap}>
+        <View
+          style={styles.restBarLabelGroup}
+          onLayout={(e) => {
+            const next = e.nativeEvent.layout.width;
+            setLabelWidth((current) => (current === next ? current : next));
+          }}
+        >
           <Text
-            style={[styles.restGapTime, { color: colors.text }]}
+            style={[styles.restBarCollapsedTime, { color: active ? colors.primary : colors.text }]}
             maxFontSizeMultiplier={fontScaleCap.chrome}
           >
             {timeLabel}
           </Text>
           <Text
-            style={[styles.restGapLabel, { color: colors.textMuted }]}
+            style={[styles.restBarWord, { color: active ? colors.primary : colors.textMuted }]}
             maxFontSizeMultiplier={fontScaleCap.chrome}
           >
             rest
           </Text>
-        </Animated.View>
-      ) : (
-        <View style={styles.restGapTimeRow} />
-      )}
-      <View style={[styles.restGapTrack, { backgroundColor: colors.border }]}>
+        </View>
         {active ? (
           <View
+            pointerEvents="none"
             style={[
-              styles.restGapFill,
-              { width: `${progress}%`, backgroundColor: colors.primary },
+              styles.restBarProgress,
+              { width: labelWidth, backgroundColor: colors.border },
             ]}
-          />
+          >
+            <View
+              style={[
+                styles.restBarProgressFill,
+                { width: `${progress}%`, backgroundColor: colors.primary },
+              ]}
+            />
+          </View>
         ) : null}
       </View>
-    </View>
-  );
-
-  return (
-    <View style={[styles.restGapBlock, { height: gapHeight }]}>
-      {active && onPress ? (
-        <Pressable
-          onPress={onPress}
-          style={styles.restGapPressable}
-          accessibilityRole="button"
-          accessibilityLabel="Open rest timer controls"
-        >
-          {inner}
-        </Pressable>
-      ) : (
-        inner
-      )}
-    </View>
+      <View style={[styles.restBarRule, { backgroundColor: colors.border }]} />
+    </Pressable>
   );
 }
 
@@ -512,6 +497,7 @@ export default function ActiveWorkoutScreen() {
   const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
   const setExerciseRestBetweenSets = useActiveWorkoutStore((s) => s.setExerciseRestBetweenSets);
+  const setExerciseWarmUpRest = useActiveWorkoutStore((s) => s.setExerciseWarmUpRest);
   const completeSet = useActiveWorkoutStore((s) => s.completeSet);
   const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
   const addSet = useActiveWorkoutStore((s) => s.addSet);
@@ -555,6 +541,12 @@ export default function ActiveWorkoutScreen() {
   const [restTick, setRestTick] = useState(0); // force re-render every second so derived restSecondsLeft updates
   const [showRestPicker, setShowRestPicker] = useState(false);
   const [showRestControls, setShowRestControls] = useState(false);
+  const [restDraftSeconds, setRestDraftSeconds] = useState(DEFAULT_REST_SECONDS);
+  const [warmUpDraftSeconds, setWarmUpDraftSeconds] = useState(0);
+  /** Which duration box on Update rest timers is taking keypad input. */
+  const [restTimeField, setRestTimeField] = useState<'work' | 'warmUp' | null>(null);
+  /** First digit of a focused time box replaces the current value. */
+  const [restTimeReplace, setRestTimeReplace] = useState(true);
   const [reorderMode, setReorderMode] = useState(false);
 
   // Derive remaining seconds from end time so timer is correct after returning from background
@@ -814,6 +806,45 @@ export default function ActiveWorkoutScreen() {
   function handleSkipRest() {
     skipRest();
     setShowRestControls(false);
+  }
+
+  /** Same entry as the header timer: running countdown opens rest controls, otherwise start rest. */
+  function openTopBarRestDialog() {
+    setFocusedCell(null);
+    if (restSecondsLeft != null && restSecondsLeft > 0) setShowRestControls(true);
+    else setShowRestPicker(true);
+  }
+
+  function closeRestTimers() {
+    setRestTimersExIdx(null);
+    setRestTimeField(null);
+  }
+
+  function focusRestTime(field: 'work' | 'warmUp') {
+    setRestTimeField(field);
+    setRestTimeReplace(true);
+  }
+
+  function applyRestTimeDigits(nextDigits: string | null) {
+    if (nextDigits == null || restTimeField == null) return;
+    const seconds = restSecondsFromDigits(nextDigits);
+    if (seconds == null) return;
+    if (restTimeField === 'work') setRestDraftSeconds(seconds);
+    else setWarmUpDraftSeconds(seconds);
+    setRestTimeReplace(false);
+  }
+
+  function handleRestTimeDigit(digit: string) {
+    if (restTimeField == null) return;
+    const current = restTimeField === 'work' ? restDraftSeconds : warmUpDraftSeconds;
+    applyRestTimeDigits(appendRestTimeDigit(restTimeDigits(current), digit, restTimeReplace));
+  }
+
+  function handleRestTimeBackspace() {
+    if (restTimeField == null) return;
+    const current = restTimeField === 'work' ? restDraftSeconds : warmUpDraftSeconds;
+    const digits = restTimeReplace ? '' : restTimeDigits(current);
+    applyRestTimeDigits(backspaceRestTime(digits));
   }
 
   // Close rest controls when rest ends
@@ -1197,9 +1228,8 @@ export default function ActiveWorkoutScreen() {
       if (workoutSoundsEnabled) {
         void playWorkoutSound('setComplete');
       }
-      if (shouldStartRestAfterComplete(targetSet)) {
-        startRest(exIdx, setIdx, se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
-      }
+      const restSeconds = restDurationAfterComplete(targetSet, se);
+      if (restSeconds != null) startRest(exIdx, setIdx, restSeconds);
     }
     setFocusedCell(null);
   }
@@ -1219,7 +1249,7 @@ export default function ActiveWorkoutScreen() {
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (
             <Pressable
-              onPress={() => setShowRestControls(true)}
+              onPress={openTopBarRestDialog}
               hitSlop={6}
               style={[
                 styles.headerRestChip,
@@ -1237,7 +1267,7 @@ export default function ActiveWorkoutScreen() {
             </Pressable>
           ) : (
             <Pressable
-              onPress={() => setShowRestPicker(true)}
+              onPress={openTopBarRestDialog}
               hitSlop={8}
               style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
@@ -1390,6 +1420,7 @@ export default function ActiveWorkoutScreen() {
           }
 
           const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+          const warmUpRestSec = se.warmUpRestSeconds ?? 0;
           const exerciseNote = exerciseNotes[se.exerciseId];
           const exerciseComplete = se.sets.length > 0 && se.sets.every((s) => s.completed);
 
@@ -1439,22 +1470,6 @@ export default function ActiveWorkoutScreen() {
                           </Text>
                         </Pressable>
                       ) : null}
-                      <Pressable
-                        onPress={() => setRestTimersExIdx(exIdx)}
-                        hitSlop={4}
-                        style={[
-                          styles.exerciseRestChip,
-                          {
-                            backgroundColor: colors.primarySurface,
-                            borderColor: colors.primaryBorder,
-                          },
-                        ]}
-                      >
-                        <Ionicons name="timer-outline" size={11} color={colors.primary} />
-                        <Text style={[styles.exerciseRestChipText, { color: colors.primary }]}>
-                          {formatRestDurationLabel(restPresetSec)} rest
-                        </Text>
-                      </Pressable>
                     </View>
                   </Pressable>
                   <View style={styles.exerciseCardActions}>
@@ -1619,12 +1634,8 @@ export default function ActiveWorkoutScreen() {
                   }
                   removeSet(exIdx, setIdx);
                 };
-                const isAnyRestActive =
-                  restAfter != null && restSecondsLeft != null && restSecondsLeft > 0;
-                // One fixed slot: under the resting set, or under the current working set when idle.
-                // Completing fills the same slot — no jump. Skip warm-ups (they don't start rest).
-                const reserveRestSlot =
-                  isActiveRestGap || (isCurrentSet && !isWarmUp && !isAnyRestActive);
+                const presetSeconds = isWarmUp ? warmUpRestSec : restPresetSec;
+                const showRestAfter = isActiveRestGap || presetSeconds > 0;
 
                 const setRow = (
                     <View
@@ -1749,13 +1760,8 @@ export default function ActiveWorkoutScreen() {
                             if (workoutSoundsEnabled) {
                               void playWorkoutSound('setComplete');
                             }
-                            if (shouldStartRestAfterComplete(set)) {
-                              startRest(
-                                exIdx,
-                                setIdx,
-                                se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS
-                              );
-                            }
+                            const restSeconds = restDurationAfterComplete(set, se);
+                            if (restSeconds != null) startRest(exIdx, setIdx, restSeconds);
                           }
                         }}
                       />
@@ -1763,42 +1769,46 @@ export default function ActiveWorkoutScreen() {
                 );
 
                 return (
-                  <View
-                    key={setIdx}
-                    style={[
-                      styles.setStatusBlock,
-                      {
-                        backgroundColor: rowBg,
-                        borderBottomColor: colors.border,
-                        borderBottomWidth: setIdx === se.sets.length - 1 ? 0 : StyleSheet.hairlineWidth,
-                      },
-                    ]}
-                    accessibilityState={isCurrentSet ? { selected: true } : undefined}
-                  >
-                    {statusAccent ? (
-                      <View
-                        pointerEvents="none"
-                        style={[styles.setStatusAccent, { backgroundColor: statusAccent }]}
+                  <View key={setIdx}>
+                    <View
+                      style={[
+                        styles.setStatusBlock,
+                        {
+                          backgroundColor: rowBg,
+                          borderBottomColor: colors.border,
+                          borderBottomWidth:
+                            showRestAfter || setIdx === se.sets.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                        },
+                      ]}
+                      accessibilityState={isCurrentSet ? { selected: true } : undefined}
+                    >
+                      {statusAccent ? (
+                        <View
+                          pointerEvents="none"
+                          style={[styles.setStatusAccent, { backgroundColor: statusAccent }]}
+                        />
+                      ) : null}
+                      {canDeleteSet ? (
+                        <SetRowSwipeable
+                          dangerColor={colors.danger}
+                          onDelete={deleteThisSet}
+                        >
+                          {setRow}
+                        </SetRowSwipeable>
+                      ) : (
+                        setRow
+                      )}
+                    </View>
+                    {showRestAfter ? (
+                      <RestBetweenBar
+                        presetSeconds={presetSeconds}
+                        active={isActiveRestGap}
+                        restSecondsLeft={restSecondsLeft ?? 0}
+                        restTotalSeconds={restTotalSeconds}
+                        colors={colors}
+                        onPress={openTopBarRestDialog}
                       />
                     ) : null}
-                    {canDeleteSet ? (
-                      <SetRowSwipeable
-                        dangerColor={colors.danger}
-                        onDelete={deleteThisSet}
-                      >
-                        {setRow}
-                      </SetRowSwipeable>
-                    ) : (
-                      setRow
-                    )}
-                    <ActiveRestGap
-                      active={isActiveRestGap}
-                      reserved={reserveRestSlot}
-                      restSecondsLeft={restSecondsLeft ?? 0}
-                      restTotalSeconds={restTotalSeconds}
-                      colors={colors}
-                      onPress={() => setShowRestControls(true)}
-                    />
                   </View>
                 );
               })}
@@ -1969,6 +1979,10 @@ export default function ActiveWorkoutScreen() {
                     }
                   }}
                   onEditRest={() => {
+                    const ex = session.exercises[exIdx];
+                    setRestDraftSeconds(ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
+                    setWarmUpDraftSeconds(ex?.warmUpRestSeconds ?? 0);
+                    setRestTimeField(null);
                     setRestTimersExIdx(exIdx);
                     closeExerciseMenu();
                   }}
@@ -2035,67 +2049,112 @@ export default function ActiveWorkoutScreen() {
         </Pressable>
       </Modal>
 
-      {/* Rest after each set for this exercise */}
+      {/* Rest saved for the next sets of this exercise. Does not rewrite a timer already running. */}
       <Modal visible={restTimersExIdx !== null} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setRestTimersExIdx(null)}>
+        <View
+          style={[
+            styles.modalOverlay,
+            { backgroundColor: colors.overlay },
+            restTimeField != null && styles.restTimersDocked,
+          ]}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeRestTimers} accessibilityLabel="Dismiss" />
           <View
-            style={[styles.restTimersCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={restTimeField != null ? styles.restTimersDock : undefined}
             onStartShouldSetResponder={() => true}
           >
-            {restTimersExIdx !== null && session?.exercises[restTimersExIdx] && (() => {
-              const ex = session.exercises[restTimersExIdx];
-              const exerciseName = getExercise(ex.exerciseId)?.name ?? ex.exerciseId;
-              const effectiveSeconds = ex.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
-              return (
+            <View
+              style={[
+                styles.restTimersCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                restTimeField != null && styles.restTimersCardDocked,
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
+              {restTimersExIdx !== null && session?.exercises[restTimersExIdx] && (
                 <>
-                  <Text style={[styles.restTimersTitle, { color: colors.text }]}>Edit rest timer</Text>
-                  <Text style={[styles.restTimersSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
-                    {exerciseName}
-                  </Text>
+                  <Text style={[styles.restTimersTitle, { color: colors.text }]}>Update rest timers</Text>
                   <Text style={[styles.restTimersHint, { color: colors.textMuted }]}>
-                    Used after every set in this exercise, including the last set.
+                    Completed timers will not be affected. Durations will be saved for next time.
                   </Text>
-                  <View style={styles.restTimersOptions}>
-                    {REST_BETWEEN_SETS_CHOICES.map((opt) => {
-                      const selected = effectiveSeconds === opt.seconds;
-                      return (
+                  {(
+                    [
+                      ['work', 'Work set', restDraftSeconds],
+                      ['warmUp', 'Warm up', warmUpDraftSeconds],
+                    ] as const
+                  ).map(([field, label, seconds]) => {
+                    const focused = restTimeField === field;
+                    return (
+                      <View key={field} style={styles.restTypeRow}>
+                        <Text style={[styles.restTypeLabel, { color: colors.text }]}>{label}</Text>
                         <Pressable
-                          key={opt.seconds}
+                          onPress={() => focusRestTime(field)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${label} rest ${formatRestDurationLabel(seconds)}`}
+                          accessibilityHint="Enter a time"
                           style={[
-                            styles.restTimerChoiceBtn,
+                            styles.restTypePill,
                             {
-                              backgroundColor: selected ? colors.primary : colors.surfaceElevated,
-                              borderColor: selected ? colors.primary : colors.border,
+                              borderColor: focused ? colors.primary : colors.border,
+                              backgroundColor: colors.surface,
                             },
                           ]}
-                          onPress={() => {
-                            setExerciseRestBetweenSets(restTimersExIdx, opt.seconds);
-                            setRestTimersExIdx(null);
-                          }}
                         >
                           <Text
-                            style={[
-                              styles.restTimerChoiceBtnText,
-                              { color: selected ? colors.primaryOn : colors.text },
-                            ]}
+                            style={[styles.restTypePillText, { color: colors.text }]}
+                            maxFontSizeMultiplier={fontScaleCap.chrome}
                           >
-                            {opt.label}
+                            {formatRestDurationLabel(seconds)}
                           </Text>
                         </Pressable>
-                      );
-                    })}
-                  </View>
+                      </View>
+                    );
+                  })}
                   <Pressable
-                    style={[styles.restTimersDoneBtn, { borderColor: colors.border }]}
-                    onPress={() => setRestTimersExIdx(null)}
+                    style={[
+                      styles.restTimersDoneBtn,
+                      styles.restTimersSaveBtn,
+                      { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                    onPress={() => {
+                      setExerciseRestBetweenSets(restTimersExIdx, restDraftSeconds);
+                      setExerciseWarmUpRest(restTimersExIdx, warmUpDraftSeconds);
+                      closeRestTimers();
+                    }}
                   >
-                    <Text style={[styles.restTimersDoneBtnText, { color: colors.text }]}>Cancel</Text>
+                    <Text style={[styles.restTimersDoneBtnText, { color: colors.primaryOn }]}>
+                      Update rest timers
+                    </Text>
                   </Pressable>
                 </>
-              );
-            })()}
+              )}
+            </View>
+            {restTimeField != null && restTimersExIdx !== null && session?.exercises[restTimersExIdx] ? (
+              <NumericKeypad
+                inline
+                exerciseName={
+                  getExercise(session.exercises[restTimersExIdx].exerciseId)?.name ??
+                  session.exercises[restTimersExIdx].exerciseId
+                }
+                field="time"
+                fieldTitle={restTimeField === 'work' ? 'Work set' : 'Warm up'}
+                timeAction={restTimeField === 'work' ? 'next' : 'done'}
+                unitLabel=""
+                valueText={formatRestDurationLabel(
+                  restTimeField === 'work' ? restDraftSeconds : warmUpDraftSeconds
+                )}
+                step={1}
+                canComplete
+                onDigit={handleRestTimeDigit}
+                onBackspace={handleRestTimeBackspace}
+                onAdjust={() => {}}
+                onNext={() => focusRestTime(restTimeField === 'work' ? 'warmUp' : 'work')}
+                onComplete={() => setRestTimeField(null)}
+                onDismiss={() => setRestTimeField(null)}
+              />
+            ) : null}
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Personal exercise note (synced) */}
@@ -2750,22 +2809,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
-  exerciseRestChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  exerciseRestChipText: {
-    fontFamily: typography.data.fontFamily,
-    fontSize: 11,
-    fontWeight: '600',
-  },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   exerciseDoneBadge: {
     flexDirection: 'row',
@@ -2922,45 +2965,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  restGapBlock: {
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-  },
-  restGapPressable: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  restGapInner: {
-    gap: 4,
-  },
-  restGapTimeRow: {
+  restBarCollapsed: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 2,
-    minHeight: 14,
+    paddingHorizontal: 12,
+    gap: 8,
+    position: 'relative',
   },
-  restGapTime: {
+  restBarRule: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  restBarCollapsedTime: {
     fontFamily: typography.data.fontFamily,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+  },
+  restBarLabelWrap: {
+    alignItems: 'center',
+  },
+  restBarLabelGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+    justifyContent: 'center',
+  },
+  restBarWord: {
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '600',
-    includeFontPadding: false,
   },
-  restGapLabel: {
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: '500',
-    includeFontPadding: false,
-  },
-  restGapTrack: {
-    height: 3,
-    borderRadius: 2,
+  restBarProgress: {
+    marginTop: 3,
+    height: 2,
+    borderRadius: 1,
     overflow: 'hidden',
   },
-  restGapFill: {
+  restBarProgressFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 1,
   },
   restBetweenText: {
     fontSize: 11,
@@ -3116,6 +3162,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   editSetsDoneBtnText: { fontSize: 16, fontWeight: '600' },
+  restTimersDocked: {
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+    padding: 0,
+  },
+  restTimersDock: {
+    width: '100%',
+  },
   restTimersCard: {
     width: '100%',
     maxWidth: 320,
@@ -3123,17 +3177,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
   },
+  restTimersCardDocked: {
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
   restTimersTitle: { ...typography.sectionTitle, marginBottom: 4 },
   restTimersSubtitle: { ...typography.caption, marginBottom: 6 },
-  restTimersHint: { ...typography.caption, marginBottom: 16 },
-  restTimersOptions: { gap: 10, marginBottom: 16 },
-  restTimerChoiceBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+  restTimersHint: { ...typography.caption, marginBottom: 8, lineHeight: 18 },
+  restTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  restTypeLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  restTypePill: {
+    minWidth: 76,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
     alignItems: 'center',
   },
-  restTimerChoiceBtnText: { ...typography.data, fontSize: 17 },
+  restTypePillText: {
+    fontFamily: typography.data.fontFamily,
+    fontSize: 16,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  restTimersSaveBtn: {
+    marginTop: 12,
+  },
   restTimersDoneBtn: {
     paddingVertical: 14,
     borderRadius: 12,

@@ -32,7 +32,8 @@ interface SetRecord {
 interface SessionExercise {
   exerciseId: string;
   sets: SetRecord[];
-  restBetweenSetsSeconds?: number;  // omitted → 120
+  restBetweenSetsSeconds?: number;  // omitted → 120; 0 → no rest
+  warmUpRestSeconds?: number;       // omitted or 0 → warm-ups do not start a timer
 }
 
 interface WorkoutSession {
@@ -106,7 +107,7 @@ Columns: **SET · PREVIOUS · KG/LB · REPS · Done**.
 - Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint.
 - When every set in an exercise is completed, the card is marked done: a green border and a **Done** badge in its header.
 - After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
-- A fixed rest slot sits under the current working set (and under the resting set while the timer runs) so completing a set does not shove the rows below. The slot is empty until rest starts; the countdown fills that same space. Warm-ups do not reserve a slot.
+- A rest row sits on the divider after a set when that set's rest duration is greater than 0 (and after the last such set, above Add set). It shows that duration, or the countdown while a timer is running for that set. The countdown's progress is a short bar under the time, the width of the label. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
 
 ### Previous values and prefill
 
@@ -153,21 +154,27 @@ scrolled up so the pad never hides the row being edited.
   different intents:
   - **Weight** shows a primary **Next** that jumps to the same set's reps. A reserved **Plates**
     slot (a plate calculator, later) sits to the right of **0**.
-  - **Reps** shows a success **Done** (check) that **completes the set** — starting rest for a
-    working set — and then dismisses the pad, since a rest usually follows rather than the next
+  - **Reps** shows a success **Done** (check) that **completes the set** — starting that set's
+    rest — and then dismisses the pad, since a rest usually follows rather than the next
     set. Done is disabled until reps > 0. A reserved **RPE** slot for logging effort later (to
     inform recovery windows) sits to the right of **0**.
+  - **Time** is only the rest-duration boxes on **Update rest timers**. −/+, Plates, and RPE
+    are hidden. Digits shift into `m:ss` from the right (the first digit replaces the current
+    time); a seconds value above 59 or a total past 15:00 is ignored, and 0:00 is allowed.
+    **Next** moves from Work set to Warm up; **Done** hides the pad.
 - **Backspace** is in the right-hand column, above Next/Done — the same place delete lives on a
   normal keyboard. The chevron key hides the pad. Neither reserved slot (Plates / RPE) is wired
   to anything yet.
 
-The pure entry maths (append, backspace, ± clamping, digit caps) lives in `src/utils/keypadInput.ts`
-and is unit-tested.
+The pure entry maths (append, backspace, ± clamping, digit caps, and `m:ss` clock entry) lives in
+`src/utils/keypadInput.ts` and is unit-tested.
 
 ### Completing, adding, removing
 
-- **Done** requires `reps > 0`; weight is optional. Completing a non-warm-up set **auto-starts
-  the rest timer**; warm-ups do not.
+- **Done** requires `reps > 0`; weight is optional. Completing a set **auto-starts the rest
+  timer** for that set's duration: the work-set rest after a working set (default 120 s; an
+  explicit 0:00 starts nothing), and the warm-up rest after a warm-up (only when that duration
+  is greater than 0).
 - **+ ADD SET** appends a set; the button label shows the current rest preset. The control is a full-width footer of the set table, separated from the last row by the same divider as the set rows, and shares the table’s edges.
 - **Swipe right** or long-press a set number to delete. Minimum **1 set** per exercise; no maximum.
 - **Add warm-up** inserts a warm-up set at position 0.
@@ -176,22 +183,32 @@ and is unit-tested.
 
 | Setting | Value |
 |---------|------:|
-| App default (`DEFAULT_REST_SECONDS`) | **120 s** |
-| Per-exercise choices | 90 / 120 / 180 s |
+| App default (`DEFAULT_REST_SECONDS`) | **120 s** (working sets, when omitted) |
+| Running timer step | ±30 s |
+| Running timer floor / ceiling | 30 s / 15:00 (900 s) |
+| Typed preset | any `m:ss` from 0:00 to 15:00, not snapped to 30 s |
 | Manual picker (header) | 60 / 120 / 180 s |
-| Adjust step | ±30 s (floor 30 s) |
 
 There is **no rest-duration setting in Settings** — the default is a code constant, overridable
-per exercise within a session. Per-exercise rest applies after **every** set including the last.
+per exercise within a session. Per-exercise rest applies after **every set of that kind**,
+including the last. A working set uses `restBetweenSetsSeconds` (omitted means 120; explicit 0
+means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
 
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
 and app restarts. **Skip rest** records the elapsed time and clears the timer; recorded durations
-are kept per set and shown in the set row.
+are kept per set and shown under the set number.
 
-A **fixed-height slot** under the current working set (and under the resting set while the timer
-runs) is reserved even before rest starts, so the rows below do not jump when a set is completed.
-The slot shows the countdown and a progress bar in full — time label and track are not clipped.
-Tapping it opens rest controls with the remaining time, ±30 s, and Skip rest.
+A rest row sits after a set when that set's duration is greater than 0, so completing the set
+does not shove the rows below — the countdown replaces the preset in that same row. Tapping it
+opens the header rest dialogue (running-timer controls, or the manual picker when nothing is
+counting). It does not edit the row in place. The header dialogue's ±30 buttons change only the
+countdown already running.
+
+**Update rest timers** (exercise menu) sets the work-set and warm-up rests used next time. It
+does not change a countdown that is already running. Each duration is a time box. Tapping a box
+opens the logging keypad in time mode (digits only, `m:ss`, 0:00–15:00). **Next** moves from
+Work set to Warm up; **Done** hides the keypad. **Update rest timers** writes both durations
+onto the exercise.
 
 ### Sounds
 
@@ -238,7 +255,7 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 | Action | Tier | Behaviour |
 |--------|------|-----------|
 | **Reorder exercises** | Basic | Long-press an exercise title to enter drag mode |
-| **Edit rest for an exercise** | Basic | 90/120/180 s |
+| **Edit rest for an exercise** | Basic | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. 0:00 means that kind does not start a timer |
 | **Exercise note** | Basic | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
 | **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists |
 | **Replace exercise** | Pro `replace_exercise_mid_workout` | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement). The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. |
@@ -299,7 +316,7 @@ them, so there is no cached value to invalidate. See
 |----------|------:|
 | Default working sets per exercise | 3 |
 | Default rest | 120 s |
-| Rest adjust step / floor | 30 s / 30 s |
+| Rest adjust step / floor / ceiling | 30 s / 30 s / 900 s |
 | Persist debounce | 400 ms |
 | Timer tick | 1000 ms |
 | Rest-end sound grace window | 1500 ms |
@@ -319,7 +336,7 @@ them, so there is no cached value to invalidate. See
 | Whole-number typed input | The in-app number pad has no decimal key; its −/+ keys still step by 2.5 kg / 5 lb, so a kg field can hold 2.5. lb→kg conversion rounds to 2dp |
 | Sets are logged on a custom in-app pad | The OS keyboard is never raised for set entry, which is what makes Done single-tap and keeps rows visible |
 | Rest runs after the last set of an exercise too | Simpler than special-casing; skip it if unwanted |
-| Warm-ups don't trigger rest | But they *do* count as "completed" for recovery and volume |
+| Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Warm-ups still count as "completed" for recovery and volume |
 | "Previous" is one snapshot per exercise | Best weighted set within the most recent qualifying session, not an all-time best or set-by-set history |
 | Incomplete sets are stored, not discarded | They're excluded from every derived metric instead |
 | A lapsed subscription can't block finishing | Gates apply to starting only |
@@ -338,9 +355,11 @@ Covered:
   set-complete weight prefill (same warm-up/working kind only, never reps), add-set carry-over,
   `bestCompletedSet` / `buildPreviousSnapshot` (highest weight then reps; can move down; keeps a
   prior snapshot when nothing qualifies), warm-up insert bumping rest keys, rest-key remap on
-  reorder / remove / replace, `canCompleteSet` (`reps > 0`), `shouldStartRestAfterComplete` (warm-ups don't),
+  reorder / remove / replace, `canCompleteSet` (`reps > 0`), `restDurationAfterComplete` (working sets use their rest, default 120; explicit 0 skips; warm-ups rest only when `warmUpRestSeconds` > 0),
+  `storedRestSeconds` (typed `m:ss`, including 0:00, capped at 15:00, not snapped to 30 s),
   `startPrefillPatch` (empty **working** sets only, flagged as suggestions; warm-ups skipped), suggestion flags set on
   prefill/carry-over and cleared on complete, `stripPrefillFlags` (dropped before save),
+  `clampRestSeconds` / `adjustRestSeconds` (running-timer ±30 grid, 30 s floor, 15:00 ceiling),
   `buildReplacedExercise` (resets to default sets and prefills from the **new** exercise, not
   the one it replaced), `parseStartParams` / `encodeStartParams`, and `normalizeHydratedState` (an expired rest timer
   is dropped on boot)

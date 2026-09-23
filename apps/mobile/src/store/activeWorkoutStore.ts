@@ -21,7 +21,9 @@ import {
 } from '@/sync';
 import {
   DEFAULT_REST_SECONDS,
+  REST_MAX_SECONDS,
   buildAddedSet,
+  storedRestSeconds,
   buildReplacedExercise,
   bumpRestKeysForInsertedSet,
   buildPreviousSnapshot,
@@ -57,6 +59,7 @@ export interface ActiveWorkoutState {
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   /** Applies to all rests for this exercise (after each set, including the last). */
   setExerciseRestBetweenSets: (exerciseIndex: number, seconds: number) => void;
+  setExerciseWarmUpRest: (exerciseIndex: number, seconds: number) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
   addSet: (exerciseIndex: number) => void;
@@ -123,7 +126,23 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
     if (!ex) return;
-    exercises[exerciseIndex] = { ...ex, restBetweenSetsSeconds: seconds };
+    exercises[exerciseIndex] = {
+      ...ex,
+      restBetweenSetsSeconds: storedRestSeconds(seconds),
+    };
+    set({ session: { ...session, exercises } });
+  },
+
+  setExerciseWarmUpRest: (exerciseIndex, seconds) => {
+    const { session } = get();
+    if (!session) return;
+    const exercises = [...session.exercises];
+    const ex = exercises[exerciseIndex];
+    if (!ex) return;
+    exercises[exerciseIndex] = {
+      ...ex,
+      warmUpRestSeconds: storedRestSeconds(seconds),
+    };
     set({ session: { ...session, exercises } });
   },
 
@@ -374,12 +393,13 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   },
 
   add30SecondsRest: () => {
-    const { restEndTime } = get();
-    if (restEndTime === null) return;
-    set((s) => ({
-      restTotalSeconds: s.restTotalSeconds + 30,
-      restEndTime: restEndTime + 30 * 1000,
-    }));
+    const { restEndTime, restTotalSeconds } = get();
+    if (restEndTime === null || restTotalSeconds >= REST_MAX_SECONDS) return;
+    const added = Math.min(30, REST_MAX_SECONDS - restTotalSeconds);
+    set({
+      restTotalSeconds: restTotalSeconds + added,
+      restEndTime: restEndTime + added * 1000,
+    });
   },
 
   subtract30SecondsRest: () => {
