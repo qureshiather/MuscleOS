@@ -103,11 +103,11 @@ export default function PrivacyPage() {
         </p>
         <ul className="list-disc pl-6 space-y-1 mb-3">
           <li>
-            <strong>Export.</strong> Profile → Data → Export my data writes a JSON file you can share. It is a
+            <strong>Export.</strong> Profile → Account → Data → Export my data writes a JSON file you can share. It is a
             portability copy of your history, not a full backup, and the app has no import.
           </li>
           <li>
-            <strong>Clear this device.</strong> Profile → Data → Clear all data resets workouts and settings on this
+            <strong>Clear this device.</strong> Profile → Account → Data → Clear all data resets workouts and settings on this
             phone. You stay signed in.
           </li>
           <li>

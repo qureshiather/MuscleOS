@@ -84,7 +84,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
 | **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from the template library | [templates.md](../features/templates.md) |
 | **History** | `/(tabs)/history` | Reverse-chronological list of finished sessions with duration, volume, and every completed set | [history-analytics.md](../features/history-analytics.md) |
-| **Profile** | `/(tabs)/profile` | Settings, biodata, then Account (subscription, data, deletion, legal) | [accounts-and-data.md](../features/accounts-and-data.md) |
+| **Profile** | `/(tabs)/profile` | Account, settings, then biodata — each row opens its own screen | [accounts-and-data.md](../features/accounts-and-data.md) |
 
 ### Pushed screens
 
@@ -98,7 +98,9 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Exercise progression | `/exercise-progression` | Estimated-1RM chart over time for one exercise | **Pro** | [history-analytics.md](../features/history-analytics.md#exercise-progression) |
 | Monthly calendar | `/history-monthly` | Month grid of training days | **Pro** | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
 | Subscription | `/subscription` | Paywall, plan selection, restore purchases | — | [subscriptions.md](../features/subscriptions.md) |
+| Account | `/account` | Sign-in, sync, subscription, data, deletion, legal | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Settings | `/settings` | Appearance, units, sounds | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Biodata | `/biodata` | Height, weight, age, gender, not natty | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Data | `/data` | Sync, export, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password. | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 

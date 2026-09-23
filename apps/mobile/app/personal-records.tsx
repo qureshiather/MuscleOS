@@ -231,7 +231,7 @@ export default function PersonalRecordsScreen() {
           </View>
           {(profile.weightKg == null || profile.weightKg <= 0 || !profile.sex) && (
             <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
+              onPress={() => router.push('/biodata')}
               style={[
                 styles.profileHint,
                 { backgroundColor: colors.surface, borderColor: colors.border },
@@ -239,7 +239,7 @@ export default function PersonalRecordsScreen() {
             >
               <Ionicons name="person-outline" size={16} color={colors.textMuted} />
               <Text style={[typography.caption, { color: colors.textMuted, flex: 1 }]}>
-                Add weight & gender in Profile for strength level comparison
+                Add weight & gender in Biodata for strength level comparison
               </Text>
             </Pressable>
           )}

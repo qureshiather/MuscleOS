@@ -10,7 +10,7 @@ account is optional and adds backup plus multi-device sync; it is never required
 |--|--|
 | Root layout | `apps/mobile/app/_layout.tsx` |
 | Auth | `apps/mobile/src/store/authStore.ts`, `src/lib/supabase.ts`, `app/auth.tsx`, `app/auth-email.tsx` |
-| Profile / settings | `app/(tabs)/profile.tsx`, `app/settings.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
+| Profile / settings | `app/(tabs)/profile.tsx`, `app/account.tsx`, `app/settings.tsx`, `app/biodata.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
 | Storage | `apps/mobile/src/storage/keys.ts`, `src/storage/localStorage.ts` |
 | Sync | `apps/mobile/src/sync/` |
 | Theme | `apps/mobile/src/theme/` |
@@ -27,7 +27,7 @@ nested Tabs navigator. `/` redirects to `/(tabs)`.
 `list-outline`, `pulse-outline`, `barbell-outline`, `time-outline`, `person-outline`. The tab bar is
 custom (`TabBarWithResumePill`) so it can host the resume-workout pill.
 
-**Pushed screens:** `/auth`, `/auth-email`, `/settings`, `/data`, `/subscription`, `/create-template`,
+**Pushed screens:** `/auth`, `/auth-email`, `/account`, `/settings`, `/biodata`, `/data`, `/subscription`, `/create-template`,
 `/create-exercise`, `/workout-preview`, `/active-workout`, `/history-monthly`,
 `/exercise-progression`, `/personal-records`. `/templates` is a legacy redirect to the tabs.
 
@@ -95,17 +95,17 @@ pull first — so an empty phone fills from the cloud. Any signed-in user also g
 `revenueCatLogIn(user.id)` so the entitlement follows the identity.
 
 **Sign out** signs out of Supabase, immediately creates a **new anonymous session**, and re-points
-RevenueCat at it. Profile asks with a themed `ConfirmDialog` first. **Local workout data is not cleared** — you keep your history on the device, and
+RevenueCat at it. The Account screen asks with a themed `ConfirmDialog` first. **Local workout data is not cleared** — you keep your history on the device, and
 the subscription stays attached to the account you signed out of.
 
-**Delete account** (linked accounts only) lives on Profile under Account. Two themed confirms
+**Delete account** (linked accounts only) lives on the Account screen, opened from Profile. Two themed confirms
 (`ConfirmDialog`, not the system alert). Copy says this email's Apple, Google, and password sign-in
 are the same account. It calls the `delete-account` Edge Function, which revokes
 a Sign in with Apple token when present and hard-deletes the Supabase user (`sync_records` and
 `user_exercises` cascade). Then this device is wiped — `clearAllData` plus the in-progress workout
 and sync transport — and a **new anonymous session** starts, same as first launch. An App Store or
 Google Play subscription is **not** cancelled; the confirm copy says to cancel it in store settings.
-Anonymous users have no account to delete; they still have Profile → Data → Clear all data.
+Anonymous users have no account to delete; they still have Profile → Account → Data → Clear all data.
 
 After a successful Apple link, the app stores the short-lived `authorizationCode` and invokes
 `save-apple-token` so a refresh token can be kept for later revoke. Reviewers who delete
@@ -126,9 +126,19 @@ on Android).
 
 ## Profile
 
-The tab is three headed cards: **Settings**, **Biodata**, then **Account**.
+The tab is three headed cards, in order: **Account**, **Settings**, then **Biodata**. Each card is one row that pushes a screen.
 
-**Biodata** is `UserAppProfile` — editable, stored locally and synced as app settings.
+**Account** on this tab shows the linked identity without opening `/account`: the provider icon, **Apple ID**, **Google**, or **Email** (resolved from Supabase identities), the display name when set, and the email. A chevron still opens `/account`. Guests see **Email, Google, Apple sign in** and “Back up your data and restore Pro on any device.”
+
+`/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. Guests see “Sign in to back up your data and restore Pro on any device.” and a Sign in CTA. The method picker says linking an account backs up your data and restores Pro on any device. Sign out does not wipe local workouts.
+
+Rows on the Account screen: Subscription, Data (`/data`), Delete account (linked only), Privacy Policy, Terms of Service. Legal lives only here — Settings does not repeat it.
+
+**Settings** on this tab is a single row into `/settings` (“Appearance, units, sounds”).
+
+**Biodata** on this tab is a single row into `/biodata` (“Height, weight, age, gender”). The hint is “Used for recovery estimates” until a value is saved, then a compact summary of the saved fields (including **Not natty** when that toggle is on).
+
+**Biodata** (`/biodata`) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for height, weight, age, and gender; Save writes them together. **Not natty** is a switch on the screen and applies immediately.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
@@ -140,21 +150,9 @@ The tab is three headed cards: **Settings**, **Biodata**, then **Account**.
 
 Not collected: display name (set at sign-in), birthdate, experience level, training goals.
 
-The Biodata caption says it is "Used for recovery estimates", which is true of `notNatty` and
+The Biodata screen says it is "Used for recovery estimates", which is true of `notNatty` and
 `sex`; `weightKg` is used for strength standards elsewhere, and `age`/`heightCm` are currently
 unused by any surfaced feature.
-
-**Account** is identity plus the account-owned destinations. Linked accounts show the sign-in
-provider as **Apple ID**, **Google**, or **Email** (resolved from Supabase identities, not the
-anonymous bootstrap provider), then display name and email. Then a tap-to-sync row and Sign out.
-Guests see “Sign in to back up your data and restore Pro on any device.” and a Sign in CTA. The
-method picker says linking an account backs up your data and restores Pro on any device. Sign
-out does not wipe local workouts.
-
-Rows under Account: Subscription, Data (`/data`), Delete account (linked only), Privacy Policy,
-Terms of Service. Legal lives only here — Settings does not repeat it.
-
-**Settings** on this tab is a single row into `/settings`.
 
 ## Settings
 
@@ -337,7 +335,7 @@ Derived: `primarySurface`, `primaryBorder`, `successSurface`, `tableHeader`, `ro
 
 ## Export
 
-Profile → Data → **Export my data**. Basic tier. Writes pretty-printed JSON to the cache as
+Profile → Account → Data → **Export my data**. Basic tier. Writes pretty-printed JSON to the cache as
 `muscleos-export-YYYY-MM-DD.json` and opens the share sheet (`expo-sharing`,
 `application/json`).
 

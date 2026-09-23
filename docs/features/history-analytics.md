@@ -131,7 +131,7 @@ Your level is the highest band whose ratio threshold `e1RM / bodyweightKg` meets
 scanning from elite down. The next level's target is `bodyweightKg × nextRatio`.
 
 **Requires both `weightKg` and `sex` on the profile.** Without them the PR screen shows a hint
-linking to Profile. Female tables are roughly 60–70% of the male values.
+linking to Biodata. Female tables are roughly 60–70% of the male values.
 
 Supported exercises: `bench-press`, `close-grip-bench`, `squat`, `deadlift`,
 `romanian-deadlift`, `overhead-press`, `barbell-row`. Anything else reports `hasStandards: false`
@@ -205,7 +205,7 @@ the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 
 ## Export
 
-Reached from **Profile → Data → Export my data** (not from these screens). Basic tier. Writes
+Reached from **Profile → Account → Data → Export my data** (not from these screens). Basic tier. Writes
 pretty-printed JSON named `muscleos-export-YYYY-MM-DD.json` and hands it to the share sheet.
 
 Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export).

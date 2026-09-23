@@ -98,7 +98,7 @@ Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabas
 | Link account (Apple/Google/email) | Upload local data, then sync |
 | History pull-to-refresh | Force sync |
 | Data → Sync now | Force sync |
-| Profile → sync row tap | Force sync |
+| Account → sync row tap | Force sync |
 
 Anonymous users stay device-only until they link an account.
 
