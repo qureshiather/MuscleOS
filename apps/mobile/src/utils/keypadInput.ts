@@ -1,9 +1,12 @@
 /**
  * Pure numeric-entry logic for the in-app set keypad (`NumericKeypad`).
  *
- * These operate on the *display* value a cell shows (integer weight in the user's unit,
- * or reps) — never on stored kg. The screen converts to/from kg at the edge. Keeping the
- * maths here means it stays testable without a keyboard or a render tree.
+ * These operate on the *display* value a cell shows (weight in the user's unit, or reps) —
+ * never on stored kg. The screen converts to/from kg at the edge. Keeping the maths here
+ * means it stays testable without a keyboard or a render tree.
+ *
+ * Digits are whole numbers only. The −/+ keys are the only way to land on a plate fraction
+ * (2.5 lb or 0.25 kg).
  */
 
 /** Max digits typed into each field, so a fat-fingered hold can't overflow the row. */
@@ -11,8 +14,8 @@ export const WEIGHT_MAX_DIGITS = 4;
 export const REPS_MAX_DIGITS = 3;
 
 /** Plate-style ± steps for the keypad's minus/plus keys. */
-export const WEIGHT_STEP_KG = 2.5;
-export const WEIGHT_STEP_LB = 5;
+export const WEIGHT_STEP_KG = 0.25;
+export const WEIGHT_STEP_LB = 2.5;
 export const REPS_STEP = 1;
 
 /** Longest rest that can be typed, matching the workout rest ceiling (15:00). */
@@ -66,8 +69,13 @@ function integerDigits(value: number | undefined): string {
   return String(Math.trunc(Math.abs(value)));
 }
 
+function hasPlateFraction(value: number | undefined): value is number {
+  return value != null && !Number.isNaN(value) && !Number.isInteger(value);
+}
+
 /**
- * Append a typed digit to the current value, treating entry as integer.
+ * Append a typed digit. Entry is a whole number: a decimal key is ignored, and a plate
+ * fraction (from −/+) is replaced by the new integer instead of being extended.
  * A leading zero is replaced (typing `5` into `0` gives `5`), and the value can't grow
  * past `maxDigits`. Returns the new numeric value.
  */
@@ -77,15 +85,23 @@ export function keypadAppendDigit(
   maxDigits: number
 ): number | undefined {
   if (!/^[0-9]$/.test(digit)) return current;
-  const base = integerDigits(current);
+  const base = hasPlateFraction(current) ? '' : integerDigits(current);
   if (base.length >= maxDigits) return current;
   const nextStr = (base === '0' ? '' : base) + digit;
   const next = parseInt(nextStr, 10);
   return Number.isNaN(next) ? current : next;
 }
 
-/** Drop the last typed digit. Emptying the field returns `undefined`. */
+/**
+ * Drop the last typed digit. A plate fraction is not a typed digit, so the first
+ * backspace snaps to the whole number (97.5 → 97, 0.25 → empty). Emptying the field
+ * returns `undefined`.
+ */
 export function keypadBackspace(current: number | undefined): number | undefined {
+  if (hasPlateFraction(current)) {
+    const whole = Math.trunc(current);
+    return whole > 0 ? whole : undefined;
+  }
   const base = integerDigits(current);
   if (base === '') return undefined;
   const next = base.slice(0, -1);

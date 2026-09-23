@@ -10,9 +10,17 @@ import {
 
 describe('weightUnits', () => {
   it('round-trips kg display values', () => {
-    expect(kgToDisplay(82.55, 'kg')).toBe(82.6);
+    expect(kgToDisplay(82.55, 'kg')).toBe(82.55);
+    expect(kgToDisplay(20.25, 'kg')).toBe(20.25);
     expect(displayToKg(82.6, 'kg')).toBe(82.6);
     expect(formatWeight(82.5, 'kg')).toBe('82.5 kg');
+    expect(formatWeight(20.25, 'kg')).toBe('20.25 kg');
+  });
+
+  it('keeps 2.5 lb plate steps stable through kg storage', () => {
+    for (const pounds of [2.5, 45, 97.5, 135, 137.5, 225]) {
+      expect(kgToDisplay(displayToKg(pounds, 'lb'), 'lb')).toBe(pounds);
+    }
   });
 
   it('converts kg to lb for display and back for storage', () => {

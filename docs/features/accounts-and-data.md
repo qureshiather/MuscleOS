@@ -188,13 +188,14 @@ haptics (none exist), and notification preferences beyond sounds.
 
 | Direction | Rule |
 |-----------|------|
-| kg → display | lb: `round(kg × 2.20462 × 10) / 10`; kg: 1 decimal |
+| kg → display | lb: `round(kg × 2.20462 × 10) / 10` (1 decimal); kg: 2 decimals |
 | display → kg | lb: `round((lb / 2.20462) × 100) / 100`; kg: as entered |
 | cm → display | in: `round(cm / 2.54 × 10) / 10`; cm: 1 decimal |
 | display → cm | in: `round((in × 2.54) × 100) / 100` |
 
-Display rounds to 1 decimal, storage to 2 — enough that a round-trip through pounds doesn't drift
-visibly.
+Pounds display rounds to 1 decimal and kilograms to 2, so a 2.5 lb or 0.25 kg plate step survives
+a round-trip. Storage of a pounds value is 2 decimal kilograms — enough that the round-trip
+doesn't drift visibly.
 
 ## Health
 

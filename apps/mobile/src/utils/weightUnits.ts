@@ -4,10 +4,13 @@ export type HeightUnit = 'cm' | 'in';
 const KG_TO_LB = 2.20462;
 const CM_TO_IN = 1 / 2.54;
 
-/** Convert stored kg to display value in user's unit */
+/**
+ * Convert stored kg to the display value in the user's unit.
+ * Pounds keep 1 decimal (2.5 lb plate steps). Kilograms keep 2 (0.25 kg plate steps).
+ */
 export function kgToDisplay(kg: number, unit: WeightUnit): number {
   if (unit === 'lb') return Math.round(kg * KG_TO_LB * 10) / 10;
-  return Math.round(kg * 10) / 10;
+  return Math.round(kg * 100) / 100;
 }
 
 /** Convert display value (in user's unit) to kg for storage */

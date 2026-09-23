@@ -32,7 +32,7 @@ Each card shows:
 | Duration | `completedAt − startedAt`, to the nearest minute: `45m`, `1h 15m`, `2h` |
 | Volume | Σ `weightKg × reps` over completed sets |
 | Exercises | Only those with at least one completed set |
-| Sets | Completed sets as chips: `8` or `? @ 60 kg` |
+| Sets | Completed sets as chips: `8` or `? @ 60 kg`. The kilogram amount keeps up to 2 decimal places (`20.25`) and drops trailing zeros (`60`, not `60.0`) |
 
 > Volume is always labelled **kg** regardless of the user's weight unit setting. This is a known
 > inconsistency with the rest of the app.

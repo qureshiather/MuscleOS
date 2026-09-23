@@ -145,11 +145,14 @@ highlighted with an accent ring — there is no text caret, since the pad owns e
 context bar names the exercise and field and echoes the running value, and the focused exercise is
 scrolled up so the pad never hides the row being edited.
 
-- **Whole numbers only** — no decimal key. Weight is displayed in the user's unit and converted
-  back to kg on write; lb users get exact integers and kg is stored to 2dp after conversion. Entry
-  is capped at **4 digits for weight, 3 for reps**.
-- **− / +** nudge the focused field by a plate step — **2.5 kg / 5 lb** for weight, **1** for reps —
-  clamping to empty at zero.
+- **Whole numbers only** — no decimal key. A typed digit never extends a fraction: if −/+ has
+  left a plate increment in the field, the next digit replaces it with a new whole number.
+  Backspace on a fraction snaps to that whole number first (97.5 → 97, 0.25 → empty), then
+  deletes digits. Weight is displayed in the user's unit and converted back to kg on write;
+  a pounds value keeps 1 decimal and kg is stored to 2dp after conversion. Entry is capped at
+  **4 digits for weight, 3 for reps**.
+- **− / +** nudge the focused field by a plate step — **0.25 kg / 2.5 lb** for weight, **1** for
+  reps — clamping to empty at zero. Those keys are the only way to enter a fraction.
 - The **action key adapts to the field**, because logging a weight and finishing a set are
   different intents:
   - **Weight** shows a primary **Next** that jumps to the same set's reps. A reserved **Plates**
@@ -322,7 +325,7 @@ them, so there is no cached value to invalidate. See
 | Rest-end sound grace window | 1500 ms |
 | Minimum sets per exercise | 1 (no maximum) |
 | kg ↔ lb factor | 2.20462 |
-| Number pad ± step (weight) | 2.5 kg / 5 lb |
+| Number pad ± step (weight) | 0.25 kg / 2.5 lb |
 | Number pad ± step (reps) | 1 |
 | Number pad digit cap | 4 weight / 3 reps |
 | Confetti pieces | 48 |
@@ -333,7 +336,7 @@ them, so there is no cached value to invalidate. See
 |------------|------|
 | One workout at a time | Enforced in the store and at every entry point |
 | Weight × reps is the only logging mode | `Exercise.trackingType` is ignored by this screen |
-| Whole-number typed input | The in-app number pad has no decimal key; its −/+ keys still step by 2.5 kg / 5 lb, so a kg field can hold 2.5. lb→kg conversion rounds to 2dp |
+| Whole-number typed input | The in-app number pad has no decimal key. −/+ is the only way to enter a fraction, stepping by 0.25 kg / 2.5 lb. A digit typed onto a fraction replaces it; backspace snaps the fraction off first. lb→kg conversion rounds to 2dp |
 | Sets are logged on a custom in-app pad | The OS keyboard is never raised for set entry, which is what makes Done single-tap and keeps rows visible |
 | Rest runs after the last set of an exercise too | Simpler than special-casing; skip it if unwanted |
 | Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Warm-ups still count as "completed" for recovery and volume |

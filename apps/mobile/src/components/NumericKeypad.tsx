@@ -21,7 +21,7 @@ interface NumericKeypadProps {
   unitLabel: string;
   /** Current display value, '' when empty. */
   valueText: string;
-  /** Step for the −/+ keys in the field's own unit (2.5 kg, 5 lb, or 1 rep). */
+  /** Step for the −/+ keys in the field's own unit (0.25 kg, 2.5 lb, or 1 rep). */
   step: number;
   /** Whether the reps field holds a completable value (reps > 0). Gates the Done key. */
   canComplete: boolean;

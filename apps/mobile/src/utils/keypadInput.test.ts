@@ -9,6 +9,8 @@ import {
   restSecondsFromDigits,
   restTimeDigits,
   WEIGHT_MAX_DIGITS,
+  WEIGHT_STEP_KG,
+  WEIGHT_STEP_LB,
 } from './keypadInput';
 
 describe('rest time entry', () => {
@@ -61,14 +63,15 @@ describe('keypadAppendDigit', () => {
     expect(keypadAppendDigit(999, '9', REPS_MAX_DIGITS)).toBe(999);
   });
 
-  it('ignores non-digit input', () => {
+  it('ignores a decimal point and any other non-digit', () => {
     expect(keypadAppendDigit(5, '.', WEIGHT_MAX_DIGITS)).toBe(5);
     expect(keypadAppendDigit(5, 'a', WEIGHT_MAX_DIGITS)).toBe(5);
   });
 
-  it('types over the integer part of a decimal value', () => {
-    // A ± step can leave 2.5 in a kg field; typing then continues as integer entry.
-    expect(keypadAppendDigit(2.5, '0', WEIGHT_MAX_DIGITS)).toBe(20);
+  it('replaces a plate fraction with a new whole number', () => {
+    expect(keypadAppendDigit(97.5, '1', WEIGHT_MAX_DIGITS)).toBe(1);
+    expect(keypadAppendDigit(20.25, '4', WEIGHT_MAX_DIGITS)).toBe(4);
+    expect(keypadAppendDigit(2.5, '0', WEIGHT_MAX_DIGITS)).toBe(0);
   });
 });
 
@@ -82,20 +85,31 @@ describe('keypadBackspace', () => {
     expect(keypadBackspace(1)).toBeUndefined();
     expect(keypadBackspace(undefined)).toBeUndefined();
   });
+
+  it('snaps a plate fraction back to the whole number', () => {
+    expect(keypadBackspace(97.5)).toBe(97);
+    expect(keypadBackspace(20.25)).toBe(20);
+    expect(keypadBackspace(2.5)).toBe(2);
+    expect(keypadBackspace(0.25)).toBeUndefined();
+  });
 });
 
 describe('keypadAdjust', () => {
-  it('adds plate steps without floating-point drift', () => {
-    expect(keypadAdjust(60, 2.5)).toBe(62.5);
-    expect(keypadAdjust(62.5, 2.5)).toBe(65);
+  it('steps pounds by a 2.5 lb plate', () => {
+    expect(WEIGHT_STEP_LB).toBe(2.5);
+    expect(keypadAdjust(135, WEIGHT_STEP_LB)).toBe(137.5);
+    expect(keypadAdjust(137.5, -WEIGHT_STEP_LB)).toBe(135);
+    expect(keypadAdjust(undefined, WEIGHT_STEP_LB)).toBe(2.5);
+    expect(keypadAdjust(2.5, -WEIGHT_STEP_LB)).toBeUndefined();
   });
 
-  it('treats an empty field as zero', () => {
-    expect(keypadAdjust(undefined, 5)).toBe(5);
-  });
-
-  it('clears the field when a decrement lands at or below zero', () => {
-    expect(keypadAdjust(5, -5)).toBeUndefined();
-    expect(keypadAdjust(undefined, -5)).toBeUndefined();
+  it('steps kilograms by a 0.25 kg plate', () => {
+    expect(WEIGHT_STEP_KG).toBe(0.25);
+    expect(keypadAdjust(20, WEIGHT_STEP_KG)).toBe(20.25);
+    expect(keypadAdjust(20.25, WEIGHT_STEP_KG)).toBe(20.5);
+    expect(keypadAdjust(20.5, WEIGHT_STEP_KG)).toBe(20.75);
+    expect(keypadAdjust(20.75, WEIGHT_STEP_KG)).toBe(21);
+    expect(keypadAdjust(0.25, -WEIGHT_STEP_KG)).toBeUndefined();
+    expect(keypadAdjust(undefined, -WEIGHT_STEP_KG)).toBeUndefined();
   });
 });

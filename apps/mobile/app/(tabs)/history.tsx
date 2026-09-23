@@ -15,6 +15,7 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { Card } from '@/components/ui/Card';
 import { StatChip } from '@/components/ui/StatChip';
 import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
+import { kgToDisplay } from '@/utils/weightUnits';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 
@@ -30,7 +31,7 @@ function formatSessionDate(isoDate: string): string {
 function formatSet(set: SetRecord): string {
   const reps = set.reps != null ? `${set.reps}` : '?';
   const weight =
-    set.weightKg != null && set.weightKg > 0 ? ` @ ${Number(set.weightKg).toFixed(1)} kg` : '';
+    set.weightKg != null && set.weightKg > 0 ? ` @ ${kgToDisplay(set.weightKg, 'kg')} kg` : '';
   return `${reps}${weight}`;
 }
 
