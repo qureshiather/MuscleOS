@@ -292,7 +292,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_subscription` | Cached tier | ○ |
 | `muscleos_catalog_exercises`, `muscleos_catalog_watermark`, `muscleos_catalog_seed_applied_at` | Catalog cache | ○ |
 | `muscleos_sync_outbox`, `muscleos_sync_meta` | Sync transport | ○ |
-| `muscleos_dev_pro_override` | Dev testing | ○ |
+| `muscleos_dev_pro_override` | Dev testing (`__DEV__` builds only; cleared in release) | ○ |
 | `muscleos_exact_alarm_prompt_shown` | Android prompt-once flag | ○ |
 | `muscleos_apple_authorization_code` | Short-lived Apple auth code for Sign in with Apple revoke | ○ |
 
@@ -381,7 +381,6 @@ Base image: Node 20.18.0, pnpm 9.14.2, Expo SDK 54.
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | **Required** — accounts and sync |
 | `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `_ANDROID` | In-app purchases |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google sign-in |
-| `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING` | Dev Pro override — **defaults to on**; set `false` for production |
 
 Injected via `app.config.js` into `Constants.expoConfig.extra`.
 

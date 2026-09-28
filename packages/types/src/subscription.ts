@@ -1,6 +1,7 @@
 export type SubscriptionTier = 'basic' | 'pro';
 
-export type SubscriptionPlan = 'monthly' | 'annual' | null;
+/** `complimentary` = a promotional entitlement granted from RevenueCat, not a store purchase. */
+export type SubscriptionPlan = 'monthly' | 'annual' | 'complimentary' | null;
 
 export interface SubscriptionState {
   tier: SubscriptionTier;

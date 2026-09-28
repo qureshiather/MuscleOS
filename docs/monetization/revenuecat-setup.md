@@ -56,7 +56,8 @@ Create a subscription group for monthly + annual on iOS.
 ## Testing
 
 - Use an **Expo development build** (not Expo Go) with sandbox Apple/Google accounts.
-- In dev, enable **Grant Pro (testing)** on the Subscription screen, or set `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true`.
+- In dev builds (`__DEV__`), **Grant Pro (testing)** on the Subscription screen unlocks Pro locally. Release builds don't have it.
+- On TestFlight or Play testing tracks, use sandbox purchases, or grant a promotional entitlement (see [complimentary Pro](../features/subscriptions.md#complimentary-pro)).
 - Verify monthly purchase, annual purchase, restore, and lapse behavior in the store sandbox.
 
 ## Phase 2 (optional)
