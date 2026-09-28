@@ -25,7 +25,9 @@ nested Tabs navigator. `/` redirects to `/(tabs)`.
 
 **Tab bar order:** Exercises · Recovery · Workouts · History · Profile — with icons
 `list-outline`, `pulse-outline`, `barbell-outline`, `time-outline`, `person-outline`. The tab bar is
-custom (`TabBarWithResumePill`) so it can host the resume-workout pill.
+custom (`TabBarWithResumePill`) so it can host the resume-workout pill. It is sized from its content
+(`computeTabBarLayout`): icon and label sit centred between equal top and bottom padding, and a larger
+system bottom inset (home indicator, Android nav bar) replaces the bottom padding rather than adding to it.
 
 **Pushed screens:** `/auth`, `/auth-email`, `/account`, `/settings`, `/biodata`, `/data`, `/subscription`, `/create-template`,
 `/create-exercise`, `/workout-preview`, `/active-workout`, `/history-monthly`,

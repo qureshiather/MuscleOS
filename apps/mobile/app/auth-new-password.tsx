@@ -9,6 +9,7 @@ import { spacing } from '@/theme/tokens';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PasswordField } from '@/components/ui/PasswordField';
 import { supabase } from '@/lib/supabase';
+import { fontScaleCap } from '@/theme/layout';
 
 export default function AuthNewPasswordScreen() {
   const { colors } = useTheme();
@@ -45,7 +46,7 @@ export default function AuthNewPasswordScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
           <Text style={[typography.label, { color: colors.primary }]}>Skip</Text>
         </Pressable>
-        <Text style={[typography.screenTitle, { color: colors.text }]}>New password</Text>
+        <Text style={[typography.screenTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>New password</Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
           Choose a password for this email account. Apple and Google sign-in are unchanged.
         </Text>

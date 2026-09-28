@@ -997,7 +997,7 @@ export default function ActiveWorkoutScreen() {
             <View style={[styles.finishedBadge, { backgroundColor: colors.primary }]}>
               <Ionicons name="checkmark" size={28} color="#fff" />
             </View>
-            <Text style={[styles.finishedTitle, { color: colors.text }]}>Good work</Text>
+            <Text style={[styles.finishedTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Good work</Text>
             <Text style={[styles.finishedSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
               {finishedSummary.name}
             </Text>
@@ -1325,7 +1325,7 @@ export default function ActiveWorkoutScreen() {
         onScrollToIndexFailed={() => {}}
         ListHeaderComponent={
           <View>
-            <Text style={[styles.workoutTitle, { color: colors.text }]} numberOfLines={2}>
+            <Text style={[styles.workoutTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title} numberOfLines={2}>
               {currentTemplate?.name ??
                 (isNoTemplateWorkout ? 'Empty workout' : 'Workout')}
             </Text>
@@ -2021,7 +2021,7 @@ export default function ActiveWorkoutScreen() {
             </View>
             <Text style={[styles.restControlsLabel, { color: colors.textMuted }]}>Rest remaining</Text>
             {restSecondsLeft != null && (
-              <Text style={[styles.restControlsTimer, { color: colors.text }]}>
+              <Text style={[styles.restControlsTimer, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>
                 {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
               </Text>
             )}
@@ -2250,7 +2250,7 @@ export default function ActiveWorkoutScreen() {
               style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
               onStartShouldSetResponder={() => true}
             >
-              <Text style={[styles.summaryTitle, { color: colors.text }]}>Save as template</Text>
+              <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Save as template</Text>
               <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>
                 Name this workout to use it again later.
               </Text>
@@ -2292,7 +2292,7 @@ export default function ActiveWorkoutScreen() {
             style={[styles.summaryCard, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>Workout summary</Text>
+            <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Workout summary</Text>
             {currentTemplate?.name && (
               <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{currentTemplate.name}</Text>
             )}

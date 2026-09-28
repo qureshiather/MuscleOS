@@ -19,6 +19,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PasswordField } from '@/components/ui/PasswordField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { fontScaleCap } from '@/theme/layout';
 
 type Mode = 'signin' | 'signup';
 
@@ -85,7 +86,7 @@ export default function AuthEmailScreen() {
           <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
 
-        <Text style={[typography.screenTitle, { color: colors.text }]}>
+        <Text style={[typography.screenTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>
           {resetting ? 'Reset password' : isSignIn ? 'Sign in' : 'Create account'}
         </Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>

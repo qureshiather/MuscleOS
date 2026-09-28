@@ -62,6 +62,7 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | `apps/mobile/src/utils/workoutFinish.test.ts` | Finish save-options matrix (empty/built-in/custom × list-or-set-structure-changed), `templateListChanged`, `templateStructureChanged`, built-in can't be overwritten |
 | `apps/mobile/src/utils/workoutSetView.test.ts` | Warm-up (W1…) vs working (1,2,3…) numbering, single "current" set selection |
 | `apps/mobile/src/store/templatesLogic.test.ts` | `allTemplates` ordering, soft-hide toggle, built-in vs custom hidden, folder-delete keeps templates |
+| `apps/mobile/src/theme/tabBarLayout.test.ts` | Tab bar sizing: bottom padding floor when the device reports no inset, inset replaces (not stacks) padding, label text-scale cap |
 | `apps/mobile/src/utils/recovery.test.ts` | `recoveryFromSessions`: completed-only, latest `completedAt` per muscle |
 | `packages/types/src/recovery.test.ts` | Per-muscle hours, not-natty halving, `getRecoveryUntil` |
 | `packages/types/src/muscles.test.ts` | 18 muscle groups, label formatting |

@@ -17,6 +17,7 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRecoveryReady } from '@/utils/relativeTime';
 import { getRecoveryUntil } from '@/utils/recoveryUntil';
+import { fontScaleCap } from '@/theme/layout';
 
 const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
@@ -50,7 +51,7 @@ export default function RecoveryScreen() {
       <View style={screenHeaderStyles.headerFixed}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextBlock}>
-            <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Recovery</Text>
+            <Text style={[screenHeaderStyles.title, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Recovery</Text>
             <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
               {active.length === 0
                 ? 'All clear — every muscle group is ready'

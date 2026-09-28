@@ -37,7 +37,7 @@ import { computeHomeStats, homeHeadline } from '@/utils/homeStats';
 import { requiresProToStart } from '@/subscription/features';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import { useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
+import { fontScaleCap, useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
 import type { WorkoutTemplate, TemplateFolder, MuscleId } from '@muscleos/types';
 import { encodeStartParams } from '@/store/activeWorkoutLogic';
 import { resolveTemplateExercises } from '@/utils/templateExercises';
@@ -773,7 +773,7 @@ export default function WorkoutsScreen() {
     <Screen kind="tab">
       <ScrollView contentContainerStyle={screenHeaderStyles.scrollContent}>
         <View style={screenHeaderStyles.headerInScroll}>
-          <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Workouts</Text>
+          <Text style={[screenHeaderStyles.title, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Workouts</Text>
           <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
             {headline}
           </Text>

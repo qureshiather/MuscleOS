@@ -18,6 +18,7 @@ import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types
 import { kgToDisplay } from '@/utils/weightUnits';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
+import { fontScaleCap } from '@/theme/layout';
 
 function formatSessionDate(isoDate: string): string {
   const d = new Date(isoDate);
@@ -121,7 +122,7 @@ export default function HistoryScreen() {
       <View style={screenHeaderStyles.headerFixed}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextBlock}>
-            <Text style={[screenHeaderStyles.title, { color: colors.text }]}>History</Text>
+            <Text style={[screenHeaderStyles.title, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>History</Text>
             <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
               Past sessions & volume
             </Text>

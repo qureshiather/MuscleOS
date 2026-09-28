@@ -38,6 +38,7 @@ import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import Constants from 'expo-constants';
+import { fontScaleCap } from '@/theme/layout';
 
 const __DEV__ = process.env.NODE_ENV !== 'production';
 const extra = Constants.expoConfig?.extra as { enableGrantProTesting?: boolean } | undefined;
@@ -169,7 +170,7 @@ export default function SubscriptionScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
           <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
-        <Text style={[typography.screenTitle, { color: colors.text }]}>Subscription</Text>
+        <Text style={[typography.screenTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Subscription</Text>
         <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
           Customize your training and track progress with Pro.
         </Text>
