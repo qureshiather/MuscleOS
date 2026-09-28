@@ -49,6 +49,8 @@ state from the session list:
    recovery effect.
 2. For each exercise in the session, **skip it unless at least one set has `completed: true`**.
 3. For each muscle in that exercise's `muscles[]`, record `trainedAt = session.completedAt`.
+   Muscles come from the live exercise lookup (catalog + customs); if that returns nothing for an
+   id, the bundled `CATALOG_SEED` (with alias resolution) is used instead.
 4. Keep only the **most recent** `trainedAt` per muscle.
 
 Not considered: reps, weight, set count, exercise order, warm-up vs working sets (any completed
@@ -93,7 +95,7 @@ if (options.notNatty) hours *= NOT_NATTY_RECOVERY_FACTOR
 `notNatty` setting so callers don't have to.
 
 A muscle is **active** (still recovering) when `getRecoveryUntil(r) > now`, compared as ISO
-strings in `recoveryStore.activeRecovery()`. Once past that instant the muscle drops out of the
+strings by `activeRecoveryAt()` (called from `recoveryStore.activeRecovery()`). Once past that instant the muscle drops out of the
 list entirely — there is no intermediate state.
 
 ## When recovery is recomputed
@@ -190,7 +192,7 @@ Renders, in order:
    "In recovery" card listing one row per recovering muscle: muscle name on the left,
    `formatRecoveryReady(...)` on the right.
 
-**"Just trained"** is derived on this screen as the muscles whose `trainedAt` equals the maximum
+**"Just trained"** (`justTrainedMuscleIds()`) is the muscles whose `trainedAt` equals the maximum
 `trainedAt` among active records — effectively the most recent session. If two sessions finished
 at the exact same timestamp, both count.
 
@@ -227,17 +229,22 @@ muscles trained in that session in the just-trained colour.
 ## Tests
 
 Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
-`apps/mobile/src/utils/recovery.test.ts`, `relativeTime.test.ts`):
+`apps/mobile/src/utils/recovery.test.ts`, `relativeTime.test.ts`, `muscleDiagramRegions.test.ts`):
 
 - `getRecoveryHoursForMuscle` — 36/48/72 buckets, 72 default, not-natty halving
 - `getRecoveryUntil` — adds the correct hours to `trainedAt`
 - 18 muscle groups exist; label formatting
-- `formatRecoveryReady` — "later today" and "tomorrow" branches
+- `formatRecoveryReady` — every branch: later today (including a passed deadline), tomorrow,
+  weekday, month + day
 - **`recoveryFromSessions()`** — skips in-progress sessions, skips exercises with no completed
-  set, keeps the latest `completedAt` per muscle, and uses `completedAt` rather than `startedAt`
+  set, keeps the latest `completedAt` per muscle, uses `completedAt` rather than `startedAt`, and
+  falls back to the bundled catalog
+- `activeRecoveryAt()` — still active 1 ms before expiry, ready at the exact instant; not-natty halving
+- `justTrainedMuscleIds()` — latest `trainedAt`, ties included
+- Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate
+- Recompute on sync merge (`src/sync/merge.test.ts`) and on finish (`activeWorkoutStore.test.ts`)
 
 Not covered:
 
-- `recoveryStore` load/persist round-trip, and recompute-on-delete
-- `formatRecoveryReady` weekday and far-future branches
-- `MuscleDiagram` state derivation and shared-region behaviour
+- `recoveryStore` load/persist wiring and the History delete path (the rebuild logic it calls is covered)
+- `MuscleDiagram` rendering

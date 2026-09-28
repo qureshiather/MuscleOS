@@ -19,6 +19,7 @@ import { kgToDisplay } from '@/utils/weightUnits';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 import { fontScaleCap } from '@/theme/layout';
+import { formatSessionDuration, sessionVolumeKg } from '@/utils/sessionStats';
 
 function formatSessionDate(isoDate: string): string {
   const d = new Date(isoDate);
@@ -34,29 +35,6 @@ function formatSet(set: SetRecord): string {
   const weight =
     set.weightKg != null && set.weightKg > 0 ? ` @ ${kgToDisplay(set.weightKg, 'kg')} kg` : '';
   return `${reps}${weight}`;
-}
-
-function getSessionDuration(session: WorkoutSession): string | null {
-  if (!session.startedAt || !session.completedAt) return null;
-  const ms = new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-function getSessionVolume(session: WorkoutSession): number {
-  let total = 0;
-  for (const se of session.exercises) {
-    for (const set of se.sets) {
-      if (!set.completed) continue;
-      const reps = set.reps ?? 0;
-      const kg = set.weightKg ?? 0;
-      total += kg * reps;
-    }
-  }
-  return total;
 }
 
 export default function HistoryScreen() {
@@ -180,8 +158,8 @@ export default function HistoryScreen() {
           <View style={styles.cardsContainer}>
             {completed.map((s) => {
               const exercises = exercisesWithCompletedSets(s);
-              const duration = getSessionDuration(s);
-              const volume = getSessionVolume(s);
+              const duration = formatSessionDuration(s);
+              const volume = sessionVolumeKg(s);
               return (
                 <Card key={s.id} style={styles.workoutCard}>
                   <View style={styles.cardHeader}>

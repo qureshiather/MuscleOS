@@ -228,14 +228,24 @@ syncing derived state that could contradict its own inputs.
 
 ### Conflict resolution
 
-Local-first, in `src/sync/mergePolicy.ts`:
+Local-first. Rules in `src/sync/mergePolicy.ts`, applied by `applyRemoteRecords()` in
+`src/sync/merge.ts`. "Pending" means the row has an entry in the sync outbox.
 
 1. Missing locally → take the remote row
 2. New locally → keep it and push
-3. Conflict with pending local changes → **local wins**, bumping `updatedAt` if the remote is newer
-4. Conflict with no pending local changes → **last write wins** by `updated_at`; ties go to local
-5. Map-shaped snapshots (notes, previous, settings) → union keys; an empty local map takes remote,
-   a non-empty local map wins
+3. Conflict with pending local changes → **local wins**, bumping the outbox `updatedAt` if the
+   remote is newer so the push isn't rejected
+4. Conflict with no pending local changes:
+   - **Sessions** → last write wins, comparing the remote `updated_at` with the local
+     `completedAt` (or `startedAt`); ties go to local
+   - **Templates, folders, custom exercises** → no local timestamp, so the remote copy is taken
+5. Map-shaped snapshots (notes, previous, settings):
+   - Pending local changes → keep local and union keys, filling empty local slots from remote
+     (settings merge field by field; biodata fields likewise)
+   - No pending changes, or an empty local map → the remote snapshot replaces local
+6. Remote deletes (`deleted_at`) follow the same rules: applied unless the local row is pending
+7. `recovery` records are ignored, queued recovery pushes are dropped, and recovery is recomputed
+   from the merged sessions
 
 ### Triggers
 
@@ -411,11 +421,18 @@ Covered:
   the first storage-layer test; the harness is reusable for other keys.
 - `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
   sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest re-points RevenueCat.
+- `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
+  `edgeFunctionError.test.ts` — linked-provider resolution, already-linked identity vs in-place
+  upgrade, confirm/recovery link parsing, and Edge Function error messages
+- `src/sync/mergePolicy.test.ts` — every `decideEntityApply` branch, the outbox clock bump, map and
+  settings merges, and what counts as empty
+- `src/sync/merge.test.ts` — `applyRemoteRecords` against the storage harness: missing rows taken,
+  dirty local kept with its clock bumped, session last-write-wins both ways, clean templates take
+  remote, remote deletes, dirty vs clean map snapshots, remote recovery ignored and recomputed
 
 Not covered — the least-tested area of the codebase:
 
-- **Sync**: outbox behaviour, the merge policy's five branches, last-write-wins, the account-link
-  snapshot upload, tombstones
+- **Sync**: outbox enqueue/flush, the push/pull engine, and the account-link snapshot upload
 - **Auth**: anonymous bootstrap, linking each provider, sign-out creating a fresh anonymous session,
   RevenueCat identity handoff
 - Settings and theme persistence, and each migration path

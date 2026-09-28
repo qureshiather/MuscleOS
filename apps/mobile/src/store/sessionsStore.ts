@@ -4,12 +4,11 @@ import {
   getSessions,
   setSessions,
   setRecovery,
-  getExercisePrevious,
   setExercisePrevious,
-  type ExercisePrevious,
 } from '@/storage/localStorage';
 import { notifySessionDelete, notifyExercisePreviousSnapshot } from '@/sync';
 import { recoveryFromSessions } from '@/utils/recovery';
+import { rebuildPreviousSnapshot } from '@/store/activeWorkoutLogic';
 import { useExercisesStore } from '@/store/exercisesStore';
 export interface SessionsState {
   sessions: WorkoutSession[];
@@ -43,25 +42,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     );
     await setRecovery(updatedRecovery);
 
-    // Rebuild exercise previous from remaining sessions (newest first)
-    const completed = remaining
-      .filter((s) => s.completedAt != null)
-      .sort((a, b) => (b.completedAt!.localeCompare(a.completedAt!)));
-    const prev: Record<string, ExercisePrevious> = {};
-    for (const s of completed) {
-      for (const se of s.exercises) {
-        if (prev[se.exerciseId]) continue;
-        const best = se.sets
-          .filter((set) => set.weightKg != null && set.weightKg > 0 && set.completed)
-          .sort((a, b) => (b.weightKg ?? 0) - (a.weightKg ?? 0) || (b.reps ?? 0) - (a.reps ?? 0))[0];
-        if (best) {
-          prev[se.exerciseId] = {
-            weightKg: best.weightKg!,
-            reps: best.reps,
-          };
-        }
-      }
-    }
+    const prev = rebuildPreviousSnapshot(remaining);
     await setExercisePrevious(prev);
 
     set({ sessions: remaining });

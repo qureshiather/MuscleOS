@@ -119,8 +119,9 @@ If a session is already in progress, the themed "Workout in progress" dialog is 
 [recommendTemplates](#suggested-templates).
 
 **4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
-most recent first, deduplicated by template and **excluding anything already in Suggested**.
-Shows relative completion time.
+most recent first, deduplicated by template and **excluding anything already in Suggested**, hidden
+templates, and templates your tier can't start (`pickRecentTemplates()` in
+`src/utils/recentTemplates.ts`). Shows relative completion time.
 
 **5. "All templates" header.** Pro users also get a new-folder button and a **New** button.
 
@@ -214,7 +215,8 @@ to `/active-workout`; a custom template without Pro → redirect to the paywall.
 ## Suggested templates
 
 `recommendTemplates()` picks up to 2 templates for the home screen. Inputs: currently recovering
-muscles, muscles worked in the last **7 days**, when each template was last done, and (Basic
+muscles, muscles worked in the last **7 days** (`recentlyWorkedMuscleIds()` — like recovery, only
+exercises with a completed set count), the visible templates, when each template was last done, and (Basic
 only) a filter to startable templates so Basic users are never suggested something they can't run.
 
 Constants:
@@ -298,8 +300,12 @@ Covered:
   normalize dropping `defaultSets`, session-to-template set counts, and set-label copy
 - `src/utils/homeStats.test.ts` — Monday-week counting, streak surviving a fresh week, streak
   breaking on a missed week, all headline branches
-- `src/utils/recommendTemplates.test.ts` — skips mostly-recovering templates; diversifies away
-  from recently worked muscles
+- `src/utils/recommendTemplates.test.ts` — the scoring arithmetic (ready × 100 + variety × 28,
+  +3 novelty, +5 within 30 days, −20 within 2 days), the 50% cut-off boundary, unresolved templates
+  skipped, name tie-break, the limit, and the −8-per-overlap diversification
+- `src/utils/recentTemplates.test.ts` — Recent: newest first, one per template, excludes
+  Suggested / hidden / unstartable, capped at 6
+- `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
 - `src/subscription/features.test.ts` — `requiresProToStart` for built-in vs custom; 9 built-ins
 - `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
   de-dupes; built-in hides by id **or** folder while a custom hides only via its own flag; and
@@ -310,6 +316,6 @@ Not covered:
 - `templatesStore` persistence and sync notifications (the store wraps the tested pure reducers)
 - `create-template.tsx` validation, create vs edit, and the folder-not-cleared quirk
 - `workout-preview.tsx` entry guards
-- Full `recommendTemplates` scoring arithmetic (only two behavioural cases are asserted)
-- Home screen composition: Suggested/Recent dedupe, section visibility, collapsible defaults
+- Home screen composition: section visibility and collapsible defaults (Suggested/Recent selection
+  is covered as pure functions)
 - Pro gate behaviour on locked cards and the empty-workout hero

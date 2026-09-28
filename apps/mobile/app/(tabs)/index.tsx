@@ -25,6 +25,8 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
 import { recommendTemplates } from '@/utils/recommendTemplates';
+import { pickRecentTemplates } from '@/utils/recentTemplates';
+import { recentlyWorkedMuscleIds } from '@/utils/recovery';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -248,28 +250,12 @@ export default function WorkoutsScreen() {
     const recoveringMuscleIds = new Set(
       activeRecovery().map((r) => r.muscleId)
     );
-    const recentMuscleWindowMs = 7 * 24 * 60 * 60 * 1000;
-    const nowMs = Date.now();
-    const recentlyWorkedMuscleIds = new Set<MuscleId>();
-    for (const session of sessions) {
-      if (!session.completedAt) continue;
-      if (nowMs - new Date(session.completedAt).getTime() > recentMuscleWindowMs) {
-        continue;
-      }
-      for (const sessionExercise of session.exercises) {
-        const exercise = getExercise(sessionExercise.exerciseId);
-        if (exercise) {
-          for (const muscleId of exercise.muscles) {
-            recentlyWorkedMuscleIds.add(muscleId);
-          }
-        }
-      }
-    }
+    const recentlyWorked = recentlyWorkedMuscleIds(sessions, Date.now(), getExercise);
     const visible = startableTemplates.filter((t) => !isTemplateHidden(t));
     return recommendTemplates({
       templates: visible,
       recoveringMuscleIds,
-      recentlyWorkedMuscleIds,
+      recentlyWorkedMuscleIds: recentlyWorked,
       lastDoneByTemplate,
       getTemplateMuscles: (template) => {
         const muscles: MuscleId[] = [];
@@ -297,20 +283,12 @@ export default function WorkoutsScreen() {
 
   /** Recent excludes Suggested so the two home launchers never repeat the same template. */
   const recentWorkouts = useMemo(() => {
-    const suggestedIds = new Set(suggestedWorkouts.map((s) => s.template.id));
-    const completed = completedSessions();
-    const templateMap = new Map(startableTemplates.map((t) => [t.id, t]));
-    const seenTemplateIds = new Set<string>();
-    const items: { session: (typeof completed)[number]; template: WorkoutTemplate }[] = [];
-    for (const s of completed) {
-      if (suggestedIds.has(s.templateId) || seenTemplateIds.has(s.templateId)) continue;
-      const t = templateMap.get(s.templateId);
-      if (t == null || isTemplateHidden(t)) continue;
-      seenTemplateIds.add(s.templateId);
-      items.push({ session: s, template: t });
-      if (items.length >= 6) break;
-    }
-    return items;
+    return pickRecentTemplates({
+      completedSessions: completedSessions(),
+      startableTemplates,
+      suggestedIds: new Set(suggestedWorkouts.map((s) => s.template.id)),
+      isHidden: isTemplateHidden,
+    });
   }, [
     suggestedWorkouts,
     sessions,
