@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weightUnits';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { fontScaleCap } from '@/theme/layout';
 
 export default function BiodataScreen() {
   const { colors } = useTheme();
@@ -135,7 +136,7 @@ export default function BiodataScreen() {
             style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text style={[typography.screenTitle, { fontSize: 22, color: colors.text }]}>Edit biodata</Text>
+            <Text style={[typography.screenTitle, { fontSize: 22, color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Edit biodata</Text>
             <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
               Height, weight, age & gender
             </Text>

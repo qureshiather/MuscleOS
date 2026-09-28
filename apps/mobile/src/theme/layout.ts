@@ -19,8 +19,11 @@ import {
   type KeyboardEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { computeTabBarLayout, type TabBarLayout } from './tabBarLayout';
 import { spacing } from './tokens';
 import { typography } from './typography';
+
+export { TAB_ICON_LABEL_GAP, TAB_ICON_SIZE, type TabBarLayout } from './tabBarLayout';
 
 // ---------------------------------------------------------------------------
 // Device size classes
@@ -78,6 +81,11 @@ export function useDeviceMetrics(): DeviceMetrics {
  * use the loosest one that still fits.
  */
 export const fontScaleCap = {
+  /**
+   * Screen titles and big display numbers. They start large, so uncapped they break
+   * mid-word ("Worko / uts") at the largest accessibility sizes.
+   */
+  title: 1.5,
   /** Fixed-size geometry: table headers, calendar day cells, chart labels. */
   fixed: 1.2,
   /** Single-line chrome: tab labels, chips, badges, compact stat values. */
@@ -230,29 +238,6 @@ export function useKeyboardOverlap(): number {
 // Bottom tab bar
 // ---------------------------------------------------------------------------
 
-/** Height of the icon block rendered by @react-navigation/bottom-tabs (uikit variant). */
-const TAB_ICON_HEIGHT = 28;
-/** Vertical padding the library applies inside every tab item. */
-const TAB_ITEM_PADDING = 5;
-/** Breathing room between the top border of the bar and the icons. */
-const TAB_BAR_PADDING_TOP = spacing.xs;
-/**
- * Android clips children that overflow their parent, so the bar must be tall enough
- * for the label at the user's text size. Capped because five labels stop fitting side
- * by side beyond this, and an ellipsized label reads worse than a smaller one.
- */
-const MAX_TAB_LABEL_FONT_SCALE = 1.15;
-
-export type TabBarLayout = {
-  /** Total bar height, safe-area inset included. */
-  height: number;
-  paddingTop: number;
-  /** Reserves the Android navigation bar / iOS home indicator. */
-  paddingBottom: number;
-  labelFontSize: number;
-  labelLineHeight: number;
-};
-
 /**
  * Measurements for the bottom tab bar. The library sizes the bar from a fixed iOS
  * height that assumes a 10pt label, which truncates our larger labels and pushes them
@@ -261,21 +246,11 @@ export type TabBarLayout = {
 export function useTabBarLayout(): TabBarLayout {
   const insets = useSafeAreaInsets();
   const { width, fontScale } = useWindowDimensions();
-
-  const baseFontSize =
-    width < NARROW_WIDTH ? typography.caption.fontSize - 2 : typography.caption.fontSize;
-  const scale = Math.min(Math.max(fontScale, 1), MAX_TAB_LABEL_FONT_SCALE);
-  const labelFontSize = Math.round(baseFontSize * scale);
-  const labelLineHeight = Math.ceil(labelFontSize * 1.4);
-
-  const contentHeight =
-    TAB_BAR_PADDING_TOP + TAB_ITEM_PADDING * 2 + TAB_ICON_HEIGHT + labelLineHeight;
-
-  return {
-    height: contentHeight + insets.bottom + StyleSheet.hairlineWidth,
-    paddingTop: TAB_BAR_PADDING_TOP,
-    paddingBottom: insets.bottom,
-    labelFontSize,
-    labelLineHeight,
-  };
+  return computeTabBarLayout({
+    labelBaseFontSize:
+      width < NARROW_WIDTH ? typography.caption.fontSize - 2 : typography.caption.fontSize,
+    fontScale,
+    bottomInset: insets.bottom,
+    hairline: StyleSheet.hairlineWidth,
+  });
 }

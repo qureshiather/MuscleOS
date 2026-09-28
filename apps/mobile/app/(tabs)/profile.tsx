@@ -12,6 +12,7 @@ import { cmToDisplay, kgToDisplay } from '@/utils/weightUnits';
 import { Card } from '@/components/ui/Card';
 import { ListRow } from '@/components/ui/ListRow';
 import { authProviderLabel, linkedAuthProvider } from '@/auth/accountProvider';
+import { fontScaleCap } from '@/theme/layout';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -41,7 +42,7 @@ export default function ProfileScreen() {
     <Screen kind="tab">
       <ScrollView contentContainerStyle={[screenHeaderStyles.scrollContent, styles.scrollExtra]}>
         <View style={screenHeaderStyles.headerInScroll}>
-          <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Profile</Text>
+          <Text style={[screenHeaderStyles.title, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Profile</Text>
           <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
             Account, settings & biodata
           </Text>

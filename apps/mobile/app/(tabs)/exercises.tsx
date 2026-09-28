@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen, SheetFrame } from '@/components/layout';
-import { useBottomSpace, useModalMaxHeight } from '@/theme/layout';
+import { fontScaleCap, useBottomSpace, useModalMaxHeight } from '@/theme/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
@@ -100,7 +100,7 @@ export default function ExercisesScreen() {
       <View style={screenHeaderStyles.headerFixed}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextBlock}>
-            <Text style={[screenHeaderStyles.title, { color: colors.text }]}>Exercises</Text>
+            <Text style={[screenHeaderStyles.title, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Exercises</Text>
             <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
               {allExercises.length} movements · tap for muscle map
             </Text>

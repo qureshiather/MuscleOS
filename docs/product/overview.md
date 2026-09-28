@@ -137,6 +137,13 @@ fully ready. There is no partial-recovery percentage and no input from load, sle
 **The catalog is additive.** Exercise ids are never deleted, only unpublished, so historical
 sessions always resolve.
 
+**Layout adapts to the device, not a reference phone.** Portrait only. Sizing comes from
+`apps/mobile/src/theme/layout.ts`: safe-area insets, narrow widths (Display Zoom / Display Size),
+and the system text size. Body text scales with the system setting; screen titles and big
+display numbers cap at 1.5× (`fontScaleCap.title`) so they never break mid-word; tab labels cap
+at 1.15× and shrink to fit rather than truncate. Surfaces that own the bottom edge keep a minimum
+padding even when the device reports no bottom inset (e.g. Samsung with gesture hints hidden).
+
 ## Deliberately not built
 
 Listed so they don't get re-proposed as bugs or half-specified in future work.

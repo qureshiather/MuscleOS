@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { parseStartParams, encodeStartParams } from '@/store/activeWorkoutLogic';
 import { formatTemplateSetLabel } from '@/utils/templateExercises';
+import { fontScaleCap } from '@/theme/layout';
 
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
@@ -106,7 +107,7 @@ export default function WorkoutPreviewScreen() {
           <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
         </Pressable>
         <View style={styles.headerTitleRow}>
-          <Text style={[typography.screenTitle, styles.templateTitle, { color: colors.text }]} numberOfLines={2}>
+          <Text style={[typography.screenTitle, styles.templateTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title} numberOfLines={2}>
             {templateName}
           </Text>
           <Pressable

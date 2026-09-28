@@ -5,7 +5,7 @@ import { Screen } from '@/components/layout';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing, touch } from '@/theme/tokens';
-import { useScreenGutter } from '@/theme/layout';
+import { fontScaleCap, useScreenGutter } from '@/theme/layout';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
 
@@ -35,7 +35,7 @@ export default function AuthScreen() {
       <View style={[styles.body, { paddingHorizontal: gutter }]}>
         <View style={styles.logoContainer}>
           <Image source={require('../assets/icon.png')} style={styles.logo} resizeMode="contain" />
-          <Text style={[typography.screenTitle, { color: colors.text, marginTop: spacing.md }]}>MuscleOS</Text>
+          <Text style={[typography.screenTitle, { color: colors.text, marginTop: spacing.md }]} maxFontSizeMultiplier={fontScaleCap.title}>MuscleOS</Text>
         </View>
         <View style={styles.header}>
           <Text style={[typography.sectionTitle, styles.headerText, { color: colors.text }]}>Sign in</Text>
