@@ -10,7 +10,7 @@ import { CATALOG_SEED, CATALOG_SEED_UPDATED_AT } from '@/data/catalogSeed';
 import { notifyCustomExerciseUpsert, notifyCustomExerciseDelete } from '@/sync';
 import { applyCatalogSeed, mergeCatalogById } from '@/sync/catalogMerge';
 import { fetchCatalogDelta } from '@/sync/catalogPull';
-import { buildExerciseAliasMap } from '@/utils/exerciseSearch';
+import { nextCustomExerciseId, resolveExerciseById } from '@/utils/exerciseIds';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 
 export interface ExercisesStoreState {
@@ -25,24 +25,6 @@ export interface ExercisesStoreState {
   addExercise: (exercise: Omit<Exercise, 'id'>) => Promise<Exercise>;
   updateExercise: (id: string, patch: Partial<Omit<Exercise, 'id'>>) => Promise<void>;
   removeExercise: (id: string) => Promise<void>;
-}
-
-function nextCustomId(custom: Exercise[]): string {
-  const max = custom.reduce((acc, e) => {
-    const m = e.id.match(/^custom_(\d+)$/);
-    return m ? Math.max(acc, parseInt(m[1], 10)) : acc;
-  }, 0);
-  return `custom_${max + 1}`;
-}
-
-function resolveExercise(
-  id: string,
-  catalog: Exercise[],
-  custom: Exercise[]
-): Exercise | undefined {
-  const aliasMap = buildExerciseAliasMap(catalog);
-  const resolved = aliasMap.get(id) ?? id;
-  return catalog.find((e) => e.id === resolved) ?? custom.find((e) => e.id === resolved || e.id === id);
 }
 
 let catalogPullInFlight: Promise<void> | null = null;
@@ -95,7 +77,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
     return catalogPullInFlight;
   },
 
-  getExercise: (id) => resolveExercise(id, get().catalogExercises, get().customExercises),
+  getExercise: (id) => resolveExerciseById(id, get().catalogExercises, get().customExercises),
 
   getAllExercises: () => {
     const published = get().catalogExercises.filter((e) => e.isPublished !== false);
@@ -104,7 +86,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
 
   addExercise: async (exercise) => {
     const { customExercises } = get();
-    const id = nextCustomId(customExercises);
+    const id = nextCustomExerciseId(customExercises);
     const newEx = normalizeExercise({ ...exercise, id, isPublished: true });
     const next = [...customExercises, newEx];
     await setCustomExercises(next);

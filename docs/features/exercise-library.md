@@ -104,8 +104,9 @@ two-year-old session still resolves its exercise names.
 
 ### Legacy id resolution
 
-37 catalog rows carry `aliases`, mapping old slugs to the canonical id. `getExercise(id)` resolves
-aliases against the catalog before looking up, so renamed exercises don't orphan session data.
+37 catalog rows carry `aliases`, mapping old slugs to the canonical id. `getExercise(id)`
+(`resolveExerciseById()`) resolves aliases against the catalog before looking up, so renamed
+exercises don't orphan session data. No alias may equal a real catalog id.
 
 ## Custom exercises
 
@@ -119,7 +120,8 @@ aliases against the catalog before looking up, so renamed exercises don't orphan
 | Equipment | ○ | May be empty |
 | Instructions | ○ | Free text |
 
-Ids are assigned as `custom_<n>` where n is the highest existing suffix + 1.
+Ids are assigned as `custom_<n>` where n is the highest existing suffix + 1, so gaps left by
+deletes are never reused (`nextCustomExerciseId()` in `src/utils/exerciseIds.ts`).
 
 **Editing** is only possible for `custom_*` ids; catalog exercises cannot be edited. The detail
 sheet on the Exercises tab offers Edit and Delete for customs.
@@ -255,11 +257,14 @@ Covered:
 - `src/sync/catalogMerge.test.ts` — seed overlay keeps cached instructions; incoming delta replaces by id
 - `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels
 - `src/data/builtInTemplates.test.ts` — every built-in template exercise id exists in the catalog
+- `src/utils/exerciseIds.test.ts` — custom id numbering (highest + 1, gaps not reused, non-matching
+  ids ignored); alias resolution, unpublished rows still resolving, unknown ids; catalog invariants
+  (unique ids, no alias shadows an id, every row has muscles, no `custom_` catalog ids)
 
 Not covered:
 
 - `exercisesStore` load, seed application, cache merge, and background refresh
-- Custom exercise CRUD and its sync notifications
+- Custom exercise CRUD wiring and its sync notifications (id assignment is covered)
 - Delta pull and watermark advancement
 - Search: metadata matching, multi-token ordering, score tie-breaks, empty-query passthrough
 - The three pickers and the Exercises tab filters

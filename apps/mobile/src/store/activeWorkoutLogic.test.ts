@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SetRecord, SessionExercise } from '@muscleos/types';
+import type { SetRecord, SessionExercise, WorkoutSession } from '@muscleos/types';
 import type { PersistedActiveWorkout } from '@/storage/localStorage';
 import {
   DEFAULT_SETS_PER_EXERCISE,
@@ -24,6 +24,7 @@ import {
   oldToNewForRemove,
   oldToNewForReorder,
   parseStartParams,
+  rebuildPreviousSnapshot,
   remapRestAfter,
   remapRestDurations,
   resolveStaleWorkout,
@@ -561,5 +562,40 @@ describe('resolveStaleWorkout', () => {
 
   it('uses a three-hour threshold', () => {
     expect(STALE_WORKOUT_MS).toBe(3 * 60 * 60 * 1000);
+  });
+});
+
+describe('rebuildPreviousSnapshot (after a session is deleted)', () => {
+  const done = (id: string, completedAt: string | undefined, sets: SetRecord[]): WorkoutSession => ({
+    id,
+    templateId: 't',
+    startedAt: '2026-01-01T09:00:00.000Z',
+    ...(completedAt && { completedAt }),
+    exercises: [{ exerciseId: 'bench', sets }],
+  });
+
+  it('takes the best weighted set from the most recent qualifying session, not the all-time best', () => {
+    const prev = rebuildPreviousSnapshot([
+      done('old', '2026-01-01T10:00:00.000Z', [{ completed: true, weightKg: 100, reps: 5 }]),
+      done('new', '2026-01-05T10:00:00.000Z', [
+        { completed: true, weightKg: 80, reps: 5 },
+        { completed: true, weightKg: 80, reps: 8 },
+      ]),
+    ]);
+    expect(prev.bench).toEqual({ weightKg: 80, reps: 8 });
+  });
+
+  it('skips newer sessions with no completed weighted set, and in-progress sessions', () => {
+    const prev = rebuildPreviousSnapshot([
+      done('old', '2026-01-01T10:00:00.000Z', [{ completed: true, weightKg: 70, reps: 5 }]),
+      done('bodyweight', '2026-01-03T10:00:00.000Z', [{ completed: true, reps: 10 }]),
+      done('incomplete', '2026-01-04T10:00:00.000Z', [{ completed: false, weightKg: 90, reps: 5 }]),
+      done('live', undefined, [{ completed: true, weightKg: 120, reps: 1 }]),
+    ]);
+    expect(prev.bench).toEqual({ weightKg: 70, reps: 5 });
+  });
+
+  it('drops an exercise with no qualifying set left', () => {
+    expect(rebuildPreviousSnapshot([])).toEqual({});
   });
 });

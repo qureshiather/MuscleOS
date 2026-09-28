@@ -1,9 +1,8 @@
 /**
  * Format a past ISO date as relative time: "1 day ago", "2 hours ago", etc.
  */
-export function formatRelative(isoDate: string): string {
+export function formatRelative(isoDate: string, now = new Date()): string {
   const date = new Date(isoDate);
-  const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);

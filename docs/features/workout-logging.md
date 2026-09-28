@@ -392,7 +392,8 @@ Covered:
   to a new template (Pro); a changed custom offers Overwrite + Save-as-new (both Pro)
 - `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping (session edits, not rest-timer
   actions) and the stale close after hydration and on foreground, including overlapping closes
-  saving the session once
+  saving the session once; only one workout at a time; the 1-set minimum; and finish saving the
+  whole session (incomplete sets kept, prefill flags stripped) and updating previous and recovery
 - `src/storage/localStorage.activeWorkout.test.ts` — the persist/resume round-trip through the
   in-memory AsyncStorage harness, including null-clear and corrupt/invalid-payload guards
 - `src/utils/workoutNotificationCopy.test.ts` — "Next:" / "Continue to" / "Finish your workout"

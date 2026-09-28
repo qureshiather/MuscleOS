@@ -21,6 +21,9 @@ const AsyncStorageMock = {
   async getAllKeys(): Promise<string[]> {
     return [...store.keys()];
   },
+  async multiSet(pairs: [string, string][]): Promise<void> {
+    for (const [key, value] of pairs) store.set(key, value);
+  },
   async multiRemove(keys: string[]): Promise<void> {
     for (const key of keys) store.delete(key);
   },

@@ -47,10 +47,10 @@ Current test coverage detail: [engineering/testing.md](../engineering/testing.md
 
 | Area | Spec | Automated tests |
 |------|------|-----------------|
-| Templates | Complete | Partial — built-in integrity, recommendation, home stats, `allTemplates` ordering, soft-hide, folder-delete cascade |
+| Templates | Complete | Partial — built-in integrity, full recommendation scoring, Recent selection, home stats, `allTemplates` ordering, soft-hide, folder-delete cascade |
 | Workout logging | Complete | Partial — set-logging rules, prefill, warm-up numbering, current-set, rest-key remap, finish save-options, persist/resume round-trip, hydrate expired-timer discard, and notification copy covered; only the screen's live rendering and debounced-persist wiring remain |
-| Recovery | Complete | Partial — per-muscle hours, `getRecoveryUntil`, and `recoveryFromSessions` covered |
-| Exercise library | Complete | Partial — search ranking, title-case names, catalog merge, and normalization covered; store and sync untested |
-| History & analytics | Complete | Partial — 1RM and home stats covered; strength standards and volume untested |
-| Subscriptions | Complete | Partial — `requiresProToStart`, paywall paths, and the deep-link start guard (`blockedStartFeature`) covered; UI gate wiring untested |
-| Accounts & data | Complete | Partial — unit conversion, active-workout persist/resume, linked provider resolution, already-linked identity vs in-place upgrade, Delete account wipe, and email confirm/recovery link parsing; live auth, sync, and merge untested |
+| Recovery | Complete | Good — hours, expiry instant, `recoveryFromSessions`, just-trained, readiness copy, diagram regions; store wiring untested |
+| Exercise library | Complete | Partial — search ranking, title-case names, catalog merge, normalization, custom ids, alias resolution, catalog invariants; store and delta pull untested |
+| History & analytics | Complete | Partial — 1RM, home stats, strength standards, volume, duration, previous rebuild; calendar and screens untested |
+| Subscriptions | Complete | Partial — `requiresProToStart`, deep-link start guard, gate labels, list parity, pricing; UI gate wiring untested |
+| Accounts & data | Complete | Partial — unit conversion, active-workout persist/resume, linked provider resolution, already-linked identity vs in-place upgrade, Delete account wipe, and email confirm/recovery link parsing; sync merge covered; outbox, push/pull engine, and live auth untested |

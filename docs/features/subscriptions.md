@@ -225,7 +225,10 @@ Covered (`src/subscription/features.test.ts`):
 
 - `requiresProToStart` — built-in vs custom
 - 9 built-in templates ship
-- `subscriptionPaywallPath` / `parseProFeatureParam` round-trip, including `personal_records`
+- `subscriptionPaywallPath` / `parseProFeatureParam` round-trip, including `personal_records`;
+  every gate key has a label; unknown params are rejected
+- Paywall list length parity: `BASIC_FEATURES_LIST` and `PRO_FEATURES_LIST` both have 5 items
+- `src/subscription/pricing.test.ts` — $2.99 / $19.99 and the 44% annual saving
 - **`blockedStartFeature`** — the deep-link / notification start guard: Basic is blocked from
   `_empty` (`empty_workout`) and custom templates (`custom_templates`), built-ins pass, Pro is
   never blocked, and an unknown template passes through. `active-workout.tsx` calls this predicate,
@@ -238,4 +241,3 @@ Not covered:
   is covered as a predicate.
 - Downgrade rendering: locked cards, the Custom section banner, exclusion from Suggested/Recent
 - `subscriptionStore` load, purchase, restore, expiry, and the legacy `free` → `basic` migration
-- Paywall list length parity between Basic and Pro

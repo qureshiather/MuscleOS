@@ -17,6 +17,7 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRecoveryReady } from '@/utils/relativeTime';
 import { getRecoveryUntil } from '@/utils/recoveryUntil';
+import { justTrainedMuscleIds } from '@/utils/recovery';
 import { fontScaleCap } from '@/theme/layout';
 
 const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
@@ -39,12 +40,7 @@ export default function RecoveryScreen() {
 
   const active = activeRecovery();
   const muscleIds = [...new Set(active.map((r) => r.muscleId))];
-  const latestTrainedAt = active.length > 0
-    ? active.reduce((max, r) => (r.trainedAt > max ? r.trainedAt : max), active[0].trainedAt)
-    : null;
-  const justTrainedMuscleIds = latestTrainedAt
-    ? [...new Set(active.filter((r) => r.trainedAt === latestTrainedAt).map((r) => r.muscleId))]
-    : [];
+  const justTrainedIds = justTrainedMuscleIds(active);
 
   return (
     <Screen kind="tab">
@@ -98,7 +94,7 @@ export default function RecoveryScreen() {
             <MuscleDiagram
               muscleIds={muscleIds}
               recoveringMuscleIds={muscleIds}
-              justTrainedMuscleIds={justTrainedMuscleIds}
+              justTrainedMuscleIds={justTrainedIds}
               variant={diagramVariant}
               showLabels
               size={0.85}

@@ -216,3 +216,48 @@ describe('closing a stale workout on foreground', () => {
     expect(await storage.getSessions()).toHaveLength(1);
   });
 });
+
+describe('session rules', () => {
+  it('allows only one workout at a time', async () => {
+    const { useActiveWorkoutStore } = await load();
+    const s = useActiveWorkoutStore.getState();
+    s.startWorkout('ppl-push', [{ exerciseId: 'bench-press' }]);
+    const first = useActiveWorkoutStore.getState().session;
+
+    s.startWorkout('ppl-pull', [{ exerciseId: 'barbell-row' }]);
+    expect(useActiveWorkoutStore.getState().session).toBe(first);
+  });
+
+  it('never removes the last set of an exercise', async () => {
+    const { useActiveWorkoutStore } = await load();
+    const s = useActiveWorkoutStore.getState();
+    s.startWorkout('ppl-push', [{ exerciseId: 'bench-press', sets: 2 }]);
+
+    s.removeSet(0, 0);
+    s.removeSet(0, 0);
+    expect(useActiveWorkoutStore.getState().session?.exercises[0]?.sets).toHaveLength(1);
+  });
+
+  it('saves the whole session on finish — incomplete sets kept, prefill flags stripped', async () => {
+    const { useActiveWorkoutStore, storage, sync } = await load();
+    const s = useActiveWorkoutStore.getState();
+    s.startWorkout('ppl-push', [{ exerciseId: 'bench-press', sets: 2 }]);
+    s.setSetRecord(0, 0, { weightKg: 60, reps: 5, weightPrefilled: true, repsPrefilled: true });
+    s.completeSet(0, 0);
+
+    await s.finishWorkout('2026-01-01T11:00:00.000Z');
+
+    const [saved] = await storage.getSessions();
+    expect(saved?.completedAt).toBe('2026-01-01T11:00:00.000Z');
+    expect(saved?.exercises[0]?.sets).toHaveLength(2);
+    expect(saved?.exercises[0]?.sets[1]?.completed).toBe(false);
+    for (const set of saved?.exercises[0]?.sets ?? []) {
+      expect(set).not.toHaveProperty('weightPrefilled');
+      expect(set).not.toHaveProperty('repsPrefilled');
+    }
+    expect(await storage.getExercisePrevious()).toEqual({ 'bench-press': { weightKg: 60, reps: 5 } });
+    expect((await storage.getRecovery()).map((r) => r.muscleId)).toContain('chest');
+    expect(useActiveWorkoutStore.getState().session).toBeNull();
+    expect(sync.notifySessionUpsert).toHaveBeenCalledTimes(1);
+  });
+});

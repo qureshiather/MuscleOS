@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import type { MuscleRecovery } from '@muscleos/types';
 import { getSessions, setRecovery } from '@/storage/localStorage';
-import { recoveryFromSessions } from '@/utils/recovery';
-import { getRecoveryUntil } from '@/utils/recoveryUntil';
+import { activeRecoveryAt, recoveryFromSessions } from '@/utils/recovery';
+import { getRecoveryOptions } from '@/utils/recoveryUntil';
 import { useExercisesStore } from '@/store/exercisesStore';
 
 export interface RecoveryState {
@@ -25,8 +25,5 @@ export const useRecoveryStore = create<RecoveryState>((set, get) => ({
     set({ items, isLoading: false });
   },
 
-  activeRecovery: () => {
-    const now = new Date().toISOString();
-    return get().items.filter((r) => getRecoveryUntil(r) > now);
-  },
+  activeRecovery: () => activeRecoveryAt(get().items, new Date(), getRecoveryOptions()),
 }));

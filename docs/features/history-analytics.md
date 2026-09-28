@@ -16,6 +16,7 @@ its effect everywhere, and why there is no cache to invalidate.
 | 1RM & PRs | `apps/mobile/src/utils/oneRepMax.ts` |
 | Strength standards | `apps/mobile/src/data/strengthStandards.ts` |
 | Home stats | `apps/mobile/src/utils/homeStats.ts` |
+| Volume & duration | `apps/mobile/src/utils/sessionStats.ts` |
 | Store | `apps/mobile/src/store/sessionsStore.ts` |
 
 ## History list
@@ -53,7 +54,8 @@ Confirmation: *"Removes this session from history and its recovery impact. This 
 1. Removes it from stored sessions.
 2. **Recomputes recovery** from the remaining sessions.
 3. **Rebuilds the per-exercise "previous" map** from the remaining completed sessions — for each
-   exercise, the best weighted set from the most recent qualifying session.
+   exercise, the best weighted set from the most recent qualifying session
+   (`rebuildPreviousSnapshot()` in `activeWorkoutLogic.ts`).
 4. Queues sync notifications for the delete and the rebuilt previous map.
 
 PRs need no explicit step because they're derived on read.
@@ -171,7 +173,7 @@ No weekly volume, rep count, or duration is computed here.
 
 ## Volume
 
-The only place volume is computed is the history card:
+The only place volume is computed is the history card, via `sessionVolumeKg()`:
 
 ```ts
 for (const se of session.exercises)
@@ -243,16 +245,20 @@ Covered:
   the best e1RM set (85×5 over 90×1) and returns history newest-first
 - `src/utils/homeStats.test.ts` — Monday-week counting, `trainedToday`, `lastCompletedAt`, streak
   surviving an empty current week, streak breaking on a missed week, every headline branch
-- `src/utils/relativeTime.test.ts` — "Just now", "2 hours ago"
+- `src/utils/relativeTime.test.ts` — every `formatRelative` branch, including the absolute-date
+  fallback at 4 weeks
 - `src/subscription/features.test.ts` — paywall param parsing including `personal_records`
+- `src/data/strengthStandards.test.ts` — band selection from elite down, next-level target,
+  elite has no next level, female vs male tables, unsupported exercises, the disabled pull-up table,
+  zero bodyweight
+- `src/utils/sessionStats.test.ts` — volume over completed sets with warm-ups included and missing
+  weight/reps as zero; duration formatting and rounding
+- `src/store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`: most recent qualifying
+  session, not the all-time best; skips sessions with no completed weighted set and in-progress ones
 
 Not covered:
 
-- **`strengthStandards.ts`** — no test for band selection, the sex tables, next-level targets, or
-  the unsupported-exercise path
-- Volume calculation, including whether warm-ups should count
-- `deleteSession` side effects: recovery recompute, previous-map rebuild, sync notifications
+- `deleteSession` store wiring (storage writes and sync notifications around the tested rebuild)
 - Monthly calendar grid construction, day marking, month navigation
 - PR and progression screen rendering, e1RM tie-breaking, the 10-bar window
-- `formatRelative` day/week branches and the absolute-date fallback
 - Export payload assembly

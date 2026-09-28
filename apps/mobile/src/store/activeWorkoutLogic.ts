@@ -439,6 +439,26 @@ export function resolveStaleWorkout(
 }
 
 /**
+ * The whole "previous" map rebuilt from scratch, e.g. after a session is deleted: per exercise,
+ * the best completed weighted set from the **most recent** completed session that has one.
+ * In-progress sessions are ignored.
+ */
+export function rebuildPreviousSnapshot(sessions: WorkoutSession[]): Record<string, PreviousSnapshot> {
+  const newestFirst = sessions
+    .filter((s) => s.completedAt != null)
+    .sort((a, b) => b.completedAt!.localeCompare(a.completedAt!));
+  const prev: Record<string, PreviousSnapshot> = {};
+  for (const s of newestFirst) {
+    for (const se of s.exercises) {
+      if (prev[se.exerciseId]) continue;
+      const best = bestCompletedSet(se.sets);
+      if (best) prev[se.exerciseId] = { weightKg: best.weightKg!, reps: best.reps };
+    }
+  }
+  return prev;
+}
+
+/**
  * Overlay each exercise's best completed weighted set onto the existing "previous" snapshot map.
  * Exercises with no qualifying set leave their prior snapshot untouched.
  */

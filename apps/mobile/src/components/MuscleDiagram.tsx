@@ -7,6 +7,7 @@ import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeCon
 import { useDeviceMetrics } from '@/theme/layout';
 import { spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
+import { MUSCLE_ID_TO_DIAGRAM_REGION } from '@/utils/muscleDiagramRegions';
 
 /** Library figure size at `scale={1}`. */
 const FIGURE_BASE_WIDTH = 200;
@@ -19,30 +20,9 @@ function scaleToFit(availableWidth: number, size: number): number {
   return Math.min(size, availableWidth / PAIR_BASE_WIDTH);
 }
 
-/** Map our MuscleId to the body-highlighter library's Slug (one or more muscles can map to same slug). */
-const MUSCLE_ID_TO_SLUG: Record<MuscleId, Slug> = {
-  chest: 'chest',
-  front_delts: 'deltoids',
-  side_delts: 'deltoids',
-  rear_delts: 'deltoids',
-  traps: 'trapezius',
-  lats: 'upper-back',
-  rhomboids: 'upper-back',
-  biceps: 'biceps',
-  triceps: 'triceps',
-  forearms: 'forearm',
-  abs: 'abs',
-  obliques: 'obliques',
-  lower_back: 'lower-back',
-  quads: 'quadriceps',
-  hamstrings: 'hamstring',
-  glutes: 'gluteal',
-  adductors: 'adductors',
-  calves: 'calves',
-};
 
 /** All slugs we track (one per unique body part in the diagram). */
-const ALL_SLUGS = new Set<Slug>(Object.values(MUSCLE_ID_TO_SLUG));
+const ALL_SLUGS = new Set<Slug>(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION));
 
 export type DiagramVariant = 'male' | 'female';
 
@@ -83,13 +63,13 @@ export function MuscleDiagram({
   const recoveringSlugSet = new Set<Slug>();
   if (recoveringMuscleIds?.length) {
     for (const id of recoveringMuscleIds) {
-      recoveringSlugSet.add(MUSCLE_ID_TO_SLUG[id]);
+      recoveringSlugSet.add(MUSCLE_ID_TO_DIAGRAM_REGION[id]);
     }
   }
   const justTrainedSlugSet = new Set<Slug>();
   if (justTrainedMuscleIds?.length) {
     for (const id of justTrainedMuscleIds) {
-      justTrainedSlugSet.add(MUSCLE_ID_TO_SLUG[id]);
+      justTrainedSlugSet.add(MUSCLE_ID_TO_DIAGRAM_REGION[id]);
     }
   }
   const recoveringOnlySlugSet = new Set([...recoveringSlugSet].filter((slug) => !justTrainedSlugSet.has(slug)));
@@ -109,7 +89,7 @@ export function MuscleDiagram({
     : (() => {
         const slugSet = new Set<Slug>();
         for (const id of muscleIds) {
-          slugSet.add(MUSCLE_ID_TO_SLUG[id]);
+          slugSet.add(MUSCLE_ID_TO_DIAGRAM_REGION[id]);
         }
         return Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
       })();
