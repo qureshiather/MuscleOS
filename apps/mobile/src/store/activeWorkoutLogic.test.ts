@@ -5,6 +5,7 @@ import {
   DEFAULT_SETS_PER_EXERCISE,
   REST_MAX_SECONDS,
   REST_MIN_SECONDS,
+  STALE_WORKOUT_MS,
   adjustRestSeconds,
   bestCompletedSet,
   buildAddedSet,
@@ -25,6 +26,7 @@ import {
   parseStartParams,
   remapRestAfter,
   remapRestDurations,
+  resolveStaleWorkout,
   restDurationAfterComplete,
   storedRestSeconds,
   startPrefillPatch,
@@ -514,5 +516,50 @@ describe('normalizeHydratedState', () => {
     expect(state.restTotalSeconds).toBe(120);
     expect(state.restAfter).toBeNull();
     expect(state.restDurationsBetweenSets).toEqual({});
+  });
+
+  it('keeps a persisted lastActivityAt', () => {
+    expect(normalizeHydratedState({ ...saved, lastActivityAt: 1_234 }, 0).lastActivityAt).toBe(1_234);
+  });
+
+  it('counts activity from the session start for snapshots that predate lastActivityAt', () => {
+    expect(normalizeHydratedState(saved, 0).lastActivityAt).toBe(
+      Date.parse('2026-01-01T10:00:00.000Z')
+    );
+  });
+});
+
+describe('resolveStaleWorkout', () => {
+  const lastActivityAt = Date.parse('2026-01-01T11:00:00.000Z');
+  const session = (completed: boolean) => ({
+    id: 'session_1',
+    templateId: 'ppl-push',
+    startedAt: '2026-01-01T10:00:00.000Z',
+    exercises: [
+      { exerciseId: 'bench-press', sets: [{ completed, reps: 5, weightKg: 60 }, { completed: false }] },
+    ],
+  });
+
+  it('leaves a workout alone until it has been idle for the full threshold', () => {
+    expect(resolveStaleWorkout(session(true), lastActivityAt, lastActivityAt)).toBeNull();
+    expect(
+      resolveStaleWorkout(session(true), lastActivityAt, lastActivityAt + STALE_WORKOUT_MS - 1)
+    ).toBeNull();
+  });
+
+  it('finishes a stale workout as of its last activity, not now', () => {
+    expect(
+      resolveStaleWorkout(session(true), lastActivityAt, lastActivityAt + 2 * 24 * 60 * 60 * 1000)
+    ).toEqual({ kind: 'finish', completedAt: '2026-01-01T11:00:00.000Z' });
+  });
+
+  it('discards a stale workout with no completed sets', () => {
+    expect(
+      resolveStaleWorkout(session(false), lastActivityAt, lastActivityAt + STALE_WORKOUT_MS)
+    ).toEqual({ kind: 'discard' });
+  });
+
+  it('uses a three-hour threshold', () => {
+    expect(STALE_WORKOUT_MS).toBe(3 * 60 * 60 * 1000);
   });
 });

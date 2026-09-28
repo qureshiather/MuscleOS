@@ -275,7 +275,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_profile`, `muscleos_theme`, `muscleos_unit_system`, `muscleos_*_unit`, `muscleos_workout_sounds` | Biodata and settings | ● (as `app_settings`) |
 | `muscleos_hidden_builtin_template_ids`, `..._folder_ids` | Hidden built-ins | ○ |
 | `muscleos_recovery` | Derived recovery cache | ○ |
-| `muscleos_active_workout` | In-progress session + rest state | ○ |
+| `muscleos_active_workout` | In-progress session + rest state + `lastActivityAt` | ○ |
 | `muscleos_health` | Macro targets, metabolism | ○ |
 | `muscleos_subscription` | Cached tier | ○ |
 | `muscleos_catalog_exercises`, `muscleos_catalog_watermark`, `muscleos_catalog_seed_applied_at` | Catalog cache | ○ |
