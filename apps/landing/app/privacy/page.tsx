@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <LegalPageLayout title="Privacy Policy">
-      <p className="text-text-secondary mb-6">Last updated: {LEGAL_LAST_UPDATED}</p>
+      <p className="text-sm text-ink-muted">Last updated: {LEGAL_LAST_UPDATED}</p>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">1. Introduction</h2>
+      <section>
+        <h2>1. Introduction</h2>
         <p>
           MuscleOS (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy.
           This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use
@@ -23,14 +23,22 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">2. Information We Collect</h2>
-        <p className="mb-3">MuscleOS is local-first. You can log workouts without creating an account.</p>
-        <ul className="list-disc pl-6 space-y-1 mb-3">
+      <section>
+        <h2>2. Information We Collect</h2>
+        <p className="mb-3">
+          MuscleOS is local-first. You can log workouts without creating an account, and the app works offline.
+        </p>
+        <ul className="mb-3">
           <li>
             <strong>On-device workout data.</strong> Sessions, templates, notes, custom exercises, recovery
             derived from your sessions, and settings (units, theme, sounds, optional biodata) stay on your
             device by default.
+          </li>
+          <li>
+            <strong>A guest identifier.</strong> On first launch the app signs you in as an anonymous guest with
+            Supabase. This creates a random user ID with no name or email attached. It is used to check
+            subscription status and, if you later sign in with Apple or Google, to keep the workouts you already
+            logged. Guest workouts are not uploaded.
           </li>
           <li>
             <strong>Account information, if you link an account.</strong> Email address (or Apple Hide My Email
@@ -45,17 +53,20 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Optional biodata you enter.</strong> Height, body weight, age, sex, and a “not natty”
-            recovery toggle. Used for in-app estimates (recovery, strength standards). We do not collect
-            health-sensor data and we have no HealthKit or Google Fit integration.
+            recovery toggle. Used for in-app features (the body diagram, recovery times, strength standards).
+            It is included in the synced copy if you link an account. We do not collect health-sensor data and
+            we have no HealthKit or Google Fit integration.
           </li>
         </ul>
         <p>
-          We do not run our own analytics or advertising SDKs. We do not sell your personal information.
+          The app also downloads the shared exercise catalog from our servers; that request contains no workout
+          data. We do not use analytics, crash-reporting, or advertising SDKs, in the app or on this website, and
+          we do not sell your personal information.
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">3. How We Use Your Information</h2>
+      <section>
+        <h2>3. How We Use Your Information</h2>
         <p>
           We use this information to run the MuscleOS app: to save and restore your training log, to sync a
           linked account across devices, to unlock Pro on that account, and to respond when you contact us.
@@ -63,16 +74,17 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">4. Third Parties</h2>
+      <section>
+        <h2>4. Third Parties</h2>
         <p className="mb-3">We share only what each service needs to do its job:</p>
-        <ul className="list-disc pl-6 space-y-1 mb-3">
+        <ul className="mb-3">
           <li>
-            <strong>Supabase</strong> — account authentication and the synced copy of your workout data.
+            <strong>Supabase</strong> — guest and account sign-in, the synced copy of your workout data, and the
+            exercise catalog.
           </li>
           <li>
             <strong>RevenueCat</strong> — subscription status so Pro restores on devices signed into the same
-            account. We send a MuscleOS user ID, not your card number.
+            account. We send your MuscleOS user ID (the guest ID until you sign in), never your card number.
           </li>
           <li>
             <strong>Apple</strong> — Sign in with Apple (iOS) and App Store billing if you subscribe.
@@ -87,33 +99,34 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">5. Data Storage and Security</h2>
+      <section>
+        <h2>5. Data Storage and Security</h2>
         <p>
           Local data lives in app storage on your device. When a linked account syncs, data is transmitted over
           HTTPS. You are responsible for the security of your device and any account credentials.
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">6. Your Rights</h2>
+      <section>
+        <h2>6. Your Rights</h2>
         <p className="mb-3">
           Depending on your location, you may have rights to access, correct, delete, or export your personal
           data.
         </p>
-        <ul className="list-disc pl-6 space-y-1 mb-3">
+        <ul className="mb-3">
           <li>
             <strong>Export.</strong> Profile → Account → Data → Export my data writes a JSON file you can share. It is a
             portability copy of your history, not a full backup, and the app has no import.
           </li>
           <li>
-            <strong>Clear this device.</strong> Profile → Account → Data → Clear all data resets workouts and settings on this
-            phone. You stay signed in.
+            <strong>Clear this device.</strong> Profile → Account → Data → Clear all data removes your saved workouts,
+            templates, and settings from this phone. You stay signed in. If you are signed in, your synced copy
+            is kept and syncs back to the phone; delete your account to remove it.
           </li>
           <li>
             <strong>Delete your account.</strong> If you have linked an account, open Profile → Account → Delete account.
-            That removes the account and the synced copy from our systems, wipes this device, and leaves you as
-            a guest. Short-term backups required for security or legal compliance may linger briefly. Uninstalling
+            That removes the account and the synced copy from our systems, revokes Sign in with Apple if you used
+            it, wipes this device, and leaves you as a guest. Short-term backups required for security or legal compliance may linger briefly. Uninstalling
             the app also removes local data.
           </li>
         </ul>
@@ -123,8 +136,8 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">7. Contact Us</h2>
+      <section>
+        <h2>7. Contact Us</h2>
         <p>
           Questions about this policy, an export, or account deletion: {' '}
           <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>. You can also delete a linked account in the app as

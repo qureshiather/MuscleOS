@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
+import { ThemeToggle } from './ThemeToggle';
 
 export function LegalPageLayout({
   title,
@@ -30,13 +31,14 @@ export function LegalPageLayout({
             />
             <span className="font-display font-semibold tracking-tight text-ink">MuscleOS</span>
           </Link>
-          <nav className="ml-auto">
+          <nav className="ml-auto flex items-center gap-4">
             <Link
               href="/"
               className="text-sm text-ink-muted transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               ← Home
             </Link>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

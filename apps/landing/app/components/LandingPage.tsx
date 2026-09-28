@@ -43,7 +43,7 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
         <span>App Store</span>
       </a>
       <a
-        href="https://play.google.com/store/apps/details?id=com.muscle-os.app"
+        href="https://play.google.com/store/apps/details?id=com.muscleos.app"
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-[15px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${primary}`}
@@ -75,11 +75,11 @@ const FEATURES = [
     id: 'workouts',
     label: 'Workouts',
     title: 'Log your workouts',
-    body: 'Start with a built-in Push Pull Legs, Upper/Lower, or Strong Lifts 5×5 workout. Enter your weight and reps, complete each set, and use the rest timer between sets.',
+    body: 'Start with a built-in Push Pull Legs, Upper/Lower, or Strong Lifts 5×5 workout. Enter your weight and reps, see what you lifted last time, and rest between sets with a timer.',
     points: [
       'Built-in PPL, Upper/Lower & Strong Lifts',
       'Set logging with rest timers',
-      'Resume an in-progress workout',
+      'See what you lifted last time',
     ],
     src: '/screens/workouts.png',
     alt: 'MuscleOS Workouts screen',
@@ -88,7 +88,7 @@ const FEATURES = [
     id: 'exercises',
     label: 'Exercises',
     title: 'Find exercises',
-    body: 'Search the exercise library by name, muscle, or equipment. Tap an exercise to see instructions and the muscles it works.',
+    body: 'Search nearly 400 exercises by name, muscle, or equipment. Tap an exercise to see instructions, the muscles it works, and your own notes.',
     points: [
       'Search by name, muscle, or equipment',
       'Muscle map on each exercise',
@@ -101,10 +101,10 @@ const FEATURES = [
     id: 'recovery',
     label: 'Recovery',
     title: 'Check your recovery',
-    body: 'Recovery updates after each saved workout. The body map shows which muscles are ready and which are still recovering.',
+    body: 'Each muscle you train recovers for 36, 48, or 72 hours depending on its size. The body map shows which muscles are ready and which are still recovering.',
     points: [
       'Front and back diagram',
-      'Updates from logged workouts',
+      'Updates when you finish a workout',
       'Included on Basic',
     ],
     src: '/screens/recovery.png',
@@ -114,9 +114,9 @@ const FEATURES = [
     id: 'history',
     label: 'History',
     title: 'Review past workouts',
-    body: 'See your saved workouts, including duration, volume, exercises, and sets. Pro adds personal records, progression charts, and a monthly calendar.',
+    body: 'Each saved workout shows its duration, volume, exercises, and sets. Pro adds personal records, progression charts, and a monthly calendar.',
     points: [
-      'Session list and detail',
+      'Every session with its sets',
       'JSON export anytime',
       'PRs, charts, and calendar on Pro',
     ],
@@ -139,12 +139,6 @@ const PRO_POINTS = [
   'Empty workouts & mid-session edits',
   'Save a finished workout as a template',
   'PRs, charts, and monthly calendar',
-] as const;
-
-const STATS = [
-  { value: '≈32 MB', label: 'App size' },
-  { value: '1–2 MB', label: 'Typical workout data' },
-  { value: '$0', label: 'Basic plan' },
 ] as const;
 
 export function LandingPage() {
@@ -271,27 +265,6 @@ export function LandingPage() {
                   </article>
                 );
               })}
-            </div>
-          </div>
-        </section>
-
-        {/* Stats */}
-        <section className="border-y border-border/70 bg-surface/60 py-12 sm:py-16">
-          <div className="mx-auto max-w-site px-5 sm:px-8">
-            <p className="text-center font-display text-xl font-semibold text-ink">
-              Small app. Low storage use.
-            </p>
-            <div className="mt-8 grid gap-8 sm:grid-cols-3 sm:gap-10">
-              {STATS.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className="font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-                    {stat.value}
-                  </p>
-                  <p className="mt-2 font-mono-label text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
             </div>
           </div>
         </section>

@@ -17,9 +17,58 @@
   --color-border: #d6dce8;
   --color-phone-frame: #1c1f2a;
   --color-phone-bezel: #0c0c14;
+  --color-background-top: #f5f7fc;
+  color-scheme: light;
+}
+
+/* Pulse dark — matches the mobile app's dark palette. Follows the device unless the toggle set data-theme. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-background: #14161e;
+    --color-background-deep: #0f1117;
+    --color-background-top: #181b25;
+    --color-surface: #1c1f2a;
+    --color-ink: #edeff5;
+    --color-ink-secondary: #a8adbd;
+    --color-ink-muted: #8a8fa0;
+    --color-primary: #5694f5;
+    --color-primary-dim: #4580e0;
+    --color-accent: #7eb4ff;
+    --color-ready: #3dd68c;
+    --color-border: #353a4a;
+    --color-phone-frame: #252936;
+    --color-phone-bezel: #07080c;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-background: #14161e;
+  --color-background-deep: #0f1117;
+  --color-background-top: #181b25;
+  --color-surface: #1c1f2a;
+  --color-ink: #edeff5;
+  --color-ink-secondary: #a8adbd;
+  --color-ink-muted: #8a8fa0;
+  --color-primary: #5694f5;
+  --color-primary-dim: #4580e0;
+  --color-accent: #7eb4ff;
+  --color-ready: #3dd68c;
+  --color-border: #353a4a;
+  --color-phone-frame: #252936;
+  --color-phone-bezel: #07080c;
 }
 
 @layer base {
+  /* Opacity-modified token classes (border-border/70) don't generate for var() colors, so the
+     preflight default border colour shows through. Point it at the theme border instead. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
   html {
     scroll-behavior: smooth;
   }
@@ -68,11 +117,34 @@
     background-image:
       radial-gradient(ellipse 80% 55% at 10% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
       radial-gradient(ellipse 60% 40% at 100% 10%, rgba(5, 150, 105, 0.06), transparent 50%),
-      linear-gradient(180deg, #f5f7fc 0%, var(--color-background) 45%, var(--color-background-deep) 100%);
+      linear-gradient(180deg, var(--color-background-top) 0%, var(--color-background) 45%, var(--color-background-deep) 100%);
   }
 
   .bg-grain {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  /* Theme-specific screenshots (PhoneFrame). Mirrors the :root theme rules above. */
+  .theme-dark-only {
+    display: none;
+  }
+
+  :root[data-theme='dark'] .theme-dark-only {
+    display: block;
+  }
+
+  :root[data-theme='dark'] .theme-light-only {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .theme-dark-only {
+      display: block;
+    }
+
+    :root:not([data-theme='light']) .theme-light-only {
+      display: none;
+    }
   }
 
   .faq-summary {

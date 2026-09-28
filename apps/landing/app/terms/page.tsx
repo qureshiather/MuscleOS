@@ -11,28 +11,28 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <LegalPageLayout title="Terms of Service">
-      <p className="text-text-secondary mb-6">Last updated: {LEGAL_LAST_UPDATED}</p>
+      <p className="text-sm text-ink-muted">Last updated: {LEGAL_LAST_UPDATED}</p>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">1. Acceptance of Terms</h2>
+      <section>
+        <h2>1. Acceptance of Terms</h2>
         <p>
           By downloading, installing, or using the MuscleOS application and related services, you agree to be
           bound by these Terms of Service. If you do not agree, do not use the app.
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">2. Description of Service</h2>
+      <section>
+        <h2>2. Description of Service</h2>
         <p>
           MuscleOS provides a workout and exercise tracking application for personal use. We reserve the right
           to modify, suspend, or discontinue any part of the service at any time with or without notice.
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">3. Use of the App</h2>
+      <section>
+        <h2>3. Use of the App</h2>
         <p className="mb-3">You agree to use MuscleOS only for lawful purposes. You must not:</p>
-        <ul className="list-disc pl-6 space-y-1 mb-3">
+        <ul className="mb-3">
           <li>Use the app in any way that violates applicable laws or regulations</li>
           <li>Attempt to gain unauthorized access to our systems or other users&apos; data</li>
           <li>Reverse engineer, decompile, or disassemble the app except as permitted by law</li>
@@ -45,16 +45,16 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">4. Intellectual Property</h2>
+      <section>
+        <h2>4. Intellectual Property</h2>
         <p>
           MuscleOS and its logo, design, and content are owned by us or our licensors. You may not copy,
           modify, distribute, or create derivative works without our prior written consent.
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">5. Disclaimer of Warranties</h2>
+      <section>
+        <h2>5. Disclaimer of Warranties</h2>
         <p>
           The app is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind,
           express or implied. We do not warrant that the app will be uninterrupted, error-free, or free of
@@ -62,8 +62,8 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">6. Limitation of Liability</h2>
+      <section>
+        <h2>6. Limitation of Liability</h2>
         <p>
           To the maximum extent permitted by law, MuscleOS and its affiliates shall not be liable for any
           indirect, incidental, special, consequential, or punitive damages, or any loss of profits or data,
@@ -71,12 +71,12 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">7. Subscriptions and Payments</h2>
+      <section>
+        <h2>7. Subscriptions and Payments</h2>
         <p className="mb-3">
           MuscleOS offers an optional <strong>Pro</strong> upgrade. Basic features stay free. Pro is sold as:
         </p>
-        <ul className="list-disc pl-6 space-y-1 mb-3">
+        <ul className="mb-3">
           <li>Monthly auto-renewing subscription — $2.99 USD</li>
           <li>Annual auto-renewing subscription — $19.99 USD</li>
         </ul>
@@ -97,8 +97,8 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">8. Accounts and deletion</h2>
+      <section>
+        <h2>8. Accounts and deletion</h2>
         <p className="mb-3">
           An account is optional. You can use MuscleOS as a guest with data stored only on the device. Linking
           Apple, Google, or email enables backup, sync, and Pro restore. Cloud data is stored per email —
@@ -111,8 +111,8 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-text mb-3">9. Contact</h2>
+      <section>
+        <h2>9. Contact</h2>
         <p>
           For questions about these Terms of Service, please contact us at{' '}
           <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>.

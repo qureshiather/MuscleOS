@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { ThemeToggle } from './ThemeToggle';
+
 const NAV = [
   { href: '/#features', label: 'Features', hideOnMobile: true },
   { href: '/faq', label: 'FAQ', hideOnMobile: false },
@@ -41,6 +43,7 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <ThemeToggle />
         </nav>
       </div>
     </header>

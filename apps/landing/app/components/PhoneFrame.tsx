@@ -1,4 +1,13 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import Image from 'next/image';
+
+/** `/screens/history.png` → `/screens/dark/history.png`, if that file has been added. */
+function darkVariant(src: string): string | undefined {
+  const dark = src.replace(/^\/screens\//, '/screens/dark/');
+  if (dark === src) return undefined;
+  return existsSync(path.join(process.cwd(), 'public', dark)) ? dark : undefined;
+}
 
 type PhoneFrameProps = {
   src?: string;
@@ -31,18 +40,32 @@ export function PhoneFrame({
       >
         <div className="relative aspect-[9/19.5] w-full overflow-hidden rounded-[1.7rem] bg-phone-frame">
           {src ? (
-            <Image
-              src={src}
-              alt={alt}
-              fill
-              priority={priority}
-              className="object-cover object-top"
-              sizes={
-                size === 'compact'
-                  ? '(max-width: 640px) 148px, (max-width: 1024px) 168px, 184px'
-                  : '(max-width: 640px) 200px, (max-width: 1024px) 240px, 280px'
-              }
-            />
+            (() => {
+              const darkSrc = darkVariant(src);
+              const image = (imageSrc: string, themeClass: string) => (
+                <Image
+                  key={imageSrc}
+                  src={imageSrc}
+                  alt={alt}
+                  fill
+                  priority={priority}
+                  className={`object-cover object-top ${themeClass}`}
+                  sizes={
+                    size === 'compact'
+                      ? '(max-width: 640px) 148px, (max-width: 1024px) 168px, 184px'
+                      : '(max-width: 640px) 200px, (max-width: 1024px) 240px, 280px'
+                  }
+                />
+              );
+              return darkSrc ? (
+                <>
+                  {image(src, 'theme-light-only')}
+                  {image(darkSrc, 'theme-dark-only')}
+                </>
+              ) : (
+                image(src, '')
+              );
+            })()
           ) : (
             <div
               className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#1c1f2a] to-[#14161e] px-6 text-center"
