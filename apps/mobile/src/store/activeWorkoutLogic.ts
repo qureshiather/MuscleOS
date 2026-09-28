@@ -390,12 +390,14 @@ export interface HydratedState {
   restTotalSeconds: number;
   restAfter: RestAfter | null;
   restDurationsBetweenSets: Record<string, number>;
+  lastActivityAt: number;
 }
 
 /**
  * Normalize a persisted snapshot back into store state on app boot. A rest timer that already
  * expired while the app was dead is dropped (its `restEndTime` is in the past); missing fields
- * fall back to their defaults.
+ * fall back to their defaults. Snapshots written before `lastActivityAt` existed count from the
+ * session start.
  */
 export function normalizeHydratedState(
   saved: PersistedActiveWorkout,
@@ -408,7 +410,32 @@ export function normalizeHydratedState(
     restTotalSeconds: saved.restTotalSeconds ?? DEFAULT_REST_SECONDS,
     restAfter: restEndTime != null ? saved.restAfter ?? null : null,
     restDurationsBetweenSets: saved.restDurationsBetweenSets ?? {},
+    lastActivityAt: saved.lastActivityAt ?? new Date(saved.session.startedAt).getTime(),
   };
+}
+
+/** A workout with no edits for this long is treated as forgotten and closed out automatically. */
+export const STALE_WORKOUT_MS = 3 * 60 * 60 * 1000;
+
+export type StaleWorkoutResolution =
+  | { kind: 'finish'; completedAt: string }
+  | { kind: 'discard' };
+
+/**
+ * What to do with an in-progress workout the user walked away from, or `null` if it isn't stale.
+ * A stale workout with completed sets is finished as of its last edit, so history duration,
+ * recovery and "trained today" reflect when the lifting happened rather than when the app was next
+ * opened. One with nothing completed is discarded, since Finish needs at least one set.
+ */
+export function resolveStaleWorkout(
+  session: WorkoutSession,
+  lastActivityAt: number,
+  now: number = Date.now()
+): StaleWorkoutResolution | null {
+  if (now - lastActivityAt < STALE_WORKOUT_MS) return null;
+  const hasCompletedSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
+  if (!hasCompletedSet) return { kind: 'discard' };
+  return { kind: 'finish', completedAt: new Date(lastActivityAt).toISOString() };
 }
 
 /**

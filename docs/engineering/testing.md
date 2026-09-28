@@ -18,7 +18,7 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**28 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
+**29 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
 the screens themselves and a store's live wiring (debounced persist, `AppState` listener) aren't
 exercised end-to-end. The workflow *rules* those layers enforce have been pulled out into pure
 modules (`activeWorkoutLogic`, `workoutFinish`, `workoutSetView`, `templatesLogic`,
@@ -27,8 +27,13 @@ behaviour is covered without a renderer.
 
 A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` aliases) swaps
 `@react-native-async-storage/async-storage` for an in-memory store and `react-native` for a minimal
-`AppState`/`Platform` stub. This lets the storage layer be tested against real reads/writes — see
-`localStorage.activeWorkout.test.ts` for the persist/resume round-trip.
+`AppState`/`Platform` stub; `__emitAppStateChange()` delivers foreground/background events. This lets
+the storage layer be tested against real reads/writes — see `localStorage.activeWorkout.test.ts` for
+the persist/resume round-trip.
+
+**Store tests** run a real Zustand store on this harness. `activeWorkoutStore.test.ts` is the
+pattern: `vi.mock` `@/sync` and `@/sync/catalogPull` (keeps Supabase out), fake only `Date`, and
+re-import the store per test with `vi.resetModules()` because it holds module-level state.
 
 | Test file | Covers |
 |-----------|--------|
@@ -45,7 +50,8 @@ A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` alia
 | `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist**, Strong Lifts 5 working sets |
 | `apps/mobile/src/utils/templateExercises.test.ts` | Per-exercise set/warm-up resolve, serialize, legacy `defaultSets` migrate, session→template counts |
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, paywall path parsing |
-| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill (working sets only), add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, replace-exercise reset + new-exercise prefill, `reps > 0` complete rule, warm-up-skips-rest, start prefill, per-exercise start params, hydrate expired-timer discard |
+| `apps/mobile/src/store/activeWorkoutLogic.test.ts` | Set-complete prefill (working sets only), add-set carry-over, best-set/previous snapshot, warm-up insert, rest-key remap, replace-exercise reset + new-exercise prefill, `reps > 0` complete rule, warm-up-skips-rest, start prefill, per-exercise start params, hydrate expired-timer discard, legacy `lastActivityAt` fallback, stale-workout finish/discard |
+| `apps/mobile/src/store/activeWorkoutStore.test.ts` | `lastActivityAt` stamping (edits yes, rest timer no), persisted with the snapshot; stale close on hydration (finish at last activity, discard, under-threshold resume, legacy snapshot) and on foreground, including overlapping closes saving once |
 | `apps/mobile/src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, null clear, corrupt/invalid-payload guards (via AsyncStorage harness) |
 | `apps/mobile/src/auth/deleteAccount.test.ts` | Delete-account device wipe (sessions, templates, active workout, sync transport, Apple auth code) and anonymous RevenueCat rebootstrap |
 | `apps/mobile/src/auth/accountProvider.test.ts` | Linked Apple / Google / email vs leftover anonymous identity |

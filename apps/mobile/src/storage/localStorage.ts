@@ -288,6 +288,8 @@ export interface PersistedActiveWorkout {
   restTotalSeconds: number;
   restAfter: { exIdx: number; setIdx: number } | null;
   restDurationsBetweenSets: Record<string, number>;
+  /** Epoch ms of the last change to the session. Absent in snapshots from older app versions. */
+  lastActivityAt?: number;
 }
 
 export async function getActiveWorkout(): Promise<PersistedActiveWorkout | null> {

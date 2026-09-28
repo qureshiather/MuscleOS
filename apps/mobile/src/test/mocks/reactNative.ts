@@ -4,14 +4,24 @@
  * `AppState` (event subscription) and `Platform` — is implemented. UI primitives are not, on
  * purpose: components still require a renderer and are out of scope for unit tests.
  */
+const appStateHandlers = new Set<(state: string) => void>();
+
 export const AppState = {
   currentState: 'active' as const,
-  addEventListener: (_type: string, _handler: (state: string) => void) => ({
-    remove() {
-      /* no-op */
-    },
-  }),
+  addEventListener: (_type: string, handler: (state: string) => void) => {
+    appStateHandlers.add(handler);
+    return {
+      remove() {
+        appStateHandlers.delete(handler);
+      },
+    };
+  },
 };
+
+/** Test helper: deliver an AppState 'change' event (e.g. 'background', 'active') to every listener. */
+export function __emitAppStateChange(state: string): void {
+  for (const handler of appStateHandlers) handler(state);
+}
 
 export const Platform = {
   OS: 'ios' as const,

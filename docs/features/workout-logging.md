@@ -80,6 +80,22 @@ mirrored to AsyncStorage under `muscleos_active_workout`, **debounced 400 ms**, 
 write when the app backgrounds. `hydrateActiveWorkout()` restores it during app boot, discarding
 an already-expired rest timer.
 
+### Stale workouts
+
+The store tracks `lastActivityAt`: stamped at start and on every edit to the session (logging,
+completing, adding/removing sets or exercises, rest presets). Rest-timer ticks don't count.
+Snapshots from before this field existed count from `startedAt`.
+
+After boot hydration and whenever the app returns to the foreground, a workout idle for
+**3 hours or more** is closed **silently**, with no prompt:
+
+| Stale workout has… | Result |
+|--------------------|--------|
+| At least one completed set | Finished with `completedAt = lastActivityAt`, so history duration, recovery, and "trained today" reflect when the lifting happened, not when the app was next opened |
+| No completed sets | Discarded |
+
+There's no cap on total duration — a workout still being edited stays open however long it runs.
+
 While a session exists, a **Resume workout** pill replaces part of the tab bar showing elapsed
 time. Its **X** discards the workout **with no confirmation**. Inside the workout, the
 chevron-down minimises back to the tabs without ending anything.
@@ -321,6 +337,7 @@ them, so there is no cached value to invalidate. See
 | Default rest | 120 s |
 | Rest adjust step / floor / ceiling | 30 s / 30 s / 900 s |
 | Persist debounce | 400 ms |
+| Stale workout idle threshold | 3 h |
 | Timer tick | 1000 ms |
 | Rest-end sound grace window | 1500 ms |
 | Minimum sets per exercise | 1 (no maximum) |
@@ -365,13 +382,17 @@ Covered:
   `clampRestSeconds` / `adjustRestSeconds` (running-timer ±30 grid, 30 s floor, 15:00 ceiling),
   `buildReplacedExercise` (resets to default sets and prefills from the **new** exercise, not
   the one it replaced), `parseStartParams` / `encodeStartParams`, and `normalizeHydratedState` (an expired rest timer
-  is dropped on boot)
+  is dropped on boot; legacy snapshots take `lastActivityAt` from `startedAt`), and
+  `resolveStaleWorkout` (3 h threshold, finish at last activity vs. discard when nothing completed)
 - `src/utils/workoutSetView.test.ts` — warm-up (`W1…`) vs working (`1,2,3…`) numbering and the
   single "current" set rule (first incomplete set of the first unfinished exercise)
 - `src/utils/workoutFinish.test.ts` — `templateListChanged`, `templateStructureChanged` (set/warm-up
   counts count as a change), the finish `variant` classifier, and
   the save-options matrix: a built-in is never offered "Overwrite"; a changed built-in only forks
   to a new template (Pro); a changed custom offers Overwrite + Save-as-new (both Pro)
+- `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping (session edits, not rest-timer
+  actions) and the stale close after hydration and on foreground, including overlapping closes
+  saving the session once
 - `src/storage/localStorage.activeWorkout.test.ts` — the persist/resume round-trip through the
   in-memory AsyncStorage harness, including null-clear and corrupt/invalid-payload guards
 - `src/utils/workoutNotificationCopy.test.ts` — "Next:" / "Continue to" / "Finish your workout"

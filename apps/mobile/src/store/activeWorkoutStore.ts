@@ -37,6 +37,7 @@ import {
   oldToNewForReorder,
   remapRestAfter,
   remapRestDurations,
+  resolveStaleWorkout,
   stripPrefillFlags,
   type PreviousSnapshot,
   type RestAfter,
@@ -55,6 +56,8 @@ export interface ActiveWorkoutState {
   restAfter: RestAfter | null;
   /** Saved rest durations keyed by "exIdx-setIdx" for display after timer ends */
   restDurationsBetweenSets: Record<string, number>;
+  /** Epoch ms of the last change to the session; drives the stale-workout auto-close. */
+  lastActivityAt: number | null;
   startWorkout: (templateId: string, plan: readonly TemplateExercise[]) => void;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   /** Applies to all rests for this exercise (after each set, including the last). */
@@ -78,7 +81,8 @@ export interface ActiveWorkoutState {
   moveExerciseDown: (exerciseIndex: number) => void;
   /** Drag-and-drop reorder; remaps rest timer indices. */
   reorderExercises: (fromIndex: number, toIndex: number) => void;
-  finishWorkout: () => Promise<void>;
+  /** `completedAt` defaults to now; the stale-workout close passes the last activity time. */
+  finishWorkout: (completedAt?: string) => Promise<void>;
   discardWorkout: () => void;
   // Rest timer actions (in store so timer survives addSet/session updates)
   startRest: (exIdx: number, setIdx: number, totalSeconds?: number) => void;
@@ -99,11 +103,13 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   restTotalSeconds: DEFAULT_REST_SECONDS,
   restAfter: null,
   restDurationsBetweenSets: {},
+  lastActivityAt: null,
 
   startWorkout: (templateId, plan) => {
     if (get().session) return; // Only one workout at a time
     set({
       session: createEmptySession(templateId, plan),
+      lastActivityAt: Date.now(),
     });
   },
 
@@ -313,12 +319,12 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  finishWorkout: async () => {
+  finishWorkout: async (completedAt = new Date().toISOString()) => {
     const { session } = get();
     if (!session) return;
     const completed: WorkoutSession = {
       ...stripPrefillFlags(session),
-      completedAt: new Date().toISOString(),
+      completedAt,
     };
     const sessions = await getSessions();
     const allSessions = [...sessions, completed];
@@ -338,6 +344,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       restEndTime: null,
       restAfter: null,
       restDurationsBetweenSets: {},
+      lastActivityAt: null,
     });
 
     // Keep peer stores in sync so home/history/recovery update without waiting for focus
@@ -357,6 +364,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       restEndTime: null,
       restAfter: null,
       restDurationsBetweenSets: {},
+      lastActivityAt: null,
     }),
 
   startRest: (exIdx, setIdx, totalSeconds = DEFAULT_REST_SECONDS) => {
@@ -449,14 +457,36 @@ function writeSnapshot() {
     clearTimeout(persistTimer);
     persistTimer = null;
   }
-  const { session, restEndTime, restTotalSeconds, restAfter, restDurationsBetweenSets } =
-    useActiveWorkoutStore.getState();
+  const {
+    session,
+    restEndTime,
+    restTotalSeconds,
+    restAfter,
+    restDurationsBetweenSets,
+    lastActivityAt,
+  } = useActiveWorkoutStore.getState();
   void setActiveWorkout(
     session
-      ? { session, restEndTime, restTotalSeconds, restAfter, restDurationsBetweenSets }
+      ? {
+          session,
+          restEndTime,
+          restTotalSeconds,
+          restAfter,
+          restDurationsBetweenSets,
+          lastActivityAt: lastActivityAt ?? undefined,
+        }
       : null
   );
 }
+
+// Every edit to a running session counts as activity. Starting and hydrating set
+// `lastActivityAt` themselves (prev.session is null there), and rest-timer ticks don't touch
+// the session, so they don't keep a forgotten workout alive.
+useActiveWorkoutStore.subscribe((state, prev) => {
+  if (state.session && prev.session && state.session !== prev.session) {
+    useActiveWorkoutStore.setState({ lastActivityAt: Date.now() });
+  }
+});
 
 useActiveWorkoutStore.subscribe(() => {
   if (!persistEnabled || persistTimer) return;
@@ -470,7 +500,30 @@ useActiveWorkoutStore.subscribe(() => {
 // Backgrounding is the last moment we're guaranteed to run before being killed.
 AppState.addEventListener('change', (state) => {
   if (persistEnabled && state !== 'active') writeSnapshot();
+  if (state === 'active') void closeStaleWorkout();
 });
+
+let closingStale: Promise<void> | null = null;
+
+/**
+ * Silently closes a workout the user walked away from (see `resolveStaleWorkout`). Runs after
+ * hydration and whenever the app returns to the foreground. Guarded so a foreground event during
+ * the async finish can't save the session twice.
+ */
+export function closeStaleWorkout(): Promise<void> {
+  // Cleared via .finally on the stored promise, not inside the async body: when there's nothing to
+  // close the body settles synchronously, and clearing there would run before this assignment.
+  closingStale ??= (async () => {
+    const store = useActiveWorkoutStore.getState();
+    if (!store.hydrated || !store.session || store.lastActivityAt == null) return;
+    const resolution = resolveStaleWorkout(store.session, store.lastActivityAt);
+    if (resolution?.kind === 'finish') await store.finishWorkout(resolution.completedAt);
+    else if (resolution?.kind === 'discard') store.discardWorkout();
+  })().finally(() => {
+    closingStale = null;
+  });
+  return closingStale;
+}
 
 let hydrating: Promise<void> | null = null;
 
@@ -489,6 +542,7 @@ export function hydrateActiveWorkout(): Promise<void> {
       // Catches a workout started while hydration was still in flight.
       if (useActiveWorkoutStore.getState().session) writeSnapshot();
     }
+    await closeStaleWorkout();
   })();
   return hydrating;
 }
