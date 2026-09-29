@@ -66,8 +66,8 @@ interface MuscleRecovery {
 }
 ```
 
-`recoveryUntil` is **not** stored — it is derived at read time so that changing the "not natty"
-setting immediately re-times every muscle.
+`recoveryUntil` is **not** stored. It is derived at read time, so changing the duration table
+re-times every muscle without a migration.
 
 ## Recovery durations
 
@@ -81,18 +81,13 @@ From `packages/types/src/recovery.ts`:
 
 `DEFAULT_RECOVERY_HOURS = 72` is the fallback for any muscle not in the table.
 
-**"Not natty" halves everything.** `NOT_NATTY_RECOVERY_FACTOR = 0.5`, applied when the user
-enables the toggle on the Profile screen ("Halves recovery time"). Biceps go 36h → 18h, chest
-72h → 36h.
+Durations are the same for every user; there is no user setting that changes them.
 
 ```ts
 hours = RECOVERY_HOURS_BY_MUSCLE[muscleId] ?? DEFAULT_RECOVERY_HOURS
-if (options.notNatty) hours *= NOT_NATTY_RECOVERY_FACTOR
 ```
 
 `getRecoveryUntil(record)` returns `trainedAt + hours` as an ISO string.
-`apps/mobile/src/utils/recoveryUntil.ts` is a thin mobile wrapper that injects the live
-`notNatty` setting so callers don't have to.
 
 A muscle is **active** (still recovering) when `getRecoveryUntil(r) > now`, compared as ISO
 strings by `activeRecoveryAt()` (called from `recoveryStore.activeRecovery()`). Once past that instant the muscle drops out of the
@@ -185,7 +180,7 @@ Renders, in order:
    nothing is recovering, else `Muscles still recovering from recent training`. A `help-circle`
    icon button on the right opens the **How recovery works** explainer (`RecoveryInfoModal`) —
    a dismissible modal that describes the per-muscle timer model, the faster/slower buckets, and
-   the diagram colours. It adds a line noting timers are halved when the "not natty" setting is on.
+   the diagram colours.
 2. **Loading** — a 220×220 circular skeleton.
 3. **All-clear state** — the diagram with every muscle highlighted green.
 4. **Active state** — the diagram with a legend (Just trained / In recovery / Ready), then an
@@ -221,7 +216,6 @@ muscles trained in that session in the just-trained colour.
 | An exercise counts if **any** set is completed | Warm-ups alone are enough to trigger recovery |
 | All muscles in `Exercise.muscles[]` weighted equally | No primary/secondary split; the data to support one was flattened at build time |
 | Fixed 36/48/72-hour buckets | Not personalized, not adaptive |
-| "Not natty" simply halves all durations | A single blunt multiplier rather than per-muscle modelling |
 | Ignores sleep, nutrition, age, sex, training age | `sex` affects only the diagram figure; `age` is collected but unused here |
 | Day-grain readiness copy | Deliberate — see [Readiness copy](#readiness-copy) |
 | Delts and lats/rhomboids collapse on the diagram | A limitation of the diagram library's regions |
@@ -231,7 +225,7 @@ muscles trained in that session in the just-trained colour.
 Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
 `apps/mobile/src/utils/recovery.test.ts`, `relativeTime.test.ts`, `muscleDiagramRegions.test.ts`):
 
-- `getRecoveryHoursForMuscle` — 36/48/72 buckets, 72 default, not-natty halving
+- `getRecoveryHoursForMuscle` — 36/48/72 buckets, 72 default
 - `getRecoveryUntil` — adds the correct hours to `trainedAt`
 - 18 muscle groups exist; label formatting
 - `formatRecoveryReady` — every branch: later today (including a passed deadline), tomorrow,
@@ -239,7 +233,7 @@ Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
 - **`recoveryFromSessions()`** — skips in-progress sessions, skips exercises with no completed
   set, keeps the latest `completedAt` per muscle, uses `completedAt` rather than `startedAt`, and
   falls back to the bundled catalog
-- `activeRecoveryAt()` — still active 1 ms before expiry, ready at the exact instant; not-natty halving
+- `activeRecoveryAt()` — still active 1 ms before expiry, ready at the exact instant
 - `justTrainedMuscleIds()` — latest `trainedAt`, ties included
 - Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate
 - Recompute on sync merge (`src/sync/merge.test.ts`) and on finish (`activeWorkoutStore.test.ts`)

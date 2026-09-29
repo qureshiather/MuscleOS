@@ -130,9 +130,9 @@ export const FAQ_ITEMS: FaqItem[] = [
       '72 hours: chest, traps, lats, rhomboids, lower back, quads, hamstrings, glutes.',
     ],
     aside:
-      'Weight, reps, and sets don’t change the timer. The Not natty setting in Biodata halves every time. The Workouts tab suggests templates that use muscles that are ready. Recovery is included with Basic.',
+      'Weight, reps, and sets don’t change the timer. The Workouts tab suggests templates that use muscles that are ready. Recovery is included with Basic.',
     answerText:
-      'Finishing a workout starts a recovery timer for each muscle you trained: 36 hours for smaller muscles like arms and abs, 48 hours for delts, calves, and adductors, and 72 hours for chest, back, and legs. The Not natty setting halves these times. Recovery is included with Basic.',
+      'Finishing a workout starts a recovery timer for each muscle you trained: 36 hours for smaller muscles like arms and abs, 48 hours for delts, calves, and adductors, and 72 hours for chest, back, and legs. Recovery is included with Basic.',
   },
   {
     id: 'history',

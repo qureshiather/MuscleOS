@@ -8,8 +8,6 @@ import { fontScaleCap, useModalMaxHeight } from '@/theme/layout';
 type RecoveryInfoModalProps = {
   visible: boolean;
   onClose: () => void;
-  /** When the "not natty" setting is on, recovery times are halved. */
-  notNatty?: boolean;
 };
 
 type InfoPoint = {
@@ -37,7 +35,7 @@ const POINTS: InfoPoint[] = [
 ];
 
 /** Explains the recovery model — opened from the help icon on the Recovery tab. */
-export function RecoveryInfoModal({ visible, onClose, notNatty }: RecoveryInfoModalProps) {
+export function RecoveryInfoModal({ visible, onClose }: RecoveryInfoModalProps) {
   const { colors } = useTheme();
   const maxHeight = useModalMaxHeight();
 
@@ -92,14 +90,6 @@ export function RecoveryInfoModal({ visible, onClose, notNatty }: RecoveryInfoMo
                 </View>
               </View>
             ))}
-            {notNatty ? (
-              <View style={[styles.note, { borderColor: colors.border }]}>
-                <Ionicons name="flash-outline" size={16} color={colors.textMuted} />
-                <Text style={[typography.caption, styles.noteText, { color: colors.textMuted }]}>
-                  Enhanced recovery is on, so every timer is halved.
-                </Text>
-              </View>
-            ) : null}
           </ScrollView>
         </View>
       </View>
@@ -158,12 +148,4 @@ const styles = StyleSheet.create({
   pointText: { flex: 1, minWidth: 0 },
   pointTitle: { fontFamily: fontFamily.sansMedium, marginBottom: spacing.xs / 2 },
   pointBody: { lineHeight: 19 },
-  note: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs + 2,
-    borderTopWidth: 1,
-    paddingTop: spacing.md,
-  },
-  noteText: { flex: 1, lineHeight: 18 },
 });

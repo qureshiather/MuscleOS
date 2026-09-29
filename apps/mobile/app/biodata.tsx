@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Switch, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
@@ -18,7 +18,6 @@ export default function BiodataScreen() {
   const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
   const setProfile = useSettingsStore((s) => s.setProfile);
-  const setNotNatty = useSettingsStore((s) => s.setNotNatty);
   const [editorVisible, setEditorVisible] = useState(false);
   const [heightInput, setHeightInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
@@ -104,21 +103,6 @@ export default function BiodataScreen() {
               <Text style={[typography.data, { color: colors.text }]}>{value}</Text>
             </View>
           ))}
-          <View style={styles.notNattyRow}>
-            <View style={styles.notNattyCopy}>
-              <Text style={[typography.bodyMedium, { color: colors.text }]}>Not natty</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                Halves recovery time. These anabolic substances be crazy.
-              </Text>
-            </View>
-            <Switch
-              value={!!profile.notNatty}
-              onValueChange={(v) => void setNotNatty(v)}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.primaryOn}
-              ios_backgroundColor={colors.border}
-            />
-          </View>
         </Card>
       </ScrollView>
 
@@ -248,15 +232,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
   },
-  notNattyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingTop: spacing.md,
-    minHeight: 44,
-  },
-  notNattyCopy: { flex: 1, minWidth: 0, paddingRight: spacing.sm },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',

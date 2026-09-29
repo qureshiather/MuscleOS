@@ -33,21 +33,8 @@ export const RECOVERY_HOURS_BY_MUSCLE: Record<MuscleId, number> = {
   glutes: 72,
 };
 
-/** Half recovery duration when enhanced protocol is on. */
-export const NOT_NATTY_RECOVERY_FACTOR = 0.5;
-
-export interface RecoveryHoursOptions {
-  /** Halves muscle recovery time. Anabolics be crazy. */
-  notNatty?: boolean;
-}
-
-export function getRecoveryHoursForMuscle(
-  muscleId: MuscleId,
-  options?: RecoveryHoursOptions
-): number {
-  const base = RECOVERY_HOURS_BY_MUSCLE[muscleId] ?? DEFAULT_RECOVERY_HOURS;
-  if (!options?.notNatty) return base;
-  return base * NOT_NATTY_RECOVERY_FACTOR;
+export function getRecoveryHoursForMuscle(muscleId: MuscleId): number {
+  return RECOVERY_HOURS_BY_MUSCLE[muscleId] ?? DEFAULT_RECOVERY_HOURS;
 }
 
 export interface MuscleRecovery {
@@ -56,8 +43,8 @@ export interface MuscleRecovery {
 }
 
 /** Derive recoveryUntil at runtime from trainedAt and muscle-specific hours. */
-export function getRecoveryUntil(r: MuscleRecovery, options?: RecoveryHoursOptions): string {
-  const hours = getRecoveryHoursForMuscle(r.muscleId, options);
+export function getRecoveryUntil(r: MuscleRecovery): string {
+  const hours = getRecoveryHoursForMuscle(r.muscleId);
   const until = new Date(new Date(r.trainedAt).getTime() + hours * 60 * 60 * 1000);
   return until.toISOString();
 }
