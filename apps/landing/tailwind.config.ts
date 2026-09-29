@@ -18,6 +18,7 @@ export default {
         'primary-dim': 'var(--color-primary-dim)',
         accent: 'var(--color-accent)',
         ready: 'var(--color-ready)',
+        danger: 'var(--color-danger)',
         border: 'var(--color-border)',
         'phone-frame': 'var(--color-phone-frame)',
         'phone-bezel': 'var(--color-phone-bezel)',

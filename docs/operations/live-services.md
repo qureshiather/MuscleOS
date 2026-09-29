@@ -49,6 +49,14 @@ Auth mail limits (Authentication → Rate Limits, and SMTP settings):
 |---------|---------------|--------------|
 | Email send rate | 100 per hour | Supabase refuses the send before Resend. The app shows a failure. |
 | Minimum interval | 60 seconds | Same address cannot get another auth email sooner than this. |
+| Token verifications | 30 per 5 min per IP (default) | Caps code guessing on `/delete-account`. Don't raise it. |
+| Email OTP expiry | 10 minutes (set it; the default is 1 hour) | How long a deletion code works. |
+
+These limits are project-wide, and the Resend free plan (about 100 a day) sits behind them. Someone
+spamming signup, password reset, or `/delete-account` for addresses that exist could use up the
+hourly send budget and block real confirmation mail for up to an hour. Each address still only gets
+one mail a minute, and unknown addresses get no mail at all. If that ever happens, the fix is
+Supabase Auth CAPTCHA, which also needs the app to send a CAPTCHA token.
 
 Edge Functions `save-apple-token` and `delete-account` are deployed. Redeploy after changing `supabase/functions/`:
 
@@ -77,6 +85,13 @@ The message body and subject are edited in **Supabase → Authentication → Ema
 |------|---------|------|
 | Confirm signup | Confirm your email address with MuscleOS | `https://muscleos.app/auth/confirm?token_hash={{ .TokenHash }}&type=signup` |
 | Reset password | Reset your MuscleOS password | `https://muscleos.app/auth/confirm?token_hash={{ .TokenHash }}&type=recovery` |
+| Magic link | Your MuscleOS verification code | **No link.** The body shows `{{ .Token }}` only |
+
+The **Magic link** template is only used by `https://muscleos.app/delete-account`. The app never
+sends magic links. The page asks for the code, so the template must show `{{ .Token }}` and must
+not include `{{ .ConfirmationURL }}`. Suggested body: “Your MuscleOS verification code is
+{{ .Token }}. It expires in 10 minutes. If you didn't ask to delete your MuscleOS account, ignore
+this email.”
 
 Keep the MuscleOS name in the subject. A generic subject such as “Reset Your Password” lands in spam. Do not switch the link back to `{{ .ConfirmationURL }}`. That URL verifies the token as soon as Gmail or a spam filter fetches it, and the person’s tap then shows `otp_expired`.
 
@@ -114,6 +129,19 @@ When the Apple signing key used for revoke is rotated, update `APPLE_KEY_ID` and
 ## Website
 
 Email links open `https://muscleos.app/auth/confirm`. That page has to be the deployed landing app. If it is an old deploy, an expired link still says “Open MuscleOS” instead of telling the person to request a new one. Privacy and terms are `https://muscleos.app/privacy` and `https://muscleos.app/terms`.
+
+`https://muscleos.app/delete-account` is the account-deletion link for the Play Console Data
+safety form. It needs two **public** env vars on the Vercel project, and they're baked in at build
+time, so redeploy after setting them:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://mkhhtzpuwvezwhdpdlaz.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The same anon key the app ships with (`EXPO_PUBLIC_SUPABASE_ANON_KEY`) |
+
+Without them the page still loads, but only offers the email-support path. `apps/landing/vercel.json`
+sends `frame-ancestors 'none'` and `X-Frame-Options: DENY` on every page, so the delete button
+can't be clickjacked.
 
 ## Builds and purchases
 

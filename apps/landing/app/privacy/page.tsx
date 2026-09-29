@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { LegalPageLayout } from '../components/LegalPageLayout';
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
 import { LEGAL_LAST_UPDATED } from '../data/legal';
@@ -126,7 +127,8 @@ export default function PrivacyPage() {
             <strong>Delete your account.</strong> If you have linked an account, open Profile → Account → Delete account.
             That removes the account and the synced copy from our systems, revokes Sign in with Apple if you used
             it, wipes this device, and leaves you as a guest. Short-term backups required for security or legal compliance may linger briefly. Uninstalling
-            the app also removes local data.
+            the app also removes local data. You can also delete the account without the app at{' '}
+            <Link href="/delete-account">muscleos.app/delete-account</Link>.
           </li>
         </ul>
         <p>
