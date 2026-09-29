@@ -52,8 +52,12 @@ const PLAN_LABELS: Record<NonNullable<SubscriptionPlan>, string> = {
 
 const PURCHASABLE_PLANS: PlanKey[] = ['monthly', 'annual'];
 
-function packagePrice(pkg: PurchasesPackage | null, fallback: string): string {
-  return pkg?.product.priceString ?? fallback;
+const PERIOD_SUFFIX: Record<PlanKey, string> = { monthly: '/mo', annual: '/yr' };
+
+/** Store price with the billing period, matching the fallback label format ("$2.99/mo"). */
+function packagePrice(plan: PlanKey, pkg: PurchasesPackage | null): string {
+  const store = pkg?.product.priceString;
+  return store ? `${store}${PERIOD_SUFFIX[plan]}` : FALLBACK_PRICE_LABELS[plan];
 }
 
 export default function SubscriptionScreen() {
@@ -326,7 +330,7 @@ export default function SubscriptionScreen() {
                         )}
                       </View>
                       <Text style={[typography.label, { color: selected ? colors.primary : colors.text }]}>
-                        {packagePrice(packages[plan], FALLBACK_PRICE_LABELS[plan])}
+                        {packagePrice(plan, packages[plan])}
                       </Text>
                     </Pressable>
                   );
