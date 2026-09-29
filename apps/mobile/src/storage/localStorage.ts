@@ -34,8 +34,21 @@ export interface UserAppProfile {
   weightKg?: number;
   age?: number;
   sex?: 'male' | 'female';
-  /** Enhanced protocol: halves recovery estimates. */
-  notNatty?: boolean;
+}
+
+/**
+ * Keep only the current biodata fields. Older builds stored and synced a `notNatty` flag; it is
+ * dropped here so it stops round-tripping through the synced copy.
+ */
+export function normalizeProfile(raw: unknown): UserAppProfile {
+  if (raw == null || typeof raw !== 'object') return {};
+  const p = raw as Record<string, unknown>;
+  const profile: UserAppProfile = {};
+  if (typeof p.heightCm === 'number') profile.heightCm = p.heightCm;
+  if (typeof p.weightKg === 'number') profile.weightKg = p.weightKg;
+  if (typeof p.age === 'number') profile.age = p.age;
+  if (p.sex === 'male' || p.sex === 'female') profile.sex = p.sex;
+  return profile;
 }
 
 /** Synced snapshot: units, sounds, theme, and biodata. */
@@ -100,7 +113,7 @@ export async function getAppSettings(): Promise<SyncedAppSettings> {
   let profile: UserAppProfile = {};
   if (profileRaw) {
     try {
-      profile = JSON.parse(profileRaw) as UserAppProfile;
+      profile = normalizeProfile(JSON.parse(profileRaw));
     } catch {
       // ignore
     }
@@ -171,7 +184,7 @@ export function normalizeAppSettings(
     workoutSoundsEnabled: base.workoutSoundsEnabled ?? fallback.workoutSoundsEnabled,
     themePreference:
       parseThemePreference(base.themePreference) ?? fallback.themePreference,
-    profile: base.profile ?? {},
+    profile: normalizeProfile(base.profile),
   };
 }
 

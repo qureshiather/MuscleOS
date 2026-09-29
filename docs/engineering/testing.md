@@ -73,7 +73,7 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | `apps/mobile/src/store/templatesLogic.test.ts` | `allTemplates` ordering, soft-hide toggle, built-in vs custom hidden, folder-delete keeps templates |
 | `apps/mobile/src/theme/tabBarLayout.test.ts` | Tab bar sizing: bottom padding floor when the device reports no inset, inset replaces (not stacks) padding, label text-scale cap |
 | `apps/mobile/src/utils/recovery.test.ts` | `recoveryFromSessions`, `activeRecoveryAt` expiry instant, `justTrainedMuscleIds`, 7-day recently-worked (completed only) |
-| `packages/types/src/recovery.test.ts` | Per-muscle hours, not-natty halving, `getRecoveryUntil` |
+| `packages/types/src/recovery.test.ts` | Per-muscle hours, `getRecoveryUntil` |
 | `packages/types/src/muscles.test.ts` | 18 muscle groups, label formatting |
 | `packages/types/src/exercise.test.ts` | Category enum completeness, equipment labels |
 

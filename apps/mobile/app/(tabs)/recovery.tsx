@@ -16,7 +16,7 @@ import { RecoveryInfoModal } from '@/components/RecoveryInfoModal';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRecoveryReady } from '@/utils/relativeTime';
-import { getRecoveryUntil } from '@/utils/recoveryUntil';
+import { getRecoveryUntil } from '@muscleos/types';
 import { justTrainedMuscleIds } from '@/utils/recovery';
 import { fontScaleCap } from '@/theme/layout';
 
@@ -28,7 +28,6 @@ export default function RecoveryScreen() {
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
   const isLoading = useRecoveryStore((s) => s.isLoading);
   const profile = useSettingsStore((s) => s.profile);
-  const notNatty = profile?.notNatty ?? false;
   const diagramVariant = profile?.sex === 'female' ? 'female' : 'male';
   const [infoVisible, setInfoVisible] = useState(false);
 
@@ -72,7 +71,6 @@ export default function RecoveryScreen() {
       <RecoveryInfoModal
         visible={infoVisible}
         onClose={() => setInfoVisible(false)}
-        notNatty={notNatty}
       />
       {isLoading ? (
         <View style={styles.placeholder}>

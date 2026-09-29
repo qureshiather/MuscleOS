@@ -3,7 +3,6 @@ import {
   DEFAULT_RECOVERY_HOURS,
   getRecoveryHoursForMuscle,
   getRecoveryUntil,
-  NOT_NATTY_RECOVERY_FACTOR,
 } from './recovery';
 
 describe('getRecoveryHoursForMuscle', () => {
@@ -13,12 +12,6 @@ describe('getRecoveryHoursForMuscle', () => {
     expect(getRecoveryHoursForMuscle('calves')).toBe(48);
     expect(getRecoveryHoursForMuscle('adductors')).toBe(48);
     expect(DEFAULT_RECOVERY_HOURS).toBe(72);
-  });
-
-  it('halves recovery time when the enhanced protocol is on', () => {
-    expect(getRecoveryHoursForMuscle('chest', { notNatty: true })).toBe(
-      72 * NOT_NATTY_RECOVERY_FACTOR
-    );
   });
 });
 

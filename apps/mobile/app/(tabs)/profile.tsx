@@ -35,7 +35,6 @@ export default function ProfileScreen() {
     profile.weightKg != null ? `${kgToDisplay(profile.weightKg, bodyWeightUnit)} ${bodyWeightUnit}` : null,
     profile.age != null ? String(profile.age) : null,
     profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : null,
-    profile.notNatty ? 'Not natty' : null,
   ].filter((part): part is string => part != null);
 
   return (

@@ -74,7 +74,6 @@ export default function WorkoutsScreen() {
   const loadRecovery = useRecoveryStore((s) => s.load);
   const recoveryItems = useRecoveryStore((s) => s.items);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
-  const notNatty = useSettingsStore((s) => !!s.profile.notNatty);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
@@ -270,7 +269,6 @@ export default function WorkoutsScreen() {
   }, [
     startableTemplates,
     recoveryItems,
-    notNatty,
     sessions,
     lastDoneByTemplate,
     hiddenBuiltInIds,

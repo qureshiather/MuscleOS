@@ -128,12 +128,6 @@ describe('activeRecoveryAt', () => {
     ]);
     expect(activeRecoveryAt([biceps, chest], atExpiry).map((r) => r.muscleId)).toEqual(['chest']);
   });
-
-  it('halves every window when not natty', () => {
-    const at36h = new Date(Date.parse(trainedAt) + 36 * 3600_000);
-    expect(activeRecoveryAt([chest], at36h, { notNatty: true })).toEqual([]);
-    expect(activeRecoveryAt([chest], at36h, { notNatty: false })).toEqual([chest]);
-  });
 });
 
 describe('justTrainedMuscleIds', () => {

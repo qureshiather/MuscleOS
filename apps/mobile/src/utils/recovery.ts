@@ -3,7 +3,6 @@ import {
   getRecoveryUntil,
   type MuscleId,
   type MuscleRecovery,
-  type RecoveryHoursOptions,
   type WorkoutSession,
 } from '@muscleos/types';
 import { CATALOG_SEED } from '@/data/catalogSeed';
@@ -53,13 +52,9 @@ export function recoveryFromSessions(
  * Records still recovering at `now`: derived `recoveryUntil` strictly after `now`. At the exact
  * expiry instant a muscle is ready and drops out.
  */
-export function activeRecoveryAt(
-  items: MuscleRecovery[],
-  now: Date,
-  options?: RecoveryHoursOptions
-): MuscleRecovery[] {
+export function activeRecoveryAt(items: MuscleRecovery[], now: Date): MuscleRecovery[] {
   const nowIso = now.toISOString();
-  return items.filter((r) => getRecoveryUntil(r, options) > nowIso);
+  return items.filter((r) => getRecoveryUntil(r) > nowIso);
 }
 
 /**

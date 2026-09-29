@@ -138,9 +138,9 @@ Rows on the Account screen: Subscription, Data (`/data`), Delete account (linked
 
 **Settings** on this tab is a single row into `/settings` (“Appearance, units, sounds”).
 
-**Biodata** on this tab is a single row into `/biodata` (“Height, weight, age, gender”). The hint is “Used for recovery estimates” until a value is saved, then a compact summary of the saved fields (including **Not natty** when that toggle is on).
+**Biodata** on this tab is a single row into `/biodata` (“Height, weight, age, gender”). The hint is “Used for recovery estimates” until a value is saved, then a compact summary of the saved fields.
 
-**Biodata** (`/biodata`) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for height, weight, age, and gender; Save writes them together. **Not natty** is a switch on the screen and applies immediately.
+**Biodata** (`/biodata`) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for height, weight, age, and gender; Save writes them together.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
@@ -148,13 +148,16 @@ Rows on the Account screen: Subscription, Data (`/data`), Delete account (linked
 | `weightKg` | > 0 | **Strength standards** on PR and progression screens |
 | `age` | > 0 and < 150 | BMR/TDEE helpers only — **not** used by recovery or standards |
 | `sex` | `male` \| `female` | Body diagram figure; strength standard tables |
-| `notNatty` | toggle | **Halves all recovery durations** |
 
 Not collected: display name (set at sign-in), birthdate, experience level, training goals.
 
-The Biodata screen says it is "Used for recovery estimates", which is true of `notNatty` and
-`sex`; `weightKg` is used for strength standards elsewhere, and `age`/`heightCm` are currently
-unused by any surfaced feature.
+Older builds had a **Not natty** toggle (`notNatty`) that halved recovery. It has been removed.
+`normalizeProfile()` drops the flag when a stored or synced profile is read, so it stops
+round-tripping through the synced copy.
+
+The Biodata screen says it is "Used for recovery estimates". Of the biodata fields, only `sex`
+touches the Recovery tab, and only to pick the diagram figure. `weightKg` is used for strength
+standards elsewhere, and `age` and `heightCm` aren't used by any feature users can see.
 
 ## Settings
 
@@ -418,6 +421,9 @@ Covered:
   round-trip through an in-memory AsyncStorage harness (`src/test/mocks/`, aliased in
   `vitest.config.mts`), including null-clear and the corrupt / missing-`exercises` guards. This is
   the first storage-layer test; the harness is reusable for other keys.
+- `src/storage/localStorage.profile.test.ts` — `normalizeProfile()` keeps the four biodata fields
+  and drops `notNatty`, unknown keys, and malformed values, for both a stored profile and a synced
+  `app_settings` payload
 - `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
   sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest re-points RevenueCat.
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
