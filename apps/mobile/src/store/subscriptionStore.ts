@@ -28,6 +28,16 @@ function stateFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionState {
   };
 }
 
+/**
+ * "Grant Pro (testing)" writes a local override. It only exists in dev builds; release builds
+ * ignore it and clear any override left behind by an earlier test build.
+ */
+async function readDevProOverride(): Promise<boolean> {
+  if (__DEV__) return getDevProOverride();
+  await setDevProOverride(false);
+  return false;
+}
+
 /** Ignore stale overlapping load() calls (foreground refresh, screen mount, etc.). */
 let loadGeneration = 0;
 
@@ -70,7 +80,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
 
     try {
       await ensureRevenueCatConfigured(_appUserId);
-      const devOverride = await getDevProOverride();
+      const devOverride = await readDevProOverride();
       if (generation !== loadGeneration) return;
 
       if (devOverride) {
@@ -115,11 +125,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
       plan: options?.plan ?? 'annual',
     };
     await setSubscription(state);
-    if (options?.devOverride) {
-      await setDevProOverride(true);
-    } else {
-      await setDevProOverride(false);
-    }
+    await setDevProOverride(__DEV__ && options?.devOverride === true);
     set({ state, isLoading: false });
   },
 
@@ -158,7 +164,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   },
 
   restorePurchases: async () => {
-    const devOverride = await getDevProOverride();
+    const devOverride = await readDevProOverride();
     if (devOverride) {
       await get().load();
       return { success: true, restored: true };

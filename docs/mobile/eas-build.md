@@ -46,7 +46,6 @@ Local `apps/mobile/.env` is **gitignored** and is **not** uploaded to EAS. Set t
 |----------|--------|
 | `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | Android public key (`goog_…`), **not** the Test Store key |
 | `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` | iOS public key (`appl_…`), **not** the Test Store key |
-| `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING` | `true` to show **Grant Pro (testing)** on Subscription (remove before store release) |
 
 ### Set via dashboard
 
@@ -61,7 +60,6 @@ eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "YO
 eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_ANON_KEY" --visibility secret
 eas env:create --environment preview --name EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID --value "goog_YOUR_KEY" --visibility secret
 eas env:create --environment preview --name EXPO_PUBLIC_REVENUECAT_API_KEY_IOS --value "appl_YOUR_KEY" --visibility secret
-eas env:create --environment preview --name EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING --value "true" --visibility plain-text
 ```
 
 Pull EAS preview env into a local file (optional):

@@ -37,7 +37,7 @@ flowchart LR
 
 ```ts
 type SubscriptionTier = 'basic' | 'pro';
-type SubscriptionPlan = 'monthly' | 'annual' | null;
+type SubscriptionPlan = 'monthly' | 'annual' | 'complimentary' | null;
 
 interface SubscriptionState {
   tier: SubscriptionTier;
@@ -102,8 +102,8 @@ Not required for launch.
 
 | Mode | How |
 |------|-----|
-| Expo Go | RC preview/mock; use **Grant Pro (testing)** |
+| Expo Go / dev build | **Grant Pro (testing)** (`__DEV__` only) |
 | Dev build + sandbox | Real IAP with test Apple/Google accounts |
-| Env flag | `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING=true` |
+| Release builds | Sandbox purchases or a [promotional entitlement](../features/subscriptions.md#complimentary-pro) |
 
 See [revenuecat-setup.md](revenuecat-setup.md) for dashboard setup steps.

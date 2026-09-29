@@ -22,7 +22,8 @@ happens when a subscription lapses.
 | **Pro** | Monthly or annual | Lifters who want their own templates, flexible sessions, and analytics |
 
 There is **one Pro entitlement** (`MuscleOS Pro`). Monthly and annual unlock exactly the same
-features; the only difference is billing period. UI labels are always "Basic" and "Pro" — the
+features; the only difference is billing period. There is no lifetime product — lifetime Pro is
+only ever a [complimentary grant](#complimentary-pro). UI labels are always "Basic" and "Pro" — the
 stored tier value `free` is legacy and migrates to `basic` on read.
 
 ## Design principles
@@ -138,6 +139,31 @@ account is linked, so the entitlement has an identity to attach to.
 
 Annual is pre-selected with a "Best value" badge.
 
+For a Pro user, the **Current plan** card shows the plan, **Renews {date}** when the entitlement
+has an expiry, and **Manage subscription**, which opens the store's subscription settings. For a
+complimentary plan it says **Until {date}** instead of "Renews" (and shows no date for lifetime),
+and hides **Manage subscription**, because there's no store subscription behind it.
+
+## Complimentary Pro
+
+To give someone Pro for free (e.g. lifetime Pro for a friend), grant a **promotional
+entitlement** in RevenueCat. You don't need a store product or an app release.
+
+1. The person links an account (email / Apple / Google). Anonymous users can't be granted Pro,
+   because their `appUserID` isn't stable.
+2. Get their Supabase `user.id` from Supabase → Authentication → Users. That ID is their
+   RevenueCat `appUserID`.
+3. RevenueCat → Customers → find that ID → **Grant promotional entitlement** → `MuscleOS Pro` →
+   **Lifetime** (or a fixed duration).
+   The API equivalent is `POST /v1/subscribers/{app_user_id}/entitlements/MuscleOS%20Pro/promotional`
+   with `{"duration": "lifetime"}`.
+4. It unlocks the next time the app refreshes the entitlement (on launch, on foreground, or via
+   **Restore purchases**).
+
+`planFromEntitlement` (`src/subscription/plan.ts`) maps an entitlement whose store is
+`PROMOTIONAL`, or whose product ID starts with `rc_promo`, to the `complimentary` plan. To revoke
+it, go to RevenueCat → the customer → **Revoke**.
+
 ## Downgrade behaviour (Pro → Basic)
 
 **There is no grandfathering.** Custom templates are Pro content to *run*, not only to create.
@@ -192,13 +218,13 @@ automatic RevenueCat login on init → the entitlement syncs because
 
 | Mode | How |
 |------|-----|
-| Expo Go | RevenueCat preview/mock; use **Grant Pro (testing)** |
+| Expo Go / dev build | **Grant Pro (testing)** on the Subscription screen |
 | Dev build + sandbox | Real IAP with sandbox Apple/Google accounts |
-| Env flag | `EXPO_PUBLIC_ENABLE_GRANT_PRO_TESTING` |
+| TestFlight / Play testing track | Sandbox purchases, or a [complimentary grant](#complimentary-pro) |
 
-**Grant Pro (testing)** appears when `NODE_ENV !== 'production'` or the flag is set, and writes a
-local `muscleos_dev_pro_override`. Note the env flag currently **defaults to on**, so verify it is
-explicitly `false` for production builds.
+**Grant Pro (testing)** appears only when React Native's `__DEV__` is true. It writes a local
+`muscleos_dev_pro_override`. Release builds never show it, ignore the override, and clear any
+override left over from an earlier test build. There's no env flag to turn it on in a release build.
 
 ## Assumptions
 
@@ -229,6 +255,8 @@ Covered (`src/subscription/features.test.ts`):
   every gate key has a label; unknown params are rejected
 - Paywall list length parity: `BASIC_FEATURES_LIST` and `PRO_FEATURES_LIST` both have 5 items
 - `src/subscription/pricing.test.ts` — $2.99 / $19.99 and the 44% annual saving
+- `src/subscription/plan.test.ts` — `planFromEntitlement`: store products map to monthly and
+  annual, promotional grants map to complimentary, and unknown products fall back to monthly
 - **`blockedStartFeature`** — the deep-link / notification start guard: Basic is blocked from
   `_empty` (`empty_workout`) and custom templates (`custom_templates`), built-ins pass, Pro is
   never blocked, and an unknown template passes through. `active-workout.tsx` calls this predicate,
@@ -240,4 +268,5 @@ Not covered:
   entry in the [gate map](#gate-map); only the start-from-params decision (`blockedStartFeature`)
   is covered as a predicate.
 - Downgrade rendering: locked cards, the Custom section banner, exclusion from Suggested/Recent
-- `subscriptionStore` load, purchase, restore, expiry, and the legacy `free` → `basic` migration
+- `subscriptionStore` load, purchase, restore, expiry, the legacy `free` → `basic` migration, and
+  the release-build handling of the dev override (`__DEV__` isn't set under Vitest)

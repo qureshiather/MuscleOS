@@ -37,18 +37,17 @@ import { LEGAL_URLS } from '@/subscription/legal';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
-import Constants from 'expo-constants';
 import { fontScaleCap } from '@/theme/layout';
 
-const __DEV__ = process.env.NODE_ENV !== 'production';
-const extra = Constants.expoConfig?.extra as { enableGrantProTesting?: boolean } | undefined;
-const showGrantProTesting = __DEV__ || extra?.enableGrantProTesting === true;
+/** Dev builds only — release builds (TestFlight, Play testing tracks, production) never show it. */
+const showGrantProTesting = __DEV__;
 
 type PlanKey = 'monthly' | 'annual';
 
 const PLAN_LABELS: Record<NonNullable<SubscriptionPlan>, string> = {
   monthly: 'Monthly',
   annual: 'Annual',
+  complimentary: 'Complimentary',
 };
 
 const PURCHASABLE_PLANS: PlanKey[] = ['monthly', 'annual'];
@@ -90,6 +89,8 @@ export default function SubscriptionScreen() {
   }, []);
 
   const pro = isPro();
+  // Promotional grants have no store subscription to renew or manage.
+  const complimentary = state?.plan === 'complimentary';
 
   const selectedPackage = packages[selectedPlan];
 
@@ -222,11 +223,11 @@ export default function SubscriptionScreen() {
             )}
             {state?.expiresAt && pro && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-                Renews{' '}
+                {complimentary ? 'Until' : 'Renews'}{' '}
                 {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
               </Text>
             )}
-            {pro && (
+            {pro && !complimentary && (
               <Pressable
                 style={[
                   styles.manageBtn,

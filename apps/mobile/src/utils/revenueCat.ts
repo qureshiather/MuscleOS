@@ -10,6 +10,7 @@ import Purchases, {
 import type { SubscriptionPlan } from '@muscleos/types';
 import Constants from 'expo-constants';
 import { STORE_SUBSCRIPTION_URLS } from '@/subscription/legal';
+import { planFromEntitlement } from '@/subscription/plan';
 
 export type PurchaseOutcome =
   | { status: 'success'; customerInfo: CustomerInfo }
@@ -22,11 +23,7 @@ export type RestoreOutcome =
 
 export const PRO_ENTITLEMENT_ID = 'MuscleOS Pro';
 
-/** App Store / Play product identifiers — must match store consoles and RevenueCat. */
-export const PRODUCT_IDS = {
-  monthly: 'muscleos_pro_monthly',
-  annual: 'muscleos_pro_annual',
-} as const;
+export { PRODUCT_IDS } from '@/subscription/plan';
 
 export type OfferingPackages = {
   monthly: PurchasesPackage | null;
@@ -183,16 +180,12 @@ export function getProExpirationDate(customerInfo: CustomerInfo | null): string 
   return date ?? undefined;
 }
 
-/** Derive billing plan from active Pro entitlement product identifier. */
+/** Derive billing plan from the active Pro entitlement. */
 export function getProPlan(customerInfo: CustomerInfo | null): SubscriptionPlan {
   if (!customerInfo) return null;
   const ent = customerInfo.entitlements.active[PRO_ENTITLEMENT_ID];
   if (!ent?.isActive) return null;
-
-  const productId = ent.productIdentifier;
-  if (productId === PRODUCT_IDS.annual) return 'annual';
-  if (productId === PRODUCT_IDS.monthly) return 'monthly';
-  return 'monthly';
+  return planFromEntitlement(ent);
 }
 
 /** Get purchasable packages from the current offering (monthly, annual). */
