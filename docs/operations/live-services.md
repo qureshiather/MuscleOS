@@ -50,7 +50,7 @@ Auth mail limits (Authentication → Rate Limits, and SMTP settings):
 | Email send rate | 100 per hour | Supabase refuses the send before Resend. The app shows a failure. |
 | Minimum interval | 60 seconds | Same address cannot get another auth email sooner than this. |
 | Token verifications | 30 per 5 min per IP (default) | Caps code guessing on `/delete-account`. Don't raise it. |
-| Email OTP expiry | 10 minutes (set it; the default is 1 hour) | How long a deletion code works. |
+| Email OTP expiry | 1 hour (default; leave it) | How long a deletion code works. It also applies to signup confirmation and password reset links, so don't shorten it. |
 
 These limits are project-wide, and the Resend free plan (about 100 a day) sits behind them. Someone
 spamming signup, password reset, or `/delete-account` for addresses that exist could use up the
@@ -90,7 +90,7 @@ The message body and subject are edited in **Supabase → Authentication → Ema
 The **Magic link** template is only used by `https://muscleos.app/delete-account`. The app never
 sends magic links. The page asks for the code, so the template must show `{{ .Token }}` and must
 not include `{{ .ConfirmationURL }}`. Suggested body: “Your MuscleOS verification code is
-{{ .Token }}. It expires in 10 minutes. If you didn't ask to delete your MuscleOS account, ignore
+{{ .Token }}. It expires in 1 hour. If you didn't ask to delete your MuscleOS account, ignore
 this email.”
 
 Keep the MuscleOS name in the subject. A generic subject such as “Reset Your Password” lands in spam. Do not switch the link back to `{{ .ConfirmationURL }}`. That URL verifies the token as soon as Gmail or a spam filter fetches it, and the person’s tap then shows `otp_expired`.
