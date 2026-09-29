@@ -2,6 +2,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, json } from '../_shared/cors.ts';
 import { revokeAppleIdentity } from '../_shared/apple.ts';
 
+const MAX_BODY_BYTES = 4096;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -9,6 +11,10 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405);
   }
+
+  // The only body field is an Apple authorization code; refuse anything larger before parsing.
+  const contentLength = Number(req.headers.get('Content-Length') ?? '0');
+  if (contentLength > MAX_BODY_BYTES) return json({ error: 'Payload too large' }, 413);
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'Unauthorized' }, 401);
@@ -34,7 +40,9 @@ Deno.serve(async (req) => {
 
   let appleAuthorizationCode: string | undefined;
   try {
-    const body = (await req.json()) as { appleAuthorizationCode?: unknown };
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_BYTES) return json({ error: 'Payload too large' }, 413);
+    const body = (raw ? JSON.parse(raw) : {}) as { appleAuthorizationCode?: unknown };
     if (typeof body.appleAuthorizationCode === 'string' && body.appleAuthorizationCode.length > 0) {
       appleAuthorizationCode = body.appleAuthorizationCode;
     }

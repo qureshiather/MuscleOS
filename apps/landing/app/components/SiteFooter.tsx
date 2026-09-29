@@ -57,6 +57,11 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/delete-account" className="text-ink-secondary transition hover:text-ink">
+                  Delete account
+                </Link>
+              </li>
+              <li>
                 <Link href="/terms" className="text-ink-secondary transition hover:text-ink">
                   Terms
                 </Link>

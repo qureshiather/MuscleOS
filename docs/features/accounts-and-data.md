@@ -109,6 +109,22 @@ and sync transport — and a **new anonymous session** starts, same as first lau
 Google Play subscription is **not** cancelled; the confirm copy says to cancel it in store settings.
 Anonymous users have no account to delete; they still have Profile → Account → Data → Clear all data.
 
+**Web deletion** (`https://muscleos.app/delete-account`) is the no-app path Google Play requires.
+The page sends a one-time email code with `signInWithOtp({ shouldCreateUser: false })`, verifies it
+with `verifyOtp({ type: 'email' })`, and after a confirm checkbox calls the same `delete-account`
+function with that session. The session is memory-only (`persistSession: false`). The page:
+
+- never creates a user, anonymous or otherwise
+- says "if an account exists" whether or not it does, so it can't be used to test addresses
+- waits 60s before sending another code and asks for a new code after 5 wrong ones
+- refuses to render inside a frame; the site also sends `frame-ancestors 'none'`
+
+It adds no endpoint of its own. The code email is a normal Supabase Auth send, rate limited the same
+way as signup and password reset (see [live services](../operations/live-services.md#supabase)).
+`delete-account` needs a valid user JWT, only deletes the caller, and rejects bodies over 4 KB.
+Deleting from the web doesn't touch the phone; local data stays until Clear all data or uninstall.
+Pure helpers (`apps/landing/app/delete-account/flow.ts`) are covered by `flow.test.ts`.
+
 After a successful Apple link, the app stores the short-lived `authorizationCode` and invokes
 `save-apple-token` so a refresh token can be kept for later revoke. Reviewers who delete
 immediately can still send that code on delete.
