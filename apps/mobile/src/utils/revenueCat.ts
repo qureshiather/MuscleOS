@@ -43,22 +43,26 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   ]);
 }
 
-/** API key from app config extra or env. Platform-specific keys take precedence. */
+/**
+ * API key from app config extra or env. Platform-specific keys take precedence.
+ * Uses `||`, not `??`: app.config.js writes '' for an unset key, and an empty string must fall
+ * through to the next source (e.g. a native build made before the key was added to .env).
+ */
 function getApiKey(): string {
   const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
-  const fallback = extra?.revenueCatApiKey ?? process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+  const fallback = extra?.revenueCatApiKey || process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || '';
 
   if (Platform.OS === 'android') {
     return (
-      extra?.revenueCatApiKeyAndroid ??
-      process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ??
+      extra?.revenueCatApiKeyAndroid ||
+      process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ||
       fallback
     );
   }
   if (Platform.OS === 'ios') {
     return (
-      extra?.revenueCatApiKeyIos ??
-      process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ??
+      extra?.revenueCatApiKeyIos ||
+      process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ||
       fallback
     );
   }

@@ -139,6 +139,12 @@ account is linked, so the entitlement has an identity to attach to.
 
 Annual is pre-selected with a "Best value" badge.
 
+Plan prices come from the store (`priceString`) with the period appended ("$2.99/mo",
+"$19.99/yr"). When a plan's package hasn't loaded, the row shows the USD fallback from
+`FALLBACK_PRICE_LABELS` in the same format, and tapping Continue for that plan says it isn't
+available. The button reads **Purchases unavailable** only when the RevenueCat SDK isn't configured
+(no API key for the platform).
+
 For a Pro user, the **Current plan** card shows the plan, **Renews {date}** when the entitlement
 has an expiry, and **Manage subscription**, which opens the store's subscription settings. For a
 complimentary plan it says **Until {date}** instead of "Renews" (and shows no date for lifetime),
