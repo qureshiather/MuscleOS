@@ -89,7 +89,7 @@ android {
 
     namespace 'com.muscleos.app'
     defaultConfig {
-        applicationId 'com.muscleos.app'
+        applicationId 'app.muscleos'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

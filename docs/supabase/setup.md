@@ -163,7 +163,7 @@ Continue with Google on Android uses the native Play Sign-In SDK (`@react-native
 **Google Cloud Console** (APIs & Services → Credentials):
 
 1. Create an OAuth **Web** client. Copy its client ID into `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and into Supabase → Authentication → Providers → Google (client ID + secret).
-2. Create an OAuth **Android** client: package `com.muscleos.app`, SHA-1 of every signing cert you use.
+2. Create an OAuth **Android** client: package `app.muscleos`, SHA-1 of every signing cert you use.
 
 Debug SHA-1 (from `apps/mobile`):
 

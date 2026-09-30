@@ -77,7 +77,7 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 | Provider | Platforms | Implementation |
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
-| **Google** | iOS + Android | **Android:** `@react-native-google-signin/google-signin` (Play Services, id token). **iOS:** `expo-auth-session` OAuth until a native iOS client is added. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client) plus an Android OAuth client (`com.muscleos.app` + SHA-1). |
+| **Google** | iOS + Android | **Android:** `@react-native-google-signin/google-signin` (Play Services, id token). **iOS:** `expo-auth-session` OAuth until a native iOS client is added. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client) plus an Android OAuth client (`app.muscleos` + SHA-1). |
 | **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
@@ -384,8 +384,10 @@ ids, the exercise-previous map, the active in-progress workout, and the catalog 
 ## Build and release
 
 App name MuscleOS, version 1.0.0, portrait only, scheme `muscleos`. iOS bundle id
-`com.muscle-os.app` and Android package `com.muscleos.app` — the mismatch is intentional and
-documented in [mobile/eas-build.md](../mobile/eas-build.md).
+`com.muscle-os.app` and Android application id `app.muscleos` — they differ on purpose
+(`com.muscleos.app` was already taken on Google Play by another developer); see
+[mobile/eas-build.md](../mobile/eas-build.md). The Android Kotlin namespace stays `com.muscleos.app`;
+only the application id changed.
 
 | EAS profile | Purpose |
 |-------------|---------|

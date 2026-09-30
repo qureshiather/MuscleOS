@@ -34,7 +34,7 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <a
-        href="https://apps.apple.com/app/muscleos"
+        href="https://apps.apple.com/app/id6810909876"
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-[15px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${secondary}`}
@@ -43,7 +43,7 @@ function StoreButtons({ dark = false }: { dark?: boolean }) {
         <span>App Store</span>
       </a>
       <a
-        href="https://play.google.com/store/apps/details?id=com.muscleos.app"
+        href="https://play.google.com/store/apps/details?id=app.muscleos"
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-[15px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${primary}`}

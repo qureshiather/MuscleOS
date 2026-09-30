@@ -4,7 +4,7 @@ Preview builds are **standalone binaries** you can install without Expo Go or a 
 
 | Platform | Package | What testers get |
 |----------|---------|------------------|
-| Android | `com.muscleos.app` | APK — anyone with the link can install |
+| Android | `app.muscleos` | APK — anyone with the link can install |
 | iOS | `com.muscle-os.app` | Ad hoc IPA — **only registered devices** can install |
 
 Android needs no device list. iOS does: Apple requires each physical iPhone/iPad UDID in the provisioning profile. Register testers first, then build (or re-sign). For inviting people by email with no UDID dance, use [TestFlight](#option-b-testflight-invite-by-email) instead.
@@ -300,7 +300,7 @@ Details: [RevenueCat setup](../monetization/revenuecat-setup.md).
 
 ### Android
 
-1. **Google Play Console** — create/select the app with package **`com.muscleos.app`**.
+1. **Google Play Console** — create/select the app with package **`app.muscleos`**.
 2. **License testers** — **Setup** → **License testing** (or **Testing** → **License testers**). Add the Gmail used on the test phone.
 3. **Optional: Internal testing track** — upload an AAB from `eas build --platform android --profile production`, add the same Gmail as a tester. You can still install the EAS preview APK; same package + license tester → sandbox purchases.
 4. Install a preview APK that uses the Android RevenueCat key and test purchases on device.
