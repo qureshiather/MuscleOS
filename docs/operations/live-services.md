@@ -21,7 +21,7 @@ Public ids:
 |--|--|
 | Supabase URL | `https://mkhhtzpuwvezwhdpdlaz.supabase.co` |
 | iOS bundle | `com.muscle-os.app` |
-| Android package | `com.muscleos.app` |
+| Android package | `app.muscleos` |
 | Auth mail from | `noreply@muscleos.app` (sender name **MuscleOS Support**) |
 | Support | `support@muscleos.app` |
 | App scheme | `muscleos://` |
@@ -110,7 +110,7 @@ Web client and Android client must be in the **same** Google Cloud project.
 | Client | Used for |
 |--------|----------|
 | Web | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, and Supabase → Authentication → Providers → Google (client id + secret). This is not the Android client id. |
-| Android | Package `com.muscleos.app` plus the SHA-1 of each keystore that installs the app |
+| Android | Package `app.muscleos` plus the SHA-1 of each keystore that installs the app |
 
 Authorized redirect on the Web client: `https://mkhhtzpuwvezwhdpdlaz.supabase.co/auth/v1/callback`.
 
