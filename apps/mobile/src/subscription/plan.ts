@@ -23,3 +23,16 @@ export function planFromEntitlement(ent: EntitlementPlanInfo): NonNullable<Subsc
   if (ent.productIdentifier === PRODUCT_IDS.annual) return 'annual';
   return 'monthly';
 }
+
+/** RevenueCat stores a "lifetime" promotional grant as an expiry ~200 years out. */
+const LIFETIME_THRESHOLD_YEARS = 50;
+
+/** True when an entitlement expiry is far enough out to show as "Lifetime" rather than a date. */
+export function isLifetimeExpiry(expiresAt: string | undefined, now: Date = new Date()): boolean {
+  if (!expiresAt) return false;
+  const expiry = Date.parse(expiresAt);
+  if (Number.isNaN(expiry)) return false;
+  const threshold = new Date(now);
+  threshold.setFullYear(threshold.getFullYear() + LIFETIME_THRESHOLD_YEARS);
+  return expiry > threshold.getTime();
+}

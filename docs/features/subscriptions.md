@@ -147,8 +147,14 @@ available. The button reads **Purchases unavailable** only when the RevenueCat S
 
 For a Pro user, the **Current plan** card shows the plan, **Renews {date}** when the entitlement
 has an expiry, and **Manage subscription**, which opens the store's subscription settings. For a
-complimentary plan it says **Until {date}** instead of "Renews" (and shows no date for lifetime),
-and hides **Manage subscription**, because there's no store subscription behind it.
+complimentary plan it says **Until {date}** instead of "Renews", or **Lifetime** for a lifetime
+grant (RevenueCat stores those as an expiry ~200 years out; `isLifetimeExpiry` treats anything over
+50 years away as lifetime). It also hides **Manage subscription**, because there's no store
+subscription behind it.
+
+**Restore purchases** goes through the store first. If that fails or is cancelled (for example, no
+Apple / Google sign-in), it re-reads the RevenueCat customer, so a complimentary grant is still
+picked up.
 
 ## Complimentary Pro
 
@@ -163,8 +169,8 @@ entitlement** in RevenueCat. You don't need a store product or an app release.
    **Lifetime** (or a fixed duration).
    The API equivalent is `POST /v1/subscribers/{app_user_id}/entitlements/MuscleOS%20Pro/promotional`
    with `{"duration": "lifetime"}`.
-4. It unlocks the next time the app refreshes the entitlement (on launch, on foreground, or via
-   **Restore purchases**).
+4. It unlocks right away with **Restore purchases**. Otherwise it unlocks on the next launch or
+   foreground after RevenueCat's customer cache (about 5 minutes) expires.
 
 `planFromEntitlement` (`src/subscription/plan.ts`) maps an entitlement whose store is
 `PROMOTIONAL`, or whose product ID starts with `rc_promo`, to the `complimentary` plan. To revoke
@@ -262,7 +268,8 @@ Covered (`src/subscription/features.test.ts`):
 - Paywall list length parity: `BASIC_FEATURES_LIST` and `PRO_FEATURES_LIST` both have 5 items
 - `src/subscription/pricing.test.ts` — $2.99 / $19.99 and the 44% annual saving
 - `src/subscription/plan.test.ts` — `planFromEntitlement`: store products map to monthly and
-  annual, promotional grants map to complimentary, and unknown products fall back to monthly
+  annual, promotional grants map to complimentary, and unknown products fall back to monthly;
+  `isLifetimeExpiry`: ~200-year grants are lifetime, 1- and 10-year expiries are dates
 - **`blockedStartFeature`** — the deep-link / notification start guard: Basic is blocked from
   `_empty` (`empty_workout`) and custom templates (`custom_templates`), built-ins pass, Pro is
   never blocked, and an unknown template passes through. `active-workout.tsx` calls this predicate,
