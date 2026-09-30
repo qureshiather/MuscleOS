@@ -116,14 +116,14 @@ session, and queues a cloud sync.
 
 ## Set logging
 
-Columns: **SET · PREVIOUS · KG/LB · REPS · Done**.
+Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the full width of the exercise card with no inner frame, and the weight and reps cells are large filled wells (every editable cell looks the same; only the focused one gets the accent ring) so they're easy to hit mid-set.
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
 - Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including those in later exercises — renders muted with an outlined number; there is never more than one highlighted set at a time.
 - Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint.
 - When every set in an exercise is completed, the card is marked done: a green border and a **Done** badge in its header.
 - After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
-- A rest row sits on the divider after a set when that set's rest duration is greater than 0 (and after the last such set, above Add set). It shows that duration, or the countdown while a timer is running for that set. The countdown's progress is a short bar under the time, the width of the label. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
+- A rest row sits on the divider after a set when that set's rest duration is greater than 0 (and after the last such set, above Add set). It shows that duration, or the countdown while a timer is running for that set. While counting down, the divider itself becomes the progress track: it thickens and fills with the primary colour edge to edge across the row as the rest elapses, gliding between the one-second ticks. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
 
 ### Previous values and prefill
 

@@ -163,12 +163,12 @@ export function useDenseRowMetrics() {
   const { isNarrow } = useDeviceMetrics();
 
   return {
-    rowMin: Math.round(40 * scale),
-    inputMinHeight: Math.round(36 * scale),
-    doneBtn: Math.round(36 * scale),
-    setCol: Math.round((isNarrow ? 28 : 32) * scale),
-    prevMin: Math.round((isNarrow ? 52 : 64) * scale),
-    inputMin: Math.round((isNarrow ? 44 : 52) * scale),
+    rowMin: Math.round(50 * scale),
+    inputMinHeight: Math.round(42 * scale),
+    doneBtn: Math.round(42 * scale),
+    setCol: Math.round((isNarrow ? 30 : 34) * scale),
+    prevMin: Math.round((isNarrow ? 60 : 72) * scale),
+    inputMin: Math.round((isNarrow ? 52 : 60) * scale),
   };
 }
 
