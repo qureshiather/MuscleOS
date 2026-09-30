@@ -56,6 +56,7 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | `apps/mobile/src/utils/exerciseNormalize.test.ts` | Category inference, invalid-value stripping |
 | `apps/mobile/src/utils/exerciseTitleCase.test.ts` | Catalog name title case, including a full-seed check |
 | `apps/mobile/src/sync/catalogMerge.test.ts` | Seed overlay vs cache; delta merge by id |
+| `apps/mobile/src/data/exercises.test.ts` | Catalog source matches the seed, every exercise has instructions, no third-party URLs/attribution, current copy is in a migration |
 | `apps/mobile/src/data/builtInTemplates.test.ts` | Folder integrity, **all built-in exercise ids exist**, Strong Lifts 5 working sets |
 | `apps/mobile/src/utils/templateExercises.test.ts` | Per-exercise set/warm-up resolve, serialize, legacy `defaultSets` migrate, session→template counts |
 | `apps/mobile/src/subscription/features.test.ts` | `requiresProToStart`, `blockedStartFeature`, paywall params, gate labels, list parity |
@@ -86,7 +87,7 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | [Subscriptions](../features/subscriptions.md) | Partial | `requiresProToStart`, the deep-link start guard, gate labels, list parity, and pricing are tested; the paywall UI and gate wiring are not |
 | [Recovery](../features/recovery.md) | Good | Constants, timing, `recoveryFromSessions`, active/just-trained derivation, readiness copy, diagram regions; store wiring and rendering untested |
 | [Templates](../features/templates.md) | Partial | Built-in integrity, per-exercise set/warm-up resolve, full recommendation scoring, Recent selection, `allTemplates` ordering, soft-hide, and folder-delete cascade covered; screen validation untested |
-| [Exercise library](../features/exercise-library.md) | Partial | Search, title-case names, catalog merge, normalization, custom ids, alias resolution, and catalog invariants covered; store wiring and delta pull untested |
+| [Exercise library](../features/exercise-library.md) | Partial | Search, title-case names, catalog merge, normalization, custom ids, alias resolution, catalog invariants, and instruction-copy integrity covered; store wiring and delta pull untested |
 | [History & analytics](../features/history-analytics.md) | Partial | 1RM, home stats, strength standards, volume, duration, and the previous rebuild covered; calendar and screens untested |
 
 ## Conventions

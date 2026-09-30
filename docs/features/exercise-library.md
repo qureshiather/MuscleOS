@@ -29,7 +29,7 @@ interface Exercise {
   aliases?: string[];         // catalog only — legacy slug redirects
   trackingType?: ExerciseTrackingType;  // defaults to 'weight_reps'
   isPublished?: boolean;      // catalog only; false hides from the list
-  mediaUrl?: string;          // deprecated, unused
+  mediaUrl?: string;          // deprecated; never set for catalog rows
 }
 ```
 
@@ -65,21 +65,31 @@ Custom exercise names are not rewritten.
 ### Pipeline
 
 ```
-src/data/exercises.ts          scraped source, with instructions + media
+src/data/exercises.ts          hand-maintained source: ids, names, muscles, equipment, instructions
         │  generate-exercise-catalog.mjs
         ├──► src/data/catalogSeed.ts               bundled seed (no instructions)
-        └──► supabase/migrations/*_seed.sql        catalog_exercises rows
+        ├──► supabase/migrations/*_seed.sql        catalog_exercises rows (instructions null)
+        └──► supabase/migrations/<new>.sql         instruction copy (--instructions-migration)
                         │
                         ▼  fetchCatalogDelta(watermark)
               AsyncStorage catalog cache
 ```
 
+`exercises.ts` is the source of truth for the catalog. It is edited by hand — nothing scrapes
+or imports it from a third party. Every row carries **original MuscleOS instruction copy**: a
+short, second-person cue sheet (setup → movement → key cue, 2–4 sentences, sentence case, no
+medical claims). Rows carry no media URLs; the app shows no exercise images or GIFs.
+
 `catalogSeed.ts` is **generated — do not hand-edit**. Regenerate with
-`node apps/mobile/scripts/generate-exercise-catalog.mjs`.
+`node apps/mobile/scripts/generate-exercise-catalog.mjs` (or `pnpm generate:catalog` in
+`apps/mobile`).
 
 The generator deliberately **omits instructions** from the bundled seed to keep the app binary
-small; instructions live server-side and arrive via delta sync. Regenerating does not clobber
-server-side instructions.
+small; instructions live server-side and arrive via delta sync. The seed SQL never writes
+instructions either. To ship changed copy, run the generator with
+`--instructions-migration=<timestamp>_<name>`: it writes a new migration that updates
+`instructions` for every catalog row whose text differs and sets `updated_at = now()` on those
+rows, so existing clients pick it up on their next delta pull.
 
 ### Reconciliation and sync
 
@@ -254,6 +264,8 @@ Covered:
 - `src/utils/exerciseNormalize.test.ts` — equipment-based category inference, invalid equipment
   stripped, default muscles, snake_case tracking type, `is_published: false` mapping
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper; every catalog name matches it
+- `src/data/exercises.test.ts` — source ids match the bundled seed; every exercise has
+  instructions; no third-party URLs or attribution; current copy is present in a migration
 - `src/sync/catalogMerge.test.ts` — seed overlay keeps cached instructions; incoming delta replaces by id
 - `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels
 - `src/data/builtInTemplates.test.ts` — every built-in template exercise id exists in the catalog
