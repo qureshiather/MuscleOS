@@ -13,6 +13,7 @@ import {
   Keyboard,
   Platform,
   Animated,
+  Easing,
   LayoutAnimation,
   Dimensions,
   type KeyboardEvent,
@@ -21,7 +22,7 @@ import { GestureHandlerRootView, Swipeable, type FlatList as GestureFlatList } f
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
-import { typography } from '@/theme/typography';
+import { fontFamily, typography } from '@/theme/typography';
 import {
   fontScaleCap,
   useBottomSpace,
@@ -95,14 +96,14 @@ function formatRestDurationLabel(totalSeconds: number): string {
 }
 
 /** Compact but still tappable during a workout. */
-const SET_ROW_MIN_HEIGHT = 40;
-const SET_INPUT_MIN_HEIGHT = 36;
-const DONE_BTN_SIZE = 36;
-const COL_SET_WIDTH = 32;
-const COL_PREV_MIN_WIDTH = 64;
-const COL_INPUT_MIN_WIDTH = 52;
-const TABLE_H_PAD = 4;
-const TABLE_COL_GAP = 4;
+const SET_ROW_MIN_HEIGHT = 50;
+const SET_INPUT_MIN_HEIGHT = 42;
+const DONE_BTN_SIZE = 42;
+const COL_SET_WIDTH = 34;
+const COL_PREV_MIN_WIDTH = 72;
+const COL_INPUT_MIN_WIDTH = 60;
+const TABLE_H_PAD = 10;
+const TABLE_COL_GAP = 8;
 
 function alertCannotEditBuiltIn() {
   Alert.alert(
@@ -319,7 +320,7 @@ function SetDonePressable({
         >
           <Ionicons
             name="checkmark"
-            size={17}
+            size={22}
             color={completed ? colors.successOn : isCurrent ? colors.primary : colors.textMuted}
           />
         </View>
@@ -375,12 +376,16 @@ function SetRowSwipeable({
 
 type RestBarColors = {
   primary: string;
+  surface: string;
   text: string;
   textMuted: string;
   border: string;
 };
 
-/** Rest duration on the divider after a working set. Tap opens the header rest dialogue. */
+/**
+ * Rest duration on the divider after a set. While its countdown runs, the divider itself is the
+ * progress track: it fills edge to edge as the rest elapses. Tap opens the header rest dialogue.
+ */
 function RestBetweenBar({
   presetSeconds,
   active,
@@ -396,14 +401,32 @@ function RestBetweenBar({
   colors: RestBarColors;
   onPress: () => void;
 }) {
-  const minHeight = useTextScaledSize(28, fontScaleCap.chrome);
-  const [labelWidth, setLabelWidth] = useState(0);
+  const minHeight = useTextScaledSize(active ? 34 : 28, fontScaleCap.chrome);
   const shownSeconds = active ? restSecondsLeft : presetSeconds;
   const timeLabel = formatRestDurationLabel(shownSeconds);
   const progress =
     active && restTotalSeconds > 0
-      ? Math.min(100, ((restTotalSeconds - restSecondsLeft) / restTotalSeconds) * 100)
+      ? Math.min(1, Math.max(0, (restTotalSeconds - restSecondsLeft) / restTotalSeconds))
       : 0;
+
+  // The timer ticks once a second; glide between ticks so the fill moves continuously.
+  const fill = useRef(new Animated.Value(progress)).current;
+  const lastProgress = useRef(progress);
+  useEffect(() => {
+    const goingBack = progress < lastProgress.current;
+    lastProgress.current = progress;
+    if (!active || goingBack) {
+      fill.stopAnimation();
+      fill.setValue(progress);
+      return;
+    }
+    Animated.timing(fill, {
+      toValue: progress,
+      duration: 1000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  }, [active, progress, fill]);
 
   return (
     <Pressable
@@ -412,48 +435,47 @@ function RestBetweenBar({
       accessibilityLabel={active ? `Rest ${timeLabel} remaining` : `Rest ${timeLabel} after this set`}
       accessibilityHint="Opens rest timer"
       hitSlop={{ top: 4, bottom: 4 }}
-      style={[styles.restBarCollapsed, { minHeight }]}
+      style={({ pressed }) => [styles.restBar, { minHeight, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={[styles.restBarRule, { backgroundColor: colors.border }]} />
-      <View style={styles.restBarLabelWrap}>
-        <View
-          style={styles.restBarLabelGroup}
-          onLayout={(e) => {
-            const next = e.nativeEvent.layout.width;
-            setLabelWidth((current) => (current === next ? current : next));
-          }}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.restBarTrack,
+          active && styles.restBarTrackActive,
+          { backgroundColor: active ? withAlpha(colors.primary, 0.18) : colors.border },
+        ]}
+      >
+        {active ? (
+          <Animated.View
+            style={[
+              styles.restBarTrackFill,
+              {
+                backgroundColor: colors.primary,
+                width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              },
+            ]}
+          />
+        ) : null}
+      </View>
+      <View style={[styles.restBarLabelGroup, { backgroundColor: colors.surface }]}>
+        <Text
+          style={[
+            active ? styles.restBarActiveTime : styles.restBarCollapsedTime,
+            { color: active ? colors.primary : colors.textMuted },
+          ]}
+          maxFontSizeMultiplier={fontScaleCap.chrome}
         >
+          {timeLabel}
+        </Text>
+        {active ? null : (
           <Text
-            style={[styles.restBarCollapsedTime, { color: active ? colors.primary : colors.text }]}
-            maxFontSizeMultiplier={fontScaleCap.chrome}
-          >
-            {timeLabel}
-          </Text>
-          <Text
-            style={[styles.restBarWord, { color: active ? colors.primary : colors.textMuted }]}
+            style={[styles.restBarWord, { color: colors.textMuted }]}
             maxFontSizeMultiplier={fontScaleCap.chrome}
           >
             rest
           </Text>
-        </View>
-        {active ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.restBarProgress,
-              { width: labelWidth, backgroundColor: colors.border },
-            ]}
-          >
-            <View
-              style={[
-                styles.restBarProgressFill,
-                { width: `${progress}%`, backgroundColor: colors.primary },
-              ]}
-            />
-          </View>
-        ) : null}
+        )}
       </View>
-      <View style={[styles.restBarRule, { backgroundColor: colors.border }]} />
     </Pressable>
   );
 }
@@ -1449,7 +1471,7 @@ export default function ActiveWorkoutScreen() {
                     delayLongPress={280}
                   >
                     <View style={styles.exerciseTitleBlock}>
-                      <Text style={[styles.exerciseName, { color: colors.text }]} numberOfLines={2}>
+                      <Text style={[styles.exerciseName, { color: colors.primary }]} numberOfLines={2}>
                         {exercise?.name ?? se.exerciseId}
                       </Text>
                       {exercise?.equipment?.[0] ? (
@@ -1510,24 +1532,7 @@ export default function ActiveWorkoutScreen() {
                 </View>
               </View>
 
-              <View
-                style={[
-                  styles.tableInset,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.surface,
-                  },
-                ]}
-              >
-              <View
-                style={[
-                  styles.tableHeaderStrip,
-                  {
-                    backgroundColor: colors.tableHeader,
-                    borderBottomColor: colors.border,
-                  },
-                ]}
-              >
+              <View style={[styles.tableInset, { backgroundColor: colors.surface }]}>
               <View style={styles.tableHeader}>
                 <View style={colSetStyle}>
                   <Text style={[styles.th, { color: colors.textMuted }]} maxFontSizeMultiplier={fontScaleCap.fixed}>
@@ -1549,8 +1554,9 @@ export default function ActiveWorkoutScreen() {
                     REPS
                   </Text>
                 </View>
-                <View style={colDoneStyle} />
-              </View>
+                <View style={[colDoneStyle, styles.colDoneHeader]}>
+                  <Ionicons name="checkmark" size={14} color={colors.textMuted} />
+                </View>
               </View>
 
               {se.sets.map((set, setIdx) => {
@@ -1594,38 +1600,11 @@ export default function ActiveWorkoutScreen() {
                         : colors.surface;
                 const mutedFill = colors.surfaceElevated;
 
-                let kgBorderColor = 'transparent';
-                let repsBorderColor = 'transparent';
                 // Completed rows use a tinted bg — avoid colors.surface (white/"cleared")
                 // punch-outs that look like empty editable fields on the green row.
-                const completedInputFill = isDark ? colors.surface : mutedFill;
-                let kgFill: string = colors.surface;
-                let repsFill: string = mutedFill;
-
-                if (isFutureSet && !set.completed) {
-                  kgFill = mutedFill;
-                  repsFill = mutedFill;
-                } else if (set.completed) {
-                  kgFill = completedInputFill;
-                  repsFill = completedInputFill;
-                  if (isKgFocused) {
-                    kgBorderColor = colors.primary;
-                  } else if (isRepsFocused) {
-                    repsBorderColor = colors.primary;
-                  }
-                } else if (isKgFocused) {
-                  kgFill = colors.surface;
-                  kgBorderColor = colors.primary;
-                  repsFill = mutedFill;
-                } else if (isRepsFocused) {
-                  kgFill = mutedFill;
-                  repsFill = colors.surface;
-                  repsBorderColor = colors.primary;
-                } else if (isCurrentSet) {
-                  kgFill = colors.surface;
-                  kgBorderColor = colors.primary;
-                  repsFill = mutedFill;
-                }
+                const cellFill = set.completed ? (isDark ? colors.surface : mutedFill) : mutedFill;
+                const kgBorderColor = isKgFocused ? colors.primary : 'transparent';
+                const repsBorderColor = isRepsFocused ? colors.primary : 'transparent';
 
                 const canDeleteSet = se.sets.length > 1;
                 const deleteThisSet = () => {
@@ -1680,13 +1659,14 @@ export default function ActiveWorkoutScreen() {
                       </View>
                       <Pressable
                         onPress={() => setFocusedCell({ exIdx, setIdx, field: 'kg' })}
-                        style={[
+                        style={({ pressed }) => [
                           setInputWrapStyle,
                           styles.setCell,
+                          pressed && styles.setCellPressed,
                           {
-                            backgroundColor: kgFill,
+                            backgroundColor: cellFill,
                             borderColor: kgBorderColor,
-                            borderWidth: isKgFocused ? 2 : 1,
+                            borderWidth: 2,
                           },
                         ]}
                         accessibilityRole="button"
@@ -1714,13 +1694,14 @@ export default function ActiveWorkoutScreen() {
                       </Pressable>
                       <Pressable
                         onPress={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
-                        style={[
+                        style={({ pressed }) => [
                           setInputWrapStyle,
                           styles.setCell,
+                          pressed && styles.setCellPressed,
                           {
-                            backgroundColor: repsFill,
+                            backgroundColor: cellFill,
                             borderColor: repsBorderColor,
-                            borderWidth: isRepsFocused ? 2 : 1,
+                            borderWidth: 2,
                           },
                         ]}
                         accessibilityRole="button"
@@ -1814,10 +1795,10 @@ export default function ActiveWorkoutScreen() {
               })}
 
               <Pressable
-                style={[styles.addSetBtn, { borderColor: colors.border }]}
+                style={({ pressed }) => [styles.addSetBtn, pressed && styles.setCellPressed]}
                 onPress={() => addSet(exIdx)}
               >
-                <Text style={[styles.addSetBtnText, { color: colors.textSecondary }]}>
+                <Text style={[styles.addSetBtnText, { color: colors.primary }]}>
                   + ADD SET ({formatRestDurationLabel(restPresetSec)})
                 </Text>
               </Pressable>
@@ -2664,11 +2645,11 @@ const styles = StyleSheet.create({
   },
   emptyWorkoutText: { fontSize: 15, textAlign: 'center' },
   exerciseCard: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 8,
-    borderRadius: 12,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderRadius: 14,
+    marginBottom: 10,
     overflow: 'visible',
     borderWidth: 1,
   },
@@ -2794,8 +2775,8 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     ...typography.sectionTitle,
-    fontSize: 16,
-    lineHeight: 21,
+    fontSize: 17,
+    lineHeight: 22,
   },
   exerciseEquipment: {
     ...typography.caption,
@@ -2826,28 +2807,25 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   exerciseHeaderIcon: { padding: 4, marginTop: 1 },
+  // Bleeds past the card's side padding so set rows, their tints and the rest track use the
+  // full card width.
   tableInset: {
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  tableHeaderStrip: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
+    marginHorizontal: -12,
     overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: TABLE_H_PAD,
-    paddingVertical: 6,
+    paddingTop: 2,
+    paddingBottom: 4,
     gap: TABLE_COL_GAP,
   },
   th: {
-    fontSize: 9,
+    fontFamily: typography.label.fontFamily,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     textTransform: 'uppercase',
     textAlign: 'center',
     width: '100%',
@@ -2863,19 +2841,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   setIndexMark: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   setIndexMarkWarmUp: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
   },
   setIndexMarkText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     fontFamily: typography.data.fontFamily,
     textAlign: 'center',
@@ -2895,17 +2873,21 @@ const styles = StyleSheet.create({
   colDone: {
     width: DONE_BTN_SIZE,
   },
+  colDoneHeader: {
+    alignItems: 'center',
+  },
   setLabel: { fontSize: 13, textAlign: 'center' },
   setLabelWarmUp: { fontSize: 11 },
   setRestDuration: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: typography.data.fontFamily,
     textAlign: 'center',
     marginTop: 1,
     lineHeight: 11,
   },
   prevCell: {
-    fontSize: 10,
+    fontFamily: typography.data.fontFamily,
+    fontSize: 13,
     textAlign: 'center',
     width: '100%',
   },
@@ -2913,7 +2895,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: TABLE_COL_GAP,
-    paddingVertical: 3,
+    paddingVertical: 4,
     paddingHorizontal: TABLE_H_PAD,
     minHeight: SET_ROW_MIN_HEIGHT,
   },
@@ -2932,13 +2914,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: COL_INPUT_MIN_WIDTH,
     minHeight: SET_INPUT_MIN_HEIGHT,
-    borderRadius: 7,
+    borderRadius: 10,
     overflow: 'hidden',
     justifyContent: 'center',
   },
   setInput: {
-    paddingHorizontal: 3,
-    fontSize: 15,
+    paddingHorizontal: 4,
+    fontSize: 18,
     fontFamily: typography.data.fontFamily,
     fontWeight: '600',
     textAlign: 'center',
@@ -2946,6 +2928,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     backgroundColor: 'transparent',
   },
+  setCellPressed: { opacity: 0.6 },
   setCell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2961,52 +2944,55 @@ const styles = StyleSheet.create({
   doneBtn: {
     width: DONE_BTN_SIZE,
     height: DONE_BTN_SIZE,
-    borderRadius: 8,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  restBarCollapsed: {
-    flexDirection: 'row',
+  restBar: {
     alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 8,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
     position: 'relative',
   },
-  restBarRule: {
-    flex: 1,
+  restBarTrack: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
     height: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  restBarTrackActive: {
+    height: 3,
+    borderRadius: 1.5,
+  },
+  restBarTrackFill: {
+    height: '100%',
+    borderRadius: 1.5,
+  },
+  restBarLabelGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 10,
   },
   restBarCollapsedTime: {
     fontFamily: typography.data.fontFamily,
     fontSize: 13,
     lineHeight: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
-    textAlign: 'center',
   },
-  restBarLabelWrap: {
-    alignItems: 'center',
-  },
-  restBarLabelGroup: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 3,
-    justifyContent: 'center',
+  restBarActiveTime: {
+    fontFamily: fontFamily.monoMedium,
+    fontSize: 17,
+    lineHeight: 22,
+    fontVariant: ['tabular-nums'],
   },
   restBarWord: {
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '600',
-  },
-  restBarProgress: {
-    marginTop: 3,
-    height: 2,
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  restBarProgressFill: {
-    height: '100%',
-    borderRadius: 1,
   },
   restBetweenText: {
     fontSize: 11,
@@ -3244,10 +3230,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    minHeight: 44,
+    minHeight: 48,
   },
-  addSetBtnText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
+  addSetBtnText: {
+    fontFamily: typography.label.fontFamily,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
   addExerciseBtn: {
     flexDirection: 'row',
     alignItems: 'center',

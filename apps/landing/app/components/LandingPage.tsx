@@ -81,8 +81,8 @@ const FEATURES = [
       'Set logging with rest timers',
       'See what you lifted last time',
     ],
-    src: '/screens/workouts.png',
-    alt: 'MuscleOS Workouts screen',
+    src: '/screens/active-workout.png',
+    alt: 'MuscleOS active workout — logging sets with a rest timer running',
   },
   {
     id: 'exercises',
