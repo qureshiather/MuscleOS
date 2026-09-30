@@ -102,7 +102,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Settings | `/settings` | Appearance, units, sounds | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Biodata | `/biodata` | Height, weight, age, gender | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Data | `/data` | Sync, export, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
-| Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password. | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
+| Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 
 ## Cross-cutting assumptions
 
