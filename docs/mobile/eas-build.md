@@ -265,6 +265,35 @@ External testers: TestFlight → create an external group → add emails → the
 
 ---
 
+## Production builds
+
+Store builds use the `production` profile and read the EAS **production** environment.
+
+```bash
+cd apps/mobile
+
+# iOS: build on EAS and upload to TestFlight when it finishes (submit uses the saved ASC API key)
+eas build --platform ios --profile production --auto-submit
+
+# Android: build the AAB on this machine (no EAS build credits; needs JDK 17 + Android SDK)
+eas build --platform android --profile production --local --output ./muscleos.aab
+```
+
+A local build still uses the remote upload keystore and the production env vars from EAS. Both
+iOS `buildNumber` and Android `versionCode` are remote and auto-increment. On the free plan the
+build and the submission can each sit in Expo's queue for a while.
+
+To QA a store-like build on a simulator or emulator without EAS, build the Release variant
+locally. It embeds the JS bundle, has no Grant Pro, and doesn't need Metro:
+
+```bash
+npx expo run:ios --configuration Release --device <simulator-udid> --no-bundler
+npx expo run:android --variant release --device <avd-name> --no-bundler
+```
+
+These read `apps/mobile/.env`, so it needs the platform RevenueCat key
+(`EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `_ANDROID`).
+
 ## Rebuild after code or env changes
 
 Env vars are baked in at build time. After changing preview env (or shipping new app code):
