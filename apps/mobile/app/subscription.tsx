@@ -34,6 +34,7 @@ import {
 } from '@/subscription/features';
 import { FALLBACK_PRICE_LABELS, annualSavingsPercent } from '@/subscription/pricing';
 import { LEGAL_URLS } from '@/subscription/legal';
+import { isLifetimeExpiry } from '@/subscription/plan';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -225,7 +226,12 @@ export default function SubscriptionScreen() {
                 {PLAN_LABELS[state.plan]} plan
               </Text>
             )}
-            {state?.expiresAt && pro && (
+            {pro && complimentary && (!state?.expiresAt || isLifetimeExpiry(state.expiresAt)) && (
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
+                Lifetime
+              </Text>
+            )}
+            {state?.expiresAt && pro && !isLifetimeExpiry(state.expiresAt) && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
                 {complimentary ? 'Until' : 'Renews'}{' '}
                 {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}

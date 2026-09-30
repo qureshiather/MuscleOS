@@ -251,12 +251,24 @@ export async function restorePurchases(): Promise<RestoreOutcome> {
   }
   try {
     const customerInfo = await withTimeout(Purchases.restorePurchases(), RC_REQUEST_TIMEOUT_MS);
-    if (!customerInfo) {
-      return { status: 'error', message: 'Restore timed out. Try again.' };
-    }
-    return { status: 'success', customerInfo };
+    if (customerInfo) return { status: 'success', customerInfo };
+    return (await freshProCustomerInfo()) ?? { status: 'error', message: 'Restore timed out. Try again.' };
   } catch (error) {
-    return { status: 'error', message: purchaseErrorMessage(error) };
+    return (await freshProCustomerInfo()) ?? { status: 'error', message: purchaseErrorMessage(error) };
+  }
+}
+
+/**
+ * Restore goes through the store, which can fail or be cancelled (no Apple / Google sign-in).
+ * A promotional grant lives only in RevenueCat, so re-read the customer before reporting failure.
+ */
+async function freshProCustomerInfo(): Promise<RestoreOutcome | null> {
+  try {
+    await Purchases.invalidateCustomerInfoCache();
+    const customerInfo = await withTimeout(Purchases.getCustomerInfo(), RC_REQUEST_TIMEOUT_MS);
+    return customerInfo && hasProEntitlement(customerInfo) ? { status: 'success', customerInfo } : null;
+  } catch {
+    return null;
   }
 }
 
