@@ -18,7 +18,7 @@ The app ships a bundled `CATALOG_SEED` so first launch and airplane mode already
 
 Do **not** put catalog rows in `sync_records`. Custom exercises used to live there as JSONB; they migrate into `user_exercises` and new writes go to that table.
 
-**Content change** (new exercise, category fix, instructions after review): `UPDATE`/`INSERT` with `updated_at = now()`. Never delete a catalog id — set `is_published = false`. Seed scripts upsert by id and never write `user_exercises`.
+**Content change** (new exercise, category fix, instruction copy): `UPDATE`/`INSERT` with `updated_at = now()`. Never delete a catalog id — set `is_published = false`. Seed scripts upsert by id and never write `user_exercises`.
 
 **Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` / `exercise_tracking_type` by adding values; old apps that see an unknown category treat it as `free_weight`.
 
@@ -28,7 +28,11 @@ Regenerate the bundled seed and SQL together:
 node apps/mobile/scripts/generate-exercise-catalog.mjs
 ```
 
-Instructions stay null until you review them. The generator does not overwrite a newer `instructions` value on the server.
+The seed SQL leaves `instructions` null and never overwrites it. Instruction copy is written in-house in `apps/mobile/src/data/exercises.ts`; to ship a change, add a new migration with the generator (it updates only rows whose text differs and bumps their `updated_at` so clients pull them):
+
+```bash
+node apps/mobile/scripts/generate-exercise-catalog.mjs --instructions-migration=<timestamp>_catalog_exercise_instructions
+```
 
 ### Merge policy
 

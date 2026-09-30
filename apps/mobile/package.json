@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf .expo node_modules",
-    "seed:exercises": "node scripts/seed-exercises-from-strengthlog.mjs",
+    "generate:catalog": "node scripts/generate-exercise-catalog.mjs",
     "eas-build-post-install": "cd ../.. && pnpm run build --filter @muscleos/types"
   },
   "dependencies": {
