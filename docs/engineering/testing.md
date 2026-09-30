@@ -43,7 +43,7 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | `apps/mobile/src/utils/recommendTemplates.test.ts` | Scoring arithmetic, 50% cut-off, tie-break, limit, −8 overlap diversification |
 | `apps/mobile/src/utils/recentTemplates.test.ts` | Recent row: newest first, one per template, excludes Suggested/hidden/unstartable, cap 6 |
 | `apps/mobile/src/utils/relativeTime.test.ts` | Every `formatRelative` and `formatRecoveryReady` branch |
-| `apps/mobile/src/utils/sessionStats.test.ts` | History volume (completed sets, warm-ups included) and duration formatting |
+| `apps/mobile/src/utils/sessionStats.test.ts` | History volume (completed sets, warm-ups included), duration formatting, and set/volume labels in kg and lb |
 | `apps/mobile/src/utils/exerciseIds.test.ts` | Custom id numbering, alias resolution, catalog invariants |
 | `apps/mobile/src/utils/muscleDiagramRegions.test.ts` | 18 muscle ids onto 15 diagram regions |
 | `apps/mobile/src/data/strengthStandards.test.ts` | Band selection, next-level target, sex tables, unsupported and pull-up paths |

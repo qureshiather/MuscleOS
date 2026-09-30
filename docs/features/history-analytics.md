@@ -33,10 +33,10 @@ Each card shows:
 | Duration | `completedAt − startedAt`, to the nearest minute: `45m`, `1h 15m`, `2h` |
 | Volume | Σ `weightKg × reps` over completed sets |
 | Exercises | Only those with at least one completed set |
-| Sets | Completed sets as chips: `8` or `? @ 60 kg`. The kilogram amount keeps up to 2 decimal places (`20.25`) and drops trailing zeros (`60`, not `60.0`) |
+| Sets | Completed sets as chips in the user's weight unit: `8`, `? @ 60 kg`, `8 @ 135 lb` (`formatSetLabel`). Kilograms keep up to 2 decimals (`20.25`), pounds 1, and trailing zeros drop (`60`, not `60.0`) |
 
-> Volume is always labelled **kg** regardless of the user's weight unit setting. This is a known
-> inconsistency with the rest of the app.
+Volume is shown in the user's weight unit, rounded to a whole number (`formatVolume`): `16,456 kg`
+or `36,280 lb`.
 
 **There is no session detail screen.** All detail is inline on the card, so cards aren't
 navigable.
@@ -232,7 +232,6 @@ Basic keeps the history list, inline session detail, delete, pull-to-refresh, an
 | PR = best estimated 1RM | Not heaviest weight, not volume, not per-rep bests |
 | Strength standards use **estimated**, not tested, 1RM | And assume adult, no age bands |
 | Warm-up sets count toward volume | Open question |
-| History volume always displayed in kg | Inconsistent with the unit setting |
 | Local calendar days for history and calendar bucketing | Same as the rest of the app |
 | ISO date strings sort correctly for ordering | Relies on UTC ISO from `toISOString()` |
 | Unbounded history list | No pagination; assumes hobbyist-scale history |
@@ -252,7 +251,8 @@ Covered:
   elite has no next level, female vs male tables, unsupported exercises, the disabled pull-up table,
   zero bodyweight
 - `src/utils/sessionStats.test.ts` — volume over completed sets with warm-ups included and missing
-  weight/reps as zero; duration formatting and rounding
+  weight/reps as zero; duration formatting and rounding; `formatSetLabel` / `formatVolume` in kg
+  and lb
 - `src/store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`: most recent qualifying
   session, not the all-time best; skips sessions with no completed weighted set and in-progress ones
 
