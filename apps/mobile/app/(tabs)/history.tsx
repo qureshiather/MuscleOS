@@ -14,12 +14,12 @@ import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { Card } from '@/components/ui/Card';
 import { StatChip } from '@/components/ui/StatChip';
-import type { WorkoutSession, SessionExercise, SetRecord } from '@muscleos/types';
-import { kgToDisplay } from '@/utils/weightUnits';
+import type { WorkoutSession, SessionExercise } from '@muscleos/types';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 import { fontScaleCap } from '@/theme/layout';
-import { formatSessionDuration, sessionVolumeKg } from '@/utils/sessionStats';
+import { formatSessionDuration, formatSetLabel, formatVolume, sessionVolumeKg } from '@/utils/sessionStats';
+import { useSettingsStore } from '@/store/settingsStore';
 
 function formatSessionDate(isoDate: string): string {
   const d = new Date(isoDate);
@@ -28,13 +28,6 @@ function formatSessionDate(isoDate: string): string {
     month: 'short',
     day: 'numeric',
   });
-}
-
-function formatSet(set: SetRecord): string {
-  const reps = set.reps != null ? `${set.reps}` : '?';
-  const weight =
-    set.weightKg != null && set.weightKg > 0 ? ` @ ${kgToDisplay(set.weightKg, 'kg')} kg` : '';
-  return `${reps}${weight}`;
 }
 
 export default function HistoryScreen() {
@@ -46,6 +39,7 @@ export default function HistoryScreen() {
   const loadRecovery = useRecoveryStore((s) => s.load);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -183,7 +177,7 @@ export default function HistoryScreen() {
                       {volume > 0 ? (
                         <StatChip
                           icon="barbell-outline"
-                          label={`${volume.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg`}
+                          label={formatVolume(volume, weightUnit)}
                         />
                       ) : null}
                     </View>
@@ -223,7 +217,7 @@ export default function HistoryScreen() {
                                     style={[typography.caption, styles.setChipText, { color: colors.textSecondary }]}
                                     numberOfLines={1}
                                   >
-                                    {formatSet(set)}
+                                    {formatSetLabel(set, weightUnit)}
                                   </Text>
                                 </View>
                               ))}

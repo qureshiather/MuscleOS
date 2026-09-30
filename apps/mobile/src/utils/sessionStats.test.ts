@@ -1,6 +1,6 @@
 import type { WorkoutSession } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
-import { formatSessionDuration, sessionVolumeKg } from './sessionStats';
+import { formatSessionDuration, formatSetLabel, formatVolume, sessionVolumeKg } from './sessionStats';
 
 const session = (over: Partial<WorkoutSession> = {}): WorkoutSession => ({
   id: 's',
@@ -50,5 +50,25 @@ describe('formatSessionDuration', () => {
 
   it('is null while in progress', () => {
     expect(formatSessionDuration(session({ completedAt: undefined }))).toBeNull();
+  });
+});
+
+describe('formatSetLabel', () => {
+  it('shows reps and weight in the chosen unit', () => {
+    expect(formatSetLabel({ reps: 8, weightKg: 60, completed: true }, 'kg')).toBe('8 @ 60 kg');
+    expect(formatSetLabel({ reps: 5, weightKg: 61.235, completed: true }, 'lb')).toBe('5 @ 135 lb');
+    expect(formatSetLabel({ reps: 10, weightKg: 20.25, completed: true }, 'kg')).toBe('10 @ 20.25 kg');
+  });
+
+  it('omits the weight when there is none and shows ? for missing reps', () => {
+    expect(formatSetLabel({ reps: 60, completed: true }, 'lb')).toBe('60');
+    expect(formatSetLabel({ weightKg: 60, completed: true }, 'kg')).toBe('? @ 60 kg');
+  });
+});
+
+describe('formatVolume', () => {
+  it('rounds to whole units and converts for lb', () => {
+    expect(formatVolume(16456.4, 'kg')).toBe('16,456 kg');
+    expect(formatVolume(1000, 'lb')).toBe('2,205 lb');
   });
 });
