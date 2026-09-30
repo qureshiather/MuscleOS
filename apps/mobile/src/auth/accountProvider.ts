@@ -35,3 +35,15 @@ export function linkedAuthProvider(user: {
 export function authProviderLabel(provider: AuthProvider): string {
   return AUTH_PROVIDER_LABEL[provider];
 }
+
+/**
+ * True when the account can sign in with an email + password, i.e. it has an `email` identity.
+ * Apple- and Google-only accounts have no MuscleOS password to change.
+ */
+export function hasPasswordSignIn(user: {
+  identities?: { provider: string }[] | null;
+  app_metadata?: { providers?: string[] } | null;
+}): boolean {
+  if ((user.identities ?? []).some((i) => i.provider === 'email')) return true;
+  return (user.app_metadata?.providers ?? []).includes('email');
+}

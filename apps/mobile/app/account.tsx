@@ -23,7 +23,7 @@ import { useSyncStore } from '@/store/syncStore';
 import { syncNow } from '@/sync';
 import { formatRelative } from '@/utils/relativeTime';
 import { LEGAL_URLS } from '@/subscription/legal';
-import { authProviderLabel, linkedAuthProvider } from '@/auth/accountProvider';
+import { authProviderLabel, hasPasswordSignIn, linkedAuthProvider } from '@/auth/accountProvider';
 
 export default function AccountScreen() {
   const { colors, setTheme } = useTheme();
@@ -207,6 +207,17 @@ export default function AccountScreen() {
             hint={isLinked ? 'Sync, export, clear this device' : 'Export or clear this device'}
             onPress={() => router.push('/data')}
           />
+          {isLinked && authUser && hasPasswordSignIn(authUser) ? (
+            <ListRow
+              inset
+              title="Change password"
+              hint="For signing in with email"
+              testID="change-password"
+              onPress={() =>
+                router.push({ pathname: '/auth-new-password', params: { mode: 'change' } })
+              }
+            />
+          ) : null}
           {isLinked ? (
             deletingAccount ? (
               <View style={styles.deletingRow}>

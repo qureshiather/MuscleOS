@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authProviderLabel, linkedAuthProvider } from './accountProvider';
+import { authProviderLabel, hasPasswordSignIn, linkedAuthProvider } from './accountProvider';
 
 describe('linkedAuthProvider', () => {
   it('prefers Apple over the leftover anonymous identity after linkIdentity', () => {
@@ -53,5 +53,20 @@ describe('authProviderLabel', () => {
     expect(authProviderLabel('apple')).toBe('Apple ID');
     expect(authProviderLabel('google')).toBe('Google');
     expect(authProviderLabel('email')).toBe('Email');
+  });
+});
+
+describe('hasPasswordSignIn', () => {
+  it('is true for an email identity, including alongside Apple or Google', () => {
+    expect(hasPasswordSignIn({ identities: [{ provider: 'email' }] })).toBe(true);
+    expect(hasPasswordSignIn({ identities: [{ provider: 'apple' }, { provider: 'email' }] })).toBe(true);
+    expect(hasPasswordSignIn({ identities: [], app_metadata: { providers: ['email'] } })).toBe(true);
+  });
+
+  it('is false for Apple-only, Google-only, and anonymous users', () => {
+    expect(hasPasswordSignIn({ identities: [{ provider: 'apple' }] })).toBe(false);
+    expect(hasPasswordSignIn({ identities: [{ provider: 'google' }], app_metadata: { providers: ['google'] } })).toBe(false);
+    expect(hasPasswordSignIn({ identities: [{ provider: 'anonymous' }] })).toBe(false);
+    expect(hasPasswordSignIn({ identities: null })).toBe(false);
   });
 });

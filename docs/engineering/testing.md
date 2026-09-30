@@ -63,7 +63,7 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | `apps/mobile/src/store/activeWorkoutStore.test.ts` | `lastActivityAt` stamping (edits yes, rest timer no), persisted with the snapshot; stale close on hydration (finish at last activity, discard, under-threshold resume, legacy snapshot) and on foreground, including overlapping closes saving once; one workout at a time, 1-set minimum, finish saves incomplete sets without prefill flags |
 | `apps/mobile/src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, null clear, corrupt/invalid-payload guards (via AsyncStorage harness) |
 | `apps/mobile/src/auth/deleteAccount.test.ts` | Delete-account device wipe (sessions, templates, active workout, sync transport, Apple auth code) and anonymous RevenueCat rebootstrap |
-| `apps/mobile/src/auth/accountProvider.test.ts` | Linked Apple / Google / email vs leftover anonymous identity |
+| `apps/mobile/src/auth/accountProvider.test.ts` | Linked Apple / Google / email vs leftover anonymous identity; `hasPasswordSignIn` for the Change password row |
 | `apps/mobile/src/auth/attachAccount.test.ts` | Already-linked identity → sign into that user; in-place guest upgrade vs new-device pull |
 | `apps/mobile/src/auth/edgeFunctionError.test.ts` | Prefers function JSON error body over the generic non-2xx client message |
 | `apps/mobile/src/auth/emailCallback.test.ts` | Confirm and recovery links: token hash, implicit hash tokens, PKCE code |
