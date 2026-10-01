@@ -52,11 +52,25 @@ describe('focusRegions', () => {
     expect(focus.sort()).toEqual(['gluteal', 'hamstring', 'quadriceps']);
   });
 
+  it('keeps a main muscle even when another region is hit far more often', () => {
+    // Built-in Push: triceps in 5 exercises, chest in 2.
+    const focus = focusRegions([
+      ['chest', 'front_delts', 'triceps'],
+      ['front_delts', 'side_delts', 'triceps'],
+      ['chest', 'front_delts', 'triceps'],
+      ['side_delts'],
+      ['triceps'],
+      ['triceps'],
+    ]);
+    expect(focus.sort()).toEqual(['chest', 'deltoids', 'triceps']);
+  });
+
   it('counts a shared region once per exercise', () => {
     expect(focusRegions([['front_delts', 'side_delts', 'rear_delts'], ['chest']]).sort()).toEqual(['chest', 'deltoids']);
   });
 
-  it('is empty with no muscles', () => {
+  it('keeps every region when none repeats, and is empty with no muscles', () => {
+    expect(focusRegions([['lats'], ['biceps']]).sort()).toEqual(['biceps', 'upper-back']);
     expect(focusRegions([])).toEqual([]);
   });
 });

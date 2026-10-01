@@ -136,9 +136,10 @@ the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
 - **Colours:** each region uses the Recovery tab's colours for its current state: ready, recovering,
   or just trained (`regionStatesForMuscles()`). A region shared by several muscles (delts, upper
   back) takes the least-recovered state.
-- **Focus:** the crop frames only the regions the template is mostly about. Each region counts
-  once per exercise that trains it, and regions hit at least half as often as the most-hit region
-  are kept (`focusRegions()`), so Plank on leg day colours the abs without zooming out to them.
+- **Focus:** the crop frames only the regions the template is mostly about: regions trained by
+  **two or more** of its exercises (`focusRegions()`). A region only one accessory exercise trains
+  stays coloured but out of frame, so Plank on leg day doesn't zoom out to the abs. When no region
+  repeats, every region counts.
 - **Side:** front or back, whichever shows more of the focus regions by summed bounding-box area;
   ties go to the front (`pickFigureSide()` in `src/utils/bodyCrop.ts`).
 - **Crop:** the union of the focus regions' boxes, padded by 12% of its larger side, at least 360
@@ -331,7 +332,8 @@ Covered:
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
-  regions; focus regions drop one-off accessory regions and count shared regions once per exercise
+  regions; focus regions drop single-exercise regions, keep chest on Push, count shared regions once per
+  exercise, and fall back to all regions when none repeats
 - `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
 - `src/subscription/features.test.ts` — `requiresProToStart` for built-in vs custom; 9 built-ins
 - `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle

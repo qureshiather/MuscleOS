@@ -51,9 +51,9 @@ export function regionStatesForMuscles(
 }
 
 /**
- * The regions a template is mostly about: each region counts once per exercise that trains it,
- * and regions hit at least half as often as the most-hit region make the cut. Keeps one accessory
- * exercise (plank on leg day) from widening the muscle art crop.
+ * The regions a template is mostly about: regions trained by two or more of its exercises. A
+ * region only one accessory exercise trains (plank on leg day) is left out so it can't widen the
+ * muscle art crop. When no region repeats, every region counts.
  */
 export function focusRegions(exerciseMuscles: readonly (readonly MuscleId[])[]): Slug[] {
   const counts = new Map<Slug, number>();
@@ -62,6 +62,6 @@ export function focusRegions(exerciseMuscles: readonly (readonly MuscleId[])[]):
       counts.set(slug, (counts.get(slug) ?? 0) + 1);
     }
   }
-  const max = Math.max(0, ...counts.values());
-  return [...counts].filter(([, n]) => n * 2 >= max).map(([slug]) => slug);
+  const repeated = [...counts].filter(([, n]) => n >= 2).map(([slug]) => slug);
+  return repeated.length > 0 ? repeated : [...counts.keys()];
 }
