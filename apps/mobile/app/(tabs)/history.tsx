@@ -5,11 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   RefreshControl,
   LayoutAnimation,
-  Platform,
-  ActionSheetIOS,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +21,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { SessionCard } from '@/components/history/SessionCard';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { WorkoutSession } from '@muscleos/types';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
@@ -88,39 +86,14 @@ export default function HistoryScreen() {
     });
   };
 
-  function confirmDeleteSession(session: WorkoutSession) {
-    Alert.alert(
-      'Delete workout',
-      'Removes this session from history and its recovery impact. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteSession(session.id);
-            loadRecovery();
-          },
-        },
-      ]
-    );
-  }
+  const [deleteTarget, setDeleteTarget] = useState<WorkoutSession | null>(null);
 
-  function handleSessionMenu(session: WorkoutSession) {
-    const title = getTemplateName(session.templateId);
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title, options: ['Delete workout', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
-        (index) => {
-          if (index === 0) confirmDeleteSession(session);
-        }
-      );
-      return;
-    }
-    Alert.alert(title, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete workout', style: 'destructive', onPress: () => confirmDeleteSession(session) },
-    ]);
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
+    await deleteSession(id);
+    loadRecovery();
   }
 
   return (
@@ -200,7 +173,7 @@ export default function HistoryScreen() {
                     title={getTemplateName(s.templateId)}
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
-                    onMore={() => handleSessionMenu(s)}
+                    onDelete={() => setDeleteTarget(s)}
                     prExerciseIds={isPro ? sessionPRs.get(s.id) : undefined}
                     volumeDelta={volumeDeltas.get(s.id)}
                     getExerciseName={(id) => getExercise(id)?.name ?? id}
@@ -212,6 +185,20 @@ export default function HistoryScreen() {
           ))}
         </ScrollView>
       )}
+      <ConfirmDialog
+        visible={deleteTarget != null}
+        title="Delete workout"
+        message="Removes this session from history and its recovery impact. This cannot be undone."
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          void handleConfirmDelete();
+        }}
+        cancelTestID="delete-session-keep"
+        confirmTestID="delete-session-confirm"
+      />
     </Screen>
   );
 }

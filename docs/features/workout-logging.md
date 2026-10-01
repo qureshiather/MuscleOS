@@ -303,6 +303,10 @@ working/warm-up row counts (incomplete rows still count):
 | Custom, list or set structure changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard |
 | Unchanged | Save values · Discard |
 
+The summary lists duration and each exercise with completed sets. The list scrolls inside the
+modal so the actions stay on screen, and its bottom edge fades out while more exercises sit below.
+Tapping outside the card closes the flow.
+
 "Overwrite" updates the template's `exerciseIds` and per-exercise set structure from the
 session (working vs warm-up row counts, including incomplete rows) — names and folders are
 untouched. **Save as template** writes the same structure onto a new custom template.

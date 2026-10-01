@@ -22,7 +22,7 @@ type SessionCardProps = {
   title: string;
   expanded: boolean;
   onToggle: () => void;
-  onMore: () => void;
+  onDelete: () => void;
   /** Exercises that set a new best e1RM in this session. Omitted for Basic. */
   prExerciseIds?: ReadonlySet<string>;
   /** Whole-percent volume change vs the previous session of the same template. */
@@ -37,7 +37,7 @@ export function SessionCard({
   title,
   expanded,
   onToggle,
-  onMore,
+  onDelete,
   prExerciseIds,
   volumeDelta,
   getExerciseName,
@@ -69,12 +69,12 @@ export function SessionCard({
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Options for ${title}`}
-            onPress={onMore}
+            accessibilityLabel={`Delete ${title}`}
+            onPress={onDelete}
             hitSlop={touch.hitSlop}
-            style={({ pressed }) => [styles.moreBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
           >
-            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
           </Pressable>
         </View>
 
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   card: { padding: 0 },
   pressable: { padding: spacing.md, gap: spacing.xs + 2 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  moreBtn: { padding: 2 },
+  deleteBtn: { padding: 2 },
   pressed: { opacity: 0.6 },
   title: { flexShrink: 1 },
   stats: { ...typography.caption, fontFamily: typography.data.fontFamily, fontVariant: ['tabular-nums'] },

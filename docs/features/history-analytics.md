@@ -44,7 +44,7 @@ Collapsed, a card shows:
 | Element | Detail |
 |---------|--------|
 | Date | Short weekday, short month, day: `Sun, Sep 27` |
-| ⋯ button | Opens the session menu (see [Deleting a session](#deleting-a-session)) |
+| Trash button | Deletes the session after confirmation (see [Deleting a session](#deleting-a-session)) |
 | Template name | Resolved from `templateId`; falls back to "Workout" |
 | Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero |
 | Volume change | `↑4%` (success colour) or `↓3%` (danger colour) against the **previous completed session of the same template** (`buildVolumeDeltas()`), rounded to a whole percent. Hidden at 0%, for the first session of a template, when either volume is zero, and for empty workouts (`_empty`) |
@@ -83,8 +83,7 @@ The header has two Pro shortcuts: a trophy to Personal Records and a calendar to
 
 ### Deleting a session
 
-The card's ⋯ button opens a menu (an action sheet on iOS, an alert on Android) with **Delete
-workout**. Choosing it asks for confirmation: *"Removes this session from history and its recovery impact. This cannot be undone."*
+The card's trash button opens the app's themed confirm dialog, **Delete workout**: *"Removes this session from history and its recovery impact. This cannot be undone."*
 
 `deleteSession` then:
 

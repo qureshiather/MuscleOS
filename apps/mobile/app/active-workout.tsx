@@ -43,6 +43,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { playWorkoutSound } from '@/utils/workoutSounds';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
@@ -480,6 +481,9 @@ function RestBetweenBar({
   );
 }
 
+/** Height of the fade over the bottom of the finish summary list when it overflows. */
+const SUMMARY_FADE_HEIGHT = 36;
+
 type FinishedSummary = {
   name: string;
   durationMs: number;
@@ -614,6 +618,14 @@ export default function ActiveWorkoutScreen() {
     };
   }, [exercisePicker]);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
+  // Finish summary list: fade the bottom edge while more exercises sit below the fold.
+  const summaryScrollMetrics = useRef({ viewport: 0, content: 0, offset: 0 });
+  const [summaryMoreBelow, setSummaryMoreBelow] = useState(false);
+  const updateSummaryScroll = (next: Partial<typeof summaryScrollMetrics.current>) => {
+    const m = Object.assign(summaryScrollMetrics.current, next);
+    const moreBelow = m.content - m.viewport - m.offset > 2;
+    setSummaryMoreBelow((prev) => (prev === moreBelow ? prev : moreBelow));
+  };
   const [exerciseMenuExIdx, setExerciseMenuExIdx] = useState<number | null>(null);
   const [dropdownLayout, setDropdownLayout] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const dropdownMeasureRef = useRef<View>(null);
@@ -2222,14 +2234,20 @@ export default function ActiveWorkoutScreen() {
         animationType="fade"
         onRequestClose={closeFinishFlow}
       >
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={closeFinishFlow}
-        >
+        {/*
+          The backdrop is a sibling behind the card, not its parent, so the card doesn't have to
+          claim touches with a responder and the exercise list can scroll freely.
+        */}
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeFinishFlow}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          />
           {showSaveAsTemplateModal ? (
             <View
               style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
-              onStartShouldSetResponder={() => true}
             >
               <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Save as template</Text>
               <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>
@@ -2269,16 +2287,20 @@ export default function ActiveWorkoutScreen() {
               </View>
             </View>
           ) : (
-          <View
-            style={[styles.summaryCard, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}
-            onStartShouldSetResponder={() => true}
-          >
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}>
             <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Workout summary</Text>
             {currentTemplate?.name && (
               <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{currentTemplate.name}</Text>
             )}
             {/* Scrolls so the save actions below stay on screen no matter how many exercises were logged. */}
-            <ScrollView style={styles.summaryScroll} contentContainerStyle={styles.summaryScrollContent}>
+            <View style={styles.summaryScroll}>
+            <ScrollView
+              contentContainerStyle={styles.summaryScrollContent}
+              onLayout={(e) => updateSummaryScroll({ viewport: e.nativeEvent.layout.height, offset: 0 })}
+              onContentSizeChange={(_, h) => updateSummaryScroll({ content: h })}
+              onScroll={(e) => updateSummaryScroll({ offset: e.nativeEvent.contentOffset.y })}
+              scrollEventThrottle={32}
+            >
               <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Duration</Text>
                 <Text style={[styles.summaryValue, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
@@ -2308,6 +2330,18 @@ export default function ActiveWorkoutScreen() {
                   ))}
               </View>
             </ScrollView>
+            {summaryMoreBelow ? (
+              <Svg pointerEvents="none" style={styles.summaryFade} width="100%" height={SUMMARY_FADE_HEIGHT}>
+                <Defs>
+                  <LinearGradient id="summary-fade" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={colors.surface} stopOpacity={0} />
+                    <Stop offset="1" stopColor={colors.surface} stopOpacity={1} />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height={SUMMARY_FADE_HEIGHT} fill="url(#summary-fade)" />
+              </Svg>
+            ) : null}
+            </View>
             <View style={styles.summaryActions}>
               {/*
                 Rendered straight from finishSaveOptions() so the option set and labels have a
@@ -2371,7 +2405,7 @@ export default function ActiveWorkoutScreen() {
             </View>
           </View>
           )}
-        </Pressable>
+        </View>
       </Modal>
 
       {exercisePicker !== null ? (
@@ -3314,6 +3348,7 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 15 },
   summaryValue: { ...typography.data, fontFamily: typography.data.fontFamily },
   summaryScroll: { flexGrow: 0, flexShrink: 1 },
+  summaryFade: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   summaryScrollContent: { paddingBottom: 20 },
   summaryExercises: { marginTop: 8 },
   summarySectionLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
