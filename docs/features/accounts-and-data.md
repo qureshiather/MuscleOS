@@ -82,7 +82,11 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
 keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
-original user, so link fails with "already linked" and the app signs into that user instead. Empty
+original user, so link fails with "already linked" and the app signs into that user instead. The same
+fallback runs when the link fails because the provider's email already has an account (for example
+Apple first, then Google with the same address): `signInWithIdToken` attaches the new identity to that
+account by verified email. Apple **Hide My Email** relay addresses don't match the user's Google email,
+so those stay separate accounts. Empty
 local then takes remote on sync — sessions, templates, customs, notes, previous, biodata.
 
 **Error copy.** Auth, link, sync and export failures never show raw Supabase, Google or Apple
