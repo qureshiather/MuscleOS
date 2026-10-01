@@ -12,6 +12,14 @@ describe('identityAlreadyLinked', () => {
     expect(identityAlreadyLinked({ message: 'Identity is already linked to another user' })).toBe(true);
   });
 
+  it('matches an email that already has an account under another provider', () => {
+    expect(identityAlreadyLinked({ code: 'email_exists', message: 'Email address already exists' })).toBe(true);
+    expect(identityAlreadyLinked({ code: 'user_already_exists', message: 'User already registered' })).toBe(true);
+    expect(identityAlreadyLinked({ message: 'A user with this email address has already been registered' })).toBe(
+      true
+    );
+  });
+
   it('ignores unrelated link failures', () => {
     expect(identityAlreadyLinked({ message: 'Linking requires a valid user access token' })).toBe(false);
     expect(identityAlreadyLinked(null)).toBe(false);
