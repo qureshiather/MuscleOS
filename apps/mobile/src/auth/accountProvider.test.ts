@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { authProviderLabel, hasPasswordSignIn, linkedAuthProvider } from './accountProvider';
+import {
+  authProviderLabel,
+  hasIdentity,
+  hasPasswordSignIn,
+  isPrivateRelayEmail,
+  linkedAuthProvider,
+} from './accountProvider';
 
 describe('linkedAuthProvider', () => {
   it('prefers Apple over the leftover anonymous identity after linkIdentity', () => {
@@ -68,5 +74,28 @@ describe('hasPasswordSignIn', () => {
     expect(hasPasswordSignIn({ identities: [{ provider: 'google' }], app_metadata: { providers: ['google'] } })).toBe(false);
     expect(hasPasswordSignIn({ identities: [{ provider: 'anonymous' }] })).toBe(false);
     expect(hasPasswordSignIn({ identities: null })).toBe(false);
+  });
+});
+
+describe('hasIdentity', () => {
+  it('reads identities and app_metadata providers', () => {
+    expect(hasIdentity({ identities: [{ provider: 'apple' }, { provider: 'google' }] }, 'google')).toBe(true);
+    expect(hasIdentity({ identities: [], app_metadata: { providers: ['google'] } }, 'google')).toBe(true);
+    expect(hasIdentity({ identities: [{ provider: 'apple' }] }, 'google')).toBe(false);
+    expect(hasIdentity({ identities: null }, 'apple')).toBe(false);
+  });
+});
+
+describe('isPrivateRelayEmail', () => {
+  it('matches Apple Hide My Email addresses', () => {
+    expect(isPrivateRelayEmail('abc123@privaterelay.appleid.com')).toBe(true);
+    expect(isPrivateRelayEmail(' ABC@PrivateRelay.AppleID.com ')).toBe(true);
+  });
+
+  it('is false for real addresses and missing email', () => {
+    expect(isPrivateRelayEmail('me@gmail.com')).toBe(false);
+    expect(isPrivateRelayEmail('me@icloud.com')).toBe(false);
+    expect(isPrivateRelayEmail(null)).toBe(false);
+    expect(isPrivateRelayEmail(undefined)).toBe(false);
   });
 });

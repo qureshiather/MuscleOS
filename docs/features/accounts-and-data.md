@@ -161,7 +161,9 @@ The tab is three headed cards, in order: **Account**, **Settings**, then **Bioda
 
 `/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. Guests see “Sign in to back up your data and restore Pro on any device.” and a Sign in CTA. The method picker says linking an account backs up your data and restores Pro on any device. Sign out does not wipe local workouts.
 
-Rows on the Account screen: Subscription, Data (`/data`), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only), Privacy Policy, Terms of Service. Legal lives only here — Settings does not repeat it.
+Rows on the Account screen: Subscription, Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only), Privacy Policy, Terms of Service. Legal lives only here — Settings does not repeat it.
+
+**Reaching an account from another platform.** Apple sign-in is iOS-only, and Apple's **Hide My Email** gives the account an `@privaterelay.appleid.com` address that nothing else shares, so Google or email sign-in on Android would create a second account. Apps can't turn Hide My Email off, so **Link Google** on Account calls `linkIdentity` on the signed-in user, which attaches Google whatever the account's email is. It never switches accounts: if that Google login or its email already belongs to another MuscleOS account, a dialog says to choose another Google account. When the email is a relay address and Google isn't linked yet, the identity block says to link Google before signing in on Android. Apple accounts can't add a password.
 
 **Settings** on this tab is a single row into `/settings` (“Appearance, units, sounds”).
 

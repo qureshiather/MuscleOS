@@ -55,6 +55,16 @@ export function applyAuthUser(u: User, _event: AuthChangeEvent, wasAnonymous: bo
   }
 }
 
+/**
+ * Re-read the signed-in user after adding Google or a password, so Account sees the new identity.
+ * Same user id, so no link/sync side effects.
+ */
+export async function refreshAuthUser(): Promise<void> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return;
+  useAuthStore.setState({ user: data.user, profile: userToProfile(data.user) });
+}
+
 export interface AuthState {
   user: User | null;
   isAnonymous: boolean;

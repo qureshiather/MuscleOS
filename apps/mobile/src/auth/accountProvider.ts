@@ -36,14 +36,29 @@ export function authProviderLabel(provider: AuthProvider): string {
   return AUTH_PROVIDER_LABEL[provider];
 }
 
+type IdentityUser = {
+  identities?: { provider: string }[] | null;
+  app_metadata?: { providers?: string[] } | null;
+};
+
+/** True when Apple, Google or email is one of the account's identities. */
+export function hasIdentity(user: IdentityUser, provider: AuthProvider): boolean {
+  if ((user.identities ?? []).some((i) => i.provider === provider)) return true;
+  return (user.app_metadata?.providers ?? []).includes(provider);
+}
+
 /**
  * True when the account can sign in with an email + password, i.e. it has an `email` identity.
  * Apple- and Google-only accounts have no MuscleOS password to change.
  */
-export function hasPasswordSignIn(user: {
-  identities?: { provider: string }[] | null;
-  app_metadata?: { providers?: string[] } | null;
-}): boolean {
-  if ((user.identities ?? []).some((i) => i.provider === 'email')) return true;
-  return (user.app_metadata?.providers ?? []).includes('email');
+export function hasPasswordSignIn(user: IdentityUser): boolean {
+  return hasIdentity(user, 'email');
+}
+
+/**
+ * Apple "Hide My Email" gives us a relay address. Nothing on another platform shares it, so the
+ * account can only be reached from Android once Google is linked.
+ */
+export function isPrivateRelayEmail(email: string | null | undefined): boolean {
+  return (email ?? '').trim().toLowerCase().endsWith('@privaterelay.appleid.com');
 }
