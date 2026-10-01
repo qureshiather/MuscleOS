@@ -25,3 +25,27 @@ export const MUSCLE_ID_TO_DIAGRAM_REGION: Record<MuscleId, Slug> = {
   adductors: 'adductors',
   calves: 'calves',
 };
+
+/** Recovery state of one diagram region, matching the Recovery tab's three colours. */
+export type RegionState = 'ready' | 'recovering' | 'justTrained';
+
+const STATE_RANK: Record<RegionState, number> = { ready: 0, recovering: 1, justTrained: 2 };
+
+/**
+ * Diagram regions for a set of muscles, each with its recovery state. Regions shared by several
+ * muscles (delts, upper back) take the least-recovered state among them.
+ */
+export function regionStatesForMuscles(
+  muscleIds: readonly MuscleId[],
+  recovering: ReadonlySet<MuscleId>,
+  justTrained: ReadonlySet<MuscleId>
+): Partial<Record<Slug, RegionState>> {
+  const states: Partial<Record<Slug, RegionState>> = {};
+  for (const id of muscleIds) {
+    const slug = MUSCLE_ID_TO_DIAGRAM_REGION[id];
+    const state: RegionState = justTrained.has(id) ? 'justTrained' : recovering.has(id) ? 'recovering' : 'ready';
+    const prev = states[slug];
+    if (!prev || STATE_RANK[state] > STATE_RANK[prev]) states[slug] = state;
+  }
+  return states;
+}

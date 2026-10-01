@@ -16,30 +16,66 @@ its effect everywhere, and why there is no cache to invalidate.
 | 1RM & PRs | `apps/mobile/src/utils/oneRepMax.ts` |
 | Strength standards | `apps/mobile/src/data/strengthStandards.ts` |
 | Home stats | `apps/mobile/src/utils/homeStats.ts` |
-| Volume & duration | `apps/mobile/src/utils/sessionStats.ts` |
+| Volume, duration & set lines | `apps/mobile/src/utils/sessionStats.ts` |
+| History card PRs, volume change, weeks | `apps/mobile/src/utils/historyCards.ts` |
+| History card | `apps/mobile/src/components/history/SessionCard.tsx` |
 | Store | `apps/mobile/src/store/sessionsStore.ts` |
 
 ## History list
 
-Sessions with a `completedAt`, **newest first**. No grouping by day or week, and **no pagination
-or limit** — the entire history renders in one scroll view.
+Sessions with a `completedAt`, **newest first**, grouped under **Monday-start local week**
+headers (`groupSessionsByWeek()`). **No pagination or limit**: the entire history renders in one
+scroll view.
 
-Each card shows:
+Each week header shows a label and a summary:
 
 | Element | Detail |
 |---------|--------|
-| Date | Weekday, short month, day |
+| Label | `This week`, `Last week`, otherwise `Week of Sep 7` (`Week of Dec 1, 2025` for an earlier year) |
+| Summary | `N sessions · <volume>`. Volume is the week's total in the user's unit, whole numbers below 10,000 (`8,240 kg`) and one decimal in thousands above (`12.1k kg`, `formatCompactVolume`). Omitted when the week has no volume |
+
+### Session cards
+
+Cards are **compact and expand on tap**. The newest session starts expanded; every other card
+starts collapsed. Expansion is per-visit UI state and isn't persisted.
+
+Collapsed, a card shows:
+
+| Element | Detail |
+|---------|--------|
+| Date | Short weekday, short month, day: `Sun, Sep 27` |
+| ⋯ button | Opens the session menu (see [Deleting a session](#deleting-a-session)) |
 | Template name | Resolved from `templateId`; falls back to "Workout" |
-| Duration | `completedAt − startedAt`, to the nearest minute: `45m`, `1h 15m`, `2h` |
-| Volume | Σ `weightKg × reps` over completed sets |
-| Exercises | Only those with at least one completed set |
-| Sets | Completed sets as chips in the user's weight unit: `8`, `? @ 60 kg`, `8 @ 135 lb` (`formatSetLabel`). Kilograms keep up to 2 decimals (`20.25`), pounds 1, and trailing zeros drop (`60`, not `60.0`) |
+| Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero |
+| Volume change | `↑4%` (success colour) or `↓3%` (danger colour) against the **previous completed session of the same template** (`buildVolumeDeltas()`), rounded to a whole percent. Hidden at 0%, for the first session of a template, when either volume is zero, and for empty workouts (`_empty`) |
+| Summary line | `6 exercises · 18 sets`, counting only exercises with a completed set and only completed sets, plus `· 2 PRs` when there are PRs (Pro only) |
 
-Volume is shown in the user's weight unit, rounded to a whole number (`formatVolume`): `16,456 kg`
-or `36,280 lb`.
+Expanded, it adds one row per exercise with at least one completed set: the exercise name, a
+**PR** badge when that exercise set a PR in this session (Pro only), and its completed sets as one
+line (`formatSetGroups`):
 
-**There is no session detail screen.** All detail is inline on the card, so cards aren't
-navigable.
+| Sets | Line |
+|------|------|
+| Same weight, same reps | `3 × 8 @ 70 kg` |
+| Same weight, reps differ | `10 / 10 / 9 @ 60 kg` |
+| Weight changes | `8 @ 70 · 8 @ 80 · 6 @ 85 kg`, `2 × 5 @ 100 · 3 @ 110 kg` |
+| Bodyweight only | `10 / 8 / 7`, `2 × 12` |
+| Bodyweight and weighted | `12 BW · 2 × 8 @ 10 kg` |
+| Missing reps | `? @ 60 kg` |
+
+Only **consecutive** sets at the same displayed weight merge, so the line reads in the order the
+sets were done; returning to an earlier weight starts a new group. The unit appears once, at the
+end, and only when the line has a weighted set. Weights are grouped on the displayed value:
+kilograms keep up to 2 decimals (`20.25`), pounds 1, and trailing zeros drop (`60`, not `60.0`).
+Long lines wrap under the exercise name.
+
+**PRs on the card** (`buildSessionPRs()`): an exercise is a PR in a session when its best
+estimated 1RM there is **strictly greater** than its best in every earlier completed session. It
+uses the same qualifying sets as [Personal records](#personal-records) (completed, weight > 0,
+reps ≥ 1). The first session to log an exercise sets a baseline, not a PR. PR badges and counts are
+part of the `personal_records` Pro feature and are hidden on Basic.
+
+**There is no session detail screen.** All detail is inline on the card.
 
 **Pull to refresh** reloads sessions; with a linked account it runs a cloud sync first.
 
@@ -47,7 +83,8 @@ The header has two Pro shortcuts: a trophy to Personal Records and a calendar to
 
 ### Deleting a session
 
-Confirmation: *"Removes this session from history and its recovery impact. This cannot be undone."*
+The card's ⋯ button opens a menu (an action sheet on iOS, an alert on Android) with **Delete
+workout**. Choosing it asks for confirmation: *"Removes this session from history and its recovery impact. This cannot be undone."*
 
 `deleteSession` then:
 
@@ -173,7 +210,8 @@ No weekly volume, rep count, or duration is computed here.
 
 ## Volume
 
-The only place volume is computed is the history card, via `sessionVolumeKg()`:
+Volume is computed only on the History tab (session cards, week headers, and the volume change),
+always via `sessionVolumeKg()`:
 
 ```ts
 for (const se of session.exercises)
@@ -217,6 +255,7 @@ Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export
 | Screen / action | Gate key |
 |-----------------|----------|
 | Personal records (trophy button, screen) | `personal_records` |
+| PR badges and PR counts on history cards | `personal_records` (hidden, not paywalled) |
 | Monthly calendar (calendar button, screen) | `monthly_calendar` |
 | Exercise progression (PR card tap, screen) | `exercise_progression` |
 
@@ -251,8 +290,13 @@ Covered:
   elite has no next level, female vs male tables, unsupported exercises, the disabled pull-up table,
   zero bodyweight
 - `src/utils/sessionStats.test.ts` — volume over completed sets with warm-ups included and missing
-  weight/reps as zero; duration formatting and rounding; `formatSetLabel` / `formatVolume` in kg
-  and lb
+  weight/reps as zero; duration formatting and rounding; `formatSetGroups` (collapsing, weight
+  changes, consecutive-only merging, bodyweight and `BW`, pounds, missing reps); `formatVolume` and
+  `formatCompactVolume` in kg and lb
+- `src/utils/historyCards.test.ts` — card PRs (strictly greater e1RM than all earlier sessions,
+  first session is a baseline, ties aren't PRs, bodyweight/incomplete/in-progress ignored); volume
+  change vs the previous session of the same template, skipping empty workouts and zero volume;
+  Monday-start week buckets, labels, and week volume
 - `src/store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`: most recent qualifying
   session, not the all-time best; skips sessions with no completed weighted set and in-progress ones
 

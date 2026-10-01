@@ -98,6 +98,7 @@ paywall — if you add one, add a row.
 | `create-exercise.tsx` | Screen entry | `custom_exercises` |
 | `(tabs)/exercises.tsx` | **+** button and create-from-search | `custom_exercises` |
 | `(tabs)/history.tsx` | Trophy and calendar header buttons | `personal_records`, `monthly_calendar` |
+| `(tabs)/history.tsx` | PR badges and PR counts on session cards | `personal_records` (hidden on Basic, no paywall) |
 | `personal-records.tsx` | Screen entry | `personal_records` |
 | `exercise-progression.tsx` | Screen entry | `exercise_progression` |
 | `history-monthly.tsx` | Screen entry | `monthly_calendar` |

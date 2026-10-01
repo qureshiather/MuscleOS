@@ -116,12 +116,32 @@ If a session is already in progress, the themed "Workout in progress" dialog is 
 (see [workout-logging](workout-logging.md#starting)).
 
 **3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid, chosen by
-[recommendTemplates](#suggested-templates).
+[recommendTemplates](#suggested-templates). Each is a [muscle art card](#muscle-art-cards) with
+the name and exercise count.
 
 **4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
 most recent first, deduplicated by template and **excluding anything already in Suggested**, hidden
 templates, and templates your tier can't start (`pickRecentTemplates()` in
-`src/utils/recentTemplates.ts`). Shows relative completion time.
+`src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
+relative completion time.
+
+### Muscle art cards
+
+Suggested and Recent cards have no description or reason text. Behind the name, the template's
+muscles are drawn as a **zoomed body figure** that bleeds off the card's right edge and fades into
+the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
+
+- **Muscles:** every muscle of every exercise in the template, mapped onto the Recovery diagram's
+  regions (`MUSCLE_ID_TO_DIAGRAM_REGION`).
+- **Colours:** each region uses the Recovery tab's colours for its current state: ready, recovering,
+  or just trained (`regionStatesForMuscles()`). A region shared by several muscles (delts, upper
+  back) takes the least-recovered state.
+- **Side:** front or back, whichever shows more of the lit regions by summed bounding-box area;
+  ties go to the front (`pickFigureSide()` in `src/utils/bodyCrop.ts`).
+- **Crop:** the union of the lit regions' boxes, padded by 12% of its larger side, at least 360
+  figure units tall, then widened or heightened around its centre to the art's aspect
+  (`cropToRegions()`). With no resolvable muscles it falls back to a front shoulders-to-waist crop.
+- **Figure:** the same male or female figure as the Recovery tab, from the profile's sex.
 
 **5. "All templates" header.** Pro users also get a new-folder button and a **New** button.
 
@@ -305,6 +325,10 @@ Covered:
   skipped, name tie-break, the limit, and the −8-per-overlap diversification
 - `src/utils/recentTemplates.test.ts` — Recent: newest first, one per template, excludes
   Suggested / hidden / unstartable, capped at 6
+- `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
+  posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
+- `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
+  regions
 - `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
 - `src/subscription/features.test.ts` — `requiresProToStart` for built-in vs custom; 9 built-ins
 - `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
@@ -318,4 +342,5 @@ Not covered:
 - `workout-preview.tsx` entry guards
 - Home screen composition: section visibility and collapsible defaults (Suggested/Recent selection
   is covered as pure functions)
+- Muscle art rendering (the crop and colour rules are covered as pure functions)
 - Pro gate behaviour on locked cards and the empty-workout hero
