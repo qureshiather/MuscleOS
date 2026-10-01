@@ -1,6 +1,6 @@
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
-import { MUSCLE_ID_TO_DIAGRAM_REGION, regionStatesForMuscles } from './muscleDiagramRegions';
+import { focusRegions, MUSCLE_ID_TO_DIAGRAM_REGION, regionStatesForMuscles } from './muscleDiagramRegions';
 
 describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
   it('maps all 18 muscle ids onto 15 regions', () => {
@@ -36,5 +36,27 @@ describe('regionStatesForMuscles', () => {
       deltoids: 'recovering',
     });
     expect(regionStatesForMuscles(['lats', 'rhomboids'], new Set(), new Set())).toEqual({ 'upper-back': 'ready' });
+  });
+});
+
+describe('focusRegions', () => {
+  it('drops regions only one accessory exercise trains', () => {
+    const focus = focusRegions([
+      ['quads', 'glutes'],
+      ['hamstrings', 'glutes', 'lower_back'],
+      ['quads', 'glutes'],
+      ['hamstrings'],
+      ['calves'],
+      ['abs'],
+    ]);
+    expect(focus.sort()).toEqual(['gluteal', 'hamstring', 'quadriceps']);
+  });
+
+  it('counts a shared region once per exercise', () => {
+    expect(focusRegions([['front_delts', 'side_delts', 'rear_delts'], ['chest']]).sort()).toEqual(['chest', 'deltoids']);
+  });
+
+  it('is empty with no muscles', () => {
+    expect(focusRegions([])).toEqual([]);
   });
 });

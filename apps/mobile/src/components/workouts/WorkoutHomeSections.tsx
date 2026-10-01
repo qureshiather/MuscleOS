@@ -11,7 +11,11 @@ import type { FigureGender } from '@/utils/bodyCrop';
 import type { RegionState } from '@/utils/muscleDiagramRegions';
 import { MuscleZoomArt, ZoomFade } from '@/components/workouts/MuscleZoomArt';
 
-export type TemplateRegions = (template: WorkoutTemplate) => Partial<Record<Slug, RegionState>>;
+export type TemplateArt = {
+  regions: Partial<Record<Slug, RegionState>>;
+  focus: Slug[];
+};
+export type TemplateRegions = (template: WorkoutTemplate) => TemplateArt;
 
 const SUGGESTED_CARD_HEIGHT = 132;
 const RECENT_CARD_HEIGHT = 112;
@@ -22,7 +26,7 @@ const ART_RIGHT_BLEED = 0.06;
 
 type ZoomCardProps = {
   template: WorkoutTemplate;
-  regions: Partial<Record<Slug, RegionState>>;
+  art: TemplateArt;
   gender: FigureGender;
   height: number;
   width?: number;
@@ -32,7 +36,7 @@ type ZoomCardProps = {
 };
 
 /** Template card with the trained muscles as zoomed body art behind the name. */
-function ZoomCard({ template, regions, gender, height, width, subtitle, accessibilityLabel, onPress }: ZoomCardProps) {
+function ZoomCard({ template, art, gender, height, width, subtitle, accessibilityLabel, onPress }: ZoomCardProps) {
   const { colors, isDark } = useTheme();
   const [measured, setMeasured] = useState(width ?? 0);
   const cardWidth = width ?? measured;
@@ -58,7 +62,7 @@ function ZoomCard({ template, regions, gender, height, width, subtitle, accessib
             pointerEvents="none"
             style={[styles.art, { right: -cardWidth * ART_RIGHT_BLEED, top: (height - artH) / 2 }]}
           >
-            <MuscleZoomArt regions={regions} gender={gender} width={artW} height={artH} />
+            <MuscleZoomArt regions={art.regions} focus={art.focus} gender={gender} width={artW} height={artH} />
           </View>
           <ZoomFade width={cardWidth} height={height} color={colors.surface} />
         </>
@@ -101,7 +105,7 @@ export function RecentWorkoutsRow({ items, onPress, formatRelative, getRegions, 
           <ZoomCard
             key={session.id}
             template={template}
-            regions={getRegions(template)}
+            art={getRegions(template)}
             gender={gender}
             width={cardWidth}
             height={RECENT_CARD_HEIGHT}
@@ -137,7 +141,7 @@ export function SuggestedWorkoutsGrid({ items, onPress, getRegions, gender }: Su
         <ZoomCard
           key={template.id}
           template={template}
-          regions={getRegions(template)}
+          art={getRegions(template)}
           gender={gender}
           height={SUGGESTED_CARD_HEIGHT}
           accessibilityLabel={`${template.name}, ${template.exerciseIds.length} exercises`}

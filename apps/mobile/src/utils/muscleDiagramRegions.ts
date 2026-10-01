@@ -49,3 +49,19 @@ export function regionStatesForMuscles(
   }
   return states;
 }
+
+/**
+ * The regions a template is mostly about: each region counts once per exercise that trains it,
+ * and regions hit at least half as often as the most-hit region make the cut. Keeps one accessory
+ * exercise (plank on leg day) from widening the muscle art crop.
+ */
+export function focusRegions(exerciseMuscles: readonly (readonly MuscleId[])[]): Slug[] {
+  const counts = new Map<Slug, number>();
+  for (const muscles of exerciseMuscles) {
+    for (const slug of new Set(muscles.map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]))) {
+      counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    }
+  }
+  const max = Math.max(0, ...counts.values());
+  return [...counts].filter(([, n]) => n * 2 >= max).map(([slug]) => slug);
+}

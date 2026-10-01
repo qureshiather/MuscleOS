@@ -27,7 +27,8 @@ import { formatRelative } from '@/utils/relativeTime';
 import { recommendTemplates } from '@/utils/recommendTemplates';
 import { pickRecentTemplates } from '@/utils/recentTemplates';
 import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
-import { regionStatesForMuscles } from '@/utils/muscleDiagramRegions';
+import { focusRegions, regionStatesForMuscles } from '@/utils/muscleDiagramRegions';
+import type { TemplateArt } from '@/components/workouts/WorkoutHomeSections';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -260,21 +261,25 @@ export default function WorkoutsScreen() {
   );
 
   /** Suggested and Recent card art: each template's muscles, coloured by recovery state. */
-  const templateRegions = useMemo(() => {
+  const templateArt = useMemo(() => {
     const active = activeRecovery();
     const recovering = new Set(active.map((r) => r.muscleId));
     const justTrained = new Set(justTrainedMuscleIds(active));
-    const cache = new Map<string, ReturnType<typeof regionStatesForMuscles>>();
-    return (template: WorkoutTemplate) => {
-      let regions = cache.get(template.id);
-      if (!regions) {
-        regions = regionStatesForMuscles(templateMuscles(template), recovering, justTrained);
-        cache.set(template.id, regions);
+    const cache = new Map<string, TemplateArt>();
+    return (template: WorkoutTemplate): TemplateArt => {
+      let art = cache.get(template.id);
+      if (!art) {
+        const perExercise = template.exerciseIds.map((id) => getExercise(id)?.muscles ?? []);
+        art = {
+          regions: regionStatesForMuscles(perExercise.flat(), recovering, justTrained),
+          focus: focusRegions(perExercise),
+        };
+        cache.set(template.id, art);
       }
-      return regions;
+      return art;
     };
     // recoveryItems changes whenever activeRecovery() would return something new.
-  }, [recoveryItems, activeRecovery, templateMuscles]);
+  }, [recoveryItems, activeRecovery, getExercise]);
 
   const suggestedWorkouts = useMemo(() => {
     const recoveringMuscleIds = new Set(
@@ -855,7 +860,7 @@ export default function WorkoutsScreen() {
               <SuggestedWorkoutsGrid
                 items={suggestedWorkouts}
                 onPress={handleStartTemplate}
-                getRegions={templateRegions}
+                getRegions={templateArt}
                 gender={figureGender}
               />
             </View>
@@ -868,7 +873,7 @@ export default function WorkoutsScreen() {
                 items={recentWorkouts}
                 onPress={handleStartTemplate}
                 formatRelative={formatRelative}
-                getRegions={templateRegions}
+                getRegions={templateArt}
                 gender={figureGender}
               />
             </View>

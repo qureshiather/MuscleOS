@@ -25,20 +25,22 @@ function pathsOf(part: BodyPart): string[] {
 
 type MuscleZoomArtProps = {
   regions: Partial<Record<Slug, RegionState>>;
+  /** Regions to frame; the rest stay coloured but may fall outside the crop. Empty → all lit. */
+  focus: readonly Slug[];
   gender: FigureGender;
   width: number;
   height: number;
 };
 
 /**
- * Body figure zoomed onto the lit regions, each coloured by recovery state. Sized by the caller;
+ * Body figure zoomed onto the template's focus regions, with every lit region coloured by recovery state. Sized by the caller;
  * the crop is computed to the exact aspect so the figure fills the box.
  */
-export const MuscleZoomArt = memo(function MuscleZoomArt({ regions, gender, width, height }: MuscleZoomArtProps) {
+export const MuscleZoomArt = memo(function MuscleZoomArt({ regions, focus, gender, width, height }: MuscleZoomArtProps) {
   const { colors, isDark } = useTheme();
   const { side, viewBox } = useMemo(
-    () => cropToRegions(Object.keys(regions) as Slug[], gender, width / height),
-    [regions, gender, width, height]
+    () => cropToRegions(focus.length > 0 ? focus : (Object.keys(regions) as Slug[]), gender, width / height),
+    [regions, focus, gender, width, height]
   );
 
   const stateColor: Record<RegionState, string> = {

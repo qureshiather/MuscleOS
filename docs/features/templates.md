@@ -136,9 +136,12 @@ the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
 - **Colours:** each region uses the Recovery tab's colours for its current state: ready, recovering,
   or just trained (`regionStatesForMuscles()`). A region shared by several muscles (delts, upper
   back) takes the least-recovered state.
-- **Side:** front or back, whichever shows more of the lit regions by summed bounding-box area;
+- **Focus:** the crop frames only the regions the template is mostly about. Each region counts
+  once per exercise that trains it, and regions hit at least half as often as the most-hit region
+  are kept (`focusRegions()`), so Plank on leg day colours the abs without zooming out to them.
+- **Side:** front or back, whichever shows more of the focus regions by summed bounding-box area;
   ties go to the front (`pickFigureSide()` in `src/utils/bodyCrop.ts`).
-- **Crop:** the union of the lit regions' boxes, padded by 12% of its larger side, at least 360
+- **Crop:** the union of the focus regions' boxes, padded by 12% of its larger side, at least 360
   figure units tall, then widened or heightened around its centre to the art's aspect
   (`cropToRegions()`). With no resolvable muscles it falls back to a front shoulders-to-waist crop.
 - **Figure:** the same male or female figure as the Recovery tab, from the profile's sex.
@@ -328,7 +331,7 @@ Covered:
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
-  regions
+  regions; focus regions drop one-off accessory regions and count shared regions once per exercise
 - `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
 - `src/subscription/features.test.ts` — `requiresProToStart` for built-in vs custom; 9 built-ins
 - `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
