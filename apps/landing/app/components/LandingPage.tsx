@@ -153,21 +153,12 @@ export function LandingPage() {
         <section className="relative">
           <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-8 px-5 pb-12 pt-8 sm:gap-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-24 lg:pt-16">
             <div className="max-w-xl">
-              <p className="font-mono-label mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-primary sm:mb-4">
-                Workout tracker
-              </p>
-
               <h1 className="font-display text-[clamp(2.5rem,9vw,5rem)] font-extrabold leading-[0.95] tracking-tight text-ink">
                 MuscleOS
               </h1>
 
               <p className="mt-3 text-lg font-semibold leading-snug text-primary sm:mt-4 sm:text-2xl">
                 Log your workouts and track muscle recovery.
-              </p>
-
-              <p className="mt-3 max-w-md text-base leading-relaxed text-ink-secondary sm:mt-4 sm:text-lg">
-                Track sets, reps, weight, and rest. Review your workout history and see which
-                muscles are ready to train.
               </p>
 
               <div className="mt-6 sm:mt-8">
