@@ -153,7 +153,7 @@ on Android).
 
 The tab is three headed cards, in order: **Account**, **Settings**, then **Biodata**. Each card is one row that pushes a screen.
 
-**Account** on this tab shows the linked identity without opening `/account`: the provider icon, **Apple ID**, **Google**, or **Email** (resolved from Supabase identities), the display name when set, and the email. A chevron still opens `/account`. Guests see **Email, Google, Apple sign in** and “Back up your data and restore Pro on any device.”
+**Account** on this tab shows the linked identity without opening `/account`: the provider icon, **Apple ID**, **Google**, or **Email** (resolved from Supabase identities), the display name when set, and the email. A chevron still opens `/account`. Guests see **Sign in or create an account** and “Back up your data and restore Pro on any device.”
 
 `/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. Guests see “Sign in to back up your data and restore Pro on any device.” and a Sign in CTA. The method picker says linking an account backs up your data and restores Pro on any device. Sign out does not wipe local workouts.
 

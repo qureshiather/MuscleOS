@@ -78,7 +78,7 @@ export default function ProfileScreen() {
               ) : (
                 <>
                   <Text style={[typography.bodyMedium, { color: colors.text, marginTop: spacing.sm }]}>
-                    Email, Google, Apple sign in
+                    Sign in or create an account
                   </Text>
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
                     Back up your data and restore Pro on any device.
