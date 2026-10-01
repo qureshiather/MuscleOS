@@ -18,12 +18,12 @@ Tests live next to the code they cover as `*.test.ts`, primarily under
 
 ## Current state
 
-**38 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
+**41 test files.** Mostly pure-function unit tests. There is still **no React Native renderer**, so
 the screens themselves and a store's live wiring (debounced persist, `AppState` listener) aren't
 exercised end-to-end. The workflow *rules* those layers enforce have been pulled out into pure
 modules (`activeWorkoutLogic`, `workoutFinish`, `workoutSetView`, `templatesLogic`,
-`workoutNotificationCopy`, `recentTemplates`, `sessionStats`, `exerciseIds`,
-`muscleDiagramRegions`, and the recovery helpers) that the stores and screens import, so the
+`workoutNotificationCopy`, `recentTemplates`, `sessionStats`, `historyCards`, `bodyCrop`,
+`exerciseIds`, `muscleDiagramRegions`, and the recovery helpers) that the stores and screens import, so the
 documented behaviour is covered without a renderer.
 
 A **lightweight harness** (`src/test/mocks/`, wired via `vitest.config.mts` aliases) swaps
@@ -43,9 +43,11 @@ re-import the store per test with `vi.resetModules()` because it holds module-le
 | `apps/mobile/src/utils/recommendTemplates.test.ts` | Scoring arithmetic, 50% cut-off, tie-break, limit, −8 overlap diversification |
 | `apps/mobile/src/utils/recentTemplates.test.ts` | Recent row: newest first, one per template, excludes Suggested/hidden/unstartable, cap 6 |
 | `apps/mobile/src/utils/relativeTime.test.ts` | Every `formatRelative` and `formatRecoveryReady` branch |
-| `apps/mobile/src/utils/sessionStats.test.ts` | History volume (completed sets, warm-ups included), duration formatting, and set/volume labels in kg and lb |
+| `apps/mobile/src/utils/sessionStats.test.ts` | History volume (completed sets, warm-ups included), duration formatting, grouped set lines and volume labels in kg and lb |
+| `apps/mobile/src/utils/historyCards.test.ts` | History card PRs, volume change vs the same template, Monday-start week grouping |
+| `apps/mobile/src/utils/bodyCrop.test.ts` | Muscle art card side choice and crop box |
 | `apps/mobile/src/utils/exerciseIds.test.ts` | Custom id numbering, alias resolution, catalog invariants |
-| `apps/mobile/src/utils/muscleDiagramRegions.test.ts` | 18 muscle ids onto 15 diagram regions |
+| `apps/mobile/src/utils/muscleDiagramRegions.test.ts` | 18 muscle ids onto 15 diagram regions; region recovery states |
 | `apps/mobile/src/data/strengthStandards.test.ts` | Band selection, next-level target, sex tables, unsupported and pull-up paths |
 | `apps/mobile/src/subscription/pricing.test.ts` | List prices and annual savings |
 | `apps/mobile/src/sync/mergePolicy.test.ts` | Conflict decision branches, outbox clock bump, map/settings merges |

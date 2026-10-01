@@ -1,6 +1,6 @@
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
-import { MUSCLE_ID_TO_DIAGRAM_REGION } from './muscleDiagramRegions';
+import { focusRegions, MUSCLE_ID_TO_DIAGRAM_REGION, regionStatesForMuscles } from './muscleDiagramRegions';
 
 describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
   it('maps all 18 muscle ids onto 15 regions', () => {
@@ -18,5 +18,59 @@ describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
   it('keeps adductors as their own region and abductors on the glutes', () => {
     expect(MUSCLE_ID_TO_DIAGRAM_REGION.adductors).toBe('adductors');
     expect(MUSCLE_ID_TO_DIAGRAM_REGION.glutes).toBe('gluteal');
+  });
+});
+
+describe('regionStatesForMuscles', () => {
+  it('marks each region ready, recovering, or just trained', () => {
+    const states = regionStatesForMuscles(
+      ['chest', 'triceps', 'quads'],
+      new Set(['chest', 'triceps']),
+      new Set(['triceps'])
+    );
+    expect(states).toEqual({ chest: 'recovering', triceps: 'justTrained', quadriceps: 'ready' });
+  });
+
+  it('gives a shared region the least-recovered state of its muscles', () => {
+    expect(regionStatesForMuscles(['front_delts', 'rear_delts'], new Set(['rear_delts']), new Set())).toEqual({
+      deltoids: 'recovering',
+    });
+    expect(regionStatesForMuscles(['lats', 'rhomboids'], new Set(), new Set())).toEqual({ 'upper-back': 'ready' });
+  });
+});
+
+describe('focusRegions', () => {
+  it('drops regions only one accessory exercise trains', () => {
+    const focus = focusRegions([
+      ['quads', 'glutes'],
+      ['hamstrings', 'glutes', 'lower_back'],
+      ['quads', 'glutes'],
+      ['hamstrings'],
+      ['calves'],
+      ['abs'],
+    ]);
+    expect(focus.sort()).toEqual(['gluteal', 'hamstring', 'quadriceps']);
+  });
+
+  it('keeps a main muscle even when another region is hit far more often', () => {
+    // Built-in Push: triceps in 5 exercises, chest in 2.
+    const focus = focusRegions([
+      ['chest', 'front_delts', 'triceps'],
+      ['front_delts', 'side_delts', 'triceps'],
+      ['chest', 'front_delts', 'triceps'],
+      ['side_delts'],
+      ['triceps'],
+      ['triceps'],
+    ]);
+    expect(focus.sort()).toEqual(['chest', 'deltoids', 'triceps']);
+  });
+
+  it('counts a shared region once per exercise', () => {
+    expect(focusRegions([['front_delts', 'side_delts', 'rear_delts'], ['chest']]).sort()).toEqual(['chest', 'deltoids']);
+  });
+
+  it('keeps every region when none repeats, and is empty with no muscles', () => {
+    expect(focusRegions([['lats'], ['biceps']]).sort()).toEqual(['biceps', 'upper-back']);
+    expect(focusRegions([])).toEqual([]);
   });
 });

@@ -1,5 +1,13 @@
-import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+  LayoutAnimation,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
@@ -12,29 +20,21 @@ import { useProGate } from '@/hooks/useProGate';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
-import { Card } from '@/components/ui/Card';
-import { StatChip } from '@/components/ui/StatChip';
-import type { WorkoutSession, SessionExercise } from '@muscleos/types';
+import { SessionCard } from '@/components/history/SessionCard';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import type { WorkoutSession } from '@muscleos/types';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 import { fontScaleCap } from '@/theme/layout';
-import { formatSessionDuration, formatSetLabel, formatVolume, sessionVolumeKg } from '@/utils/sessionStats';
+import { formatCompactVolume } from '@/utils/sessionStats';
+import { buildSessionPRs, buildVolumeDeltas, groupSessionsByWeek } from '@/utils/historyCards';
 import { useSettingsStore } from '@/store/settingsStore';
-
-function formatSessionDate(isoDate: string): string {
-  const d = new Date(isoDate);
-  return d.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 export default function HistoryScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { gatePro } = useProGate();
-  const { load: loadSessions, completedSessions, deleteSession } = useSessionsStore();
+  const { gatePro, isPro } = useProGate();
+  const { load: loadSessions, sessions, completedSessions, deleteSession } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const loadRecovery = useRecoveryStore((s) => s.load);
   const getExercise = useExercisesStore((s) => s.getExercise);
@@ -62,31 +62,38 @@ export default function HistoryScreen() {
     }, [loadSessions])
   );
 
-  const completed = completedSessions();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: completedSessions() reads `sessions` from the store.
+  const completed = useMemo(() => completedSessions(), [sessions, completedSessions]);
   const templates = allTemplates();
   const getTemplateName = (templateId: string) =>
     templates.find((t) => t.id === templateId)?.name ?? 'Workout';
 
-  function exercisesWithCompletedSets(session: WorkoutSession): SessionExercise[] {
-    return session.exercises.filter((se) => se.sets.some((s) => s.completed));
-  }
+  const weeks = useMemo(() => groupSessionsByWeek(completed), [completed]);
+  const sessionPRs = useMemo(() => buildSessionPRs(completed), [completed]);
+  const volumeDeltas = useMemo(() => buildVolumeDeltas(completed), [completed]);
 
-  function handleDeleteSession(session: WorkoutSession) {
-    Alert.alert(
-      'Delete workout',
-      'Removes this session from history and its recovery impact. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteSession(session.id);
-            loadRecovery();
-          },
-        },
-      ]
-    );
+  // The newest session starts open; every other card starts collapsed. `toggled` flips either.
+  const newestId = completed[0]?.id;
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
+  const isExpanded = (id: string) => toggled.has(id) !== (id === newestId);
+  const toggle = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setToggled((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const [deleteTarget, setDeleteTarget] = useState<WorkoutSession | null>(null);
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
+    await deleteSession(id);
+    loadRecovery();
   }
 
   return (
@@ -149,90 +156,49 @@ export default function HistoryScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
         >
-          <View style={styles.cardsContainer}>
-            {completed.map((s) => {
-              const exercises = exercisesWithCompletedSets(s);
-              const duration = formatSessionDuration(s);
-              const volume = sessionVolumeKg(s);
-              return (
-                <Card key={s.id} style={styles.workoutCard}>
-                  <View style={styles.cardHeader}>
-                    <Text style={[typography.caption, styles.cardDate, { color: colors.textSecondary }]}>
-                      {s.completedAt ? formatSessionDate(s.completedAt) : ''}
-                    </Text>
-                    <Pressable
-                      onPress={() => handleDeleteSession(s)}
-                      hitSlop={8}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: spacing.xs }]}
-                    >
-                      <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
-                    </Pressable>
-                  </View>
-                  <Text style={[typography.bodyMedium, styles.cardTitle, { color: colors.text }]}>
-                    {getTemplateName(s.templateId)}
-                  </Text>
-                  {(duration || volume > 0) && (
-                    <View style={styles.statsRow}>
-                      {duration ? <StatChip icon="time-outline" label={duration} /> : null}
-                      {volume > 0 ? (
-                        <StatChip
-                          icon="barbell-outline"
-                          label={formatVolume(volume, weightUnit)}
-                        />
-                      ) : null}
-                    </View>
-                  )}
-                  {exercises.length > 0 && (
-                    <View
-                      style={[
-                        styles.exerciseList,
-                        {
-                          borderLeftColor: colors.primary + '55',
-                          backgroundColor: colors.background,
-                        },
-                      ]}
-                    >
-                      {exercises.map((se, idx) => {
-                        const completedSets = se.sets.filter((set) => set.completed);
-                        const exerciseName = getExercise(se.exerciseId)?.name ?? se.exerciseId;
-                        const isLast = idx === exercises.length - 1;
-                        return (
-                          <View
-                            key={`${se.exerciseId}-${idx}`}
-                            style={[styles.exerciseRow, isLast && styles.exerciseRowLast]}
-                          >
-                            <Text
-                              style={[typography.label, { color: colors.text }]}
-                              numberOfLines={1}
-                            >
-                              {exerciseName}
-                            </Text>
-                            <View style={styles.setsRow}>
-                              {completedSets.map((set, setIdx) => (
-                                <View
-                                  key={setIdx}
-                                  style={[styles.setChip, { backgroundColor: colors.surfaceElevated }]}
-                                >
-                                  <Text
-                                    style={[typography.caption, styles.setChipText, { color: colors.textSecondary }]}
-                                    numberOfLines={1}
-                                  >
-                                    {formatSetLabel(set, weightUnit)}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </Card>
-              );
-            })}
-          </View>
+          {weeks.map((week) => (
+            <View key={week.weekStart} style={styles.week}>
+              <View style={styles.weekHeader}>
+                <Text style={[styles.weekLabel, { color: colors.textMuted }]}>{week.label}</Text>
+                <Text style={[styles.weekStats, { color: colors.textMuted }]}>
+                  {week.sessions.length} {week.sessions.length === 1 ? 'session' : 'sessions'}
+                  {week.volumeKg > 0 ? ` · ${formatCompactVolume(week.volumeKg, weightUnit)}` : ''}
+                </Text>
+              </View>
+              <View style={styles.cardsContainer}>
+                {week.sessions.map((s) => (
+                  <SessionCard
+                    key={s.id}
+                    session={s}
+                    title={getTemplateName(s.templateId)}
+                    expanded={isExpanded(s.id)}
+                    onToggle={() => toggle(s.id)}
+                    onDelete={() => setDeleteTarget(s)}
+                    prExerciseIds={isPro ? sessionPRs.get(s.id) : undefined}
+                    volumeDelta={volumeDeltas.get(s.id)}
+                    getExerciseName={(id) => getExercise(id)?.name ?? id}
+                    weightUnit={weightUnit}
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
         </ScrollView>
       )}
+      <ConfirmDialog
+        visible={deleteTarget != null}
+        title="Delete workout"
+        message="Removes this session from history and its recovery impact. This cannot be undone."
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          void handleConfirmDelete();
+        }}
+        cancelTestID="delete-session-keep"
+        confirmTestID="delete-session-confirm"
+      />
     </Screen>
   );
 }
@@ -276,41 +242,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: { textAlign: 'center', marginTop: spacing.sm },
-  cardsContainer: { gap: spacing.md },
-  workoutCard: {
-    padding: spacing.md + 2,
-  },
-  cardHeader: {
+  week: { marginBottom: spacing.lg },
+  weekHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs / 2,
+    alignItems: 'baseline',
+    marginBottom: spacing.sm,
+    paddingHorizontal: 2,
   },
-  cardDate: { textTransform: 'capitalize', letterSpacing: 0.2 },
-  cardTitle: { marginBottom: spacing.sm },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
-  exerciseList: {
-    marginTop: spacing.xs,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.sm + 2,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.sm,
-    borderLeftWidth: 3,
-  },
-  exerciseRow: { marginBottom: spacing.sm },
-  exerciseRowLast: { marginBottom: 0 },
-  setsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs + 2,
-    marginTop: spacing.xs,
-  },
-  setChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm - 2,
-  },
-  setChipText: {
-    fontFamily: typography.data.fontFamily,
-  },
+  weekLabel: { ...typography.caption, fontFamily: typography.label.fontFamily, textTransform: 'uppercase', letterSpacing: 0.7 },
+  weekStats: { ...typography.caption, fontFamily: typography.data.fontFamily },
+  cardsContainer: { gap: spacing.md },
 });

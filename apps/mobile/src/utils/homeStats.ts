@@ -14,7 +14,7 @@ export type HomeStats = {
 const INVITE = 'Pick a template or start from scratch';
 
 /** Monday 00:00 local time for the week containing `date`. */
-function startOfWeek(date: Date): Date {
+export function startOfWeek(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const daysSinceMonday = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - daysSinceMonday);

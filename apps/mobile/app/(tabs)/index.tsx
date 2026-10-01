@@ -26,7 +26,9 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
 import { recommendTemplates } from '@/utils/recommendTemplates';
 import { pickRecentTemplates } from '@/utils/recentTemplates';
-import { recentlyWorkedMuscleIds } from '@/utils/recovery';
+import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
+import { focusRegions, regionStatesForMuscles } from '@/utils/muscleDiagramRegions';
+import type { TemplateArt } from '@/components/workouts/WorkoutHomeSections';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -74,6 +76,7 @@ export default function WorkoutsScreen() {
   const loadRecovery = useRecoveryStore((s) => s.load);
   const recoveryItems = useRecoveryStore((s) => s.items);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
+  const figureGender = useSettingsStore((s) => (s.profile?.sex === 'female' ? 'female' : 'male'));
   const getExercise = useExercisesStore((s) => s.getExercise);
   const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
@@ -245,6 +248,39 @@ export default function WorkoutsScreen() {
     [templates, isPro]
   );
 
+  const templateMuscles = useCallback(
+    (template: WorkoutTemplate): MuscleId[] => {
+      const muscles: MuscleId[] = [];
+      for (const id of template.exerciseIds) {
+        const exercise = getExercise(id);
+        if (exercise) muscles.push(...exercise.muscles);
+      }
+      return muscles;
+    },
+    [getExercise]
+  );
+
+  /** Suggested and Recent card art: each template's muscles, coloured by recovery state. */
+  const templateArt = useMemo(() => {
+    const active = activeRecovery();
+    const recovering = new Set(active.map((r) => r.muscleId));
+    const justTrained = new Set(justTrainedMuscleIds(active));
+    const cache = new Map<string, TemplateArt>();
+    return (template: WorkoutTemplate): TemplateArt => {
+      let art = cache.get(template.id);
+      if (!art) {
+        const perExercise = template.exerciseIds.map((id) => getExercise(id)?.muscles ?? []);
+        art = {
+          regions: regionStatesForMuscles(perExercise.flat(), recovering, justTrained),
+          focus: focusRegions(perExercise),
+        };
+        cache.set(template.id, art);
+      }
+      return art;
+    };
+    // recoveryItems changes whenever activeRecovery() would return something new.
+  }, [recoveryItems, activeRecovery, getExercise]);
+
   const suggestedWorkouts = useMemo(() => {
     const recoveringMuscleIds = new Set(
       activeRecovery().map((r) => r.muscleId)
@@ -256,14 +292,7 @@ export default function WorkoutsScreen() {
       recoveringMuscleIds,
       recentlyWorkedMuscleIds: recentlyWorked,
       lastDoneByTemplate,
-      getTemplateMuscles: (template) => {
-        const muscles: MuscleId[] = [];
-        for (const id of template.exerciseIds) {
-          const exercise = getExercise(id);
-          if (exercise) muscles.push(...exercise.muscles);
-        }
-        return muscles;
-      },
+      getTemplateMuscles: templateMuscles,
       limit: 2,
     });
   }, [
@@ -276,7 +305,7 @@ export default function WorkoutsScreen() {
     userTemplates,
     isTemplateHidden,
     activeRecovery,
-    getExercise,
+    templateMuscles,
   ]);
 
   /** Recent excludes Suggested so the two home launchers never repeat the same template. */
@@ -831,6 +860,8 @@ export default function WorkoutsScreen() {
               <SuggestedWorkoutsGrid
                 items={suggestedWorkouts}
                 onPress={handleStartTemplate}
+                getRegions={templateArt}
+                gender={figureGender}
               />
             </View>
           )}
@@ -842,6 +873,8 @@ export default function WorkoutsScreen() {
                 items={recentWorkouts}
                 onPress={handleStartTemplate}
                 formatRelative={formatRelative}
+                getRegions={templateArt}
+                gender={figureGender}
               />
             </View>
           )}
