@@ -85,6 +85,13 @@ keeps its id (and any workouts already logged). On a **new device**, that identi
 original user, so link fails with "already linked" and the app signs into that user instead. Empty
 local then takes remote on sync — sessions, templates, customs, notes, previous, biodata.
 
+**Error copy.** Auth, link, sync and export failures never show raw Supabase, Google or Apple
+messages. `friendlyAuthError()` (`src/auth/authErrors.ts`) maps known cases (wrong password, weak
+password, invalid email, rate limits, email send failures, expired links, network and timeouts) to
+plain MuscleOS wording, and anything else to a per-flow fallback. Setup hints such as "Supabase is
+not configured" and the Android emulator DNS tip appear only in `__DEV__` builds; raw errors go to
+`console.warn` in dev.
+
 **Email does not** upgrade the current guest in place — `signUp`/`signInWithPassword` is always a
 different user id unless that email already belongs to an Apple or Google account. Cloud backup is
 **per email**: Apple, Google, or a password with the same address is the same MuscleOS account. That
@@ -444,6 +451,8 @@ Covered:
   `app_settings` payload
 - `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
   sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest re-points RevenueCat.
+- `src/auth/authErrors.test.ts` — known Supabase errors map to plain copy; unknown backend or provider
+  messages never leak (no "supabase", never the raw text) in any flow
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
   `edgeFunctionError.test.ts` — linked-provider resolution, already-linked identity vs in-place
   upgrade, confirm/recovery link parsing, and Edge Function error messages

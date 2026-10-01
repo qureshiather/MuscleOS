@@ -6,6 +6,7 @@ import { withTimeout } from '@/lib/withTimeout';
 import { setAppleAuthorizationCode } from '@/auth/appleAuthCode';
 import { identityAlreadyLinked } from '@/auth/attachAccount';
 import { getGoogleTokens, googleWebClientId } from '@/auth/googleSignIn';
+import { AUTH_UNAVAILABLE_MESSAGE, type AuthErrorContext, friendlyAuthError } from '@/auth/authErrors';
 import { EMAIL_AUTH_REDIRECT } from '@/auth/emailCallback';
 
 const AUTH_REQUEST_TIMEOUT_MS = 15_000;
@@ -88,20 +89,31 @@ async function attachGoogleAfterIdToken(
 }
 
 function authTimeoutMessage(): string {
-  if (Platform.OS === 'android') {
+  if (__DEV__ && Platform.OS === 'android') {
     return (
       'Request timed out. The Android emulator often loses DNS — try Cold Boot Now in Device Manager, ' +
       'restart the emulator, or test on iOS simulator / a physical device. Also check your internet connection.'
     );
   }
-  return 'Request timed out. Check your internet connection on this device and try again.';
+  return friendlyAuthError({ message: 'timed out' }, 'sign_in');
+}
+
+/** Developer setup hints only in dev builds; users get a plain message. */
+function alertNotConfigured(devHint: string): void {
+  Alert.alert('Not available', __DEV__ ? devHint : AUTH_UNAVAILABLE_MESSAGE);
+}
+
+/** Show friendly copy; keep the raw error in dev logs for debugging. */
+function alertAuthError(title: string, error: unknown, context: AuthErrorContext): void {
+  if (__DEV__) console.warn(`[auth] ${title}`, error);
+  Alert.alert(title, friendlyAuthError(error as Parameters<typeof friendlyAuthError>[0], context));
 }
 
 export function useSignIn() {
   async function linkWithApple(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
     if (!isSupabaseConfigured()) {
-      Alert.alert('Not configured', 'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
+      alertNotConfigured('Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
       return false;
     }
     try {
@@ -113,12 +125,12 @@ export function useSignIn() {
       });
       const idToken = cred.identityToken;
       if (!idToken) {
-        Alert.alert('Sign in failed', 'Apple did not return an identity token.');
+        alertAuthError('Sign in failed', null, 'apple');
         return false;
       }
       const { error } = await attachAppleAfterNativeSignIn(idToken);
       if (error) {
-        Alert.alert('Sign in failed', error.message);
+        alertAuthError('Sign in failed', error, 'apple');
         return false;
       }
       if (cred.authorizationCode) {
@@ -138,19 +150,18 @@ export function useSignIn() {
       return true;
     } catch (e) {
       if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
-      Alert.alert('Apple Sign In failed', (e as Error).message);
+      alertAuthError('Apple sign-in failed', e, 'apple');
       return false;
     }
   }
 
   async function linkWithGoogle(): Promise<boolean> {
     if (!isSupabaseConfigured()) {
-      Alert.alert('Not configured', 'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
+      alertNotConfigured('Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
       return false;
     }
     if (!googleWebClientId()) {
-      Alert.alert(
-        'Google Sign-In not configured',
+      alertNotConfigured(
         'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to .env (the Web OAuth client ID) and enable Google in the Supabase Auth providers.'
       );
       return false;
@@ -160,19 +171,19 @@ export function useSignIn() {
       if (!tokens || tokens === 'cancelled') return false;
       const { error } = await attachGoogleAfterIdToken(tokens.idToken, tokens.accessToken);
       if (error) {
-        Alert.alert('Google Sign-In failed', error.message);
+        alertAuthError('Google sign-in failed', error, 'google');
         return false;
       }
       return true;
     } catch (e) {
-      Alert.alert('Google Sign-In failed', (e as Error).message);
+      alertAuthError('Google sign-in failed', e, 'google');
       return false;
     }
   }
 
   async function signInWithEmailOnly(email: string, password: string): Promise<boolean | 'confirm'> {
     if (!isSupabaseConfigured()) {
-      Alert.alert('Not configured', 'Supabase is not configured.');
+      alertNotConfigured('Supabase is not configured.');
       return false;
     }
     try {
@@ -190,7 +201,7 @@ export function useSignIn() {
         if (msg.includes('email not confirmed') || msg.includes('confirm your email')) {
           return 'confirm';
         }
-        Alert.alert('Sign in failed', error.message);
+        alertAuthError('Sign in failed', error, 'sign_in');
         return false;
       }
       if (data.session?.user) {
@@ -202,7 +213,7 @@ export function useSignIn() {
       if (msg.includes('timed out')) {
         Alert.alert('Sign in failed', authTimeoutMessage());
       } else {
-        Alert.alert('Sign in failed', msg || 'Something went wrong.');
+        alertAuthError('Sign in failed', e, 'sign_in');
       }
       return false;
     }
@@ -210,7 +221,7 @@ export function useSignIn() {
 
   async function linkWithEmail(email: string, password: string, displayName?: string): Promise<boolean | 'confirm'> {
     if (!isSupabaseConfigured()) {
-      Alert.alert('Not configured', 'Supabase is not configured.');
+      alertNotConfigured('Supabase is not configured.');
       return false;
     }
     try {
@@ -226,7 +237,7 @@ export function useSignIn() {
         if (error.message.includes('already registered') || error.message.includes('already been registered')) {
           return signInWithEmailOnly(email, password);
         }
-        Alert.alert('Sign up failed', error.message);
+        alertAuthError('Sign up failed', error, 'sign_up');
         return false;
       }
       if (data.session?.user) {
@@ -235,7 +246,7 @@ export function useSignIn() {
       }
       return 'confirm';
     } catch (e) {
-      Alert.alert('Sign up failed', (e as Error).message);
+      alertAuthError('Sign up failed', e, 'sign_up');
       return false;
     }
   }

@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { friendlyAuthError } from '@/auth/authErrors';
 import { ThemeProvider, useTheme, brandColors } from '@/theme/ThemeContext';
 import { useAppFonts } from '@/theme/useAppFonts';
 import { useAuthStore } from '@/store/authStore';
@@ -43,7 +44,8 @@ function EmailAuthLinks() {
       const outcome = await completeEmailCallback(url);
       if (cancelled || outcome.result === 'ignored') return;
       if (outcome.result === 'failed') {
-        Alert.alert('Could not open link', outcome.message);
+        if (__DEV__) console.warn('[auth] email link failed', outcome.message);
+        Alert.alert('Could not open link', friendlyAuthError({ message: outcome.message }, 'link'));
         return;
       }
       router.replace(
