@@ -67,7 +67,8 @@ export default function AccountScreen() {
     try {
       await syncNow();
     } catch (e) {
-      Alert.alert('Sync failed', String(e));
+      if (__DEV__) console.warn('[sync] failed', e);
+      Alert.alert('Sync failed', "Couldn't sync right now. Check your internet connection and try again.");
     }
   }
 

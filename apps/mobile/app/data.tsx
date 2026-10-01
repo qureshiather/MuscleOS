@@ -39,7 +39,8 @@ export default function DataScreen() {
       const ok = await exportAndShareData();
       if (!ok) Alert.alert('Export', 'Sharing is not available on this device.');
     } catch (e) {
-      Alert.alert('Export failed', String(e));
+      if (__DEV__) console.warn('[export] failed', e);
+      Alert.alert('Export failed', "Couldn't export your data. Try again.");
     } finally {
       setExporting(false);
     }
@@ -58,7 +59,8 @@ export default function DataScreen() {
       ]);
       Alert.alert('Synced', 'Your workout data is up to date.');
     } catch (e) {
-      Alert.alert('Sync failed', String(e));
+      if (__DEV__) console.warn('[sync] failed', e);
+      Alert.alert('Sync failed', "Couldn't sync right now. Check your internet connection and try again.");
     } finally {
       setSyncing(false);
     }
@@ -81,7 +83,8 @@ export default function DataScreen() {
               await Promise.all([loadTemplates(), loadRecovery(), loadSubscription(), loadSettings()]);
               Alert.alert('Done', 'All data has been cleared.');
             } catch (e) {
-              Alert.alert('Error', String(e));
+              if (__DEV__) console.warn('[data] clear failed', e);
+              Alert.alert('Could not clear data', 'Something went wrong. Try again.');
             } finally {
               setClearing(false);
             }

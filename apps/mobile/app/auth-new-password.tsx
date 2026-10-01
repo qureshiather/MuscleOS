@@ -10,6 +10,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PasswordField } from '@/components/ui/PasswordField';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { friendlyAuthError } from '@/auth/authErrors';
 import { fontScaleCap } from '@/theme/layout';
 
 /**
@@ -58,7 +59,7 @@ export default function AuthNewPasswordScreen() {
     const { error } = await supabase.auth.updateUser({ password });
     setSaving(false);
     if (error) {
-      Alert.alert('Could not update password', error.message);
+      Alert.alert('Could not update password', friendlyAuthError(error, 'password'));
       return;
     }
     if (isChange) {
