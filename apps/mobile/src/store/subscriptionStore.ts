@@ -18,6 +18,15 @@ import {
   purchasePackage as rcPurchasePackage,
   restorePurchases as rcRestorePurchases,
 } from '@/utils/revenueCat';
+import { canHoldPro } from '@/subscription/plan';
+import { useAuthStore } from '@/store/authStore';
+
+const BASIC: SubscriptionState = { tier: 'basic' };
+const LINK_ACCOUNT_MESSAGE = 'Link an account to use Pro.';
+
+function isGuest(): boolean {
+  return !canHoldPro(useAuthStore.getState());
+}
 
 function stateFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionState {
   const plan = getProPlan(customerInfo);
@@ -65,8 +74,10 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     const generation = ++loadGeneration;
 
     // Show cached tier immediately so the subscription screen is never stuck on skeleton.
-    const cached = await getSubscription();
+    const stored = await getSubscription();
     if (generation !== loadGeneration) return;
+    // A Pro cache left from a linked account must not flash Pro for the guest that replaced it.
+    const cached = stored?.tier === 'pro' && isGuest() ? BASIC : stored;
     if (cached) {
       set({ state: cached, isLoading: false });
     } else if (!hasRevenueCatApiKey()) {
@@ -95,6 +106,13 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
           state: stored?.tier === 'pro' ? stored : state,
           isLoading: false,
         });
+        return;
+      }
+
+      if (isGuest()) {
+        await setSubscription(BASIC);
+        if (generation !== loadGeneration) return;
+        set({ state: BASIC, isLoading: false });
         return;
       }
 
@@ -144,6 +162,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   },
 
   purchasePackage: async (pkg) => {
+    if (isGuest()) return { success: false, error: LINK_ACCOUNT_MESSAGE };
     const result = await rcPurchasePackage(pkg);
     if (result.status === 'cancelled') {
       return { success: false, cancelled: true };
@@ -169,6 +188,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
       await get().load();
       return { success: true, restored: true };
     }
+    if (isGuest()) return { success: false, error: LINK_ACCOUNT_MESSAGE };
     const result = await rcRestorePurchases();
     if (result.status === 'error') {
       return { success: false, error: result.message };

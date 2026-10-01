@@ -36,3 +36,12 @@ export function isLifetimeExpiry(expiresAt: string | undefined, now: Date = new 
   threshold.setFullYear(threshold.getFullYear() + LIFETIME_THRESHOLD_YEARS);
   return expiry > threshold.getTime();
 }
+
+/**
+ * Pro belongs to a linked account. A guest session is always Basic, even when RevenueCat reports
+ * the entitlement: after sign-out or Delete account, the store can sync the device's Apple / Google
+ * subscription onto the new guest's RevenueCat id.
+ */
+export function canHoldPro(account: { isAnonymous: boolean }): boolean {
+  return !account.isAnonymous;
+}

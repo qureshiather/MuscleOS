@@ -137,6 +137,13 @@ two columns stay visually balanced — keep the counts equal when editing either
 Anonymous users see **Link account** instead of purchase buttons; purchase UI stays hidden until an
 account is linked, so the entitlement has an identity to attach to.
 
+**A guest is always Basic** (`canHoldPro` in `src/subscription/plan.ts`), even if RevenueCat reports
+the entitlement. After sign-out or Delete account the store can sync the device's Apple / Google
+subscription onto the new guest's RevenueCat id; the subscription store ignores it, and a cached
+Pro tier from the previous account isn't shown. Linking or signing in re-reads the entitlement.
+Purchase and restore are refused for guests. The dev-only "Grant Pro (testing)" override is the
+one exception.
+
 Annual is pre-selected with a "Best value" badge.
 
 Plan prices come from the store (`priceString`) with the period appended ("$2.99/mo",
@@ -269,7 +276,8 @@ Covered (`src/subscription/features.test.ts`):
 - `src/subscription/pricing.test.ts` — $2.99 / $19.99 and the 44% annual saving
 - `src/subscription/plan.test.ts` — `planFromEntitlement`: store products map to monthly and
   annual, promotional grants map to complimentary, and unknown products fall back to monthly;
-  `isLifetimeExpiry`: ~200-year grants are lifetime, 1- and 10-year expiries are dates
+  `isLifetimeExpiry`: ~200-year grants are lifetime, 1- and 10-year expiries are dates;
+  `canHoldPro`: only a linked account can hold Pro
 - **`blockedStartFeature`** — the deep-link / notification start guard: Basic is blocked from
   `_empty` (`empty_workout`) and custom templates (`custom_templates`), built-ins pass, Pro is
   never blocked, and an unknown template passes through. `active-workout.tsx` calls this predicate,

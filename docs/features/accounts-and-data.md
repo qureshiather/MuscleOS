@@ -447,7 +447,7 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 | Local-first; an account is optional | Everything works offline |
 | Anonymous session on first launch | No signup wall |
 | Sign-out keeps local data | You don't lose history by signing out |
-| Delete account wipes this device | Stronger than sign-out; you continue as a guest. Store billing is separate |
+| Delete account wipes this device | Stronger than sign-out; you continue as a guest, on Basic. Store billing is separate |
 | Local wins on sync conflict when dirty | The device you're holding is the one you just used |
 | Recovery is never synced | Derived from sessions; recomputed after merge |
 | kg and cm canonical in storage | Units are a display concern only |
