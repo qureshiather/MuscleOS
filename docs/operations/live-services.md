@@ -12,7 +12,9 @@ Do not put API keys, SMTP passwords, or OAuth client secrets in this file or in 
 | Resend | Delivery of auth mail from `noreply@muscleos.app` | [resend.com](https://resend.com) → Domains and Emails |
 | Google Cloud | Google sign-in clients | APIs & Services → Credentials, same project as the Web client |
 | Apple Developer | Sign in with Apple, push entitlement, signing | [developer.apple.com](https://developer.apple.com/account) → Identifiers → `com.muscle-os.app` |
-| Expo | Build env vars (`EXPO_PUBLIC_*`) | Expo → MuscleOS → Environment variables |
+| Expo | Build env vars (`EXPO_PUBLIC_*`), Android upload keystore, iOS signing | Expo → MuscleOS → Environment variables / Credentials |
+| App Store Connect | iOS listing, subscriptions, TestFlight, App Review | App id `6810909876` (`ascAppId` in `apps/mobile/eas.json`) |
+| Google Play Console | Android listing, subscriptions, testing tracks, Play App Signing | App `app.muscleos` |
 | Website | `https://muscleos.app`, including `/auth/confirm` | The landing app in `apps/landing` |
 
 Public ids:
@@ -110,7 +112,8 @@ Web client and Android client must be in the **same** Google Cloud project.
 | Client | Used for |
 |--------|----------|
 | Web | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, and Supabase → Authentication → Providers → Google (client id + secret). This is not the Android client id. |
-| Android | Package `app.muscleos` plus the SHA-1 of each keystore that installs the app |
+| Android "MuscleOS Android" | Package `app.muscleos` + **Play app signing** SHA-1 `F6:76:42:21:BB:94:0C:27:73:67:66:01:BB:92:1C:9D:CB:F7:AF:AB`. Covers every install from Google Play. |
+| Android "MuscleOS Android (upload key)" | Package `app.muscleos` + EAS **upload key** SHA-1 `99:B2:73:C3:3E:53:CE:2B:69:D7:27:CB:9C:D5:A5:55:84:BF:D9:87`. Covers AABs/APKs installed without Play. |
 
 Authorized redirect on the Web client: `https://mkhhtzpuwvezwhdpdlaz.supabase.co/auth/v1/callback`.
 
@@ -142,6 +145,26 @@ time, so redeploy after setting them:
 Without them the page still loads, but only offers the email-support path. `apps/landing/vercel.json`
 sends `frame-ancestors 'none'` and `X-Frame-Options: DENY` on every page, so the delete button
 can't be clickjacked.
+
+## Google Play
+
+The Android application id is `app.muscleos`. `com.muscleos.app` belongs to another developer on
+Play, and an application id can never change once published. The Kotlin namespace is still
+`com.muscleos.app`; only the published id differs.
+
+- **Play App Signing** is on. Google holds the app signing key and re-signs every install; its
+  SHA-1 is on the Google sign-in Android client above. We sign uploads with the **upload key**,
+  which EAS stores (Expo → Credentials → Android → `app.muscleos`). EAS only creates or rotates it
+  through the interactive `npx eas-cli credentials -p android`, which has to run in a real terminal.
+- **The first AAB had to be uploaded by hand** in Play Console. `eas submit -p android` needs the
+  Google service account (the same one RevenueCat uses) with release permissions.
+- **Production access:** this is a personal developer account, so Play requires a closed test with at
+  least 12 opted-in testers for 14 consecutive days before **Apply for production access** unlocks.
+  Testers are managed on the closed track's **Testers** tab and join through its opt-in link.
+- **Store review accounts:** Apple and Google each have their own demo account. Apple's stays on
+  **Basic** so the reviewer can test the purchase flow. Google's has a complimentary lifetime Pro
+  grant, because Play's App access form asks for full access to paid features. Credentials live in
+  each console's review form, not in git.
 
 ## Builds and purchases
 
