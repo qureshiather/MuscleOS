@@ -101,7 +101,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Account | `/account` | Sign-in, sync, subscription, data, deletion, legal | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Settings | `/settings` | Appearance, units, sounds | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Biodata | `/biodata` | Height, weight, age, gender | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
-| Data | `/data` | Sync, export, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Data | `/data` | Sync, export, import, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 
 ## Cross-cutting assumptions
@@ -154,6 +154,5 @@ Listed so they don't get re-proposed as bugs or half-specified in future work.
 | Session detail screen | History cards show full detail inline; there is no drill-down route. |
 | Live PR detection during a workout | PRs are computed on read on the PR screen, not surfaced mid-session. |
 | HealthKit / Google Fit | No integration. `healthStore` holds macro/BMR helpers with no UI. |
-| Data import | Export is one-way JSON. |
 | Program periodization, RPE, drop sets, supersets | No data model support. |
 | Cardio, distance, or duration tracking | Out of scope. |

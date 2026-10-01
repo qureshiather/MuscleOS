@@ -27,7 +27,7 @@ Full detail, including where each gate is enforced: [subscriptions.md](subscript
 | Set logging, warm-up sets, rest timers, sounds | ● | ● |
 | Exercise catalog browse, search, notes | ● | ● |
 | Recovery map | ● | ● |
-| History list, session delete, JSON export | ● | ● |
+| History list, session delete, JSON export and import | ● | ● |
 | Resume an in-progress workout | ● | ● |
 | Reorder exercises and edit rest mid-workout | ● | ● |
 | Hide built-in templates and folders | ● | ● |

@@ -53,7 +53,7 @@ stored tier value `free` is legacy and migrates to `basic` on read.
 - Workout history: list, inline detail, delete
 - Hiding built-in templates and folders
 - Resuming an in-progress workout
-- Profile, units, theme, cloud sync, JSON export
+- Profile, units, theme, cloud sync, JSON export and import
 
 ### Pro
 

@@ -6,6 +6,8 @@ import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { exportAndShareData } from '@/storage/exportData';
+import { applyImport, pickImportFile } from '@/storage/importData';
+import { describeImportPlan, importPlanIsEmpty, type ImportPlan } from '@/storage/importPlan';
 import { clearAllData } from '@/storage/localStorage';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
@@ -23,6 +25,7 @@ export default function DataScreen() {
   const { colors, setTheme } = useTheme();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const isLinked = !useAuthStore((s) => s.isAnonymous);
@@ -44,6 +47,59 @@ export default function DataScreen() {
     } finally {
       setExporting(false);
     }
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    try {
+      const picked = await pickImportFile();
+      if (picked.status === 'cancelled') return;
+      if (picked.status === 'failed') {
+        Alert.alert(
+          "Can't import this file",
+          picked.reason === 'unsupported_version'
+            ? 'This export is from a different version of MuscleOS. Update the app and try again.'
+            : 'Choose a file made with Export my data in MuscleOS.'
+        );
+        return;
+      }
+      if (importPlanIsEmpty(picked.plan)) {
+        Alert.alert('Nothing to import', 'Everything in this file is already on this device.');
+        return;
+      }
+      confirmImport(picked.plan);
+    } catch (e) {
+      if (__DEV__) console.warn('[import] failed', e);
+      Alert.alert('Import failed', "Couldn't read that file. Try again.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function confirmImport(plan: ImportPlan) {
+    const summary = describeImportPlan(plan);
+    Alert.alert(
+      'Import data',
+      `Add ${summary} to this device? Nothing already here is changed or removed.${isLinked ? ' It also backs up to your account.' : ''}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: async () => {
+            setImporting(true);
+            try {
+              await applyImport(plan);
+              Alert.alert('Imported', `Added ${summary}.`);
+            } catch (e) {
+              if (__DEV__) console.warn('[import] apply failed', e);
+              Alert.alert('Import failed', "Couldn't import your data. Try again.");
+            } finally {
+              setImporting(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function handleForceSync() {
@@ -122,6 +178,17 @@ export default function DataScreen() {
             disabled={exporting}
             onPress={() => {
               if (!exporting) void handleExport();
+            }}
+          />
+          <ListRow
+            inset
+            title={importing ? 'Importing…' : 'Import data'}
+            hint="Add workouts from an export file"
+            showChevron={false}
+            disabled={importing}
+            testID="import-data"
+            onPress={() => {
+              if (!importing) void handleImport();
             }}
           />
           <ListRow
