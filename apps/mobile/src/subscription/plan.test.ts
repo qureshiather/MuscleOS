@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRODUCT_IDS, isLifetimeExpiry, planFromEntitlement } from './plan';
+import { PRODUCT_IDS, canHoldPro, isLifetimeExpiry, planFromEntitlement } from './plan';
 
 describe('planFromEntitlement', () => {
   it('maps store products to monthly and annual', () => {
@@ -36,5 +36,12 @@ describe('isLifetimeExpiry', () => {
   it('is false for a missing or unparseable date', () => {
     expect(isLifetimeExpiry(undefined, now)).toBe(false);
     expect(isLifetimeExpiry('not a date', now)).toBe(false);
+  });
+});
+
+describe('canHoldPro', () => {
+  it('allows Pro only on a linked account', () => {
+    expect(canHoldPro({ isAnonymous: false })).toBe(true);
+    expect(canHoldPro({ isAnonymous: true })).toBe(false);
   });
 });

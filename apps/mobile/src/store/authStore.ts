@@ -51,7 +51,10 @@ export function applyAuthUser(u: User, _event: AuthChangeEvent, wasAnonymous: bo
   }
 
   if (isNowLinked && u.id) {
-    void revenueCatLogIn(u.id);
+    // Guests are always Basic, so re-read the entitlement once the account is linked.
+    void revenueCatLogIn(u.id)
+      .then(() => import('@/store/subscriptionStore'))
+      .then((m) => m.useSubscriptionStore.getState().load(u.id));
   }
 }
 
