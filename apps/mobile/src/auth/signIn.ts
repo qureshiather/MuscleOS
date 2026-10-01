@@ -1,10 +1,10 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform, Alert } from 'react-native';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { applyAuthUser, useAuthStore } from '@/store/authStore';
+import { applyAuthUser, refreshAuthUser, useAuthStore } from '@/store/authStore';
 import { withTimeout } from '@/lib/withTimeout';
 import { setAppleAuthorizationCode } from '@/auth/appleAuthCode';
-import { identityAlreadyLinked } from '@/auth/attachAccount';
+import { identityAlreadyLinked, linkConflict } from '@/auth/attachAccount';
 import { getGoogleTokens, googleWebClientId } from '@/auth/googleSignIn';
 import { AUTH_UNAVAILABLE_MESSAGE, type AuthErrorContext, friendlyAuthError } from '@/auth/authErrors';
 import { EMAIL_AUTH_REDIRECT } from '@/auth/emailCallback';
@@ -181,6 +181,48 @@ export function useSignIn() {
     }
   }
 
+  /**
+   * Account → Link Google: attach Google to the signed-in account whatever its email is, so an
+   * Apple "Hide My Email" account can be reached from Android. Never switches accounts.
+   */
+  async function linkGoogleToAccount(): Promise<boolean> {
+    if (!isSupabaseConfigured()) {
+      alertNotConfigured('Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env');
+      return false;
+    }
+    if (!googleWebClientId()) {
+      alertNotConfigured('Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to .env (the Web OAuth client ID).');
+      return false;
+    }
+    try {
+      const tokens = await getGoogleTokens();
+      if (!tokens || tokens === 'cancelled') return false;
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        token: tokens.idToken,
+        access_token: tokens.accessToken,
+      });
+      if (error) {
+        if (__DEV__) console.warn('[auth] Link Google', error);
+        const conflict = linkConflict(error);
+        Alert.alert(
+          "Couldn't link Google",
+          conflict === 'identity'
+            ? 'That Google account already signs in to a different MuscleOS account. Choose another Google account.'
+            : conflict === 'email'
+              ? "That Google account's email already has a different MuscleOS account. Choose another Google account."
+              : friendlyAuthError(error, 'google')
+        );
+        return false;
+      }
+      await refreshAuthUser();
+      return true;
+    } catch (e) {
+      alertAuthError("Couldn't link Google", e, 'google');
+      return false;
+    }
+  }
+
   async function signInWithEmailOnly(email: string, password: string): Promise<boolean | 'confirm'> {
     if (!isSupabaseConfigured()) {
       alertNotConfigured('Supabase is not configured.');
@@ -277,5 +319,6 @@ export function useSignIn() {
     linkWithApple,
     linkWithGoogle,
     linkWithEmail,
+    linkGoogleToAccount,
   };
 }

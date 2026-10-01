@@ -23,7 +23,14 @@ import { useSyncStore } from '@/store/syncStore';
 import { syncNow } from '@/sync';
 import { formatRelative } from '@/utils/relativeTime';
 import { LEGAL_URLS } from '@/subscription/legal';
-import { authProviderLabel, hasPasswordSignIn, linkedAuthProvider } from '@/auth/accountProvider';
+import {
+  authProviderLabel,
+  hasIdentity,
+  hasPasswordSignIn,
+  isPrivateRelayEmail,
+  linkedAuthProvider,
+} from '@/auth/accountProvider';
+import { useSignIn } from '@/auth/signIn';
 
 export default function AccountScreen() {
   const { colors, setTheme } = useTheme();
@@ -32,6 +39,8 @@ export default function AccountScreen() {
   const [deletePhase, setDeletePhase] = useState<null | 'warn' | 'confirm' | 'done' | 'failed'>(null);
   const [signOutVisible, setSignOutVisible] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const { linkGoogleToAccount } = useSignIn();
   const isLinked = !useAuthStore((s) => s.isAnonymous);
   const authUser = useAuthStore((s) => s.user);
   const authProfile = useAuthStore((s) => s.profile);
@@ -116,6 +125,14 @@ export default function AccountScreen() {
     }
   }
 
+  async function handleLinkGoogle() {
+    if (linkingGoogle) return;
+    setLinkingGoogle(true);
+    const linked = await linkGoogleToAccount();
+    setLinkingGoogle(false);
+    if (linked) Alert.alert('Google linked', 'You can now sign in with Google on any device, including Android.');
+  }
+
   function openLegal(page: keyof typeof LEGAL_URLS) {
     void WebBrowser.openBrowserAsync(LEGAL_URLS[page]);
   }
@@ -123,6 +140,8 @@ export default function AccountScreen() {
   const provider = isLinked && authUser ? linkedAuthProvider(authUser) : null;
   const providerIcon =
     provider === 'apple' ? 'logo-apple' : provider === 'google' ? 'logo-google' : 'mail-outline';
+  const canLinkGoogle = isLinked && authUser != null && !hasIdentity(authUser, 'google');
+  const hiddenAppleEmail = canLinkGoogle && isPrivateRelayEmail(authProfile?.email);
 
   return (
     <Screen>
@@ -148,6 +167,15 @@ export default function AccountScreen() {
                 <Text style={[typography.body, { color: colors.textSecondary }]} numberOfLines={1}>
                   {authProfile?.email ?? 'Account linked'}
                 </Text>
+                {hiddenAppleEmail ? (
+                  <Text
+                    testID="hidden-email-notice"
+                    style={[typography.caption, { color: colors.textMuted, marginTop: spacing.sm }]}
+                  >
+                    Your Apple ID hides your email, so other devices can't find this account by email. To sign in on
+                    Android, link Google below first.
+                  </Text>
+                ) : null}
               </View>
               <Pressable
                 onPress={() => void handleSyncTap()}
@@ -208,6 +236,15 @@ export default function AccountScreen() {
             hint={isLinked ? 'Sync, export, clear this device' : 'Export or clear this device'}
             onPress={() => router.push('/data')}
           />
+          {canLinkGoogle ? (
+            <ListRow
+              inset
+              title={linkingGoogle ? 'Linking Google…' : 'Link Google'}
+              hint="Sign in with Google on any device"
+              testID="link-google"
+              onPress={() => void handleLinkGoogle()}
+            />
+          ) : null}
           {isLinked && authUser && hasPasswordSignIn(authUser) ? (
             <ListRow
               inset

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountLinkSideEffect, identityAlreadyLinked } from './attachAccount';
+import { accountLinkSideEffect, identityAlreadyLinked, linkConflict } from './attachAccount';
 
 describe('identityAlreadyLinked', () => {
   it('matches GoTrue identity_already_exists', () => {
@@ -23,6 +23,17 @@ describe('identityAlreadyLinked', () => {
   it('ignores unrelated link failures', () => {
     expect(identityAlreadyLinked({ message: 'Linking requires a valid user access token' })).toBe(false);
     expect(identityAlreadyLinked(null)).toBe(false);
+  });
+});
+
+describe('linkConflict', () => {
+  it('tells an identity on another user apart from an email on another user', () => {
+    expect(linkConflict({ code: 'identity_already_exists', message: 'Identity is already linked to another user' })).toBe(
+      'identity'
+    );
+    expect(linkConflict({ code: 'email_exists', message: 'Email address already exists' })).toBe('email');
+    expect(linkConflict({ message: 'Linking requires a valid user access token' })).toBe(null);
+    expect(linkConflict(null)).toBe(null);
   });
 });
 

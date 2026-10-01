@@ -6,23 +6,36 @@
  * to that account by email, so one email stays one MuscleOS account.
  */
 
-export function identityAlreadyLinked(error: {
-  message?: string;
-  code?: string;
-} | null): boolean {
-  if (!error) return false;
+type LinkError = { message?: string; code?: string } | null;
+
+/** Why linkIdentity refused: the identity, or its email, already belongs to another user. */
+export function linkConflict(error: LinkError): 'identity' | 'email' | null {
+  if (!error) return null;
   const code = (error.code ?? '').toLowerCase();
-  if (code === 'identity_already_exists' || code.includes('identity_already')) return true;
-  if (code === 'email_exists' || code === 'user_already_exists') return true;
   const msg = (error.message ?? '').toLowerCase();
-  return (
+  if (
+    code.includes('identity_already') ||
     msg.includes('already linked') ||
     msg.includes('identity is already') ||
-    msg.includes('already associated') ||
+    msg.includes('already associated')
+  ) {
+    return 'identity';
+  }
+  if (
+    code === 'email_exists' ||
+    code === 'user_already_exists' ||
     msg.includes('already been registered') ||
     msg.includes('already registered') ||
     msg.includes('email address already')
-  );
+  ) {
+    return 'email';
+  }
+  return null;
+}
+
+/** Signing in from the picker: either conflict means "sign into that account instead". */
+export function identityAlreadyLinked(error: LinkError): boolean {
+  return linkConflict(error) != null;
 }
 
 export function accountLinkSideEffect(args: {
