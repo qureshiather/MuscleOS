@@ -112,12 +112,13 @@ Web client and Android client must be in the **same** Google Cloud project.
 | Client | Used for |
 |--------|----------|
 | Web | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, and Supabase → Authentication → Providers → Google (client id + secret). This is not the Android client id. |
-| Android "MuscleOS Android" | Package `app.muscleos` + **Play app signing** SHA-1 `F6:76:42:21:BB:94:0C:27:73:67:66:01:BB:92:1C:9D:CB:F7:AF:AB`. Covers every install from Google Play. |
+| Android "MuscleOS Android" | Package `app.muscleos` + **current Play app signing** key (classical) SHA-1 `F6:76:42:21:BB:94:0C:27:73:67:66:01:BB:92:1C:9D:CB:F7:AF:AB`. |
+| Android, previous signing key | Package `app.muscleos` + **previous Play app signing** key SHA-1 `0F:E2:69:26:8D:3C:71:68:0E:B5:9E:55:9F:04:AB:64:51:59:06:2D`. Covers installs from the first Play releases, and Android 12 and older, which keep verifying the original key after a rotation. |
 | Android "MuscleOS Android (upload key)" | Package `app.muscleos` + EAS **upload key** SHA-1 `99:B2:73:C3:3E:53:CE:2B:69:D7:27:CB:9C:D5:A5:55:84:BF:D9:87`. Covers AABs/APKs installed without Play. |
 
 Authorized redirect on the Web client: `https://mkhhtzpuwvezwhdpdlaz.supabase.co/auth/v1/callback`.
 
-A new signing key needs its SHA-1 on the Android client before Google sign-in works for builds signed with that key. Debug, EAS, and Play app signing are different certificates. `DEVELOPER_ERROR` is a package, SHA-1, or Web client id mismatch. The Web client id is baked in at build time, so fixing the Expo env var requires a new build.
+A new signing key needs its SHA-1 on an Android client before Google sign-in works for builds signed with that key. Each Android client holds one SHA-1, so every key gets its own client with the same package. **Play app signing was rotated** (Play Console → App integrity → *Change key*, to the quantum-ready key): installs signed with the previous key failed with `DEVELOPER_ERROR` until its SHA-1 was added. If the key changes again, add the new SHA-1 (and the post-quantum one) as further clients, and keep the old ones. Debug, EAS, and Play app signing are different certificates. `DEVELOPER_ERROR` is a package, SHA-1, or Web client id mismatch. The Web client id is baked in at build time, so fixing the Expo env var requires a new build.
 
 iOS Google sign-in still uses the browser OAuth flow. There is no separate iOS OAuth client yet.
 
