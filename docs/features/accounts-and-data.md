@@ -391,8 +391,30 @@ and health.
 ids, the exercise-previous map, the active in-progress workout, and the catalog cache.
 
 > The export is therefore **not a complete backup** — it omits settings, biodata, and the previous
-> map. It is a data-portability artifact for reading your own history, not a restore file. There is
-> **no import**.
+> map. Account sync is the backup; the file is for portability and for **Import data** below.
+
+## Import
+
+Profile → Account → Data → **Import data**. Basic tier. Opens the document picker for a JSON file
+made by Export, then:
+
+1. **Parse** (`parseExportFile`, `src/storage/importPlan.ts`). Anything that isn't JSON with
+   `sessions` and `templates` arrays says “Choose a file made with Export my data”. A `version` other
+   than `1` says to update the app. Rows without a string `id` and blank notes are dropped, and
+   built-in templates are skipped because they ship with the app.
+2. **Plan** (`planImport`). Import only **adds**: sessions, templates, folders and custom exercises
+   whose id isn't on this device, and notes for exercises with no note here. Nothing local is changed
+   or removed, so importing the same file twice is a no-op (“Nothing to import”).
+3. **Confirm.** A dialog names what will be added (“Add 12 workouts, 2 templates and 1 custom
+   exercise to this device?”) and, when signed in, that it backs up to the account.
+4. **Apply** (`applyImport`, `src/storage/importData.ts`). Writes the rows, reloads exercises,
+   recomputes recovery and rebuilds the previous map from all sessions (both derived), puts every
+   imported row plus the new previous/notes snapshots in the sync outbox in one write, reloads the
+   synced stores, and pushes. A guest's import uploads when they link an account, like any local data.
+
+Not imported: subscription, profile, recovery (recomputed), health, settings and biodata (not
+exported). Custom templates import on Basic but still need Pro to start
+([`requiresProToStart`](subscriptions.md#gate-map)), the same as after a downgrade.
 
 ## Build and release
 
@@ -435,7 +457,6 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 
 ## Not implemented
 
-- Data import
 - SecureStore-backed auth (uses AsyncStorage)
 - Email account **linking** (uses sign-up/sign-in, unlike Apple/Google)
 - HealthKit / Google Fit, and any UI for `healthStore`
@@ -462,6 +483,8 @@ Covered:
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
   `edgeFunctionError.test.ts` — linked-provider resolution, already-linked identity vs in-place
   upgrade, confirm/recovery link parsing, and Edge Function error messages
+- `src/storage/importPlan.test.ts` — export parsing (bad JSON, wrong version, rows without ids,
+  built-ins skipped), add-only planning with local notes kept, re-import is empty, and the summary
 - `src/sync/mergePolicy.test.ts` — every `decideEntityApply` branch, the outbox clock bump, map and
   settings merges, and what counts as empty
 - `src/sync/merge.test.ts` — `applyRemoteRecords` against the storage harness: missing rows taken,
@@ -476,5 +499,6 @@ Not covered — the least-tested area of the codebase:
 - Settings and theme persistence, and each migration path
 - `clearAllData` scope, including the keys it intentionally leaves behind
 - Export payload assembly and its documented omissions
+- `applyImport` storage writes and outbox entries (the parse/plan logic is covered)
 - `healthStore` BMR/TDEE math
 - Notification permission gating and scheduling
