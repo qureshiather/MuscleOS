@@ -53,6 +53,8 @@ let loadGeneration = 0;
 export interface SubscriptionStoreState {
   state: SubscriptionState | null;
   isLoading: boolean;
+  /** Show the cached tier before auth and RevenueCat answer. No-op once anything has set state. */
+  hydrate: () => Promise<void>;
   load: (appUserId?: string | null) => Promise<void>;
   setPro: (
     expiresAt?: string,
@@ -70,6 +72,15 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
   state: null,
   isLoading: true,
 
+  hydrate: async () => {
+    if (get().state) return;
+    const stored = await getSubscription();
+    if (!stored || get().state) return;
+    // Auth hasn't resolved yet, so the guest guard in load() can't run here. load() follows as
+    // soon as auth does and corrects the tier; sign-out and account deletion leave a Basic cache.
+    set({ state: stored, isLoading: false });
+  },
+
   load: async (_appUserId?: string | null) => {
     const generation = ++loadGeneration;
 
@@ -78,6 +89,8 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     if (generation !== loadGeneration) return;
     // A Pro cache left from a linked account must not flash Pro for the guest that replaced it.
     const cached = stored?.tier === 'pro' && isGuest() ? BASIC : stored;
+    // Persist the downgrade so hydrate() on the next launch can't flash Pro either.
+    if (cached !== stored) void setSubscription(BASIC);
     if (cached) {
       set({ state: cached, isLoading: false });
     } else if (!hasRevenueCatApiKey()) {

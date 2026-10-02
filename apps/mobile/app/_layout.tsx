@@ -114,6 +114,12 @@ export default function RootLayout() {
     void loadTemplates();
   }, [loadTemplates]);
 
+  // Paint the last known tier immediately. load() waits on auth (and its network refresh), and
+  // until then a Pro user would see Basic UI.
+  useEffect(() => {
+    void useSubscriptionStore.getState().hydrate();
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {

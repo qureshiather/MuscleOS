@@ -96,24 +96,31 @@ list entirely — there is no intermediate state.
 ## When recovery is recomputed
 
 Recovery is a **derived cache**, always rebuilt from all sessions rather than incrementally
-updated. `recoveryStore.load()` reads sessions, runs `recoveryFromSessions`, writes the result
-to storage (`muscleos_recovery`), and sets it in memory.
+updated. `recoveryStore.load()` reads sessions, runs `recoveryFromSessions`, and sets the result
+in memory, writing it to storage (`muscleos_recovery`) only when it differs from what's already
+loaded (`sameRecovery()`). Overlapping loads resolve to the latest one.
+
+Recompute is driven by **whatever changes sessions or muscle mappings**, not by screen focus:
 
 | Trigger | Where |
 |---------|-------|
-| Recovery tab focus | `app/(tabs)/recovery.tsx` |
-| Workouts tab focus | `app/(tabs)/index.tsx` |
 | Finishing a workout | `src/store/activeWorkoutStore.ts` |
-| Deleting a session | `src/store/sessionsStore.ts` + History screen reload |
+| Deleting a session | `src/store/sessionsStore.ts` (`deleteSession`) |
 | Cloud sync merge | `src/sync/merge.ts` |
-| Data → Sync now / Clear data | `app/data.tsx` |
+| Data → Sync now / Import / Clear data | `app/data.tsx`, `app/account.tsx` |
+| Exercise catalog or custom exercises change | `src/store/recoveryStore.ts` (subscribes to `exercisesStore`) |
+
+The Recovery and Workouts tabs call `ensureLoaded()` on focus, which computes only if nothing has
+been computed yet in this app run. Focusing the Recovery tab also re-renders it, so muscles whose
+window has passed since the last visit drop out without a recompute. The loading skeleton shows
+only before the first load; later reloads keep the previous items on screen.
 
 Because it is always derived, deleting a session correctly reverses its recovery impact, and
 recovery is **never synced** from the server — the merge step recomputes it locally from the
 merged sessions instead. The persisted copy is currently read for export; `recoveryStore.load()`
 recomputes from sessions rather than using it for first paint.
 
-Recovery is deliberately **not** loaded during app boot; the tabs that need it load it on focus.
+Recovery is deliberately **not** loaded during app boot; the first tab that needs it loads it on focus.
 
 ## Readiness copy
 
@@ -235,10 +242,11 @@ Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
   falls back to the bundled catalog
 - `activeRecoveryAt()` — still active 1 ms before expiry, ready at the exact instant
 - `justTrainedMuscleIds()` — latest `trainedAt`, ties included
+- `sameRecovery()` — equal records in order; added, removed or retrained records differ
 - Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate
 - Recompute on sync merge (`src/sync/merge.test.ts`) and on finish (`activeWorkoutStore.test.ts`)
 
 Not covered:
 
-- `recoveryStore` load/persist wiring and the History delete path (the rebuild logic it calls is covered)
+- `recoveryStore` load/persist wiring, `ensureLoaded()`, and the exercises-store subscription (the rebuild logic and `sameRecovery()` they call are covered)
 - `MuscleDiagram` rendering

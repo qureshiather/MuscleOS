@@ -141,7 +141,7 @@ account is linked, so the entitlement has an identity to attach to.
 **A guest is always Basic** (`canHoldPro` in `src/subscription/plan.ts`), even if RevenueCat reports
 the entitlement. After sign-out or Delete account the store can sync the device's Apple / Google
 subscription onto the new guest's RevenueCat id; the subscription store ignores it, and a cached
-Pro tier from the previous account isn't shown. Linking or signing in re-reads the entitlement.
+Pro tier from the previous account is rewritten to Basic on the first load that sees a guest. Linking or signing in re-reads the entitlement.
 Purchase and restore are refused for guests. The dev-only "Grant Pro (testing)" override is the
 one exception.
 
@@ -256,7 +256,7 @@ override left over from an earlier test build. There's no env flag to turn it on
 | An in-progress workout survives a lapse | Never destroy work in flight |
 | Purchases require a linked account | Entitlements need a stable `appUserID` |
 | RevenueCat is billing truth; no subscription table in Supabase | Server-side audit is a future phase |
-| Tier is cached locally for offline use | `muscleos_subscription`; re-validated on foreground |
+| Tier is cached locally for offline use and first paint | `muscleos_subscription`; shown at launch before auth resolves (`hydrate()`), then re-validated by `load()` on launch and foreground |
 
 ## Not implemented
 

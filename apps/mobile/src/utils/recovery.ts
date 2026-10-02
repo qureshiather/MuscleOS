@@ -48,6 +48,12 @@ export function recoveryFromSessions(
   }));
 }
 
+/** Same records in the same order. Lets a reload skip re-rendering and re-persisting. */
+export function sameRecovery(a: MuscleRecovery[], b: MuscleRecovery[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((r, i) => r.muscleId === b[i].muscleId && r.trainedAt === b[i].trainedAt);
+}
+
 /**
  * Records still recovering at `now`: derived `recoveryUntil` strictly after `now`. At the exact
  * expiry instant a muscle is ready and drops out.

@@ -18,7 +18,6 @@ import { radius, spacing } from '@/theme/tokens';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useProGate } from '@/hooks/useProGate';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { SessionCard } from '@/components/history/SessionCard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -36,7 +35,6 @@ export default function HistoryScreen() {
   const { gatePro, isPro } = useProGate();
   const { load: loadSessions, sessions, completedSessions, deleteSession } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
-  const loadRecovery = useRecoveryStore((s) => s.load);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
@@ -93,7 +91,6 @@ export default function HistoryScreen() {
     const id = deleteTarget.id;
     setDeleteTarget(null);
     await deleteSession(id);
-    loadRecovery();
   }
 
   return (

@@ -5,6 +5,7 @@ import {
   justTrainedMuscleIds,
   recentlyWorkedMuscleIds,
   recoveryFromSessions,
+  sameRecovery,
 } from './recovery';
 
 const musclesById: Record<string, MuscleId[]> = {
@@ -171,5 +172,21 @@ describe('recentlyWorkedMuscleIds', () => {
       getExercise
     );
     expect(ids.size).toBe(0);
+  });
+});
+
+describe('sameRecovery', () => {
+  const chest = { muscleId: 'chest' as MuscleId, trainedAt: '2026-01-01T11:00:00.000Z' };
+  const quads = { muscleId: 'quads' as MuscleId, trainedAt: '2026-01-02T11:00:00.000Z' };
+
+  it('is true for equal records in the same order', () => {
+    expect(sameRecovery([chest, quads], [{ ...chest }, { ...quads }])).toBe(true);
+    expect(sameRecovery([], [])).toBe(true);
+  });
+
+  it('is false when a record is added, removed or retrained', () => {
+    expect(sameRecovery([chest], [chest, quads])).toBe(false);
+    expect(sameRecovery([chest, quads], [chest])).toBe(false);
+    expect(sameRecovery([chest], [{ ...chest, trainedAt: '2026-01-03T11:00:00.000Z' }])).toBe(false);
   });
 });
