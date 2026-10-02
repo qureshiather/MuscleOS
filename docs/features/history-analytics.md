@@ -187,9 +187,6 @@ bars, and days without qualifying sets simply have no bar rather than a zero or 
 
 Below the chart, "All recorded sets" lists date, `weight × reps`, and `~e1RM`, newest first.
 
-> `src/components/WorkoutHistoryChart.tsx` is an SVG chart of workout count per day that is **not
-> imported anywhere** — dead code.
-
 ## Home stats
 
 `computeHomeStats()` powers the Workouts tab headline. Full copy table:
