@@ -190,7 +190,7 @@ export default function CreateTemplateScreen() {
         data={selected}
         keyExtractor={(item) => item.exerciseId}
         onDragEnd={({ data }) => setSelected(data)}
-        activationDistance={9999}
+        activationDistance={8}
         containerStyle={styles.scroll}
         contentContainerStyle={[styles.form, { paddingBottom: bottomSpace }]}
         keyboardShouldPersistTaps="handled"
