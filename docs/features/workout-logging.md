@@ -120,8 +120,8 @@ Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the fu
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
 - Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including those in later exercises — renders muted with an outlined number; there is never more than one highlighted set at a time.
-- Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint.
-- When every set in an exercise is completed, the card is marked done: a green border and a **Done** badge in its header.
+- Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint. A rest row between two completed sets carries the same tint and bar (no divider line), so a run of completed sets reads as one unbroken green column.
+- When every set in an exercise is completed, the card is marked done: a green border and a green check icon before the exercise name.
 - After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
 - A rest row sits on the divider after a set when that set's rest duration is greater than 0 (and after the last such set, above Add set). It shows that duration, or the countdown while a timer is running for that set. While counting down, the divider itself becomes the progress track: it thickens and fills with the primary colour edge to edge across the row as the rest elapses, gliding between the one-second ticks. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
 
@@ -195,7 +195,7 @@ The pure entry maths (append, backspace, ± clamping, digit caps, and `m:ss` clo
   explicit 0:00 starts nothing), and the warm-up rest after a warm-up (only when that duration
   is greater than 0).
 - **+ ADD SET** appends a set; the button label shows the current rest preset. The control is a full-width footer of the set table, separated from the last row by the same divider as the set rows, and shares the table’s edges.
-- **Swipe right** or long-press a set number to delete. Minimum **1 set** per exercise; no maximum.
+- **Swipe left** or long-press a set number to delete. Minimum **1 set** per exercise; no maximum.
 - **Add warm-up** inserts a warm-up set at position 0.
 
 ## Rest timer
