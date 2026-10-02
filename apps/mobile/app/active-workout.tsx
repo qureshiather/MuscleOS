@@ -14,7 +14,6 @@ import {
   Platform,
   Animated,
   Easing,
-  LayoutAnimation,
   Dimensions,
   type KeyboardEvent,
 } from 'react-native';
@@ -345,9 +344,8 @@ function SetRowSwipeable({
   const handleDelete = () => {
     if (deletingRef.current) return;
     deletingRef.current = true;
-    LayoutAnimation.configureNext(
-      LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
-    );
+    // No LayoutAnimation here: on Android (new architecture) it left the removed row on screen
+    // until the workout was reopened.
     swipeableRef.current?.close();
     onDelete();
   };
@@ -393,6 +391,7 @@ function RestBetweenBar({
   restSecondsLeft,
   restTotalSeconds,
   colors,
+  completedTint,
   onPress,
 }: {
   presetSeconds: number;
@@ -400,6 +399,8 @@ function RestBetweenBar({
   restSecondsLeft: number;
   restTotalSeconds: number;
   colors: RestBarColors;
+  /** Set between two completed sets: carry their tint and accent so the green column doesn't break. */
+  completedTint?: { background: string; accent: string };
   onPress: () => void;
 }) {
   const minHeight = useTextScaledSize(active ? 34 : 28, fontScaleCap.chrome);
@@ -436,8 +437,18 @@ function RestBetweenBar({
       accessibilityLabel={active ? `Rest ${timeLabel} remaining` : `Rest ${timeLabel} after this set`}
       accessibilityHint="Opens rest timer"
       hitSlop={{ top: 4, bottom: 4 }}
-      style={({ pressed }) => [styles.restBar, { minHeight, opacity: pressed ? 0.7 : 1 }]}
+      style={({ pressed }) => [
+        styles.restBar,
+        { minHeight, opacity: pressed ? 0.7 : 1 },
+        completedTint && { backgroundColor: completedTint.background },
+      ]}
     >
+      {completedTint ? (
+        <View
+          pointerEvents="none"
+          style={[styles.setStatusAccent, { backgroundColor: completedTint.accent }]}
+        />
+      ) : (
       <View
         pointerEvents="none"
         style={[
@@ -458,7 +469,14 @@ function RestBetweenBar({
           />
         ) : null}
       </View>
-      <View style={[styles.restBarLabelGroup, { backgroundColor: colors.surface }]}>
+      )}
+      <View
+        style={[
+          styles.restBarLabelGroup,
+          // Masks the divider line behind the label; a tinted bar has no line to mask.
+          { backgroundColor: completedTint ? 'transparent' : colors.surface },
+        ]}
+      >
         <Text
           style={[
             active ? styles.restBarActiveTime : styles.restBarCollapsedTime,
@@ -1483,9 +1501,23 @@ export default function ActiveWorkoutScreen() {
                     delayLongPress={280}
                   >
                     <View style={styles.exerciseTitleBlock}>
-                      <Text style={[styles.exerciseName, { color: colors.primary }]} numberOfLines={2}>
-                        {exercise?.name ?? se.exerciseId}
-                      </Text>
+                      <View style={styles.exerciseNameRow}>
+                        {exerciseComplete ? (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color={colors.success}
+                            style={styles.exerciseDoneIcon}
+                            accessibilityLabel="Exercise complete"
+                          />
+                        ) : null}
+                        <Text
+                          style={[styles.exerciseName, styles.exerciseNameText, { color: colors.primary }]}
+                          numberOfLines={2}
+                        >
+                          {exercise?.name ?? se.exerciseId}
+                        </Text>
+                      </View>
                       {exercise?.equipment?.[0] ? (
                         <Text style={[styles.exerciseEquipment, { color: colors.textMuted }]}>
                           {equipmentLabel(exercise.equipment[0])}
@@ -1507,23 +1539,6 @@ export default function ActiveWorkoutScreen() {
                     </View>
                   </Pressable>
                   <View style={styles.exerciseCardActions}>
-                    {exerciseComplete ? (
-                      <View
-                        style={[
-                          styles.exerciseDoneBadge,
-                          {
-                            backgroundColor: colors.successSurface,
-                            borderColor: withAlpha(colors.success, 0.5),
-                          },
-                        ]}
-                        accessibilityLabel="Exercise complete"
-                      >
-                        <Ionicons name="checkmark-circle" size={13} color={colors.success} />
-                        <Text style={[styles.exerciseDoneBadgeText, { color: colors.success }]}>
-                          Done
-                        </Text>
-                      </View>
-                    ) : null}
                     <View
                       ref={(node) => {
                         menuAnchorRefs.current[exIdx] = node;
@@ -1627,6 +1642,8 @@ export default function ActiveWorkoutScreen() {
                 };
                 const presetSeconds = isWarmUp ? warmUpRestSec : restPresetSec;
                 const showRestAfter = isActiveRestGap || presetSeconds > 0;
+                const restJoinsCompletedSets =
+                  set.completed && se.sets[setIdx + 1]?.completed === true && !isActiveRestGap;
 
                 const setRow = (
                     <View
@@ -1761,8 +1778,10 @@ export default function ActiveWorkoutScreen() {
                     </View>
                 );
 
+                // Keyed by set count too: rows are index-keyed, so after a delete the next set would
+                // inherit the removed row's swipe state (stuck mid-delete, ignoring further swipes).
                 return (
-                  <View key={setIdx}>
+                  <View key={`${setIdx}-${se.sets.length}`}>
                     <View
                       style={[
                         styles.setStatusBlock,
@@ -1799,6 +1818,11 @@ export default function ActiveWorkoutScreen() {
                         restSecondsLeft={restSecondsLeft ?? 0}
                         restTotalSeconds={restTotalSeconds}
                         colors={colors}
+                        completedTint={
+                          restJoinsCompletedSets
+                            ? { background: completedRowTint, accent: colors.success }
+                            : undefined
+                        }
                         onPress={openTopBarRestDialog}
                       />
                     ) : null}
@@ -2825,27 +2849,19 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   exerciseCardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  exerciseDoneBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  exerciseDoneBadgeText: {
-    fontFamily: typography.label.fontFamily,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
+  exerciseNameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  exerciseNameText: { flexShrink: 1 },
+  exerciseDoneIcon: { marginTop: 2 },
   exerciseHeaderIcon: { padding: 4, marginTop: 1 },
   // Bleeds past the card's side padding so set rows, their tints and the rest track use the
   // full card width.
   tableInset: {
     marginHorizontal: -12,
     overflow: 'hidden',
+    // Reaches the card's side edges, so its bottom corners must follow the card's rounding
+    // (radius minus the 1px border) or its square corners poke out past the border.
+    borderBottomLeftRadius: 13,
+    borderBottomRightRadius: 13,
   },
   tableHeader: {
     flexDirection: 'row',
