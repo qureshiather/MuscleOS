@@ -24,17 +24,21 @@ const ALL_MUSCLE_IDS: MuscleId[] = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
 export default function RecoveryScreen() {
   const { colors } = useTheme();
-  const load = useRecoveryStore((s) => s.load);
+  const ensureLoaded = useRecoveryStore((s) => s.ensureLoaded);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
   const isLoading = useRecoveryStore((s) => s.isLoading);
   const profile = useSettingsStore((s) => s.profile);
   const diagramVariant = profile?.sex === 'female' ? 'female' : 'male';
   const [infoVisible, setInfoVisible] = useState(false);
+  // Recovery is recomputed by whatever changes sessions; focus only re-renders so muscles whose
+  // window has passed drop out.
+  const [, setFocusedAt] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      void ensureLoaded();
+      setFocusedAt(Date.now());
+    }, [ensureLoaded])
   );
 
   const active = activeRecovery();

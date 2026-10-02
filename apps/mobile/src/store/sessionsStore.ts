@@ -3,13 +3,11 @@ import type { WorkoutSession } from '@muscleos/types';
 import {
   getSessions,
   setSessions,
-  setRecovery,
   setExercisePrevious,
 } from '@/storage/localStorage';
 import { notifySessionDelete, notifyExercisePreviousSnapshot } from '@/sync';
-import { recoveryFromSessions } from '@/utils/recovery';
 import { rebuildPreviousSnapshot } from '@/store/activeWorkoutLogic';
-import { useExercisesStore } from '@/store/exercisesStore';
+import { useRecoveryStore } from '@/store/recoveryStore';
 export interface SessionsState {
   sessions: WorkoutSession[];
   isLoading: boolean;
@@ -37,10 +35,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     const remaining = sessions.filter((s) => s.id !== sessionId);
     await setSessions(remaining);
 
-    const updatedRecovery = recoveryFromSessions(remaining, (id) =>
-      useExercisesStore.getState().getExercise(id)
-    );
-    await setRecovery(updatedRecovery);
+    await useRecoveryStore.getState().load();
 
     const prev = rebuildPreviousSnapshot(remaining);
     await setExercisePrevious(prev);

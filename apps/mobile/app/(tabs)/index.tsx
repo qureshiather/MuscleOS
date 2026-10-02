@@ -73,7 +73,7 @@ export default function WorkoutsScreen() {
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
   const completedSessions = useSessionsStore((s) => s.completedSessions);
-  const loadRecovery = useRecoveryStore((s) => s.load);
+  const ensureRecoveryLoaded = useRecoveryStore((s) => s.ensureLoaded);
   const recoveryItems = useRecoveryStore((s) => s.items);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
   const figureGender = useSettingsStore((s) => (s.profile?.sex === 'female' ? 'female' : 'male'));
@@ -135,8 +135,8 @@ export default function WorkoutsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSessions();
-      loadRecovery();
-    }, [loadSessions, loadRecovery])
+      void ensureRecoveryLoaded();
+    }, [loadSessions, ensureRecoveryLoaded])
   );
 
   const templates = allTemplates();
