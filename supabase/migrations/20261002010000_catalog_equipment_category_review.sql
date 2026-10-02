@@ -5,7 +5,7 @@
 
 update public.catalog_exercises as c
 set
-  category = v.category,
+  category = v.category::public.exercise_category,
   equipment = v.equipment,
   updated_at = now()
 from (values
@@ -189,4 +189,4 @@ from (values
   ('zottman-curl', 'free_weight', ARRAY['dumbbell']::text[])
 ) as v(id, category, equipment)
 where c.id = v.id
-  and (c.category is distinct from v.category or c.equipment is distinct from v.equipment);
+  and (c.category is distinct from v.category::public.exercise_category or c.equipment is distinct from v.equipment);
