@@ -47,7 +47,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Ionicons } from '@expo/vector-icons';
-import type { MuscleId, SessionExercise } from '@muscleos/types';
+import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
 import { searchExercises } from '@/utils/exerciseSearch';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import {
@@ -1488,7 +1488,7 @@ export default function ActiveWorkoutScreen() {
                       </Text>
                       {exercise?.equipment?.[0] ? (
                         <Text style={[styles.exerciseEquipment, { color: colors.textMuted }]}>
-                          {exercise.equipment[0].charAt(0).toUpperCase() + exercise.equipment[0].slice(1)}
+                          {equipmentLabel(exercise.equipment[0])}
                         </Text>
                       ) : null}
                       {exerciseNote ? (

@@ -23,7 +23,7 @@ interface Exercise {
   id: string;
   name: string;
   muscles: MuscleId[];        // flat; no primary/secondary
-  equipment: Equipment[];     // may be empty
+  equipment: Equipment[];     // catalog: exactly one; customs: may be empty
   category: ExerciseCategory;
   instructions?: string;
   aliases?: string[];         // catalog only — legacy slug redirects
@@ -55,7 +55,42 @@ primary/secondary split was flattened at build time.
 unpublished (`powerlifting-exercises`, `rowing-machine`, `stationary-bike`) — still resolvable by
 id so old sessions render, just hidden from browsing.
 
-By category: 206 free weight, 93 bodyweight, 54 machine, 46 cable.
+By category: 177 free weight, 102 bodyweight, 60 machine, 60 cable.
+
+### Equipment and Type rules
+
+Every catalog row lists **exactly one equipment value** — the primary piece the movement is
+usually done with (Hammer Curl is `dumbbell`, Good Morning is `barbell`), not every option. The
+active-workout card shows only the first value, so a single value keeps it right.
+
+The library **Type is derived from that equipment** by the generator:
+
+| Equipment | Type |
+|-----------|------|
+| barbell, dumbbell, kettlebell, EZ bar, other | Free Weight |
+| machine | Machine |
+| cable, **band** | Cable |
+| bodyweight | Bodyweight |
+
+Bands count as Cable: both are anchored, variable-resistance pulls. Three rows are exceptions,
+listed in `CATEGORY_OVERRIDE`: Banded Muscle-Up (the band assists, it doesn't resist) and Kneeling
+Ab Wheel Roll-Out / Leg Curl on Ball (the prop isn't the load) are Bodyweight.
+
+Classification conventions:
+
+- **Specialty bars** — landmine, T-bar, trap bar, safety squat bar, fat bar — are `barbell`.
+- **Smith machine** movements are `machine`. Lat pulldowns, pushdowns and straight-arm pulldowns
+  are `cable`; the selectorized/plate-loaded Machine Lat Pulldown is `machine`.
+- **Stations** — hyperextension bench, GHR, reverse hyper, assisted pull-up/dip, belt squat,
+  donkey calf raise — are `machine`. A captain's chair, pull-up bar, rings, box or bench used only
+  for support is `bodyweight`.
+- **Optionally loaded movements** follow how they're usually done in a gym: Bulgarian Split
+  Squat, Step-Up and Single-Leg Hip Thrust are `dumbbell`; Glute Bridge, Cossack Squat, Nordic and
+  Poliquin Step-Up are `bodyweight`.
+- **`other`** is for loads that fit no enum value: plates, slam/medicine balls, grippers, wrist
+  rollers, ankle weights.
+- A band that only adds a cue to a barbell lift (Band-Assisted Bench Press, Hip Thrust with Band
+  Around Knees) doesn't make it a band exercise — those are `barbell`.
 
 **Names are title case.** Content words are capitalized; `a` / `an` / `the` / `and` / `with` /
 `on` / `in` / `to` / `of` stay lowercase unless they are the first or last word. Hyphenated
@@ -265,7 +300,9 @@ Covered:
   stripped, default muscles, snake_case tracking type, `is_published: false` mapping
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper; every catalog name matches it
 - `src/data/exercises.test.ts` — source ids match the bundled seed; every exercise has
-  instructions; no third-party URLs or attribution; current copy is present in a migration
+  instructions; no third-party URLs or attribution; current copy is present in a migration;
+  one equipment per row, Type follows equipment (with the listed exceptions), and equipment
+  agrees with the equipment named in the exercise (Barbell/Dumbbell/Cable/Smith Machine…)
 - `src/sync/catalogMerge.test.ts` — seed overlay keeps cached instructions; incoming delta replaces by id
 - `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels
 - `src/data/builtInTemplates.test.ts` — every built-in template exercise id exists in the catalog
