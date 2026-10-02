@@ -20,7 +20,7 @@ const SRC_PATH = join(__dirname, '../src/data/exercises.ts');
 const TS_OUT = join(__dirname, '../src/data/catalogSeed.ts');
 const SQL_OUT = join(ROOT, 'supabase/migrations/20260830020000_catalog_exercises_seed.sql');
 
-const SEED_UPDATED_AT = '2026-09-18T00:00:00.000Z';
+const SEED_UPDATED_AT = '2026-10-02T00:00:00.000Z';
 
 const instructionsArg = process.argv.find((a) => a.startsWith('--instructions-migration='));
 const INSTRUCTIONS_MIGRATION = instructionsArg ? instructionsArg.split('=')[1] : null;
@@ -35,109 +35,37 @@ const UNPUBLISHED = new Set([
   'stationary-bike',
 ]);
 
-/** Explicit category corrections (id → category). */
-const CATEGORY_OVERRIDE = {
-  'hang-clean': 'free_weight',
-  'hang-power-clean': 'free_weight',
-  'hang-power-snatch': 'free_weight',
-  'hang-snatch': 'free_weight',
-  'landmine-hack-squat': 'free_weight',
-  't-bar-row': 'free_weight',
-  'band-assisted-bench-press': 'free_weight',
-  'hip-abduction-against-band': 'free_weight',
-  'hip-adduction-against-band': 'free_weight',
-  'standing-hip-abduction-against-band': 'free_weight',
-  'face-pull': 'free_weight',
-  'bayesian-curl': 'cable',
-  'pallof-press': 'cable',
-  'pendulum-squat': 'machine',
-  'calf-raise': 'machine',
-  'back-extension': 'machine',
-  'glute-ham-raise': 'machine',
-  'bodyweight-leg-curl': 'bodyweight',
-  'leg-curl-on-ball': 'bodyweight',
-  'chest-to-bar': 'bodyweight',
-  'dead-bugs': 'bodyweight',
-  'hollow-hold': 'bodyweight',
-  'dragon-flag': 'bodyweight',
-  'lying-leg-raise': 'bodyweight',
-  'lying-windshield-wiper': 'bodyweight',
-  'lying-windshield-wiper-with-bent-knees': 'bodyweight',
-  'glute-bridge': 'bodyweight',
-  'frog-pumps': 'bodyweight',
-  'one-legged-glute-bridge': 'bodyweight',
-  'pistol-squat': 'bodyweight',
-  'inverted-row': 'bodyweight',
-  'inverted-row-with-underhand-grip': 'bodyweight',
-  'box-jump': 'bodyweight',
-  'depth-jump': 'bodyweight',
-  'lateral-bound': 'bodyweight',
-  'jump-squat': 'bodyweight',
-  'clamshells': 'bodyweight',
-  'donkey-kicks': 'bodyweight',
-  'heel-raise': 'bodyweight',
-  'kneeling-ab-wheel-roll-out': 'bodyweight',
-  'tibialis-raise': 'bodyweight',
-  'prisoner-get-up': 'bodyweight',
-  'floor-back-extension': 'bodyweight',
-  'assisted-chin-up': 'machine',
-  'assisted-dips': 'machine',
-  'assisted-pull-up': 'machine',
+/**
+ * Library Type follows the row's (single, primary) equipment. Bands count as Cable: both are
+ * anchored, variable-resistance pulls.
+ */
+const CATEGORY_BY_EQUIPMENT = {
+  barbell: 'free_weight',
+  dumbbell: 'free_weight',
+  kettlebell: 'free_weight',
+  ez_bar: 'free_weight',
+  other: 'free_weight',
+  machine: 'machine',
+  cable: 'cable',
+  band: 'cable',
+  bodyweight: 'bodyweight',
 };
 
-function classify({ id, name, equipment }) {
+/** Rows whose Type differs from their equipment's (id → category). Keep this list short. */
+const CATEGORY_OVERRIDE = {
+  // The band assists a bodyweight movement rather than providing resistance.
+  'banded-muscle-up': 'bodyweight',
+  // Ab wheel / stability ball are props; the load is your body.
+  'kneeling-ab-wheel-roll-out': 'bodyweight',
+  'leg-curl-on-ball': 'bodyweight',
+};
+
+function classify({ id, equipment }) {
   if (CATEGORY_OVERRIDE[id]) return CATEGORY_OVERRIDE[id];
-
-  const eq = new Set(equipment);
-  const n = `${id} ${name}`.toLowerCase();
-
-  const isBarbellLoad =
-    eq.has('barbell') ||
-    eq.has('dumbbell') ||
-    eq.has('kettlebell') ||
-    eq.has('ez_bar') ||
-    /barbell|dumbbell|kettlebell|ez.bar|trap.bar|landmine/.test(n);
-
-  if (
-    eq.has('cable') ||
-    (/cable|lat-pulldown|lat pulldown|tricep-pushdown|pushdown|seated-row|wood.chop|pallof|bayesian/.test(
-      n
-    ) &&
-      !/smith|barbell|dumbbell|banded|resistance.band/.test(n) &&
-      !eq.has('barbell') &&
-      !eq.has('dumbbell'))
-  ) {
-    if (!/smith/.test(n) && !eq.has('barbell') && !eq.has('dumbbell')) {
-      return 'cable';
-    }
+  if (equipment.length !== 1 || !CATEGORY_BY_EQUIPMENT[equipment[0]]) {
+    throw new Error(`${id}: catalog rows list exactly one primary equipment, got [${equipment}]`);
   }
-
-  if (
-    eq.has('machine') ||
-    (/smith|leg-press|hack-squat|pec-deck|assisted-|captain|hyperextension|reverse-hyper|glute-kickback-in-machine|glute-push-down|leg-extension|hip-abductor|hip-adductor|hip-thrust-machine|tricep-press|seated-calf|in-leg-press|belt-squat|pendulum|machine/.test(
-      n
-    ) &&
-      !isBarbellLoad &&
-      !eq.has('cable') &&
-      !eq.has('band'))
-  ) {
-    return 'machine';
-  }
-
-  if (
-    eq.has('bodyweight') ||
-    (/push-up|pull-up|chin-up|chinup|air-squat|plank|crunch|sit-up|muscle-up|bar-hang|wall-walk|superman|fire-hydrant|bodyweight|body.weight|nordic|scap-pull|towel-pull|towel-row|chair-squat|bicycle|mountain|l-sit|hanging-/.test(
-      n
-    ) &&
-      !isBarbellLoad &&
-      !eq.has('cable') &&
-      !eq.has('machine'))
-  ) {
-    if (/assisted/.test(n)) return 'machine';
-    return 'bodyweight';
-  }
-
-  return 'free_weight';
+  return CATEGORY_BY_EQUIPMENT[equipment[0]];
 }
 
 function parseSource(src) {
