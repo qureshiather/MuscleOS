@@ -80,7 +80,7 @@ const T2 = '2026-01-02T10:00:00.000Z';
 const NOW = '2026-03-01T12:00:00.000Z';
 
 function signIn(id: string, isAnonymous = false) {
-  useAuthStore.setState({ user: { id }, isAnonymous });
+  useAuthStore.setState({ user: { id } as never, isAnonymous });
 }
 
 const session = (id: string, completedAt = T1): WorkoutSession => ({
