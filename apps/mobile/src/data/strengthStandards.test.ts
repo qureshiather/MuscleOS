@@ -35,10 +35,13 @@ describe('compareToStrengthStandards', () => {
     expect(r.nextLevel1RMKg).toBeNull();
   });
 
-  it('never assigns a level from the all-zero pull-up table', () => {
-    const r = compareToStrengthStandards('pull-up', 200, 80, 'male');
-    expect(r.level).toBe('untrained');
-    expect(r.nextLevel1RMKg).toBeNull();
+  it('reports no standards for pull-ups, so no "Untrained" chip or strength card appears', () => {
+    for (const sex of ['male', 'female'] as const) {
+      const r = compareToStrengthStandards('pull-up', 200, 80, sex);
+      expect(r.hasStandards).toBe(false);
+      expect(r.nextLevel1RMKg).toBeNull();
+      expect(r.nextLevelName).toBeNull();
+    }
   });
 
   it('treats a missing bodyweight as a zero ratio', () => {
@@ -47,7 +50,7 @@ describe('compareToStrengthStandards', () => {
 });
 
 describe('getStrengthStandards', () => {
-  it('covers exactly the documented lifts (plus the disabled pull-up table)', () => {
+  it('covers exactly the documented lifts', () => {
     for (const id of [
       'bench-press',
       'close-grip-bench',
@@ -56,11 +59,12 @@ describe('getStrengthStandards', () => {
       'romanian-deadlift',
       'overhead-press',
       'barbell-row',
-      'pull-up',
     ]) {
       expect(getStrengthStandards(id, 'male')).not.toBeNull();
       expect(getStrengthStandards(id, 'female')).not.toBeNull();
     }
+    expect(getStrengthStandards('pull-up', 'male')).toBeNull();
+    expect(getStrengthStandards('pull-up', 'female')).toBeNull();
   });
 
   it('keeps female thresholds below male ones', () => {

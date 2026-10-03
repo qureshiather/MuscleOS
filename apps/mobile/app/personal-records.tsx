@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -14,86 +14,69 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useBottomSpace, useDeviceMetrics } from '@/theme/layout';
-import { useSessionsStore } from '@/store/sessionsStore';
+import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatWeight } from '@/utils/weightUnits';
-import { textMatchesQuery } from '@/utils/exerciseSearch';
+import { buildExercisePRs, type ExercisePR, formatE1RM } from '@/utils/oneRepMax';
 import {
-  buildExercisePRs,
-  type ExercisePR,
-  type SetWithDate,
-} from '@/utils/oneRepMax';
-import {
-  compareToStrengthStandards,
-  STRENGTH_LEVEL_LABELS,
-} from '@/data/strengthStandards';
+  filterPRsByName,
+  hasStrengthProfile,
+  type PRCardModel,
+  type ProgressPoint,
+  prCardModel,
+} from '@/utils/personalRecords';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
 import { useRequirePro } from '@/hooks/useProGate';
 
-const MAX_BARS = 10;
-
 function ProgressBars({
-  history,
-  max1RM,
+  bars,
   barColor,
   barBg,
 }: {
-  history: SetWithDate[];
-  max1RM: number;
+  bars: ProgressPoint[];
   barColor: string;
   barBg: string;
 }) {
-  const points = history.slice(0, MAX_BARS);
-  if (points.length === 0) return null;
   return (
     <View style={styles.barsRow}>
-      {points.map((p, i) => {
-        const ratio = max1RM > 0 ? Math.min(1, p.estimated1RM / max1RM) : 0;
-        return (
-          <View key={`${p.completedAt}-${i}`} style={[styles.barWrap, { backgroundColor: barBg }]}>
-            <View
-              style={[
-                styles.barFill,
-                {
-                  backgroundColor: barColor,
-                  flex: ratio || 0.01,
-                },
-              ]}
-            />
-            <View style={[styles.barSpacer, { flex: Math.max(0, 1 - ratio) }]} />
-          </View>
-        );
-      })}
+      {bars.map((p, i) => (
+        <View
+          key={`${p.completedAt}-${i}`}
+          testID="pr-bar"
+          style={[styles.barWrap, { backgroundColor: barBg }]}
+        >
+          <View style={[styles.barFill, { backgroundColor: barColor, flex: p.ratio || 0.01 }]} />
+          <View style={[styles.barSpacer, { flex: Math.max(0, 1 - p.ratio) }]} />
+        </View>
+      ))}
     </View>
   );
 }
 
 function PRCard({
   pr,
+  model,
   exerciseName,
   weightUnit,
   colors,
-  strengthComparison,
   onPress,
 }: {
   pr: ExercisePR;
+  model: PRCardModel;
   exerciseName: string;
   weightUnit: 'kg' | 'lb';
   colors: Record<string, string>;
-  strengthComparison: {
-    level: string;
-    nextLevel1RMKg: number | null;
-    nextLevelName: string | null;
-    hasStandards: boolean;
-  } | null;
   onPress: () => void;
 }) {
   const { isNarrow } = useDeviceMetrics();
+  const { strength, bars } = model;
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={exerciseName}
       style={({ pressed }) => [pressed && styles.cardPressed]}
     >
       <Card style={styles.card}>
@@ -109,7 +92,7 @@ function PRCard({
               Est. 1RM
             </Text>
             <Text style={[typography.data, styles.statValue, { color: colors.primary }]}>
-              {formatWeight(pr.bestEstimated1RM, weightUnit)}
+              {formatE1RM(pr.bestEstimated1RM, weightUnit)}
             </Text>
           </View>
           {pr.bestSet && (
@@ -123,32 +106,25 @@ function PRCard({
             </View>
           )}
         </View>
-        {strengthComparison?.hasStandards && (
+        {strength && (
           <View style={[styles.strengthChip, { backgroundColor: colors.surfaceElevated }]}>
             <Ionicons name="fitness-outline" size={14} color={colors.primary} />
             <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
-              {strengthComparison.level}
-              {strengthComparison.nextLevelName && strengthComparison.nextLevel1RMKg != null && (
+              {strength.label}
+              {strength.next && (
                 <Text style={{ color: colors.textMuted }}>
-                  {' '}
-                  → {strengthComparison.nextLevelName} @{' '}
-                  {formatWeight(strengthComparison.nextLevel1RMKg, weightUnit)}
+                  {` → ${strength.next.label} @ ${formatE1RM(strength.next.oneRepMaxKg, weightUnit)}`}
                 </Text>
               )}
             </Text>
           </View>
         )}
-        {pr.history.length > 1 && (
+        {bars && (
           <View style={styles.progressSection}>
             <Text style={[typography.caption, styles.progressLabel, { color: colors.textMuted }]}>
               Progress
             </Text>
-            <ProgressBars
-              history={pr.history}
-              max1RM={pr.bestEstimated1RM}
-              barColor={colors.primary}
-              barBg={colors.surfaceElevated}
-            />
+            <ProgressBars bars={bars} barColor={colors.primary} barBg={colors.surfaceElevated} />
           </View>
         )}
       </Card>
@@ -163,7 +139,9 @@ export default function PersonalRecordsScreen() {
   const scrollPaddingBottom = useBottomSpace(spacing.xl);
   const [search, setSearch] = useState('');
   const loadSessions = useSessionsStore((s) => s.load);
-  const completedSessions = useSessionsStore((s) => s.completedSessions);
+  // Subscribe to `sessions` (not the stable `completedSessions` getter) so the screen re-renders
+  // once its focus load lands.
+  const sessions = useSessionsStore((s) => s.sessions);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const profile = useSettingsStore((s) => s.profile);
@@ -174,16 +152,11 @@ export default function PersonalRecordsScreen() {
     }, [loadSessions])
   );
 
-  const completed = completedSessions();
-  const allPRs = buildExercisePRs(completed);
-  const prs = useMemo(() => {
-    const q = search.trim();
-    if (!q) return allPRs;
-    return allPRs.filter((pr) => {
-      const name = getExercise(pr.exerciseId)?.name ?? pr.exerciseId;
-      return textMatchesQuery(name, q);
-    });
-  }, [allPRs, search, getExercise]);
+  const completed = completedNewestFirst(sessions);
+  // Keyed by canonical id so alias-logged sets merge into the current catalog exercise.
+  const allPRs = buildExercisePRs(completed, (id) => getExercise(id)?.id ?? id);
+  const nameOf = (id: string) => getExercise(id)?.name ?? id;
+  const prs = filterPRsByName(allPRs, search, nameOf);
 
   if (!isPro) return null;
 
@@ -213,6 +186,7 @@ export default function PersonalRecordsScreen() {
                 },
               ]}
               placeholder="Search exercises..."
+              accessibilityLabel="Search exercises"
               placeholderTextColor={colors.textMuted}
               value={search}
               onChangeText={setSearch}
@@ -229,7 +203,7 @@ export default function PersonalRecordsScreen() {
               </Pressable>
             )}
           </View>
-          {(profile.weightKg == null || profile.weightKg <= 0 || !profile.sex) && (
+          {!hasStrengthProfile(profile) && (
             <Pressable
               onPress={() => router.push('/biodata')}
               style={[
@@ -268,43 +242,22 @@ export default function PersonalRecordsScreen() {
           contentContainerStyle={[styles.scroll, { paddingBottom: scrollPaddingBottom }]}
           showsVerticalScrollIndicator={false}
         >
-          {prs.map((pr) => {
-            const exerciseName = getExercise(pr.exerciseId)?.name ?? pr.exerciseId;
-            const strengthComparison =
-              profile.weightKg != null && profile.weightKg > 0 && profile.sex
-                ? compareToStrengthStandards(
-                    pr.exerciseId,
-                    pr.bestEstimated1RM,
-                    profile.weightKg,
-                    profile.sex
-                  )
-                : null;
-            return (
-              <PRCard
-                key={pr.exerciseId}
-                pr={pr}
-                exerciseName={exerciseName}
-                weightUnit={weightUnit}
-                colors={colors}
-                strengthComparison={
-                  strengthComparison
-                    ? {
-                        level: STRENGTH_LEVEL_LABELS[strengthComparison.level],
-                        nextLevel1RMKg: strengthComparison.nextLevel1RMKg,
-                        nextLevelName: strengthComparison.nextLevelName,
-                        hasStandards: strengthComparison.hasStandards,
-                      }
-                    : null
-                }
-                onPress={() =>
-                  router.push({
-                    pathname: '/exercise-progression',
-                    params: { exerciseId: pr.exerciseId },
-                  })
-                }
-              />
-            );
-          })}
+          {prs.map((pr) => (
+            <PRCard
+              key={pr.exerciseId}
+              pr={pr}
+              model={prCardModel(pr, profile)}
+              exerciseName={nameOf(pr.exerciseId)}
+              weightUnit={weightUnit}
+              colors={colors}
+              onPress={() =>
+                router.push({
+                  pathname: '/exercise-progression',
+                  params: { exerciseId: pr.exerciseId },
+                })
+              }
+            />
+          ))}
         </ScrollView>
       )}
     </Screen>

@@ -1,6 +1,11 @@
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
-import { focusRegions, MUSCLE_ID_TO_DIAGRAM_REGION, regionStatesForMuscles } from './muscleDiagramRegions';
+import {
+  focusRegions,
+  MUSCLE_ID_TO_DIAGRAM_REGION,
+  regionStatesForMuscles,
+  regionStatesToBodyData,
+} from './muscleDiagramRegions';
 
 describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
   it('maps all 18 muscle ids onto 15 regions', () => {
@@ -72,5 +77,38 @@ describe('focusRegions', () => {
   it('keeps every region when none repeats, and is empty with no muscles', () => {
     expect(focusRegions([['lats'], ['biceps']]).sort()).toEqual(['biceps', 'upper-back']);
     expect(focusRegions([])).toEqual([]);
+  });
+});
+
+describe('regionStatesToBodyData', () => {
+  const states = { chest: 'justTrained', deltoids: 'recovering', quadriceps: 'ready' } as const;
+
+  it('maps three states to palette indexes hot 1, warm 2, ready 3', () => {
+    expect(regionStatesToBodyData(states, true)).toEqual([
+      { slug: 'chest', intensity: 1 },
+      { slug: 'deltoids', intensity: 2 },
+      { slug: 'quadriceps', intensity: 3 },
+    ]);
+  });
+
+  it('maps two states to warm 1 (recovering or just trained) and ready 2', () => {
+    expect(regionStatesToBodyData(states, false)).toEqual([
+      { slug: 'chest', intensity: 1 },
+      { slug: 'deltoids', intensity: 1 },
+      { slug: 'quadriceps', intensity: 2 },
+    ]);
+  });
+
+  it('leaves regions without a state out, so they keep the neutral fill', () => {
+    const data = regionStatesToBodyData(regionStatesForMuscles(['chest'], new Set(['chest']), new Set(['chest'])), true);
+    expect(data).toEqual([{ slug: 'chest', intensity: 1 }]);
+  });
+
+  it('covers all 15 regions when built from every muscle (Recovery tab)', () => {
+    const all = Object.keys(MUSCLE_GROUPS) as (keyof typeof MUSCLE_GROUPS)[];
+    const data = regionStatesToBodyData(regionStatesForMuscles(all, new Set(['lats']), new Set()), false);
+    expect(data).toHaveLength(15);
+    expect(data.find((d) => d.slug === 'upper-back')?.intensity).toBe(1);
+    expect(data.filter((d) => d.intensity === 2)).toHaveLength(14);
   });
 });

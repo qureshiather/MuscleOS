@@ -32,68 +32,63 @@ import {
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import { blockedStartFeature, subscriptionPaywallPath } from '@/subscription/features';
+import {
+  midWorkoutEditDecision,
+  startFromParamsDecision,
+  subscriptionPaywallPath,
+} from '@/subscription/features';
+import { startPlanFromParams } from '@/subscription/startPlan';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useProGate } from '@/hooks/useProGate';
+import { useProGate, useRedirectWhenReady } from '@/hooks/useProGate';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { kgToDisplay, displayToKg } from '@/utils/weightUnits';
+import { kgToDisplay } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
 import { playWorkoutSound } from '@/utils/workoutSounds';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { musclesTrainedInSession } from '@/utils/recovery';
+import { templateDisplayName } from '@/utils/historyCards';
 import { Ionicons } from '@expo/vector-icons';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
-import { searchExercises } from '@/utils/exerciseSearch';
+import { pickerFooter, pickerResults } from '@/utils/exercisePicker';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import {
-  appendRestTimeDigit,
-  backspaceRestTime,
-  keypadAdjust,
-  keypadAppendDigit,
-  keypadBackspace,
-  REPS_MAX_DIGITS,
-  REPS_STEP,
-  restSecondsFromDigits,
-  restTimeDigits,
-  WEIGHT_MAX_DIGITS,
-  WEIGHT_STEP_KG,
-  WEIGHT_STEP_LB,
+  applyKeypadKey,
+  applyRestTimeKey,
+  focusRestTimeBox,
+  keypadDisplayValue,
+  keypadStep as computeKeypadStep,
+  type KeypadKey,
+  type RestTimeEntry,
+  type RestTimeKey,
 } from '@/utils/keypadInput';
 import {
+  buildFinishSummary,
+  cancelDialogMeta,
   finishFlowVariant,
   finishSaveOptions,
+  formatSummarySet,
+  hasSetDetail,
   templateStructureChanged as computeTemplateStructureChanged,
+  type FinishSummary,
 } from '@/utils/workoutFinish';
-import { isCurrentSet as computeIsCurrentSet, setLabel } from '@/utils/workoutSetView';
+import { previousLabel, setRowView } from '@/utils/workoutSetView';
 import {
   canCompleteSet,
-  parseStartParams,
-  restDurationAfterComplete,
-  startPrefillPatch,
+  restSecondsLeft as computeRestSecondsLeft,
+  shouldPlayRestTick,
 } from '@/store/activeWorkoutLogic';
 import {
   resolveTemplateExercises,
   serializeTemplateExercises,
   templateExercisesFromSession,
 } from '@/utils/templateExercises';
-
-function formatElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-/** e.g. 120 → "2:00" for compact labels */
-function formatRestDurationLabel(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+import { formatClock, formatClockMs } from '@/utils/formatClock';
 
 /** Compact but still tappable during a workout. */
 const SET_ROW_MIN_HEIGHT = 50;
@@ -249,7 +244,9 @@ function SetDonePressable({
   mutedFill,
   colors,
   onPress,
+  testID,
 }: {
+  testID?: string;
   completed: boolean;
   isCurrent?: boolean;
   disabled?: boolean;
@@ -293,6 +290,8 @@ function SetDonePressable({
       <Pressable
         onPress={handlePress}
         disabled={disabled && !completed}
+        testID={testID}
+        accessibilityState={{ disabled: !!disabled && !completed, checked: completed }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
         accessibilityLabel={
@@ -332,10 +331,14 @@ function SetDonePressable({
 function SetRowSwipeable({
   onDelete,
   dangerColor,
+  dangerOnColor,
   children,
+  testID,
 }: {
+  testID?: string;
   onDelete: () => void;
   dangerColor: string;
+  dangerOnColor: string;
   children: ReactNode;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
@@ -360,11 +363,12 @@ function SetRowSwipeable({
       renderRightActions={() => (
         <Pressable
           onPress={handleDelete}
+          testID={testID}
           accessibilityRole="button"
           accessibilityLabel="Remove set"
           style={[styles.swipeDeleteAction, { backgroundColor: dangerColor }]}
         >
-          <Ionicons name="trash-outline" size={22} color="#fff" />
+          <Ionicons name="trash-outline" size={22} color={dangerOnColor} />
         </Pressable>
       )}
     >
@@ -393,7 +397,9 @@ function RestBetweenBar({
   colors,
   completedTint,
   onPress,
+  testID,
 }: {
+  testID?: string;
   presetSeconds: number;
   active: boolean;
   restSecondsLeft: number;
@@ -405,7 +411,7 @@ function RestBetweenBar({
 }) {
   const minHeight = useTextScaledSize(active ? 34 : 28, fontScaleCap.chrome);
   const shownSeconds = active ? restSecondsLeft : presetSeconds;
-  const timeLabel = formatRestDurationLabel(shownSeconds);
+  const timeLabel = formatClock(shownSeconds);
   const progress =
     active && restTotalSeconds > 0
       ? Math.min(1, Math.max(0, (restTotalSeconds - restSecondsLeft) / restTotalSeconds))
@@ -433,6 +439,7 @@ function RestBetweenBar({
   return (
     <Pressable
       onPress={onPress}
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={active ? `Rest ${timeLabel} remaining` : `Rest ${timeLabel} after this set`}
       accessibilityHint="Opens rest timer"
@@ -502,16 +509,7 @@ function RestBetweenBar({
 /** Height of the fade over the bottom of the finish summary list when it overflows. */
 const SUMMARY_FADE_HEIGHT = 36;
 
-type FinishedSummary = {
-  name: string;
-  durationMs: number;
-  muscleIds: MuscleId[];
-  exercises: {
-    name: string;
-    completed: number;
-    sets: { weightKg?: number; reps?: number }[];
-  }[];
-};
+type FinishedSummary = FinishSummary & { muscleIds: MuscleId[] };
 
 export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
@@ -542,8 +540,7 @@ export default function ActiveWorkoutScreen() {
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
   const setExerciseRestBetweenSets = useActiveWorkoutStore((s) => s.setExerciseRestBetweenSets);
   const setExerciseWarmUpRest = useActiveWorkoutStore((s) => s.setExerciseWarmUpRest);
-  const completeSet = useActiveWorkoutStore((s) => s.completeSet);
-  const uncompleteSet = useActiveWorkoutStore((s) => s.uncompleteSet);
+  const toggleSetComplete = useActiveWorkoutStore((s) => s.toggleSetComplete);
   const addSet = useActiveWorkoutStore((s) => s.addSet);
   const addWarmUpSet = useActiveWorkoutStore((s) => s.addWarmUpSet);
   const removeSet = useActiveWorkoutStore((s) => s.removeSet);
@@ -556,13 +553,11 @@ export default function ActiveWorkoutScreen() {
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
   const restAfter = useActiveWorkoutStore((s) => s.restAfter);
   const restDurationsBetweenSets = useActiveWorkoutStore((s) => s.restDurationsBetweenSets);
-  const startRest = useActiveWorkoutStore((s) => s.startRest);
   const startManualRest = useActiveWorkoutStore((s) => s.startManualRest);
   const skipRest = useActiveWorkoutStore((s) => s.skipRest);
   const add30SecondsRest = useActiveWorkoutStore((s) => s.add30SecondsRest);
   const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
-  const clearRestTimer = useActiveWorkoutStore((s) => s.clearRestTimer);
-  const recordRestDuration = useActiveWorkoutStore((s) => s.recordRestDuration);
+  const endRestIfDue = useActiveWorkoutStore((s) => s.endRestIfDue);
   const { isPro, gatePro } = useProGate();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
@@ -572,6 +567,11 @@ export default function ActiveWorkoutScreen() {
   const exerciseNotes = useExerciseNotesStore((s) => s.notes);
   const setExerciseNote = useExerciseNotesStore((s) => s.setNote);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
+  const templatesLoaded = useTemplatesStore((s) => !s.isLoading);
+  const subscriptionLoaded = useSubscriptionStore((s) => !s.isLoading);
+  const paramsTemplate = useTemplatesStore((s) =>
+    params.templateId ? s.allTemplates().find((t) => t.id === params.templateId) : undefined
+  );
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   // Selected through the store (not allTemplates(), which is a stable function) so the
@@ -585,19 +585,18 @@ export default function ActiveWorkoutScreen() {
   const [restTick, setRestTick] = useState(0); // force re-render every second so derived restSecondsLeft updates
   const [showRestPicker, setShowRestPicker] = useState(false);
   const [showRestControls, setShowRestControls] = useState(false);
-  const [restDraftSeconds, setRestDraftSeconds] = useState(DEFAULT_REST_SECONDS);
-  const [warmUpDraftSeconds, setWarmUpDraftSeconds] = useState(0);
-  /** Which duration box on Update rest timers is taking keypad input. */
-  const [restTimeField, setRestTimeField] = useState<'work' | 'warmUp' | null>(null);
-  /** First digit of a focused time box replaces the current value. */
-  const [restTimeReplace, setRestTimeReplace] = useState(true);
+  /** Update rest timers: both draft durations and which box (if any) the time pad is editing. */
+  const [restEntry, setRestEntry] = useState<RestTimeEntry>({
+    work: DEFAULT_REST_SECONDS,
+    warmUp: 0,
+    field: null,
+    replace: true,
+  });
+  const restTimeField = restEntry.field;
   const [reorderMode, setReorderMode] = useState(false);
 
   // Derive remaining seconds from end time so timer is correct after returning from background
-  const restSecondsLeft: number | null =
-    restEndTime === null
-      ? null
-      : Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
+  const restSecondsLeft = computeRestSecondsLeft(restEndTime, Date.now());
   const [elapsedMs, setElapsedMs] = useState(0);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
   const [keypadHeight, setKeypadHeight] = useState(0);
@@ -613,11 +612,13 @@ export default function ActiveWorkoutScreen() {
     exercisePicker?.mode === 'replace'
       ? session?.exercises[exercisePicker.exIdx]?.exerciseId
       : undefined;
-  const addExerciseResults = useMemo(() => {
-    const matched = searchExercises(getAllExercises(), addExerciseSearch);
-    if (!replaceExcludeId) return matched;
-    return matched.filter((e) => e.id !== replaceExcludeId);
-  }, [addExerciseSearch, customExercises, getAllExercises, replaceExcludeId]);
+  // Both pickers leave out every exercise already in the workout, so neither can add a duplicate.
+  const sessionExerciseIds = session?.exercises.map((se) => se.exerciseId).join(',') ?? '';
+  const addExerciseResults = useMemo(
+    () => pickerResults(getAllExercises(), addExerciseSearch, sessionExerciseIds.split(',')),
+    [addExerciseSearch, customExercises, getAllExercises, sessionExerciseIds]
+  );
+  const addExerciseFooter = pickerFooter(addExerciseSearch, addExerciseResults.length);
 
   useEffect(() => {
     if (exercisePicker === null) {
@@ -652,6 +653,9 @@ export default function ActiveWorkoutScreen() {
   const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [removeSetTarget, setRemoveSetTarget] = useState<{ exIdx: number; setIdx: number } | null>(
+    null
+  );
   const [removeExerciseTarget, setRemoveExerciseTarget] = useState<{
     exIdx: number;
     name: string;
@@ -728,41 +732,49 @@ export default function ActiveWorkoutScreen() {
     setExerciseMenuExIdx(exIdx);
   };
 
+  // Last line of defence: notifications and deep links reach this screen directly, so a lapsed
+  // subscription must not be able to start Pro-only work here either. Waits for the persisted
+  // workout, templates and tier to load; an already-running session is untouched.
+  const startDecision =
+    startedFromParamsRef.current || leavingWorkoutRef.current
+      ? 'wait'
+      : startFromParamsDecision({
+          hasSession: session != null || !hydrated,
+          templatesLoaded,
+          subscriptionLoaded,
+          isPro,
+          templateId: params.templateId ?? '',
+          template: paramsTemplate,
+        });
+  useRedirectWhenReady(
+    startDecision !== 'wait' && startDecision !== 'start'
+      ? (subscriptionPaywallPath(startDecision) as Href)
+      : null
+  );
   useEffect(() => {
-    if (!params.templateId || session || startedFromParamsRef.current || leavingWorkoutRef.current) {
-      return;
-    }
-    // Last line of defence: notifications and deep links reach this screen directly, so
-    // a lapsed subscription must not be able to start Pro-only work here either. An
-    // already-running session is untouched — this only blocks starting a new one.
-    const blockedBy = blockedStartFeature({
-      isPro,
-      templateId: params.templateId,
-      template: allTemplates().find((t) => t.id === params.templateId),
-    });
-    if (blockedBy != null) {
-      router.replace(subscriptionPaywallPath(blockedBy) as Href);
-      return;
-    }
+    if (startDecision !== 'start' || !params.templateId || startedFromParamsRef.current) return;
     startedFromParamsRef.current = true;
-    const plan = parseStartParams({
-      exerciseIds: params.exerciseIds,
-      sets: params.sets,
-      warmUpSets: params.warmUpSets,
-      defaultSets: params.defaultSets,
+    const plan = startPlanFromParams({
+      isPro,
+      template: paramsTemplate,
+      params: {
+        exerciseIds: params.exerciseIds,
+        sets: params.sets,
+        warmUpSets: params.warmUpSets,
+        defaultSets: params.defaultSets,
+      },
     });
     startWorkout(params.templateId, plan);
   }, [
+    startDecision,
     params.templateId,
     params.exerciseIds,
     params.sets,
     params.warmUpSets,
     params.defaultSets,
-    session,
     startWorkout,
     isPro,
-    allTemplates,
-    router,
+    paramsTemplate,
   ]);
 
   // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page),
@@ -778,21 +790,9 @@ export default function ActiveWorkoutScreen() {
 
   useEffect(() => {
     if (!session) return;
-    getExercisePrevious().then((prev) => {
-      setPreviousMap(prev);
-      const current = useActiveWorkoutStore.getState().session;
-      if (!current) return;
-      for (const [exIdx, se] of current.exercises.entries()) {
-        const p = prev[se.exerciseId];
-        if (!p) continue;
-        for (const [setIdx, set] of se.sets.entries()) {
-          const patch = startPrefillPatch(set, p);
-          if (patch) {
-            setSetRecord(exIdx, setIdx, patch);
-          }
-        }
-      }
-    });
+    // PREVIOUS column + add/replace prefill source. Session-start prefill happens once, in the
+    // store's startWorkout — not here, where every mount refilled sets the user had cleared.
+    getExercisePrevious().then(setPreviousMap);
   }, [session?.id]);
 
   useEffect(() => {
@@ -814,10 +814,9 @@ export default function ActiveWorkoutScreen() {
     if (restSecondsLeft == null) return;
     const prev = prevRestSecondsLeftRef.current;
     prevRestSecondsLeftRef.current = restSecondsLeft;
-    if (!workoutSoundsEnabled) return;
-    if (restSecondsLeft < 1 || restSecondsLeft > 3) return;
-    if (prev !== null && restSecondsLeft >= prev) return;
-    void playWorkoutSound('restTick');
+    if (workoutSoundsEnabled && shouldPlayRestTick(prev, restSecondsLeft)) {
+      void playWorkoutSound('restTick');
+    }
   }, [restSecondsLeft, workoutSoundsEnabled, restTick]);
 
   // Tick every second while rest is active so UI updates; timer is time-based so correct when app was backgrounded
@@ -831,24 +830,11 @@ export default function ActiveWorkoutScreen() {
   // Skip in-app sound if we're catching up after background — the OS
   // rest-complete notification already alerted (see useWorkoutNotification).
   useEffect(() => {
-    if (restEndTime === null || Date.now() < restEndTime) return;
-    const justEnded = Date.now() - restEndTime < 1500;
-    if (workoutSoundsEnabled && justEnded) {
+    const ended = endRestIfDue(Date.now());
+    if (ended?.playEndSound && workoutSoundsEnabled) {
       void playWorkoutSound('restEnd');
     }
-    if (restAfter !== null) {
-      recordRestDuration(restAfter.exIdx, restAfter.setIdx, restTotalSeconds);
-    }
-    clearRestTimer();
-  }, [
-    restEndTime,
-    restTick,
-    restAfter,
-    restTotalSeconds,
-    workoutSoundsEnabled,
-    recordRestDuration,
-    clearRestTimer,
-  ]);
+  }, [restEndTime, restTick, workoutSoundsEnabled, endRestIfDue]);
 
   function handleStartManualRest(seconds: number) {
     setShowRestPicker(false);
@@ -869,34 +855,15 @@ export default function ActiveWorkoutScreen() {
 
   function closeRestTimers() {
     setRestTimersExIdx(null);
-    setRestTimeField(null);
+    setRestEntry((e) => ({ ...e, field: null }));
   }
 
   function focusRestTime(field: 'work' | 'warmUp') {
-    setRestTimeField(field);
-    setRestTimeReplace(true);
+    setRestEntry((e) => focusRestTimeBox(e, field));
   }
 
-  function applyRestTimeDigits(nextDigits: string | null) {
-    if (nextDigits == null || restTimeField == null) return;
-    const seconds = restSecondsFromDigits(nextDigits);
-    if (seconds == null) return;
-    if (restTimeField === 'work') setRestDraftSeconds(seconds);
-    else setWarmUpDraftSeconds(seconds);
-    setRestTimeReplace(false);
-  }
-
-  function handleRestTimeDigit(digit: string) {
-    if (restTimeField == null) return;
-    const current = restTimeField === 'work' ? restDraftSeconds : warmUpDraftSeconds;
-    applyRestTimeDigits(appendRestTimeDigit(restTimeDigits(current), digit, restTimeReplace));
-  }
-
-  function handleRestTimeBackspace() {
-    if (restTimeField == null) return;
-    const current = restTimeField === 'work' ? restDraftSeconds : warmUpDraftSeconds;
-    const digits = restTimeReplace ? '' : restTimeDigits(current);
-    applyRestTimeDigits(backspaceRestTime(digits));
+  function pressRestTimeKey(key: RestTimeKey) {
+    setRestEntry((e) => applyRestTimeKey(e, key));
   }
 
   // Close rest controls when rest ends
@@ -924,41 +891,28 @@ export default function ActiveWorkoutScreen() {
 
   async function handleFinish(updateCustomTemplate?: boolean) {
     if (!session) return;
+    const template = allTemplates().find((t) => t.id === session.templateId);
+    const overwrite = updateCustomTemplate === true && template != null && !template.isBuiltIn;
+    // Gate before leaving: a Basic tap must not close the summary or mark the workout as leaving.
+    if (overwrite && !gatePro('save_as_template')) return;
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
     leavingWorkoutRef.current = true;
 
-    const template = allTemplates().find((t) => t.id === session.templateId);
-    if (updateCustomTemplate && template && !template.isBuiltIn) {
-      if (!isPro) {
-        gatePro('save_as_template');
-        return;
-      }
+    if (overwrite) {
       await updateTemplate(session.templateId, {
         ...serializeTemplateExercises(templateExercisesFromSession(session.exercises)),
       });
     }
 
-    const muscleIdSet = new Set<MuscleId>();
-    for (const se of session.exercises) {
-      if (!se.sets.some((s) => s.completed)) continue;
-      const exercise = getExercise(se.exerciseId);
-      for (const m of exercise?.muscles ?? []) {
-        muscleIdSet.add(m);
-      }
-    }
-
     const summary: FinishedSummary = {
-      name: template?.name ?? (session.templateId === '_empty' ? 'Empty workout' : 'Workout'),
-      durationMs: elapsedMs,
-      muscleIds: [...muscleIdSet],
-      exercises: session.exercises
-        .map((se) => ({
-          name: getExercise(se.exerciseId)?.name ?? se.exerciseId,
-          completed: se.sets.filter((s) => s.completed).length,
-          sets: se.sets.filter((s) => s.completed),
-        }))
-        .filter((ex) => ex.completed > 0),
+      ...buildFinishSummary(
+        session,
+        templateDisplayName(allTemplates(), session.templateId),
+        exerciseName,
+        elapsedMs
+      ),
+      muscleIds: musclesTrainedInSession(session, getExercise),
     };
 
     if (workoutSoundsEnabled) {
@@ -1029,6 +983,10 @@ export default function ActiveWorkoutScreen() {
     setShowSaveAsTemplateModal(false);
   }
 
+  function exerciseName(exerciseId: string): string {
+    return getExercise(exerciseId)?.name ?? exerciseId;
+  }
+
   function handleCancel() {
     setShowCancelConfirm(false);
     leavingWorkoutRef.current = true;
@@ -1037,7 +995,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   if (finishedSummary) {
-    const totalSets = finishedSummary.exercises.reduce((n, ex) => n + ex.completed, 0);
+    const totalSets = finishedSummary.totalSets;
     return (
       <Screen>
         <ScrollView
@@ -1047,7 +1005,7 @@ export default function ActiveWorkoutScreen() {
         >
           <View style={styles.finishedHero}>
             <View style={[styles.finishedBadge, { backgroundColor: colors.primary }]}>
-              <Ionicons name="checkmark" size={28} color="#fff" />
+              <Ionicons name="checkmark" size={28} color={colors.primaryOn} />
             </View>
             <Text style={[styles.finishedTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Good work</Text>
             <Text style={[styles.finishedSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
@@ -1058,7 +1016,7 @@ export default function ActiveWorkoutScreen() {
           <View style={[styles.finishedStatsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.finishedStat}>
               <Text style={[styles.finishedStatValue, { color: colors.text }]}>
-                {formatElapsed(finishedSummary.durationMs)}
+                {formatClockMs(finishedSummary.durationMs)}
               </Text>
               <Text style={[styles.finishedStatLabel, { color: colors.textMuted }]}>Duration</Text>
             </View>
@@ -1082,9 +1040,7 @@ export default function ActiveWorkoutScreen() {
                 Muscles trained
               </Text>
               <MuscleDiagram
-                muscleIds={finishedSummary.muscleIds}
-                recoveringMuscleIds={finishedSummary.muscleIds}
-                justTrainedMuscleIds={finishedSummary.muscleIds}
+                sessionMuscleIds={finishedSummary.muscleIds}
                 size={0.72}
               />
             </View>
@@ -1111,18 +1067,9 @@ export default function ActiveWorkoutScreen() {
                     {item.completed} set{item.completed !== 1 ? 's' : ''}
                   </Text>
                 </View>
-                {item.sets.some((s) => s.weightKg != null || s.reps != null) ? (
+                {hasSetDetail(item.sets) ? (
                   <Text style={[styles.finishedExerciseDetail, { color: colors.textMuted }]} numberOfLines={2}>
-                    {item.sets
-                      .map((s) => {
-                        const w =
-                          s.weightKg != null && s.weightKg > 0
-                            ? `${kgToDisplay(s.weightKg, weightUnit)} ${weightUnit}`
-                            : '';
-                        const r = s.reps != null ? `${s.reps} reps` : '';
-                        return w && r ? `${w} × ${r}` : w || r || '—';
-                      })
-                      .join('  ·  ')}
+                    {item.sets.map((s) => formatSummarySet(s, weightUnit, true)).join('  ·  ')}
                   </Text>
                 ) : null}
               </View>
@@ -1134,8 +1081,9 @@ export default function ActiveWorkoutScreen() {
           <Pressable
             style={[styles.finishedDoneBtn, { backgroundColor: colors.primary }]}
             onPress={leaveFinishedWorkout}
+            testID="finished-done"
           >
-            <Text style={styles.finishedDoneBtnText}>Done</Text>
+            <Text style={[styles.finishedDoneBtnText, { color: colors.primaryOn }]}>Done</Text>
           </Pressable>
         </ScreenFooter>
         <WorkoutConfetti visible={showConfetti} />
@@ -1157,6 +1105,14 @@ export default function ActiveWorkoutScreen() {
   }
 
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
+  /** Mid-workout add / replace / remove gate: built-in alert or paywall on Basic. */
+  const allowMidWorkoutEdit = (action: 'add' | 'replace' | 'remove'): boolean => {
+    const decision = midWorkoutEditDecision({ action, isBuiltIn: isBuiltInWorkout, isPro });
+    if (decision === 'allow') return true;
+    if (decision === 'builtin-alert') alertCannotEditBuiltIn();
+    else gatePro(decision);
+    return false;
+  };
   const isNoTemplateWorkout = session.templateId === '_empty';
   const templateListChanged =
     currentTemplate != null &&
@@ -1173,20 +1129,8 @@ export default function ActiveWorkoutScreen() {
   const finishOptions = finishSaveOptions(finishFlowInput);
 
   const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
-  const completedSetCount = session.exercises.reduce(
-    (n, ex) => n + ex.sets.filter((s) => s.completed).length,
-    0
-  );
-  const cancelWorkoutMeta =
-    completedSetCount > 0
-      ? `${formatElapsed(elapsedMs)} · ${completedSetCount} set${completedSetCount === 1 ? '' : 's'}`
-      : undefined;
-  const completedSetsByExercise = session.exercises.map((se) => ({
-    name: getExercise(se.exerciseId)?.name ?? se.exerciseId,
-    completed: se.sets.filter((s) => s.completed).length,
-    total: se.sets.length,
-    sets: se.sets.filter((s) => s.completed),
-  }));
+  const cancelWorkoutMeta = cancelDialogMeta(session, elapsedMs);
+  const finishSummary = buildFinishSummary(session, currentTemplate?.name, exerciseName, elapsedMs);
 
   // ── In-app numeric keypad ──────────────────────────────────────────────────
   // Shown whenever a set cell is focused, unless a sheet/modal owns the bottom.
@@ -1199,6 +1143,7 @@ export default function ActiveWorkoutScreen() {
     showRestPicker ||
     showRestControls ||
     showCancelConfirm ||
+    removeSetTarget != null ||
     removeExerciseTarget != null ||
     showSaveAsTemplateModal;
 
@@ -1208,82 +1153,25 @@ export default function ActiveWorkoutScreen() {
     focusedCell != null ? focusedExercise?.sets[focusedCell.setIdx] : undefined;
   const keypadVisible = focusedCell != null && keypadSet != null && !keypadModalOpen;
   const keypadIsWeight = focusedCell?.field === 'kg';
-  const keypadExerciseName = focusedExercise
-    ? getExercise(focusedExercise.exerciseId)?.name ?? focusedExercise.exerciseId
-    : '';
-  const currentKeypadValue: number | undefined = keypadSet
-    ? keypadIsWeight
-      ? keypadSet.weightKg != null
-        ? kgToDisplay(keypadSet.weightKg, weightUnit)
-        : undefined
-      : keypadSet.reps
-    : undefined;
+  const keypadField = keypadIsWeight ? 'weight' : 'reps';
+  const keypadExerciseName = focusedExercise ? exerciseName(focusedExercise.exerciseId) : '';
+  const currentKeypadValue = keypadSet ? keypadDisplayValue(keypadSet, keypadField, weightUnit) : undefined;
   const keypadValueText = currentKeypadValue != null ? String(currentKeypadValue) : '';
-  const keypadStep = keypadIsWeight
-    ? weightUnit === 'lb'
-      ? WEIGHT_STEP_LB
-      : WEIGHT_STEP_KG
-    : REPS_STEP;
-
+  const keypadStep = computeKeypadStep(keypadField, weightUnit);
   // Done is only meaningful once the set has reps to log.
-  const keypadCanComplete = keypadSet != null && keypadSet.reps != null && keypadSet.reps > 0;
+  const keypadCanComplete = keypadSet != null && canCompleteSet(keypadSet);
 
-  // The focused field still holds an auto-loaded suggestion the user hasn't touched.
-  const focusedFieldIsPrefill = keypadSet
-    ? keypadIsWeight
-      ? keypadSet.weightPrefilled === true
-      : keypadSet.repsPrefilled === true
-    : false;
-
-  // Any keypad edit confirms the field, clearing its suggestion flag so later keystrokes append.
-  function applyKeypadValue(next: number | undefined) {
-    if (!focusedCell) return;
-    const { exIdx, setIdx, field } = focusedCell;
-    if (field === 'reps') {
-      setSetRecord(exIdx, setIdx, { reps: next, repsPrefilled: false });
-    } else {
-      setSetRecord(exIdx, setIdx, {
-        weightKg: next == null ? undefined : displayToKg(next, weightUnit),
-        weightPrefilled: false,
-      });
-    }
-  }
-  function handleKeypadDigit(digit: string) {
-    const maxDigits = keypadIsWeight ? WEIGHT_MAX_DIGITS : REPS_MAX_DIGITS;
-    // A suggestion is treated as selected: the first digit replaces it instead of appending,
-    // so a fresh workout never needs a backspace before typing.
-    const base = focusedFieldIsPrefill ? undefined : currentKeypadValue;
-    applyKeypadValue(keypadAppendDigit(base, digit, maxDigits));
-  }
-  function handleKeypadBackspace() {
-    applyKeypadValue(keypadBackspace(currentKeypadValue));
-  }
-  function handleKeypadAdjust(delta: number) {
-    applyKeypadValue(keypadAdjust(currentKeypadValue, delta));
-  }
-  // Weight → jump to reps of the same set.
-  function handleKeypadNext() {
-    if (!focusedCell) return;
-    setFocusedCell({ exIdx: focusedCell.exIdx, setIdx: focusedCell.setIdx, field: 'reps' });
-  }
-  // Reps → complete the set (starting rest for a working set) and drop the pad, since the
-  // rest usually comes next rather than the following set.
-  function handleKeypadComplete() {
-    if (!focusedCell || !session) return;
+  /** Apply one pad key to the focused cell (rules in applyKeypadKey). */
+  function pressKeypadKey(key: KeypadKey) {
+    if (!focusedCell || !keypadSet) return;
     const { exIdx, setIdx } = focusedCell;
-    const se = session.exercises[exIdx];
-    const targetSet = se?.sets[setIdx];
-    if (!targetSet) return;
-    if (!canCompleteSet(targetSet)) return;
-    if (!targetSet.completed) {
-      completeSet(exIdx, setIdx);
-      if (workoutSoundsEnabled) {
-        void playWorkoutSound('setComplete');
-      }
-      const restSeconds = restDurationAfterComplete(targetSet, se);
-      if (restSeconds != null) startRest(exIdx, setIdx, restSeconds);
+    const outcome = applyKeypadKey(keypadSet, keypadField, key, weightUnit);
+    if (outcome.patch) setSetRecord(exIdx, setIdx, outcome.patch);
+    if (outcome.complete && toggleSetComplete(exIdx, setIdx) === 'completed' && workoutSoundsEnabled) {
+      void playWorkoutSound('setComplete');
     }
-    setFocusedCell(null);
+    if (outcome.focus === null) setFocusedCell(null);
+    else if (outcome.focus) setFocusedCell({ exIdx, setIdx, field: outcome.focus === 'weight' ? 'kg' : 'reps' });
   }
 
   const listBottomPadding = keypadVisible
@@ -1296,13 +1184,16 @@ export default function ActiveWorkoutScreen() {
       {/* Header: Back + rest chip | Time | Done/Finish */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
-          <Pressable onPress={minimizeWorkout} hitSlop={12} accessibilityLabel="Minimize workout">
+          <Pressable onPress={minimizeWorkout} hitSlop={12} accessibilityLabel="Minimize workout" testID="minimize-workout">
             <Ionicons name="chevron-down" size={28} color={colors.textSecondary} />
           </Pressable>
           {restSecondsLeft !== null && restSecondsLeft > 0 ? (
             <Pressable
               onPress={openTopBarRestDialog}
               hitSlop={6}
+              testID="header-rest-chip"
+              accessibilityRole="button"
+              accessibilityLabel={`Rest ${formatClock(restSecondsLeft)} remaining`}
               style={[
                 styles.headerRestChip,
                 {
@@ -1314,13 +1205,16 @@ export default function ActiveWorkoutScreen() {
             >
               <Ionicons name="timer" size={13} color={colors.primary} />
               <Text style={[styles.headerRestChipText, { color: colors.primary }]}>
-                {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+                {formatClock(restSecondsLeft)}
               </Text>
             </Pressable>
           ) : (
             <Pressable
               onPress={openTopBarRestDialog}
               hitSlop={8}
+              testID="header-rest-start"
+              accessibilityRole="button"
+              accessibilityLabel="Start rest timer"
               style={[styles.headerTimerBtn, { backgroundColor: colors.surfaceElevated }]}
             >
               <Ionicons name="timer-outline" size={14} color={colors.textMuted} />
@@ -1328,7 +1222,9 @@ export default function ActiveWorkoutScreen() {
           )}
         </View>
         <View style={styles.headerCenter} pointerEvents="none">
-          <Text style={[styles.elapsed, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
+          <Text style={[styles.elapsed, { color: colors.text }]} testID="workout-elapsed">
+            {formatClockMs(elapsedMs)}
+          </Text>
         </View>
         <View style={styles.headerRight}>
           {reorderMode ? (
@@ -1343,6 +1239,10 @@ export default function ActiveWorkoutScreen() {
             <Pressable
               onPress={() => setShowFinishSummary(true)}
               disabled={!hasAtLeastOneSet}
+              testID="finish-workout"
+              accessibilityRole="button"
+              accessibilityLabel="Finish"
+              accessibilityState={{ disabled: !hasAtLeastOneSet }}
               style={[
                 styles.finishHeaderBtn,
                 hasAtLeastOneSet && { backgroundColor: colors.primary },
@@ -1410,14 +1310,9 @@ export default function ActiveWorkoutScreen() {
                     }
                   : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
               ]}
+              testID="add-exercise"
               onPress={() => {
-                if (isBuiltInWorkout && !isPro) {
-                  alertCannotEditBuiltIn();
-                  return;
-                }
-                if (gatePro('add_exercise_mid_workout')) {
-                  setExercisePicker({ mode: 'add' });
-                }
+                if (allowMidWorkoutEdit('add')) setExercisePicker({ mode: 'add' });
               }}
             >
               <Ionicons name="add-circle-outline" size={22} color={isPro ? colors.primary : colors.textSecondary} />
@@ -1456,7 +1351,7 @@ export default function ActiveWorkoutScreen() {
                       backgroundColor: isActive ? colors.surfaceElevated : colors.surface,
                       borderColor: colors.border,
                     },
-                    isActive && styles.reorderRowActive,
+                    isActive && [styles.reorderRowActive, { shadowColor: colors.shadowCool }],
                   ]}
                 >
                   <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
@@ -1472,7 +1367,6 @@ export default function ActiveWorkoutScreen() {
           }
 
           const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
-          const warmUpRestSec = se.warmUpRestSeconds ?? 0;
           const exerciseNote = exerciseNotes[se.exerciseId];
           const exerciseComplete = se.sets.length > 0 && se.sets.every((s) => s.completed);
 
@@ -1486,7 +1380,7 @@ export default function ActiveWorkoutScreen() {
                     ? withAlpha(colors.success, isDark ? 0.45 : 0.4)
                     : colors.border,
                 },
-                !isDark && styles.exerciseCardShadow,
+                !isDark && [styles.exerciseCardShadow, { shadowColor: colors.shadowCool }],
               ]}
             >
               <View style={styles.exerciseCardHeaderWrap}>
@@ -1589,25 +1483,15 @@ export default function ActiveWorkoutScreen() {
               {se.sets.map((set, setIdx) => {
                 const isKgFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'kg';
                 const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
-                const firstIncompleteIdx = se.sets.findIndex((s) => !s.completed);
-                const isFutureSet =
-                  firstIncompleteIdx !== -1 && setIdx > firstIncompleteIdx && !set.completed;
-                const isCurrentSet = computeIsCurrentSet(session.exercises, exIdx, setIdx);
-                const restDurationKey = `${exIdx}-${setIdx}`;
-                const recordedRestSec = restDurationsBetweenSets[restDurationKey];
-                const isActiveRestGap =
-                  restAfter?.exIdx === exIdx &&
-                  restAfter?.setIdx === setIdx &&
-                  restSecondsLeft != null &&
-                  restSecondsLeft > 0;
-
-                const isWarmUp = set.isWarmUp === true;
-                const setLabelText = setLabel(se.sets, setIdx);
-
-                const prev = previousMap[se.exerciseId];
-                const prevLabel = prev
-                  ? `${kgToDisplay(prev.weightKg, weightUnit)} ${weightUnit}${prev.reps != null ? ` × ${prev.reps}` : ''}`
-                  : '—';
+                const row = setRowView(session.exercises, exIdx, setIdx, { restAfter, restSecondsLeft });
+                const isCurrentSet = row.status === 'current';
+                const isFutureSet = row.status === 'future';
+                const recordedRestSec = restDurationsBetweenSets[`${exIdx}-${setIdx}`];
+                const isActiveRestGap = row.restActive;
+                const isWarmUp = row.isWarmUp;
+                const setLabelText = row.label;
+                const prevLabel = previousLabel(previousMap[se.exerciseId], weightUnit);
+                const rowName = `${exIdx}-${setIdx}`;
 
                 const completedRowTint = withAlpha(colors.success, isDark ? 0.22 : 0.16);
                 const currentRowTint = withAlpha(colors.primary, isDark ? 0.22 : 0.16);
@@ -1634,16 +1518,11 @@ export default function ActiveWorkoutScreen() {
                 const repsBorderColor = isRepsFocused ? colors.primary : 'transparent';
 
                 const canDeleteSet = se.sets.length > 1;
-                const deleteThisSet = () => {
-                  if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                    clearRestTimer();
-                  }
-                  removeSet(exIdx, setIdx);
-                };
-                const presetSeconds = isWarmUp ? warmUpRestSec : restPresetSec;
-                const showRestAfter = isActiveRestGap || presetSeconds > 0;
-                const restJoinsCompletedSets =
-                  set.completed && se.sets[setIdx + 1]?.completed === true && !isActiveRestGap;
+                // removeSet also clears a countdown running for this set.
+                const deleteThisSet = () => removeSet(exIdx, setIdx);
+                const presetSeconds = row.restPresetSeconds;
+                const showRestAfter = row.showRestAfter;
+                const restJoinsCompletedSets = row.restJoinsCompleted;
 
                 const setRow = (
                     <View
@@ -1656,12 +1535,13 @@ export default function ActiveWorkoutScreen() {
                         style={[colSetStyle, styles.setLabelCol, { minHeight: dense.inputMinHeight }]}
                         onLongPress={() => {
                           if (!canDeleteSet) return;
-                          Alert.alert('Remove set', 'Delete this set from the exercise?', [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Remove', style: 'destructive', onPress: deleteThisSet },
-                          ]);
+                          setFocusedCell(null);
+                          setRemoveSetTarget({ exIdx, setIdx });
                         }}
                         delayLongPress={350}
+                        testID={`set-label-${rowName}`}
+                        accessibilityLabel={`Set ${setLabelText}, ${row.status === 'future' ? 'upcoming' : row.status}`}
+                        accessibilityHint={canDeleteSet ? 'Long-press to remove this set' : undefined}
                       >
                         <SetIndexMark
                           label={setLabelText}
@@ -1673,7 +1553,7 @@ export default function ActiveWorkoutScreen() {
                         />
                         {set.completed && recordedRestSec != null ? (
                           <Text style={[styles.setRestDuration, { color: colors.textMuted }]}>
-                            {formatElapsed(recordedRestSec * 1000)}
+                            {formatClock(recordedRestSec)}
                           </Text>
                         ) : null}
                       </Pressable>
@@ -1688,6 +1568,7 @@ export default function ActiveWorkoutScreen() {
                       </View>
                       <Pressable
                         onPress={() => setFocusedCell({ exIdx, setIdx, field: 'kg' })}
+                        testID={`set-weight-${rowName}`}
                         style={({ pressed }) => [
                           setInputWrapStyle,
                           styles.setCell,
@@ -1723,6 +1604,7 @@ export default function ActiveWorkoutScreen() {
                       </Pressable>
                       <Pressable
                         onPress={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                        testID={`set-reps-${rowName}`}
                         style={({ pressed }) => [
                           setInputWrapStyle,
                           styles.setCell,
@@ -1758,20 +1640,10 @@ export default function ActiveWorkoutScreen() {
                         disabled={!set.completed && !canCompleteSet(set)}
                         mutedFill={mutedFill}
                         colors={colors}
+                        testID={`set-done-${rowName}`}
                         onPress={() => {
-                          if (set.completed) {
-                            uncompleteSet(exIdx, setIdx);
-                            if (restAfter?.exIdx === exIdx && restAfter?.setIdx === setIdx) {
-                              clearRestTimer();
-                            }
-                          } else {
-                            if (!canCompleteSet(set)) return;
-                            completeSet(exIdx, setIdx);
-                            if (workoutSoundsEnabled) {
-                              void playWorkoutSound('setComplete');
-                            }
-                            const restSeconds = restDurationAfterComplete(set, se);
-                            if (restSeconds != null) startRest(exIdx, setIdx, restSeconds);
+                          if (toggleSetComplete(exIdx, setIdx) === 'completed' && workoutSoundsEnabled) {
+                            void playWorkoutSound('setComplete');
                           }
                         }}
                       />
@@ -1793,6 +1665,7 @@ export default function ActiveWorkoutScreen() {
                         },
                       ]}
                       accessibilityState={isCurrentSet ? { selected: true } : undefined}
+                      testID={`set-row-${rowName}`}
                     >
                       {statusAccent ? (
                         <View
@@ -1803,7 +1676,9 @@ export default function ActiveWorkoutScreen() {
                       {canDeleteSet ? (
                         <SetRowSwipeable
                           dangerColor={colors.danger}
+                          dangerOnColor={colors.dangerOn}
                           onDelete={deleteThisSet}
+                          testID={`set-swipe-delete-${rowName}`}
                         >
                           {setRow}
                         </SetRowSwipeable>
@@ -1824,6 +1699,7 @@ export default function ActiveWorkoutScreen() {
                             : undefined
                         }
                         onPress={openTopBarRestDialog}
+                        testID={`rest-row-${rowName}`}
                       />
                     ) : null}
                   </View>
@@ -1833,9 +1709,10 @@ export default function ActiveWorkoutScreen() {
               <Pressable
                 style={({ pressed }) => [styles.addSetBtn, pressed && styles.setCellPressed]}
                 onPress={() => addSet(exIdx)}
+                testID={`add-set-${exIdx}`}
               >
                 <Text style={[styles.addSetBtnText, { color: colors.primary }]}>
-                  + ADD SET ({formatRestDurationLabel(restPresetSec)})
+                  + ADD SET ({formatClock(restPresetSec)})
                 </Text>
               </Pressable>
               </View>
@@ -1852,11 +1729,11 @@ export default function ActiveWorkoutScreen() {
           valueText={keypadValueText}
           step={keypadStep}
           canComplete={keypadCanComplete}
-          onDigit={handleKeypadDigit}
-          onBackspace={handleKeypadBackspace}
-          onAdjust={handleKeypadAdjust}
-          onNext={handleKeypadNext}
-          onComplete={handleKeypadComplete}
+          onDigit={(digit) => pressKeypadKey({ kind: 'digit', digit })}
+          onBackspace={() => pressKeypadKey({ kind: 'backspace' })}
+          onAdjust={(delta) => pressKeypadKey({ kind: 'adjust', direction: delta < 0 ? -1 : 1 })}
+          onNext={() => pressKeypadKey({ kind: 'next' })}
+          onComplete={() => pressKeypadKey({ kind: 'done' })}
           onDismiss={() => setFocusedCell(null)}
           onHeight={setKeypadHeight}
         />
@@ -1874,6 +1751,23 @@ export default function ActiveWorkoutScreen() {
         onConfirm={handleCancel}
         cancelTestID="cancel-workout-keep"
         confirmTestID="cancel-workout-discard"
+      />
+
+      <ConfirmDialog
+        visible={removeSetTarget != null}
+        title="Remove set"
+        message="Delete this set from the exercise?"
+        cancelLabel="Cancel"
+        confirmLabel="Remove"
+        destructive
+        onCancel={() => setRemoveSetTarget(null)}
+        onConfirm={() => {
+          if (removeSetTarget == null) return;
+          removeSet(removeSetTarget.exIdx, removeSetTarget.setIdx);
+          setRemoveSetTarget(null);
+        }}
+        cancelTestID="remove-set-keep"
+        confirmTestID="remove-set-confirm"
       />
 
       <ConfirmDialog
@@ -1907,11 +1801,12 @@ export default function ActiveWorkoutScreen() {
               {[60, 120, 180].map((sec) => (
                 <Pressable
                   key={sec}
+                  testID={`rest-picker-${sec}`}
                   style={[styles.restPickerOption, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                   onPress={() => handleStartManualRest(sec)}
                 >
                   <Text style={[styles.restPickerOptionText, { color: colors.primary }]}>
-                    {sec === 60 ? '1:00' : sec === 120 ? '2:00' : '3:00'}
+                    {formatClock(sec)}
                   </Text>
                 </Pressable>
               ))}
@@ -1987,19 +1882,16 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onReplace={() => {
                     closeExerciseMenu();
-                    if (isBuiltInWorkout && !isPro) {
-                      alertCannotEditBuiltIn();
-                      return;
-                    }
-                    if (gatePro('replace_exercise_mid_workout')) {
-                      setExercisePicker({ mode: 'replace', exIdx });
-                    }
+                    if (allowMidWorkoutEdit('replace')) setExercisePicker({ mode: 'replace', exIdx });
                   }}
                   onEditRest={() => {
                     const ex = session.exercises[exIdx];
-                    setRestDraftSeconds(ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
-                    setWarmUpDraftSeconds(ex?.warmUpRestSeconds ?? 0);
-                    setRestTimeField(null);
+                    setRestEntry({
+                      work: ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
+                      warmUp: ex?.warmUpRestSeconds ?? 0,
+                      field: null,
+                      replace: true,
+                    });
                     setRestTimersExIdx(exIdx);
                     closeExerciseMenu();
                   }}
@@ -2010,10 +1902,7 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onRemove={() => {
                     closeExerciseMenu();
-                    if (isBuiltInWorkout && !isPro) {
-                      alertCannotEditBuiltIn();
-                      return;
-                    }
+                    if (!allowMidWorkoutEdit('remove')) return;
                     setRemoveExerciseTarget({
                       exIdx,
                       name: exercise?.name ?? se.exerciseId,
@@ -2039,19 +1928,21 @@ export default function ActiveWorkoutScreen() {
             <Text style={[styles.restControlsLabel, { color: colors.textMuted }]}>Rest remaining</Text>
             {restSecondsLeft != null && (
               <Text style={[styles.restControlsTimer, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>
-                {Math.floor(restSecondsLeft / 60)}:{(restSecondsLeft % 60).toString().padStart(2, '0')}
+                {formatClock(restSecondsLeft)}
               </Text>
             )}
             <View style={styles.restControlsRow}>
               <Pressable
                 style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                 onPress={subtract30SecondsRest}
+                testID="rest-minus-30"
               >
                 <Text style={[styles.restControlsAdjText, { color: colors.text }]}>−30</Text>
               </Pressable>
               <Pressable
                 style={[styles.restControlsAdj, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                 onPress={add30SecondsRest}
+                testID="rest-plus-30"
               >
                 <Text style={[styles.restControlsAdjText, { color: colors.text }]}>+30</Text>
               </Pressable>
@@ -2059,6 +1950,7 @@ export default function ActiveWorkoutScreen() {
             <Pressable
               style={[styles.restControlsSkip, { backgroundColor: colors.primary }]}
               onPress={handleSkipRest}
+              testID="rest-skip"
             >
               <Text style={[styles.restControlsSkipText, { color: colors.primaryOn }]}>Skip rest</Text>
             </Pressable>
@@ -2092,12 +1984,13 @@ export default function ActiveWorkoutScreen() {
                 <>
                   <Text style={[styles.restTimersTitle, { color: colors.text }]}>Update rest timers</Text>
                   <Text style={[styles.restTimersHint, { color: colors.textMuted }]}>
-                    Completed timers will not be affected. Durations will be saved for next time.
+                    A running timer is not affected. Applies to the next sets of this exercise for
+                    the rest of this workout.
                   </Text>
                   {(
                     [
-                      ['work', 'Work set', restDraftSeconds],
-                      ['warmUp', 'Warm up', warmUpDraftSeconds],
+                      ['work', 'Work set', restEntry.work],
+                      ['warmUp', 'Warm up', restEntry.warmUp],
                     ] as const
                   ).map(([field, label, seconds]) => {
                     const focused = restTimeField === field;
@@ -2107,7 +2000,8 @@ export default function ActiveWorkoutScreen() {
                         <Pressable
                           onPress={() => focusRestTime(field)}
                           accessibilityRole="button"
-                          accessibilityLabel={`${label} rest ${formatRestDurationLabel(seconds)}`}
+                          accessibilityLabel={`${label} rest ${formatClock(seconds)}`}
+                          testID={`rest-time-${field}`}
                           accessibilityHint="Enter a time"
                           style={[
                             styles.restTypePill,
@@ -2121,7 +2015,7 @@ export default function ActiveWorkoutScreen() {
                             style={[styles.restTypePillText, { color: colors.text }]}
                             maxFontSizeMultiplier={fontScaleCap.chrome}
                           >
-                            {formatRestDurationLabel(seconds)}
+                            {formatClock(seconds)}
                           </Text>
                         </Pressable>
                       </View>
@@ -2133,9 +2027,10 @@ export default function ActiveWorkoutScreen() {
                       styles.restTimersSaveBtn,
                       { backgroundColor: colors.primary, borderColor: colors.primary },
                     ]}
+                    testID="rest-timers-save"
                     onPress={() => {
-                      setExerciseRestBetweenSets(restTimersExIdx, restDraftSeconds);
-                      setExerciseWarmUpRest(restTimersExIdx, warmUpDraftSeconds);
+                      setExerciseRestBetweenSets(restTimersExIdx, restEntry.work);
+                      setExerciseWarmUpRest(restTimersExIdx, restEntry.warmUp);
                       closeRestTimers();
                     }}
                   >
@@ -2157,17 +2052,15 @@ export default function ActiveWorkoutScreen() {
                 fieldTitle={restTimeField === 'work' ? 'Work set' : 'Warm up'}
                 timeAction={restTimeField === 'work' ? 'next' : 'done'}
                 unitLabel=""
-                valueText={formatRestDurationLabel(
-                  restTimeField === 'work' ? restDraftSeconds : warmUpDraftSeconds
-                )}
+                valueText={formatClock(restTimeField === 'work' ? restEntry.work : restEntry.warmUp)}
                 step={1}
                 canComplete
-                onDigit={handleRestTimeDigit}
-                onBackspace={handleRestTimeBackspace}
+                onDigit={(digit) => pressRestTimeKey({ kind: 'digit', digit })}
+                onBackspace={() => pressRestTimeKey({ kind: 'backspace' })}
                 onAdjust={() => {}}
-                onNext={() => focusRestTime(restTimeField === 'work' ? 'warmUp' : 'work')}
-                onComplete={() => setRestTimeField(null)}
-                onDismiss={() => setRestTimeField(null)}
+                onNext={() => pressRestTimeKey({ kind: 'next' })}
+                onComplete={() => pressRestTimeKey({ kind: 'done' })}
+                onDismiss={() => pressRestTimeKey({ kind: 'done' })}
               />
             ) : null}
           </View>
@@ -2297,7 +2190,7 @@ export default function ActiveWorkoutScreen() {
                   onPress={() => void handleSaveAsTemplate()}
                   disabled={savingAsTemplate}
                 >
-                  <Text style={styles.summarySaveBtnText}>
+                  <Text style={[styles.summarySaveBtnText, { color: colors.primaryOn }]}>
                     {savingAsTemplate ? 'Saving…' : 'Save'}
                   </Text>
                 </Pressable>
@@ -2327,27 +2220,19 @@ export default function ActiveWorkoutScreen() {
             >
               <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Duration</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatElapsed(elapsedMs)}</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{formatClockMs(elapsedMs)}</Text>
               </View>
               <View style={styles.summaryExercises}>
                 <Text style={[styles.summarySectionLabel, { color: colors.textMuted }]}>Exercises</Text>
-                {completedSetsByExercise
-                  .filter((ex) => ex.completed > 0)
-                  .map((item, idx) => (
+                {finishSummary.exercises.map((item, idx) => (
                     <View key={idx} style={[styles.summaryExerciseRow, { borderBottomColor: colors.border }]}>
                       <Text style={[styles.summaryExerciseName, { color: colors.text }]} numberOfLines={1}>
                         {item.name}
                       </Text>
                       <Text style={[styles.summaryExerciseSets, { color: colors.textSecondary }]}>
                         {item.completed} set{item.completed !== 1 ? 's' : ''}
-                        {item.sets.some((s) => s.weightKg != null || s.reps != null)
-                          ? ` · ${item.sets
-                              .map((s) => {
-                                const w = s.weightKg != null && s.weightKg > 0 ? kgToDisplay(s.weightKg, weightUnit) : '';
-                                const r = s.reps != null ? `${s.reps} reps` : '';
-                                return w && r ? `${w} × ${r}` : w || r || '—';
-                              })
-                              .join(', ')}`
+                        {hasSetDetail(item.sets)
+                          ? ` · ${item.sets.map((s) => formatSummarySet(s, weightUnit, false)).join(', ')}`
                           : ''}
                       </Text>
                     </View>
@@ -2383,6 +2268,7 @@ export default function ActiveWorkoutScreen() {
                   return (
                     <Pressable
                       key={option.id}
+                      testID="finish-option-discard"
                       onPress={handleDiscardOnly}
                       style={[styles.summaryCancelBtn, { marginTop: 4 }]}
                     >
@@ -2404,6 +2290,7 @@ export default function ActiveWorkoutScreen() {
                 return (
                   <Pressable
                     key={option.id}
+                    testID={`finish-option-${option.id}`}
                     style={
                       isPrimary
                         ? [styles.summarySaveBtn, { backgroundColor: colors.primary }]
@@ -2414,7 +2301,7 @@ export default function ActiveWorkoutScreen() {
                     <Text
                       style={
                         isPrimary
-                          ? styles.summarySaveBtnText
+                          ? [styles.summarySaveBtnText, { color: colors.primaryOn }]
                           : [styles.summarySecondaryBtnText, { color: colors.text }]
                       }
                     >
@@ -2423,7 +2310,7 @@ export default function ActiveWorkoutScreen() {
                   </Pressable>
                 );
               })}
-              <Pressable onPress={closeFinishFlow} style={styles.summaryCancelBtn}>
+              <Pressable onPress={closeFinishFlow} style={styles.summaryCancelBtn} testID="finish-back">
                 <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
               </Pressable>
             </View>
@@ -2453,7 +2340,7 @@ export default function ActiveWorkoutScreen() {
                 : undefined
             }
           >
-            <View style={styles.addExerciseModalHeader}>
+            <View style={[styles.addExerciseModalHeader, { borderBottomColor: colors.subtleDivider }]}>
               <View style={styles.addExerciseModalTitleBlock}>
                 <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>
                   {exercisePicker?.mode === 'replace' ? 'Replace exercise' : 'Add exercise'}
@@ -2476,6 +2363,7 @@ export default function ActiveWorkoutScreen() {
                 { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
               ]}
               placeholder="Search exercises..."
+              testID="picker-search"
               placeholderTextColor={colors.textMuted}
               value={addExerciseSearch}
               onChangeText={setAddExerciseSearch}
@@ -2509,15 +2397,16 @@ export default function ActiveWorkoutScreen() {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               ListEmptyComponent={
-                addExerciseSearch.trim() ? null : (
+                addExerciseFooter.showNoMatches ? (
                   <Text style={[styles.addExerciseEmpty, { color: colors.textMuted }]}>
                     No matching exercises
                   </Text>
-                )
+                ) : null
               }
               ListFooterComponent={
-                addExerciseSearch.trim() ? (
+                addExerciseFooter.createName != null ? (
                   <Pressable
+                    testID="picker-create-exercise"
                     style={[
                       styles.addExerciseRow,
                       { borderBottomColor: colors.border, justifyContent: 'flex-start', gap: 10 },
@@ -2526,7 +2415,7 @@ export default function ActiveWorkoutScreen() {
                   >
                     <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
                     <Text style={[typography.bodyMedium, { color: colors.primary, flex: 1 }]}>
-                      Create “{addExerciseSearch.trim()}”
+                      Create “{addExerciseFooter.createName}”
                     </Text>
                   </Pressable>
                 ) : null
@@ -2534,6 +2423,7 @@ export default function ActiveWorkoutScreen() {
               renderItem={({ item }) => (
                 <Pressable
                   style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
+                  testID={`picker-row-${item.id}`}
                   onPress={() => {
                     if (!session) return;
                     if (exercisePicker?.mode === 'replace') {
@@ -2712,7 +2602,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   exerciseCardShadow: {
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -2733,58 +2622,6 @@ const styles = StyleSheet.create({
   },
   exerciseTitleBlock: {
     gap: 3,
-  },
-  restBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  restBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,
-  },
-  restBannerTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  restBannerTime: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  restBannerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  restBannerAdj: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  restBannerAdjText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  restBannerSkip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.28)',
-  },
-  restBannerSkipText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
   },
   headerReorderBtn: {
     paddingHorizontal: 8,
@@ -2815,7 +2652,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   reorderRowActive: {
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -3310,7 +3146,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   addExerciseModalTitleBlock: {
     flex: 1,
@@ -3381,7 +3216,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
   },
-  summarySaveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  summarySaveBtnText: { fontSize: 17, fontWeight: '600' },
   summarySecondaryBtn: { backgroundColor: 'transparent', borderWidth: 2 },
   summarySecondaryBtnText: { fontSize: 17, fontWeight: '600' },
   summaryCancelBtn: { paddingVertical: 12, alignItems: 'center' },
@@ -3505,7 +3340,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   finishedDoneBtnText: {
-    color: '#fff',
     fontSize: 17,
     fontWeight: '700',
   },

@@ -3,7 +3,8 @@
  * Based on ExRx.net and common powerlifting/weightlifting classification systems.
  * Standards are for adult lifters (>18); age not differentiated.
  *
- * Exercise IDs map to standards. Unmapped exercises show no comparison.
+ * Exercise IDs map to standards. Unmapped exercises show no comparison. Bodyweight lifts such as
+ * pull-ups have no table: a 1RM/bodyweight ratio isn't a meaningful measure for them.
  */
 export type StrengthLevel =
   | 'untrained'
@@ -43,7 +44,6 @@ const MALE_STANDARDS: Record<string, Record<StrengthLevel, number>> = {
   'romanian-deadlift': { untrained: 0.6, novice: 0.85, intermediate: 1.4, advanced: 1.8, elite: 2.2 },
   'overhead-press': { untrained: 0.35, novice: 0.5, intermediate: 0.75, advanced: 1.0, elite: 1.2 },
   'barbell-row': { untrained: 0.5, novice: 0.75, intermediate: 1.0, advanced: 1.4, elite: 1.75 },
-  'pull-up': { untrained: 0.0, novice: 0.0, intermediate: 0.0, advanced: 0.0, elite: 0.0 }, // bodyweight; ratios don't apply
 };
 
 /** Female standards: ~60–70% of male (based on physiological differences) */
@@ -55,7 +55,6 @@ const FEMALE_STANDARDS: Record<string, Record<StrengthLevel, number>> = {
   'romanian-deadlift': { untrained: 0.4, novice: 0.6, intermediate: 1.0, advanced: 1.3, elite: 1.6 },
   'overhead-press': { untrained: 0.2, novice: 0.3, intermediate: 0.55, advanced: 0.75, elite: 1.0 },
   'barbell-row': { untrained: 0.3, novice: 0.5, intermediate: 0.7, advanced: 1.0, elite: 1.3 },
-  'pull-up': { untrained: 0.0, novice: 0.0, intermediate: 0.0, advanced: 0.0, elite: 0.0 },
 };
 
 export interface StrengthComparison {

@@ -5,9 +5,13 @@
  * 2. Net-new local → keep; pushed via outbox
  * 3. Conflict (both sides have the entity):
  *    - Dirty local (pending outbox) → local wins
- *    - Clean → last-write-wins by updated_at; tie keeps local
- * 4. Map / settings snapshots: union keys; empty local slots fill from remote;
- *    non-empty conflicts prefer local when keeping local
+ *    - Clean session → last-write-wins: remote updated_at vs local completedAt/startedAt; tie keeps local
+ *    - Clean template / folder / custom exercise → no local timestamp, so remote is taken
+ * 4. Map / settings snapshots (notes, previous, app_settings):
+ *    - Clean, or an empty local map → the remote snapshot replaces local
+ *    - Pending local → keep local; union keys, empty local slots fill from remote
+ *      (settings: each pending local unit/sound/theme field wins; biodata merges per field)
+ * 5. Remote deletes follow the same decision; a remote snapshot delete resets local to empty/defaults.
  */
 
 import type { SyncedAppSettings, UserAppProfile, ExercisePrevious } from '@/storage/localStorage';

@@ -12,6 +12,17 @@ describe('toExerciseTitleCase', () => {
     expect(toExerciseTitleCase('clean and jerk')).toBe('Clean and Jerk');
   });
 
+  it('keeps but/or/nor/for/at/from/by/vs lowercase mid-name', () => {
+    expect(toExerciseTitleCase('row or curl but not press nor fly for time at home from rack by hand vs band')).toBe(
+      'Row or Curl but Not Press nor Fly for Time at Home from Rack by Hand vs Band'
+    );
+  });
+
+  it('capitalizes small words at the start or end of the name', () => {
+    expect(toExerciseTitleCase('the press')).toBe('The Press');
+    expect(toExerciseTitleCase('hold on')).toBe('Hold On');
+  });
+
   it('capitalizes hyphenated segments and preserves short acronyms', () => {
     expect(toExerciseTitleCase('decline push-up')).toBe('Decline Push-Up');
     expect(toExerciseTitleCase('t-bar row')).toBe('T-Bar Row');

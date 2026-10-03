@@ -29,7 +29,7 @@ calories, or score your form. It records what you did and shows it back to you.
 ## Design principles
 
 **Fast on the gym floor.** The set row is the most important UI in the app. Weight and reps
-are number-pad integers, the previous session's numbers are always visible, and completing a
+are typed as whole numbers on an in-app number pad (± steps can make fractional weights), the previous session's numbers are always visible, and completing a
 set starts the rest timer without another tap.
 
 **Local-first.** Every feature works offline against on-device storage. A Supabase account is
@@ -103,6 +103,9 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Biodata | `/biodata` | Height, weight, age, gender | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Data | `/data` | Sync, export, import, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
+| Email link landing | `/auth-callback` | Spinner while an email confirm/recovery link is completed, then routes on | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
+
+`/` and `/templates` are redirect-only routes to the Workouts tab.
 
 ## Cross-cutting assumptions
 
@@ -118,6 +121,8 @@ exists in the type but the logging UI ignores it.
 
 **One workout at a time.** A single in-progress session is persisted; starting a second is
 blocked while one is open. It survives app restarts and is resumable from a pill in the tab bar.
+A workout idle for 3 hours or more is closed automatically on launch or foreground (see
+[workout-logging.md](../features/workout-logging.md)).
 
 **Sessions drive derived training data.** Recovery, personal records, and home stats are
 recomputed from the session list. "Previous" set values are different: they are a persisted,

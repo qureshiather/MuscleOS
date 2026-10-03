@@ -16,7 +16,26 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { BUILT_IN_FOLDERS, BUILT_IN_TEMPLATES } from '@/data/builtInTemplates';
+import { BUILT_IN_FOLDERS } from '@/data/builtInTemplates';
+import {
+  folderDeletePlan,
+  groupHomeTemplates,
+  templateMenuActions,
+  type FolderGroup,
+  type TemplateMenuActionKey,
+} from '@/store/templatesLogic';
+import {
+  ARCHIVED_SECTION,
+  HIDDEN_BUILT_IN_SECTION,
+  HIDDEN_CUSTOM_SECTION,
+  customSectionVisible,
+  decideTemplateStart,
+  defaultFolderExpanded,
+  lastDoneByTemplate as computeLastDoneByTemplate,
+  showLapsedNotice,
+  startableTemplates as computeStartableTemplates,
+  suggestHomeTemplates,
+} from '@/utils/workoutsHome';
 import { useProGate } from '@/hooks/useProGate';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
@@ -24,7 +43,6 @@ import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
-import { recommendTemplates } from '@/utils/recommendTemplates';
 import { pickRecentTemplates } from '@/utils/recentTemplates';
 import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
 import { focusRegions, regionStatesForMuscles } from '@/utils/muscleDiagramRegions';
@@ -38,7 +56,7 @@ import {
 } from '@/components/workouts/WorkoutHomeSections';
 import { TemplateCard } from '@/components/workouts/TemplateCard';
 import { computeHomeStats, homeHeadline } from '@/utils/homeStats';
-import { requiresProToStart } from '@/subscription/features';
+import { requiresProToStart, type ProFeature } from '@/subscription/features';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { fontScaleCap, useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
@@ -46,9 +64,16 @@ import type { WorkoutTemplate, TemplateFolder, MuscleId } from '@muscleos/types'
 import { encodeStartParams } from '@/store/activeWorkoutLogic';
 import { resolveTemplateExercises } from '@/utils/templateExercises';
 
-const ARCHIVED_SECTION = '_archived';
-const HIDDEN_CUSTOM_SECTION = '_hidden_custom';
-const HIDDEN_BUILT_IN_SECTION = '_hidden_builtin';
+
+const TEMPLATE_MENU_ICONS: Record<TemplateMenuActionKey, keyof typeof Ionicons.glyphMap> = {
+  rename: 'pencil-outline',
+  move: 'arrow-redo-outline',
+  edit: 'create-outline',
+  hide: 'eye-off-outline',
+  unhide: 'eye-outline',
+  'unhide-folder': 'eye-outline',
+  delete: 'trash-outline',
+};
 
 type PendingStart = { kind: 'empty' } | { kind: 'template'; template: WorkoutTemplate };
 
@@ -62,6 +87,7 @@ export default function WorkoutsScreen() {
   const addFolder = useTemplatesStore((s) => s.addFolder);
   const updateFolder = useTemplatesStore((s) => s.updateFolder);
   const deleteFolder = useTemplatesStore((s) => s.deleteFolder);
+  const deleteFolderAndTemplates = useTemplatesStore((s) => s.deleteFolderAndTemplates);
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   const deleteTemplate = useTemplatesStore((s) => s.deleteTemplate);
   const setTemplateHidden = useTemplatesStore((s) => s.setTemplateHidden);
@@ -140,99 +166,24 @@ export default function WorkoutsScreen() {
   );
 
   const templates = allTemplates();
-  const { builtIn, custom, hiddenCustom, hiddenBuiltIn } = useMemo(() => {
-    const builtIn: WorkoutTemplate[] = [];
-    const custom: WorkoutTemplate[] = [];
-    const hiddenCustom: WorkoutTemplate[] = [];
-    const hiddenBuiltIn: WorkoutTemplate[] = [];
-    templates.forEach((t) => {
-      const hidden = isTemplateHidden(t);
-      if (t.isBuiltIn) {
-        if (hidden) hiddenBuiltIn.push(t);
-        else builtIn.push(t);
-      } else if (hidden) {
-        hiddenCustom.push(t);
-      } else {
-        custom.push(t);
-      }
-    });
-    return { builtIn, custom, hiddenCustom, hiddenBuiltIn };
-  }, [templates, hiddenBuiltInIds, hiddenBuiltInFolderIds, userTemplates, isTemplateHidden]);
-
-  const { byFolder, uncategorized } = useMemo(() => {
-    const byFolder: Record<string, WorkoutTemplate[]> = {};
-    folders.forEach((f) => {
-      byFolder[f.id] = custom.filter((t) => t.folderId === f.id);
-    });
-    const uncategorized = custom.filter((t) => !t.folderId);
-    return { byFolder, uncategorized };
-  }, [custom, folders]);
-
-  const { favoriteFolders, normalFolders, archivedFolders } = useMemo(() => {
-    const favorite: TemplateFolder[] = [];
-    const normal: TemplateFolder[] = [];
-    const archived: TemplateFolder[] = [];
-    folders.forEach((f) => {
-      if (f.archived) archived.push(f);
-      else if (f.favorite) favorite.push(f);
-      else normal.push(f);
-    });
-    return { favoriteFolders: favorite, normalFolders: normal, archivedFolders: archived };
-  }, [folders]);
-
-  const builtInByFolder = useMemo(() => {
-    const byFolder: Record<string, WorkoutTemplate[]> = {};
-    BUILT_IN_FOLDERS.forEach((f) => {
-      byFolder[f.id] = builtIn.filter((t) => t.folderId === f.id);
-    });
-    return byFolder;
-  }, [builtIn]);
-
-  const builtInUncategorized = useMemo(
-    () => builtIn.filter((t) => !t.folderId),
-    [builtIn]
-  );
-
-  const visibleBuiltInFolders = useMemo(
-    () => BUILT_IN_FOLDERS.filter((f) => (builtInByFolder[f.id] ?? []).length > 0),
-    [builtInByFolder]
-  );
-
-  const hiddenBuiltInFolders = useMemo(
+  const groups = useMemo(
     () =>
-      BUILT_IN_FOLDERS.filter((f) => hiddenBuiltInFolderIds.includes(f.id)).map((folder) => ({
-        folder,
-        templates: BUILT_IN_TEMPLATES.filter((t) => t.folderId === folder.id),
-      })),
-    [hiddenBuiltInFolderIds]
+      groupHomeTemplates({
+        templates,
+        folders,
+        isHidden: isTemplateHidden,
+        hiddenBuiltInFolderIds,
+      }),
+    // `templates` is rebuilt every render; the store slices below are what actually change it.
+    [userTemplates, folders, hiddenBuiltInIds, hiddenBuiltInFolderIds, isTemplateHidden]
   );
+  const customCounts = {
+    isPro,
+    visibleCustom: groups.custom.visibleCount,
+    hiddenCustom: groups.custom.hidden.length,
+  };
 
-  const hiddenBuiltInLoose = useMemo(
-    () =>
-      hiddenBuiltIn.filter(
-        (t) => !t.folderId || !hiddenBuiltInFolderIds.includes(t.folderId)
-      ),
-    [hiddenBuiltIn, hiddenBuiltInFolderIds]
-  );
-
-  const folderHasOnlyHiddenTemplates = (folderId: string) =>
-    (byFolder[folderId] ?? []).length === 0 && hiddenCustom.some((t) => t.folderId === folderId);
-
-  const visibleFavoriteFolders = favoriteFolders.filter((f) => !folderHasOnlyHiddenTemplates(f.id));
-  const visibleNormalFolders = normalFolders.filter((f) => !folderHasOnlyHiddenTemplates(f.id));
-  const visibleArchivedFolders = archivedFolders.filter((f) => !folderHasOnlyHiddenTemplates(f.id));
-
-  const lastDoneByTemplate = useMemo(() => {
-    const completed = sessions.filter((s) => s.completedAt != null);
-    const map: Record<string, string> = {};
-    for (const s of completed) {
-      const completedAt = s.completedAt!;
-      if (!map[s.templateId] || completedAt > map[s.templateId]) {
-        map[s.templateId] = completedAt;
-      }
-    }
-    return map;
-  }, [sessions]);
+  const lastDoneByTemplate = useMemo(() => computeLastDoneByTemplate(sessions), [sessions]);
 
   const headline = useMemo(() => {
     const now = new Date();
@@ -241,11 +192,11 @@ export default function WorkoutsScreen() {
 
   /**
    * Basic accounts keep their custom templates but cannot start one, so they are
-   * left out of the recommendation surfaces and only appear (locked) under Mine.
+   * left out of the recommendation surfaces and only appear (locked) under Custom.
    */
   const startableTemplates = useMemo(
-    () => (isPro ? templates : templates.filter((t) => !requiresProToStart(t))),
-    [templates, isPro]
+    () => computeStartableTemplates(templates, isPro),
+    [userTemplates, isPro]
   );
 
   const templateMuscles = useCallback(
@@ -282,21 +233,19 @@ export default function WorkoutsScreen() {
   }, [recoveryItems, activeRecovery, getExercise]);
 
   const suggestedWorkouts = useMemo(() => {
-    const recoveringMuscleIds = new Set(
-      activeRecovery().map((r) => r.muscleId)
-    );
-    const recentlyWorked = recentlyWorkedMuscleIds(sessions, Date.now(), getExercise);
-    const visible = startableTemplates.filter((t) => !isTemplateHidden(t));
-    return recommendTemplates({
-      templates: visible,
-      recoveringMuscleIds,
-      recentlyWorkedMuscleIds: recentlyWorked,
+    const nowMs = Date.now();
+    return suggestHomeTemplates({
+      templates,
+      isPro,
+      isHidden: isTemplateHidden,
+      recoveringMuscleIds: new Set(activeRecovery().map((r) => r.muscleId)),
+      recentlyWorkedMuscleIds: recentlyWorkedMuscleIds(sessions, nowMs, getExercise),
       lastDoneByTemplate,
       getTemplateMuscles: templateMuscles,
-      limit: 2,
+      nowMs,
     });
   }, [
-    startableTemplates,
+    isPro,
     recoveryItems,
     sessions,
     lastDoneByTemplate,
@@ -306,6 +255,7 @@ export default function WorkoutsScreen() {
     isTemplateHidden,
     activeRecovery,
     templateMuscles,
+    getExercise,
   ]);
 
   /** Recent excludes Suggested so the two home launchers never repeat the same template. */
@@ -362,40 +312,23 @@ export default function WorkoutsScreen() {
   }
 
   function handleDeleteFolder(folder: TemplateFolder) {
-    const templatesInFolder = byFolder[folder.id] ?? [];
-    const templateCount = templatesInFolder.length;
-    if (templateCount === 0) {
-      Alert.alert(
-        'Delete folder',
-        `Delete "${folder.name}"?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => deleteFolder(folder.id) },
-        ]
-      );
-    } else {
-      Alert.alert(
-        'Delete folder',
-        `"${folder.name}" has ${templateCount} template${templateCount === 1 ? '' : 's'}. Remove them from the folder or delete them?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Remove from folder',
-            onPress: () => deleteFolder(folder.id),
-          },
-          {
-            text: 'Delete folder and templates',
-            style: 'destructive',
-            onPress: async () => {
-              for (const t of templatesInFolder) {
-                await deleteTemplate(t.id);
-              }
-              await deleteFolder(folder.id);
-            },
-          },
-        ]
-      );
+    const plan = folderDeletePlan(folder, userTemplates);
+    if (plan.templateIds.length === 0) {
+      Alert.alert(plan.title, plan.message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteFolder(folder.id) },
+      ]);
+      return;
     }
+    Alert.alert(plan.title, plan.message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove from folder', onPress: () => deleteFolder(folder.id) },
+      {
+        text: 'Delete folder and templates',
+        style: 'destructive',
+        onPress: () => deleteFolderAndTemplates(folder.id),
+      },
+    ]);
   }
 
   function handleMoveTemplate(template: WorkoutTemplate, folderId: string | undefined) {
@@ -423,15 +356,6 @@ export default function WorkoutsScreen() {
     return last ? formatRelative(last) : null;
   }
 
-  /** Archived and hidden groups start closed; real folders start open. */
-  function defaultFolderExpanded(folderId: string): boolean {
-    return (
-      folderId !== ARCHIVED_SECTION &&
-      folderId !== HIDDEN_CUSTOM_SECTION &&
-      folderId !== HIDDEN_BUILT_IN_SECTION
-    );
-  }
-
   function isFolderExpanded(folderId: string): boolean {
     return folderExpanded[folderId] ?? defaultFolderExpanded(folderId);
   }
@@ -451,6 +375,44 @@ export default function WorkoutsScreen() {
 
   function closeTemplateMenu() {
     setTemplateMenuOpen(false);
+  }
+
+  /** Menu items are fixed when the menu opens so the label doesn't flip while it fades out. */
+  const templateMenuItems = templateMenuTarget
+    ? templateMenuActions(templateMenuTarget, {
+        isHidden: templateMenuWasHidden,
+        hiddenFolderIds: hiddenBuiltInFolderIds,
+        isPro,
+      })
+    : [];
+
+  function handleTemplateMenuAction(key: TemplateMenuActionKey, gate: ProFeature | null) {
+    const target = templateMenuTarget;
+    closeTemplateMenu();
+    if (!target) return;
+    if (gate && !gatePro(gate)) return;
+    switch (key) {
+      case 'rename':
+        setEditingTemplateName(target);
+        setEditingTemplateNewName(target.name);
+        return;
+      case 'move':
+        setMoveTemplateModal(target);
+        return;
+      case 'edit':
+        router.push({ pathname: '/create-template', params: { templateId: target.id } });
+        return;
+      case 'hide':
+      case 'unhide':
+        void setTemplateHidden(target, key === 'hide');
+        return;
+      case 'unhide-folder':
+        if (target.folderId) void setBuiltInFolderHidden(target.folderId, false);
+        return;
+      case 'delete':
+        handleDeleteTemplate(target);
+        return;
+    }
   }
 
   function renderTemplateCard(template: WorkoutTemplate, showMenu?: boolean) {
@@ -491,18 +453,26 @@ export default function WorkoutsScreen() {
     return true;
   }
 
-  function handleStartTemplate(template: WorkoutTemplate) {
-    if (!isPro && requiresProToStart(template)) {
-      gatePro('custom_templates');
+  function startFrom(start: PendingStart) {
+    const decision = decideTemplateStart({
+      isPro,
+      template: start.kind === 'empty' ? 'empty' : start.template,
+      hasActiveSession: activeSession != null,
+    });
+    if (decision.startsWith('paywall:')) {
+      gatePro(decision.slice('paywall:'.length) as ProFeature);
       return;
     }
-    if (promptResumeIfActive({ kind: 'template', template })) return;
-    navigateToStart({ kind: 'template', template });
+    if (decision === 'resume-prompt' && promptResumeIfActive(start)) return;
+    navigateToStart(start);
+  }
+
+  function handleStartTemplate(template: WorkoutTemplate) {
+    startFrom({ kind: 'template', template });
   }
 
   function handleStartEmptyWorkout() {
-    if (promptResumeIfActive({ kind: 'empty' })) return;
-    navigateToStart({ kind: 'empty' });
+    startFrom({ kind: 'empty' });
   }
 
   function handleDismissResumeConfirm() {
@@ -530,7 +500,7 @@ export default function WorkoutsScreen() {
       borderColor: colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.05,
           shadowRadius: 3,
@@ -720,8 +690,10 @@ export default function WorkoutsScreen() {
     );
   }
 
-  function renderFolderSection(folder: TemplateFolder, isArchived?: boolean) {
-    const templatesInFolder = byFolder[folder.id] ?? [];
+  function renderFolderSection(
+    { folder, templates: templatesInFolder }: FolderGroup,
+    isArchived?: boolean
+  ) {
     const expanded = isFolderExpanded(folder.id);
     const titleColor = isArchived ? colors.textMuted : colors.text;
     const iconColor = isArchived ? colors.textMuted : colors.primary;
@@ -804,15 +776,13 @@ export default function WorkoutsScreen() {
                 }),
               },
             ]}
-            onPress={() =>
-              isPro ? handleStartEmptyWorkout() : gatePro('empty_workout')
-            }
+            onPress={handleStartEmptyWorkout}
           >
             <View style={styles.startEmptyCardInner}>
               <View
                 style={[
                   styles.startEmptyIconWrap,
-                  { backgroundColor: isPro ? 'rgba(255,255,255,0.2)' : colors.background },
+                  { backgroundColor: isPro ? colors.primaryOnSurface : colors.background },
                 ]}
               >
                 <Ionicons
@@ -838,7 +808,7 @@ export default function WorkoutsScreen() {
                 <Text
                   style={[
                     styles.startEmptyCardSubtitle,
-                    { color: isPro ? 'rgba(255,255,255,0.88)' : colors.textMuted },
+                    { color: isPro ? colors.primaryOnMuted : colors.textMuted },
                   ]}
                 >
                   {isPro ? 'Add exercises as you go' : 'Included with Pro'}
@@ -847,7 +817,7 @@ export default function WorkoutsScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={22}
-                color={isPro ? 'rgba(255,255,255,0.88)' : colors.textMuted}
+                color={isPro ? colors.primaryOnMuted : colors.textMuted}
               />
             </View>
           </Pressable>
@@ -881,8 +851,8 @@ export default function WorkoutsScreen() {
 
           <View style={styles.templatesSectionRow}>
             <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
-            {isPro ? (
-              <View style={styles.templatesSectionActions}>
+            {/* Shown on Basic too: tapping opens the custom_templates paywall. */}
+            <View style={styles.templatesSectionActions}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="New folder"
@@ -905,7 +875,6 @@ export default function WorkoutsScreen() {
                   <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
                 </Pressable>
               </View>
-            ) : null}
           </View>
 
           {isLoading ? (
@@ -916,7 +885,7 @@ export default function WorkoutsScreen() {
             </View>
           ) : (
             <>
-              {isPro || custom.length > 0 || hiddenCustom.length > 0 ? (
+              {customSectionVisible(customCounts) ? (
                 <View style={sectionStyle}>
                   <Pressable
                     accessibilityRole="button"
@@ -938,7 +907,7 @@ export default function WorkoutsScreen() {
                   </Pressable>
                   {customExpanded && (
                     <View style={styles.sectionContent}>
-                      {!isPro && custom.length > 0 ? (
+                      {showLapsedNotice(customCounts) ? (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel="Your templates are saved. Resubscribe to Pro to run them."
@@ -965,10 +934,10 @@ export default function WorkoutsScreen() {
                           <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                         </Pressable>
                       ) : null}
-                      {uncategorized.map((template) => renderTemplateCard(template, true))}
-                      {visibleFavoriteFolders.map((f) => renderFolderSection(f))}
-                      {visibleNormalFolders.map((f) => renderFolderSection(f))}
-                      {visibleArchivedFolders.length > 0 && (
+                      {groups.custom.uncategorized.map((template) => renderTemplateCard(template, true))}
+                      {groups.custom.pinnedFolders.map((g) => renderFolderSection(g))}
+                      {groups.custom.normalFolders.map((g) => renderFolderSection(g))}
+                      {groups.custom.archivedFolders.length > 0 && (
                         <View style={nestedSectionStyle}>
                           <Pressable
                             accessibilityRole="button"
@@ -999,12 +968,12 @@ export default function WorkoutsScreen() {
                           </Pressable>
                           {isFolderExpanded(ARCHIVED_SECTION) && (
                             <View style={styles.sectionContent}>
-                              {visibleArchivedFolders.map((f) => renderFolderSection(f, true))}
+                              {groups.custom.archivedFolders.map((g) => renderFolderSection(g, true))}
                             </View>
                           )}
                         </View>
                       )}
-                      {hiddenCustom.length > 0 && (
+                      {groups.custom.hidden.length > 0 && (
                         <View style={nestedSectionStyle}>
                           <Pressable
                             accessibilityRole="button"
@@ -1035,14 +1004,14 @@ export default function WorkoutsScreen() {
                           </Pressable>
                           {isFolderExpanded(HIDDEN_CUSTOM_SECTION) && (
                             <View style={[styles.sectionContent, styles.dimmedGroup]}>
-                              {hiddenCustom.map((template) =>
+                              {groups.custom.hidden.map((template) =>
                                 renderTemplateCard(template, true)
                               )}
                             </View>
                           )}
                         </View>
                       )}
-                      {custom.length === 0 && hiddenCustom.length === 0 && (
+                      {customCounts.visibleCustom === 0 && customCounts.hiddenCustom === 0 && (
                         <View style={styles.emptySectionRow}>
                           <Text
                             style={[
@@ -1100,13 +1069,13 @@ export default function WorkoutsScreen() {
                 </Pressable>
                 {builtInExpanded && (
                   <View style={styles.sectionContent}>
-                    {builtInUncategorized.map((template) =>
+                    {groups.builtIn.uncategorized.map((template) =>
                       renderTemplateCard(template, true)
                     )}
-                    {visibleBuiltInFolders.map((f) =>
-                      renderBuiltInFolderSection(f, builtInByFolder[f.id] ?? [])
+                    {groups.builtIn.folders.map(({ folder, templates: folderTemplates }) =>
+                      renderBuiltInFolderSection(folder, folderTemplates)
                     )}
-                    {hiddenBuiltIn.length > 0 && (
+                    {groups.builtIn.hiddenCount > 0 && (
                       <View style={nestedSectionStyle}>
                         <Pressable
                           accessibilityRole="button"
@@ -1137,17 +1106,17 @@ export default function WorkoutsScreen() {
                         </Pressable>
                         {isFolderExpanded(HIDDEN_BUILT_IN_SECTION) && (
                           <View style={[styles.sectionContent, styles.dimmedGroup]}>
-                            {hiddenBuiltInFolders.map(({ folder, templates: folderTemplates }) =>
+                            {groups.builtIn.hiddenFolders.map(({ folder, templates: folderTemplates }) =>
                               renderBuiltInFolderSection(folder, folderTemplates, true)
                             )}
-                            {hiddenBuiltInLoose.map((template) =>
+                            {groups.builtIn.hiddenLoose.map((template) =>
                               renderTemplateCard(template, true)
                             )}
                           </View>
                         )}
                       </View>
                     )}
-                    {builtIn.length === 0 && hiddenBuiltIn.length === 0 && (
+                    {groups.builtIn.visibleCount === 0 && groups.builtIn.hiddenCount === 0 && (
                       <Text style={[styles.emptySectionText, { color: colors.textMuted }]}>
                         No built-in templates
                       </Text>
@@ -1213,7 +1182,7 @@ export default function WorkoutsScreen() {
                 onPress={handleCreateFolder}
                 disabled={!newFolderName.trim()}
               >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Create</Text>
+                <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Create</Text>
               </Pressable>
             </View>
           </View>
@@ -1273,7 +1242,7 @@ export default function WorkoutsScreen() {
                 onPress={handleSaveFolderRename}
                 disabled={!editingFolderName.trim()}
               >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -1322,100 +1291,35 @@ export default function WorkoutsScreen() {
             ]}
             onStartShouldSetResponder={() => true}
           >
-            {!templateMenuTarget?.isBuiltIn && (
-              <>
-                <Pressable
-                  style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    if (!gatePro('custom_templates')) {
-                      closeTemplateMenu();
-                      return;
-                    }
-                    if (templateMenuTarget) {
-                      setEditingTemplateName(templateMenuTarget);
-                      setEditingTemplateNewName(templateMenuTarget.name);
-                    }
-                    closeTemplateMenu();
-                  }}
-                >
-                  <Ionicons name="pencil-outline" size={18} color={colors.text} />
-                  <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Rename</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    if (!gatePro('custom_templates')) {
-                      closeTemplateMenu();
-                      return;
-                    }
-                    if (templateMenuTarget) setMoveTemplateModal(templateMenuTarget);
-                    closeTemplateMenu();
-                  }}
-                >
-                  <Ionicons name="arrow-redo-outline" size={18} color={colors.text} />
-                  <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Move</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.templateMenuItem, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    if (!gatePro('custom_templates')) {
-                      closeTemplateMenu();
-                      return;
-                    }
-                    if (templateMenuTarget) {
-                      router.push({
-                        pathname: '/create-template',
-                        params: { templateId: templateMenuTarget.id },
-                      });
-                    }
-                    closeTemplateMenu();
-                  }}
-                >
-                  <Ionicons name="create-outline" size={18} color={colors.text} />
-                  <Text style={[styles.templateMenuItemText, { color: colors.text }]}>Edit</Text>
-                </Pressable>
-              </>
-            )}
-            <Pressable
-              style={[
-                styles.templateMenuItem,
-                {
-                  borderBottomColor: colors.border,
-                  borderBottomWidth: templateMenuTarget?.isBuiltIn ? 0 : 1,
-                },
-              ]}
-              onPress={() => {
-                const target = templateMenuTarget;
-                const nextHidden = !templateMenuWasHidden;
-                closeTemplateMenu();
-                if (target) {
-                  void setTemplateHidden(target, nextHidden);
-                }
-              }}
-            >
-              <Ionicons
-                name={templateMenuWasHidden ? 'eye-outline' : 'eye-off-outline'}
-                size={18}
-                color={colors.text}
-              />
-              <Text style={[styles.templateMenuItemText, { color: colors.text }]}>
-                {templateMenuWasHidden ? 'Unhide' : 'Hide'}
-              </Text>
-            </Pressable>
-            {!templateMenuTarget?.isBuiltIn && (
+            {templateMenuItems.map((action, i) => (
               <Pressable
-                style={[styles.templateMenuItem, { borderBottomWidth: 0 }]}
-                onPress={() => {
-                  const target = templateMenuTarget;
-                  closeTemplateMenu();
-                  if (target) handleDeleteTemplate(target);
-                }}
-                testID="template-menu-delete"
+                key={action.key}
+                accessibilityRole="button"
+                style={[
+                  styles.templateMenuItem,
+                  {
+                    borderBottomColor: colors.border,
+                    borderBottomWidth: i === templateMenuItems.length - 1 ? 0 : 1,
+                  },
+                ]}
+                onPress={() => handleTemplateMenuAction(action.key, action.gate)}
+                testID={`template-menu-${action.key}`}
               >
-                <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                <Text style={[styles.templateMenuItemText, { color: colors.danger }]}>Delete</Text>
+                <Ionicons
+                  name={TEMPLATE_MENU_ICONS[action.key]}
+                  size={18}
+                  color={action.key === 'delete' ? colors.danger : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.templateMenuItemText,
+                    { color: action.key === 'delete' ? colors.danger : colors.text },
+                  ]}
+                >
+                  {action.label}
+                </Text>
               </Pressable>
-            )}
+            ))}
           </View>
         </Pressable>
       </Modal>
@@ -1473,7 +1377,7 @@ export default function WorkoutsScreen() {
                 onPress={handleSaveTemplateRename}
                 disabled={!editingTemplateNewName.trim()}
               >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -1540,7 +1444,7 @@ export default function WorkoutsScreen() {
                     onPress={handleCreateFolderAndMove}
                     disabled={!moveModalNewFolderName.trim()}
                   >
-                    <Text style={[styles.modalBtnText, { color: '#fff' }]}>Create & move</Text>
+                    <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Create & move</Text>
                   </Pressable>
                 </View>
               </View>

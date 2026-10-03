@@ -17,7 +17,9 @@ its effect everywhere, and why there is no cache to invalidate.
 | Strength standards | `apps/mobile/src/data/strengthStandards.ts` |
 | Home stats | `apps/mobile/src/utils/homeStats.ts` |
 | Volume, duration & set lines | `apps/mobile/src/utils/sessionStats.ts` |
-| History card PRs, volume change, weeks | `apps/mobile/src/utils/historyCards.ts` |
+| History card summary, PRs, volume change, weeks, names | `apps/mobile/src/utils/historyCards.ts` |
+| Calendar grid & day keys | `apps/mobile/src/utils/calendar.ts` |
+| PR card & progression models | `apps/mobile/src/utils/personalRecords.ts` |
 | History card | `apps/mobile/src/components/history/SessionCard.tsx` |
 | Store | `apps/mobile/src/store/sessionsStore.ts` |
 
@@ -32,7 +34,7 @@ Each week header shows a label and a summary:
 | Element | Detail |
 |---------|--------|
 | Label | `This week`, `Last week`, otherwise `Week of Sep 7` (`Week of Dec 1, 2025` for an earlier year) |
-| Summary | `N sessions · <volume>`. Volume is the week's total in the user's unit, whole numbers below 10,000 (`8,240 kg`) and one decimal in thousands above (`12.1k kg`, `formatCompactVolume`). Omitted when the week has no volume |
+| Summary | `N sessions · <volume>` (`1 session` in the singular, `weekSummary()`). Volume is the week's total in the user's unit, whole numbers below 10,000 (`8,240 kg`) and one decimal in thousands above (`12.1k kg`, `formatCompactVolume`). Omitted when the week has no volume |
 
 ### Session cards
 
@@ -45,8 +47,8 @@ Collapsed, a card shows:
 |---------|--------|
 | Date | Short weekday, short month, day: `Sun, Sep 27` |
 | Trash button | Deletes the session after confirmation (see [Deleting a session](#deleting-a-session)) |
-| Template name | Resolved from `templateId`; falls back to "Workout" |
-| Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero |
+| Template name | Resolved from `templateId`; `Empty workout` for ad-hoc sessions (`_empty`); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
+| Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero; a session under one minute has no duration (never `0m`) |
 | Volume change | `↑4%` (success colour) or `↓3%` (danger colour) against the **previous completed session of the same template** (`buildVolumeDeltas()`), rounded to a whole percent. Hidden at 0%, for the first session of a template, when either volume is zero, and for empty workouts (`_empty`) |
 | Summary line | `6 exercises · 18 sets`, counting only exercises with a completed set and only completed sets, plus `· 2 PRs` when there are PRs (Pro only) |
 
@@ -72,12 +74,18 @@ Long lines wrap under the exercise name.
 **PRs on the card** (`buildSessionPRs()`): an exercise is a PR in a session when its best
 estimated 1RM there is **strictly greater** than its best in every earlier completed session. It
 uses the same qualifying sets as [Personal records](#personal-records) (completed, weight > 0,
-reps ≥ 1). The first session to log an exercise sets a baseline, not a PR. PR badges and counts are
+reps ≥ 1). The first session to log an exercise sets a baseline, not a PR. Exercises are compared
+by **canonical id**: a session logged under a legacy catalog alias competes with the current
+exercise. PR badges and counts are
 part of the `personal_records` Pro feature and are hidden on Basic.
 
 **There is no session detail screen.** All detail is inline on the card.
 
-**Pull to refresh** reloads sessions; with a linked account it runs a cloud sync first.
+**Empty state.** With no completed sessions the list shows **No sessions yet** — *"Finish a
+workout and it will show up here with duration, volume, and sets."*
+
+**Pull to refresh** reloads sessions, including from the empty state; with a linked account it
+runs a cloud sync first.
 
 The header has two Pro shortcuts: a trophy to Personal Records and a calendar to the monthly view.
 
@@ -98,14 +106,17 @@ PRs need no explicit step because they're derived on read.
 
 ## Monthly calendar
 
-**Pro** (`monthly_calendar`). A 7-column month grid with `S M T W T F S` headers.
+**Pro** (`monthly_calendar`). A 7-column month grid, weeks starting **Monday** like the History
+week groups: `M T W T F S S` headers, blanks before the 1st and after the last day so every row
+is full (`monthGrid()`). It opens on the current month.
 
 A day is marked with a filled primary-colour circle when any session's `completedAt` falls on that
 **local calendar date**. Month navigation is unbounded in both directions.
 
 Tapping a day toggles a detail card below the grid listing that day's sessions with **template
-name and duration only** — no volume, sets, or exercises. Empty selection shows "No workouts this
-day".
+name and duration only** — no volume, sets, or exercises. Names follow the History list
+(including `Empty workout`); duration uses the same formatting and is omitted under a minute.
+Empty selection shows "No workouts this day". Changing month clears the selection.
 
 ## Personal records
 
@@ -123,9 +134,23 @@ A set qualifies when the session is completed, the set is completed, `weightKg >
 **Only estimated 1RM is tracked as a record.** There are no separate records for heaviest weight,
 best volume, or per-rep-count bests (no "best 5RM"), and no cross-exercise or global PRs.
 
-Exercises are listed by descending best e1RM, with a name search. Each card shows the exercise,
-estimated 1RM, best set, an optional strength level chip, and up to **10** bars from the most
-recent qualifying sets. Tapping a card opens the progression chart.
+Exercises are keyed by **canonical id**, so sets logged under a legacy catalog alias merge into
+the current exercise. On an e1RM tie the best set is the most recent one.
+
+Exercises are listed by descending best e1RM, with a name search (*"No exercises match
+“…”"* when nothing matches). Each card (`prCardModel()`) shows:
+
+| Element | Detail |
+|---------|--------|
+| Est. 1RM | Best e1RM, one decimal in the user's unit (`116.7 kg`, `formatE1RM()`) |
+| Best set | `100 kg × 5` |
+| Strength chip | `Novice → Intermediate @ 140 kg` — only with bodyweight **and** sex on the profile and only for exercises with standards |
+| Progress bars | The **10 most recent** qualifying sets, **oldest → newest** left to right like the progression chart, each bar's height its ratio to the best e1RM. Shown only with **2 or more** qualifying sets |
+
+Without bodyweight or sex a hint above the list — *"Add weight & gender in Biodata for strength
+level comparison"* — opens Biodata. With no records at all the screen shows **No records yet** —
+*"Log weight and reps in a workout to see estimated 1RM and best sets here."* Tapping a card
+opens the progression chart.
 
 **PRs are not detected live during a workout** — nothing announces a new record mid-session. The
 active workout's PREVIOUS column shows the best weighted set from the most recent qualifying
@@ -172,9 +197,9 @@ scanning from elite down. The next level's target is `bodyweightKg × nextRatio`
 linking to Biodata. Female tables are roughly 60–70% of the male values.
 
 Supported exercises: `bench-press`, `close-grip-bench`, `squat`, `deadlift`,
-`romanian-deadlift`, `overhead-press`, `barbell-row`. Anything else reports `hasStandards: false`
-and no level. `pull-up` has a table but all its ratios are `0.0`, so it is effectively disabled —
-bodyweight ratio isn't a meaningful measure for it.
+`romanian-deadlift`, `overhead-press`, `barbell-row`. Anything else — including `pull-up`, where a
+bodyweight ratio isn't a meaningful measure — reports `hasStandards: false`: no level, no chip,
+no strength card.
 
 ## Exercise progression
 
@@ -185,10 +210,12 @@ newest, as custom `View` bars (no chart library). Bar height is the ratio to the
 bars, and days without qualifying sets simply have no bar rather than a zero or a gap. There is
 **no time-range selector**; the full history is always shown.
 
-Below the chart, "All recorded sets" lists date, `weight × reps`, and `~e1RM`, newest first.
-
-> `src/components/WorkoutHistoryChart.tsx` is an SVG chart of workout count per day that is **not
-> imported anywhere** — dead code.
+Above the chart, a card shows the best e1RM (one decimal) and best set, and — with bodyweight and
+sex on the profile, for an exercise with standards — a strength card: **Strength level: Novice**
+and *Next (Intermediate): 140 kg*. Below the chart, "All recorded sets" lists date,
+`weight × reps`, and `~e1RM` (one decimal), newest first. The screen resolves its `exerciseId`
+through aliases, so an alias link shows the canonical exercise with every set logged under either
+id; an unknown id shows *"No progression data for this exercise."*
 
 ## Home stats
 
@@ -245,7 +272,8 @@ the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 ## Export
 
 Reached from **Profile → Account → Data → Export my data** (not from these screens). Basic tier. Writes
-pretty-printed JSON named `muscleos-export-YYYY-MM-DD.json` and hands it to the share sheet.
+pretty-printed JSON named `muscleos-export-YYYY-MM-DD.json`, dated by the device's **local**
+calendar day (`exportFilename()`), and hands it to the share sheet.
 
 Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export).
 
@@ -276,32 +304,44 @@ Basic keeps the history list, inline session detail, delete, pull-to-refresh, an
 
 ## Tests
 
-Covered:
+Vitest (`apps/mobile/src/…`):
 
-- `src/utils/oneRepMax.test.ts` — Epley at 1 rep and 5 reps, zero cases; `buildExercisePRs` picks
-  the best e1RM set (85×5 over 90×1) and returns history newest-first
-- `src/utils/homeStats.test.ts` — Monday-week counting, `trainedToday`, `lastCompletedAt`, streak
-  surviving an empty current week, streak breaking on a missed week, every headline branch
-- `src/utils/relativeTime.test.ts` — every `formatRelative` branch, including the absolute-date
-  fallback at 4 weeks
-- `src/subscription/features.test.ts` — paywall param parsing including `personal_records`
-- `src/data/strengthStandards.test.ts` — band selection from elite down, next-level target,
-  elite has no next level, female vs male tables, unsupported exercises, the disabled pull-up table,
-  zero bodyweight
-- `src/utils/sessionStats.test.ts` — volume over completed sets with warm-ups included and missing
-  weight/reps as zero; duration formatting and rounding; `formatSetGroups` (collapsing, weight
-  changes, consecutive-only merging, bodyweight and `BW`, pounds, missing reps); `formatVolume` and
-  `formatCompactVolume` in kg and lb
-- `src/utils/historyCards.test.ts` — card PRs (strictly greater e1RM than all earlier sessions,
-  first session is a baseline, ties aren't PRs, bodyweight/incomplete/in-progress ignored); volume
-  change vs the previous session of the same template, skipping empty workouts and zero volume;
-  Monday-start week buckets, labels, and week volume
-- `src/store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`: most recent qualifying
-  session, not the all-time best; skips sessions with no completed weighted set and in-progress ones
+- `utils/oneRepMax.test.ts` — Epley at 1 and 5 reps, zero/negative cases, no high-rep ceiling, no
+  rounding; `formatE1RM` one decimal in kg and lb; `buildExercisePRs` qualifying sets, best set
+  (85×5 over 90×1), descending order, tie → newest, alias merge, history newest first
+- `utils/personalRecords.test.ts` — `progressionPoints` oldest-first with capped ratios;
+  `prCardModel` last-10 bars oldest→newest, no bars under 2 sets, strength chip gated on
+  bodyweight + sex and standards (none for pull-up), elite has no next level; `filterPRsByName`
+- `utils/calendar.test.ts` — Monday-first headers, leading/trailing blanks, month lengths incl.
+  leap February, four-row month, local-midnight day keys, marked days, sessions on a day
+- `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, ignored sets, alias
+  canonicalisation); volume change vs the same template; Monday-start weeks and labels;
+  `templateDisplayName`; `isCardExpanded`; `sessionCardSummary` (counts, singulars, PR label,
+  stats line dropping zero volume and sub-minute duration, pounds); `volumeDeltaLabel` hidden at
+  0%; `weekSummary` singular and compact volume
+- `utils/sessionStats.test.ts` — volume, duration (incl. null under a minute), set lines, volume labels
+- `utils/homeStats.test.ts`, `utils/relativeTime.test.ts` — as before (home stats, `formatRelative`)
+- `data/strengthStandards.test.ts` — band selection, next-level target, sex tables, unsupported
+  exercises and pull-up reporting `hasStandards: false`
+- `store/sessionsStore.test.ts` — `completedSessions()` filter and order; `deleteSession` storage
+  removal, recovery recompute, previous-map rebuild, sync notifications, unknown id no-op
+- `store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`
+- `storage/exportData.test.ts` — export filename uses the local date
+
+Jest UI (`apps/mobile/src/test/ui/history/`):
+
+- `history.test.tsx` — week headers and summaries, card names (incl. Empty workout), date, stats
+  line and volume change, newest expanded + toggling, PR badges/counts on Pro and hidden on Basic,
+  alias PRs, Pro-gated header shortcuts (paywall on Basic, navigation on Pro), delete flow (cancel,
+  confirm, storage, recovery, sync), empty-state copy, pull to refresh from empty (guest reload,
+  linked sync first), pounds
+- `monthly.test.tsx` — paywall on Basic, Monday-first grid, local-date day marking, day detail
+  toggle with name + duration only, No workouts this day, month navigation
+- `records.test.tsx` — PR paywall, empty state, e1RM order with 1-dp values, 10-bar window and the
+  2-set condition, search and no-match copy, Biodata hint, strength chips (none for pull-up), card
+  → progression; progression paywall, per-set bars oldest→newest, sets list, strength card, alias
+  id, unknown id
 
 Not covered:
 
-- `deleteSession` store wiring (storage writes and sync notifications around the tested rebuild)
-- Monthly calendar grid construction, day marking, month navigation
-- PR and progression screen rendering, e1RM tie-breaking, the 10-bar window
-- Export payload assembly
+- Export payload assembly and the share sheet

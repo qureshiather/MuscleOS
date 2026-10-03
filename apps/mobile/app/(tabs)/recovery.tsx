@@ -98,7 +98,6 @@ export default function RecoveryScreen() {
               recoveringMuscleIds={muscleIds}
               justTrainedMuscleIds={justTrainedIds}
               variant={diagramVariant}
-              showLabels
               size={0.85}
             />
             <View style={styles.legend}>

@@ -30,12 +30,13 @@ Full detail, including where each gate is enforced: [subscriptions.md](subscript
 | History list, session delete, JSON export and import | ● | ● |
 | Resume an in-progress workout | ● | ● |
 | Reorder exercises and edit rest mid-workout | ● | ● |
+| Rename, pin, archive, delete existing folders | ● | ● |
 | Hide built-in templates and folders | ● | ● |
 | Run a **custom** template | ○ | ● |
-| Create / edit custom templates and folders | ○ | ● |
+| Create / edit custom templates; create folders | ○ | ● |
 | Create custom exercises | ○ | ● |
 | Empty / ad-hoc workout | ○ | ● |
-| Add or replace an exercise mid-workout | ○ | ● |
+| Add, replace or remove an exercise mid-workout | ○ | ● |
 | Save a finished workout as a template | ○ | ● |
 | Personal records and 1RM | ○ | ● |
 | Exercise progression charts | ○ | ● |
@@ -45,12 +46,12 @@ Full detail, including where each gate is enforced: [subscriptions.md](subscript
 
 Current test coverage detail: [engineering/testing.md](../engineering/testing.md).
 
-| Area | Spec | Automated tests |
-|------|------|-----------------|
-| Templates | Complete | Partial — built-in integrity, full recommendation scoring, Recent selection, home stats, `allTemplates` ordering, soft-hide, folder-delete cascade |
-| Workout logging | Complete | Partial — set-logging rules, prefill, warm-up numbering, current-set, rest-key remap, finish save-options, persist/resume round-trip, hydrate expired-timer discard, and notification copy covered; only the screen's live rendering and debounced-persist wiring remain |
-| Recovery | Complete | Good — hours, expiry instant, `recoveryFromSessions`, just-trained, readiness copy, diagram regions; store wiring untested |
-| Exercise library | Complete | Partial — search ranking, title-case names, catalog merge, normalization, custom ids, alias resolution, catalog invariants; store and delta pull untested |
-| History & analytics | Complete | Partial — 1RM, home stats, strength standards, volume, duration, previous rebuild; calendar and screens untested |
-| Subscriptions | Complete | Partial — `requiresProToStart`, deep-link start guard, gate labels, list parity, pricing; UI gate wiring untested |
-| Accounts & data | Complete | Partial — unit conversion, active-workout persist/resume, linked provider resolution, already-linked identity vs in-place upgrade, Delete account wipe, and email confirm/recovery link parsing; sync merge covered; outbox, push/pull engine, and live auth untested |
+| Area | Spec | Unit (Vitest) | UI (Jest) |
+|------|------|---------------|-----------|
+| Templates | Complete | ✓ every rule — grouping, menus, folder delete, draft save, suggestions, start decision, store persistence | ✓ Home sections and menus, create/edit template, workout preview. Not covered: drag-reorder gesture, muscle-art pixels |
+| Workout logging | Complete | ✓ every rule — prefill, set view, keypad keys, rest timer maths, finish matrix, notification copy, store persist/AppState/hydrate | ✓ Logging, Done, rest timer, deletes, finish modal, Good work, picker, resume. Not covered: the exercise ⋯ menu (positions via `measureInWindow`; its actions are unit-tested), sounds, notification scheduling |
+| Recovery | Complete | ✓ every rule — all 18 muscles, expiry, store load/cache, recompute triggers | ✓ Recovery tab states, list, explainer, diagram modes |
+| Exercise library | Complete | ✓ every rule — catalog counts, seed reconcile/watermark, search tiers, filters, normalization, custom CRUD + sync, notes | ✓ Exercises tab, create/edit exercise |
+| History & analytics | Complete | ✓ every rule — calendar grid, PR card model, e1RM display, aliases, session card summary, export filename | ✓ History list/delete/refresh, monthly calendar, PRs, progression |
+| Subscriptions | Complete | ✓ every rule — start decision, redirect wait, mid-workout gates, state resolution, paywall labels, store, RevenueCat wrapper | ✓ Every gate-map row, deep-link starts, `useRequirePro` screens, paywall |
+| Accounts & data | Complete | ✓ every rule — outbox, push/pull engine, account switch, guest upload, auth session, settings/migrations, import/export, clear data | ✓ Profile, Account, Data, Biodata, Settings, auth screens, `/auth-callback`. Not covered: native Apple/Google sign-in SDKs |

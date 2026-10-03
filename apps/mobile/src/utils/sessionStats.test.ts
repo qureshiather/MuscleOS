@@ -57,6 +57,12 @@ describe('formatSessionDuration', () => {
   it('is null while in progress', () => {
     expect(formatSessionDuration(session({ completedAt: undefined }))).toBeNull();
   });
+
+  it('is null under a minute, never "0m"', () => {
+    expect(formatSessionDuration(session({ completedAt: at(0) }))).toBeNull();
+    expect(formatSessionDuration(session({ completedAt: at(0.99) }))).toBeNull();
+    expect(formatSessionDuration(session({ completedAt: at(1) }))).toBe('1m');
+  });
 });
 
 /** Sets from `[reps, kg]` pairs; omit kg for bodyweight. */

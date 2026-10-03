@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSession } from '@muscleos/types';
-import { workoutNotificationCopy } from './workoutNotificationCopy';
+import {
+  WORKOUT_NOTIFICATION_TITLES,
+  trayNotificationContent,
+  workoutNotificationCopy,
+} from './workoutNotificationCopy';
 
 // Name lookup is injected so the copy logic stays pure and testable.
 const nameOf = (id: string) => ({ bench: 'Bench Press', squat: 'Squat', row: 'Barbell Row' }[id] ?? id);
@@ -63,5 +67,47 @@ describe('workoutNotificationCopy', () => {
     const copy = workoutNotificationCopy(s, { exIdx: 1, setIdx: 0 }, nameOf);
     expect(copy.restBody).toBe('Finish your workout');
     expect(copy.alertBody).toBe('Time to finish your workout');
+  });
+});
+
+describe('notification titles', () => {
+  it('match the spec', () => {
+    expect(WORKOUT_NOTIFICATION_TITLES).toEqual({
+      tray: 'MuscleOS — Workout',
+      resting: 'Resting',
+      idle: 'Workout in progress',
+      restOver: 'Rest over',
+    });
+  });
+
+  it('alert bodies read "Time for X" / "Time to finish your workout"', () => {
+    const s = session([{ exerciseId: 'bench', sets: [{ completed: false }] }]);
+    expect(workoutNotificationCopy(s, null, nameOf).alertBody).toBe('Time for Bench Press');
+    const done = session([{ exerciseId: 'bench', sets: [{ completed: true }] }]);
+    expect(workoutNotificationCopy(done, null, nameOf).alertBody).toBe('Time to finish your workout');
+  });
+});
+
+describe('trayNotificationContent', () => {
+  const copy = { restBody: 'Next: Bench Press', idleBody: 'Next: Bench Press', alertBody: 'x' };
+  const clock = () => '10:42 AM';
+  const NOW = 1_000_000;
+
+  it('iOS / backgrounded: "Rest until <clock> • <next>"', () => {
+    expect(trayNotificationContent(copy, NOW + 95_000, true, NOW, clock)).toEqual({
+      title: 'MuscleOS — Workout',
+      body: 'Rest until 10:42 AM • Next: Bench Press',
+    });
+  });
+
+  it('Android foreground: live "Rest m:ss • <next>" countdown (rounded up)', () => {
+    expect(trayNotificationContent(copy, NOW + 94_200, false, NOW, clock).body).toBe(
+      'Rest 1:35 • Next: Bench Press'
+    );
+  });
+
+  it('shows the idle body when no rest is running or it has ended', () => {
+    expect(trayNotificationContent(copy, null, true, NOW, clock).body).toBe('Next: Bench Press');
+    expect(trayNotificationContent(copy, NOW, false, NOW, clock).body).toBe('Next: Bench Press');
   });
 });

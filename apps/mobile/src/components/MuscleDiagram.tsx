@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import Body from 'react-native-body-highlighter';
 import type { Slug } from 'react-native-body-highlighter';
-import { formatMuscleLabels, type MuscleId } from '@muscleos/types';
+import type { MuscleId } from '@muscleos/types';
 import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeContext';
 import { useDeviceMetrics } from '@/theme/layout';
 import { spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
-import { MUSCLE_ID_TO_DIAGRAM_REGION } from '@/utils/muscleDiagramRegions';
+import {
+  MUSCLE_ID_TO_DIAGRAM_REGION,
+  regionStatesForMuscles,
+  regionStatesToBodyData,
+} from '@/utils/muscleDiagramRegions';
 
 /** Library figure size at `scale={1}`. */
 const FIGURE_BASE_WIDTH = 200;
@@ -21,8 +25,7 @@ function scaleToFit(availableWidth: number, size: number): number {
 }
 
 
-/** All slugs we track (one per unique body part in the diagram). */
-const ALL_SLUGS = new Set<Slug>(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION));
+const ALL_MUSCLE_IDS = Object.keys(MUSCLE_ID_TO_DIAGRAM_REGION) as MuscleId[];
 
 export type DiagramVariant = 'male' | 'female';
 
@@ -33,22 +36,30 @@ function getHighlightGradient(colors: ThemeColors, mode: 'green' | 'orange'): [s
   return [colors.primary, colors.primaryDim];
 }
 
+/**
+ * Front and back body figures. Three modes:
+ * - **Highlight** (default): `muscleIds` in the highlight colour, the rest neutral.
+ * - **Recovery** (`recoveringMuscleIds`): every region coloured recovering / ready, plus just
+ *   trained when `justTrainedMuscleIds` is non-empty (three-state palette).
+ * - **Session** (`sessionMuscleIds`): the post-workout view — those muscles in the just-trained
+ *   colour and the rest of the body in the neutral untrained fill (not Ready).
+ */
 export function MuscleDiagram({
   muscleIds = [],
-  showLabels = false,
   size = 1,
   variant,
   highlightColor,
   recoveringMuscleIds,
   justTrainedMuscleIds,
+  sessionMuscleIds,
 }: {
   muscleIds?: MuscleId[];
-  showLabels?: boolean;
   size?: number;
   variant?: DiagramVariant;
   highlightColor?: 'green' | 'orange';
   recoveringMuscleIds?: MuscleId[];
   justTrainedMuscleIds?: MuscleId[];
+  sessionMuscleIds?: MuscleId[];
 }) {
   const { colors } = useTheme();
   const { width } = useDeviceMetrics();
@@ -57,49 +68,32 @@ export function MuscleDiagram({
   const userGender = profile?.sex === 'female' ? 'female' : 'male';
   const gender = (variant ?? userGender) as 'male' | 'female';
 
-  const isRecoveryMode = recoveringMuscleIds != null;
-  const useThreeStates = isRecoveryMode && (justTrainedMuscleIds?.length ?? 0) > 0;
+  const isSessionMode = sessionMuscleIds != null;
+  const isRecoveryMode = !isSessionMode && recoveringMuscleIds != null;
+  const useThreeStates = isSessionMode || (isRecoveryMode && (justTrainedMuscleIds?.length ?? 0) > 0);
 
-  const recoveringSlugSet = new Set<Slug>();
-  if (recoveringMuscleIds?.length) {
-    for (const id of recoveringMuscleIds) {
-      recoveringSlugSet.add(MUSCLE_ID_TO_DIAGRAM_REGION[id]);
-    }
+  let data: { slug: Slug; intensity: number }[];
+  if (isSessionMode) {
+    const trained = new Set(sessionMuscleIds);
+    data = regionStatesToBodyData(regionStatesForMuscles(sessionMuscleIds, trained, trained), true);
+  } else if (isRecoveryMode) {
+    const states = regionStatesForMuscles(
+      ALL_MUSCLE_IDS,
+      new Set(recoveringMuscleIds),
+      new Set(useThreeStates ? justTrainedMuscleIds : [])
+    );
+    data = regionStatesToBodyData(states, useThreeStates);
+  } else {
+    const slugSet = new Set<Slug>(muscleIds.map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]));
+    data = Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
   }
-  const justTrainedSlugSet = new Set<Slug>();
-  if (justTrainedMuscleIds?.length) {
-    for (const id of justTrainedMuscleIds) {
-      justTrainedSlugSet.add(MUSCLE_ID_TO_DIAGRAM_REGION[id]);
-    }
-  }
-  const recoveringOnlySlugSet = new Set([...recoveringSlugSet].filter((slug) => !justTrainedSlugSet.has(slug)));
-  const readySlugSet = new Set([...ALL_SLUGS].filter((slug) => !recoveringSlugSet.has(slug)));
-
-  const data = isRecoveryMode
-    ? useThreeStates
-      ? [
-          ...Array.from(justTrainedSlugSet).map((slug) => ({ slug, intensity: 1 })),
-          ...Array.from(recoveringOnlySlugSet).map((slug) => ({ slug, intensity: 2 })),
-          ...Array.from(readySlugSet).map((slug) => ({ slug, intensity: 3 })),
-        ]
-      : [
-          ...Array.from(recoveringSlugSet).map((slug) => ({ slug, intensity: 1 })),
-          ...Array.from(readySlugSet).map((slug) => ({ slug, intensity: 2 })),
-        ]
-    : (() => {
-        const slugSet = new Set<Slug>();
-        for (const id of muscleIds) {
-          slugSet.add(MUSCLE_ID_TO_DIAGRAM_REGION[id]);
-        }
-        return Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
-      })();
 
   const useGreen = highlightColor === 'green';
   // Each figure is 200pt wide at scale 1. Size the pair from the real row
   // width so front + back never wrap — including inside padded cards.
   const fallbackWidth = width - spacing.lg * 4;
   const resolvedScale = scaleToFit(rowWidth > 0 ? rowWidth : fallbackWidth, size);
-  const colorPalette = isRecoveryMode
+  const colorPalette = isRecoveryMode || isSessionMode
     ? getRecoveryPalette(colors, useThreeStates)
     : getHighlightGradient(colors, useGreen ? 'green' : 'orange');
 
@@ -131,13 +125,6 @@ export function MuscleDiagram({
           defaultFill={colors.bodyDiagramFill}
         />
       </View>
-      {showLabels && muscleIds.length > 0 && (
-        <View style={styles.labels}>
-          <Text style={[styles.labelText, { color: colors.textSecondary }]}>
-            Targeted: {formatMuscleLabels(muscleIds)}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -152,6 +139,4 @@ const styles = StyleSheet.create({
     gap: PAIR_GAP,
     width: '100%',
   },
-  labels: { width: '100%', marginTop: 8, paddingHorizontal: 8 },
-  labelText: { fontSize: 12 },
 });

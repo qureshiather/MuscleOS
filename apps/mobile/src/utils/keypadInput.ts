@@ -1,3 +1,7 @@
+import type { SetRecord } from '@muscleos/types';
+import { canCompleteSet } from '@/store/activeWorkoutLogic';
+import { displayToKg, kgToDisplay, type WeightUnit } from '@/utils/weightUnits';
+
 /**
  * Pure numeric-entry logic for the in-app set keypad (`NumericKeypad`).
  *
@@ -122,4 +126,137 @@ export function keypadAdjust(
   const next = Math.round((base + delta) * 100) / 100;
   if (next <= 0) return undefined;
   return next;
+}
+
+// ── Key handling ─────────────────────────────────────────────────────────────────────────────
+// What each key does to the focused set cell / rest-time box. The screen applies the outcome to
+// the store; keeping the rules here makes the pad's behaviour testable without a renderer.
+
+export type KeypadField = 'weight' | 'reps';
+
+export type KeypadKey =
+  | { kind: 'digit'; digit: string }
+  | { kind: 'backspace' }
+  | { kind: 'adjust'; direction: 1 | -1 }
+  | { kind: 'next' }
+  | { kind: 'done' };
+
+export interface KeypadOutcome {
+  /** Write this onto the focused set (weight always in kg). */
+  patch?: Partial<SetRecord>;
+  /** Move focus to this field of the same set; `null` hides the pad; omitted keeps focus. */
+  focus?: KeypadField | null;
+  /** Complete the set (which starts its rest). */
+  complete?: boolean;
+}
+
+/** The value a set cell shows on the pad: weight in the user's unit, or reps. */
+export function keypadDisplayValue(
+  set: Pick<SetRecord, 'weightKg' | 'reps'>,
+  field: KeypadField,
+  unit: WeightUnit
+): number | undefined {
+  if (field === 'reps') return set.reps;
+  return set.weightKg != null ? kgToDisplay(set.weightKg, unit) : undefined;
+}
+
+/** The pad's ± step for a field: a plate (0.25 kg / 2.5 lb) for weight, 1 for reps. */
+export function keypadStep(field: KeypadField, unit: WeightUnit): number {
+  if (field === 'reps') return REPS_STEP;
+  return unit === 'lb' ? WEIGHT_STEP_LB : WEIGHT_STEP_KG;
+}
+
+/** Whether the focused field still holds an auto-loaded suggestion the user hasn't touched. */
+export function keypadFieldIsPrefill(set: SetRecord, field: KeypadField): boolean {
+  return field === 'weight' ? set.weightPrefilled === true : set.repsPrefilled === true;
+}
+
+function writeField(field: KeypadField, value: number | undefined, unit: WeightUnit): Partial<SetRecord> {
+  // Any edit confirms the field, clearing its suggestion flag so later keystrokes append.
+  if (field === 'reps') return { reps: value, repsPrefilled: false };
+  return {
+    weightKg: value == null ? undefined : displayToKg(value, unit),
+    weightPrefilled: false,
+  };
+}
+
+/**
+ * One key press on the set pad.
+ *
+ * - **Digit**: appends (whole numbers, capped at 4 weight / 3 reps digits). A prefilled
+ *   suggestion is treated as selected — the first digit replaces it.
+ * - **Backspace / ±**: edit the value as shown. Any edit clears the field's prefill flag.
+ * - Weight is converted from the display unit to kg on write.
+ * - **Next** (weight only) moves to the same set's reps.
+ * - **Done** (reps only) is disabled until reps > 0; it completes an incomplete set (starting its
+ *   rest) and hides the pad. On an already-completed set it only hides the pad.
+ */
+export function applyKeypadKey(
+  set: SetRecord,
+  field: KeypadField,
+  key: KeypadKey,
+  unit: WeightUnit
+): KeypadOutcome {
+  const current = keypadDisplayValue(set, field, unit);
+  switch (key.kind) {
+    case 'digit': {
+      const maxDigits = field === 'weight' ? WEIGHT_MAX_DIGITS : REPS_MAX_DIGITS;
+      const base = keypadFieldIsPrefill(set, field) ? undefined : current;
+      return { patch: writeField(field, keypadAppendDigit(base, key.digit, maxDigits), unit) };
+    }
+    case 'backspace':
+      return { patch: writeField(field, keypadBackspace(current), unit) };
+    case 'adjust':
+      return {
+        patch: writeField(field, keypadAdjust(current, key.direction * keypadStep(field, unit)), unit),
+      };
+    case 'next':
+      return field === 'weight' ? { focus: 'reps' } : {};
+    case 'done':
+      if (field !== 'reps' || !canCompleteSet(set)) return {};
+      return set.completed ? { focus: null } : { complete: true, focus: null };
+  }
+}
+
+/** Editing state of the **Update rest timers** dialogue's two time boxes. */
+export interface RestTimeEntry {
+  work: number;
+  warmUp: number;
+  /** The box taking keypad input, or null when the pad is hidden. */
+  field: 'work' | 'warmUp' | null;
+  /** The next digit replaces the box's value (true right after a box is focused). */
+  replace: boolean;
+}
+
+export type RestTimeKey =
+  | { kind: 'digit'; digit: string }
+  | { kind: 'backspace' }
+  | { kind: 'next' }
+  | { kind: 'done' };
+
+/** Focus a time box: its first digit will replace the current time. */
+export function focusRestTimeBox(entry: RestTimeEntry, field: 'work' | 'warmUp'): RestTimeEntry {
+  return { ...entry, field, replace: true };
+}
+
+/**
+ * One key press on the time pad (digits, backspace, Next, Done — no ±). Digits shift into `m:ss`
+ * from the right and the first digit after focusing replaces the time; an invalid result
+ * (seconds > 59, past 15:00) is ignored. Backspace right after focusing clears to 0:00.
+ * **Next** moves from Work set to Warm up (and back); **Done** hides the pad.
+ */
+export function applyRestTimeKey(entry: RestTimeEntry, key: RestTimeKey): RestTimeEntry {
+  const { field } = entry;
+  if (field == null) return entry;
+  if (key.kind === 'next') return focusRestTimeBox(entry, field === 'work' ? 'warmUp' : 'work');
+  if (key.kind === 'done') return { ...entry, field: null };
+  const current = entry[field];
+  const nextDigits =
+    key.kind === 'digit'
+      ? appendRestTimeDigit(restTimeDigits(current), key.digit, entry.replace)
+      : backspaceRestTime(entry.replace ? '' : restTimeDigits(current));
+  if (nextDigits == null) return entry;
+  const seconds = restSecondsFromDigits(nextDigits);
+  if (seconds == null) return entry;
+  return { ...entry, [field]: seconds, replace: false };
 }

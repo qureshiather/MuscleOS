@@ -4,7 +4,9 @@ import {
   activeExerciseIndex,
   firstIncompleteSetIndex,
   isCurrentSet,
+  previousLabel,
   setLabel,
+  setRowView,
 } from './workoutSetView';
 
 const done = (over: Partial<SetRecord> = {}): SetRecord => ({ completed: true, ...over });
@@ -79,5 +81,80 @@ describe('isCurrentSet', () => {
     expect(isCurrentSet(exercises, 1, 0)).toBe(false); // completed
     expect(isCurrentSet(exercises, 1, 2)).toBe(false); // future set in active exercise
     expect(isCurrentSet(exercises, 2, 0)).toBe(false); // later exercise
+  });
+});
+
+describe('setRowView', () => {
+  const noRest = { restAfter: null, restSecondsLeft: null };
+
+  it('marks one current set; every other incomplete set is future, across exercises', () => {
+    const exercises: SessionExercise[] = [
+      { exerciseId: 'a', sets: [done(), todo(), todo()] },
+      { exerciseId: 'b', sets: [todo(), todo()] },
+    ];
+    const statuses = exercises.map((ex, exIdx) =>
+      ex.sets.map((_, setIdx) => setRowView(exercises, exIdx, setIdx, noRest).status)
+    );
+    expect(statuses).toEqual([
+      ['completed', 'current', 'future'],
+      // the first set of a later exercise is muted too (was rendered as un-muted before)
+      ['future', 'future'],
+    ]);
+  });
+
+  it('labels warm-ups W1 and working sets 1, 2', () => {
+    const exercises: SessionExercise[] = [
+      { exerciseId: 'a', sets: [todo({ isWarmUp: true }), todo(), todo()] },
+    ];
+    expect([0, 1, 2].map((i) => setRowView(exercises, 0, i, noRest).label)).toEqual(['W1', '1', '2']);
+    expect(setRowView(exercises, 0, 0, noRest).isWarmUp).toBe(true);
+  });
+
+  it('shows a rest row after a working set by default (120 s) and not after a warm-up', () => {
+    const exercises: SessionExercise[] = [
+      { exerciseId: 'a', sets: [todo({ isWarmUp: true }), todo()] },
+    ];
+    expect(setRowView(exercises, 0, 0, noRest)).toMatchObject({ restPresetSeconds: 0, showRestAfter: false });
+    expect(setRowView(exercises, 0, 1, noRest)).toMatchObject({ restPresetSeconds: 120, showRestAfter: true });
+  });
+
+  it('uses the exercise rest presets; explicit 0 hides the work-set rest row', () => {
+    const exercises: SessionExercise[] = [
+      {
+        exerciseId: 'a',
+        restBetweenSetsSeconds: 0,
+        warmUpRestSeconds: 45,
+        sets: [todo({ isWarmUp: true }), todo()],
+      },
+    ];
+    expect(setRowView(exercises, 0, 0, noRest)).toMatchObject({ restPresetSeconds: 45, showRestAfter: true });
+    expect(setRowView(exercises, 0, 1, noRest)).toMatchObject({ restPresetSeconds: 0, showRestAfter: false });
+  });
+
+  it('a running countdown shows its rest row even when the preset is 0', () => {
+    const exercises: SessionExercise[] = [
+      { exerciseId: 'a', restBetweenSetsSeconds: 0, sets: [done(), todo()] },
+    ];
+    const rest = { restAfter: { exIdx: 0, setIdx: 0 }, restSecondsLeft: 30 };
+    expect(setRowView(exercises, 0, 0, rest)).toMatchObject({ restActive: true, showRestAfter: true });
+    expect(setRowView(exercises, 0, 1, rest).restActive).toBe(false);
+    expect(setRowView(exercises, 0, 0, { ...rest, restSecondsLeft: 0 }).restActive).toBe(false);
+  });
+
+  it('joins the green column only between two completed sets with no countdown', () => {
+    const exercises: SessionExercise[] = [{ exerciseId: 'a', sets: [done(), done(), todo()] }];
+    expect(setRowView(exercises, 0, 0, noRest).restJoinsCompleted).toBe(true);
+    expect(setRowView(exercises, 0, 1, noRest).restJoinsCompleted).toBe(false);
+    const counting = { restAfter: { exIdx: 0, setIdx: 0 }, restSecondsLeft: 10 };
+    expect(setRowView(exercises, 0, 0, counting).restJoinsCompleted).toBe(false);
+  });
+});
+
+describe('previousLabel', () => {
+  it('formats the snapshot in the user unit, or —', () => {
+    expect(previousLabel({ weightKg: 60, reps: 5 }, 'kg')).toBe('60 kg × 5');
+    expect(previousLabel({ weightKg: 100, reps: 5 }, 'lb')).toBe('220.5 lb × 5');
+    expect(previousLabel({ weightKg: 60 }, 'kg')).toBe('60 kg');
+    expect(previousLabel(undefined, 'kg')).toBe('—');
   });
 });

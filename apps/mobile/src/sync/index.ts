@@ -1,4 +1,13 @@
-export { isCloudSyncEnabled, schedulePush, pushNow, pullNow, syncNow, syncAfterWorkout, onAccountLinked } from './syncEngine';
+export {
+  isCloudSyncEnabled,
+  schedulePush,
+  pushNow,
+  pullNow,
+  syncNow,
+  syncAfterWorkout,
+  onAccountLinked,
+  resetSyncTransport,
+} from './syncEngine';
 export {
   notifySessionUpsert,
   notifySessionDelete,

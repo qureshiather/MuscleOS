@@ -1,11 +1,13 @@
 import { applyAuthUser, useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
-import { emailCallbackNeedsNewPassword, parseEmailCallback, type EmailCallback } from '@/auth/emailCallback';
+import {
+  emailCallbackNeedsNewPassword,
+  parseEmailCallback,
+  type EmailCallback,
+  type EmailCallbackResult,
+} from '@/auth/emailCallback';
 
-export type EmailCallbackResult =
-  | { result: 'recovery' | 'signed-in' }
-  | { result: 'ignored' }
-  | { result: 'failed'; message: string };
+export type { EmailCallbackResult };
 
 /** Turn a confirm or recovery link into a Supabase session. */
 export async function completeEmailCallback(url: string): Promise<EmailCallbackResult> {

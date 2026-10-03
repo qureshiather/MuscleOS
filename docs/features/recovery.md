@@ -16,6 +16,7 @@ load, not sets, not sleep — changes that number. This is a deliberate simplifi
 | Computation | `apps/mobile/src/utils/recovery.ts` |
 | Store | `apps/mobile/src/store/recoveryStore.ts` |
 | Diagram | `apps/mobile/src/components/MuscleDiagram.tsx` |
+| Explainer | `apps/mobile/src/components/RecoveryInfoModal.tsx` |
 | Tier | Basic — ungated |
 
 ## Muscle taxonomy
@@ -107,7 +108,9 @@ Recompute is driven by **whatever changes sessions or muscle mappings**, not by 
 | Finishing a workout | `src/store/activeWorkoutStore.ts` |
 | Deleting a session | `src/store/sessionsStore.ts` (`deleteSession`) |
 | Cloud sync merge | `src/sync/merge.ts` |
-| Data → Sync now / Import / Clear data | `app/data.tsx`, `app/account.tsx` |
+| Data → Sync now / Clear data | `app/data.tsx` |
+| Data → Import | `src/storage/importData.ts` (recomputes and persists from the merged sessions), then `app/data.tsx` reloads the store |
+| Delete account | `app/account.tsx` (reloads every store after the device wipe) |
 | Exercise catalog or custom exercises change | `src/store/recoveryStore.ts` (subscribes to `exercisesStore`) |
 
 The Recovery and Workouts tabs call `ensureLoaded()` on focus, which computes only if nothing has
@@ -176,8 +179,15 @@ Discrete states, not a percentage gradient. Palette from `getRecoveryPalette()`.
 | Ready | `recoveryReady` | `#3DD68C` | `#059669` |
 | Untrained fill | `bodyDiagramFill` | `#5A6070` | `#C8CCD8` |
 
-The diagram uses three states when a "just trained" subset is supplied, otherwise two
-(recovering / ready).
+The diagram has three modes (`regionStatesForMuscles()` → `regionStatesToBodyData()`):
+
+| Mode | Used by | Colouring |
+|------|---------|-----------|
+| Recovery, three states | Recovery tab (active) | Just trained / recovering / every other region Ready |
+| Recovery, two states | When no "just trained" subset is supplied | Recovering / every other region Ready |
+| Session | Post-workout "Good work" | That session's muscles in the just-trained colour; **every other region keeps the neutral untrained fill**, not Ready |
+
+The diagram shows no text labels.
 
 ## Recovery tab
 
@@ -186,13 +196,18 @@ Renders, in order:
 1. **Header** — title "Recovery"; subtitle is `All clear — every muscle group is ready` when
    nothing is recovering, else `Muscles still recovering from recent training`. A `help-circle`
    icon button on the right opens the **How recovery works** explainer (`RecoveryInfoModal`) —
-   a dismissible modal that describes the per-muscle timer model, the faster/slower buckets, and
-   the diagram colours.
-2. **Loading** — a 220×220 circular skeleton.
+   a dismissible modal with three points: *Tracked per muscle group* (the per-muscle timer),
+   *Some recover faster* (the duration buckets) and *Reading the map* (red just trained, amber
+   recovering, green ready). The bucket paragraph is generated from the duration table
+   (`recoveryBucketsCopy()`), so it always lists every muscle with its real hours:
+   *"Smaller muscles bounce back quicker. Biceps, triceps, forearms, abs and obliques are ready
+   after 36 hours; front delts, side delts, rear delts, adductors and calves after 48 hours;
+   chest, traps, lats, rhomboids, lower back, quads, hamstrings and glutes after 72 hours."*
+2. **Loading** — a 220×220 circular skeleton, only before the first load of the app run.
 3. **All-clear state** — the diagram with every muscle highlighted green.
-4. **Active state** — the diagram with a legend (Just trained / In recovery / Ready), then an
-   "In recovery" card listing one row per recovering muscle: muscle name on the left,
-   `formatRecoveryReady(...)` on the right.
+4. **Active state** — the diagram (no text labels under it) with a legend (Just trained / In
+   recovery / Ready), then an "In recovery" card listing one row per recovering muscle: muscle
+   name on the left, `formatRecoveryReady(...)` on the right.
 
 **"Just trained"** (`justTrainedMuscleIds()`) is the muscles whose `trainedAt` equals the maximum
 `trainedAt` among active records — effectively the most recent session. If two sessions finished
@@ -205,13 +220,17 @@ There are no training recommendations on this screen.
 
 ## Where else recovery appears
 
-**Workouts tab — "Suggested".** Recovery does not appear as a diagram or list on the home
-screen, but it drives which templates are suggested: `recommendTemplates()` skips any template
-where fewer than 50% of its muscles are ready. See
-[templates.md](templates.md#suggested-templates).
+**Workouts tab.** Recovery appears on the home screen through the Suggested and Recent cards'
+**muscle art**: each card's body figure colours the template's regions in the Recovery tab's
+ready / recovering / just-trained colours (see
+[templates.md](templates.md#muscle-art-cards)). It also drives which templates are suggested:
+`recommendTemplates()` skips any template where fewer than 50% of its muscles are ready (see
+[templates.md](templates.md#suggested-templates)).
 
-**Post-workout summary.** The "Good work" screen after finishing shows the diagram with all
-muscles trained in that session in the just-trained colour.
+**Post-workout summary.** The "Good work" screen after finishing shows the diagram in session
+mode: every muscle trained in that session (`musclesTrainedInSession()` — exercises with a
+completed set, resolved with the same catalog/alias fallback as recovery) in the just-trained
+colour, and the rest of the body in the neutral untrained fill.
 
 ## Assumptions
 
@@ -229,24 +248,42 @@ muscles trained in that session in the just-trained colour.
 
 ## Tests
 
-Covered (`packages/types/src/recovery.test.ts`, `muscles.test.ts`,
-`apps/mobile/src/utils/recovery.test.ts`, `relativeTime.test.ts`, `muscleDiagramRegions.test.ts`):
+Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `apps/mobile/src/`
+`utils/recovery.test.ts`, `relativeTime.test.ts`, `muscleDiagramRegions.test.ts`,
+`store/recoveryStore.test.ts`, `store/sessionsStore.test.ts`):
 
-- `getRecoveryHoursForMuscle` — 36/48/72 buckets, 72 default
+- `getRecoveryHoursForMuscle` for **all 18 muscles**, the table covering every muscle, 72 h default
 - `getRecoveryUntil` — adds the correct hours to `trainedAt`
 - 18 muscle groups exist; label formatting
 - `formatRecoveryReady` — every branch: later today (including a passed deadline), tomorrow,
   weekday, month + day
-- **`recoveryFromSessions()`** — skips in-progress sessions, skips exercises with no completed
-  set, keeps the latest `completedAt` per muscle, uses `completedAt` rather than `startedAt`, and
-  falls back to the bundled catalog
+- `recoveryFromSessions()` — skips in-progress sessions, skips exercises with no completed set,
+  keeps the latest `completedAt` per muscle, uses `completedAt` rather than `startedAt`, and falls
+  back to the bundled catalog
+- `musclesTrainedInSession()` — completed exercises only, de-duplicated, same alias fallback as recovery
 - `activeRecoveryAt()` — still active 1 ms before expiry, ready at the exact instant
 - `justTrainedMuscleIds()` — latest `trainedAt`, ties included
 - `sameRecovery()` — equal records in order; added, removed or retrained records differ
-- Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate
-- Recompute on sync merge (`src/sync/merge.test.ts`) and on finish (`activeWorkoutStore.test.ts`)
+- `recoveryBuckets()` / `recoveryBucketsCopy()` — the 36/48/72 buckets and the exact explainer copy
+- Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate;
+  `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral
+- `recoveryStore` — load persists, unchanged reload skips the write, `ensureLoaded()` computes once
+  and shares an in-flight first load, later reloads keep items (no skeleton), overlapping loads
+  resolve to the latest, expiry drops muscles without a recompute, the exercises-store subscription
+  recomputes only once loaded
+- Recompute on delete (`sessionsStore.test.ts`), sync merge (`src/sync/merge.test.ts`) and finish
+  (`activeWorkoutStore.test.ts`)
+
+Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/test/ui/recovery/recovery.test.tsx`):
+
+- `getRecoveryPalette` mapping and the documented hex values; front + back figures; male/female
+  figure; three-state, two-state, all-clear and session (neutral rest) modes; no "Targeted" label
+- Recovery tab: all-clear vs active subtitle, legend, three-state diagram, loading skeleton before
+  the first load, In recovery rows in insertion order with day-grain readiness copy, re-focus drops
+  expired muscles without a recompute, the explainer opens with the generated copy and closes
 
 Not covered:
 
-- `recoveryStore` load/persist wiring, `ensureLoaded()`, and the exercises-store subscription (the rebuild logic and `sameRecovery()` they call are covered)
-- `MuscleDiagram` rendering
+- The finish flow in `active-workout.tsx` end to end (the "Good work" diagram's session mode and
+  `musclesTrainedInSession()` are covered directly)
+- The import and delete-account recompute call sites (`importData.ts`, `account.tsx`)

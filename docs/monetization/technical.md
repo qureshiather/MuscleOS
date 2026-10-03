@@ -69,8 +69,9 @@ File: [`apps/mobile/src/store/subscriptionStore.ts`](../../apps/mobile/src/store
 
 | Method | Purpose |
 |--------|---------|
-| `load(appUserId?)` | Configure RC, sync from CustomerInfo or dev override |
-| `isPro()` | True if tier is pro and not expired |
+| `hydrate()` | Paint the cached tier at launch, before auth resolves |
+| `load(appUserId?)` | Configure RC, then settle the tier with `resolveSubscriptionState` (`src/subscription/state.ts`). A failed / timed-out customer read keeps the cached tier |
+| `isPro()` | `isProState(state, now)`: tier is pro and not expired |
 | `purchasePackage(pkg)` | IAP + persist state |
 | `restorePurchases()` | Restore from store |
 | `setPro()` / `setBasic()` | Dev testing only |
@@ -88,7 +89,7 @@ File: [`apps/mobile/src/lib/supabase.ts`](../../apps/mobile/src/lib/supabase.ts)
 
 ### Purchase rule
 
-Anonymous users see **Link account** on the Subscription screen; purchase UI is hidden until linked.
+Anonymous users see the paywall (feature highlight, comparison, prices) with **Link account to purchase** in place of the purchase button; `purchasePackage` / `restorePurchases` refuse guests.
 
 ## Phase 2: server-side sync (optional)
 

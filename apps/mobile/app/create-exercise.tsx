@@ -27,6 +27,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { useRequirePro } from '@/hooks/useProGate';
+import { buildCustomExerciseDraft, resolveExerciseEditTarget } from '@/utils/customExerciseForm';
 
 const EQUIPMENT_OPTIONS: Equipment[] = [
   'barbell',
@@ -58,8 +59,9 @@ export default function CreateExerciseScreen() {
   const updateExercise = useExercisesStore((s) => s.updateExercise);
   const getExercise = useExercisesStore((s) => s.getExercise);
 
-  const existing = editId ? getExercise(editId) : undefined;
-  const isEdit = Boolean(existing && existing.id.startsWith('custom_'));
+  // Only customs are editable; a catalog id opens an empty create form rather than a clone.
+  const existing = resolveExerciseEditTarget(editId, editId ? getExercise(editId) : undefined);
+  const isEdit = existing !== undefined;
 
   const [name, setName] = useState(
     existing?.name ?? (typeof params.name === 'string' ? params.name : '')
@@ -86,18 +88,13 @@ export default function CreateExerciseScreen() {
     setEquipment((prev) => (prev.includes(eq) ? prev.filter((e) => e !== eq) : [...prev, eq]));
   }
 
+  const draft = buildCustomExerciseDraft({ name, category, muscles, equipment, instructions });
+
   async function handleSave() {
-    const trimmedName = name.trim();
-    if (!trimmedName || muscles.length === 0 || !category) return;
-    const payload = {
-      name: trimmedName,
-      category,
-      muscles,
-      equipment,
-      instructions: instructions.trim() || undefined,
-    };
-    if (isEdit && editId) {
-      await updateExercise(editId, payload);
+    if (!draft.ok) return;
+    const payload = draft.exercise;
+    if (existing) {
+      await updateExercise(existing.id, payload);
     } else {
       const created = await addExercise(payload);
       // Launched from the mid-workout picker: drop the new exercise into the live session so the
@@ -115,7 +112,7 @@ export default function CreateExerciseScreen() {
     router.back();
   }
 
-  const canSave = name.trim().length > 0 && muscles.length > 0 && category !== null;
+  const canSave = draft.ok;
 
   if (!isPro) return null;
 
@@ -155,7 +152,7 @@ export default function CreateExerciseScreen() {
                 ]}
                 onPress={() => setCategory(key)}
               >
-                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
                   {EXERCISE_CATEGORY_LABELS[key]}
                 </Text>
               </Pressable>
@@ -181,7 +178,7 @@ export default function CreateExerciseScreen() {
                 ]}
                 onPress={() => toggleMuscle(id)}
               >
-                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
                   {muscleLabel(id)}
                 </Text>
               </Pressable>
@@ -213,7 +210,7 @@ export default function CreateExerciseScreen() {
                 ]}
                 onPress={() => toggleEquip(eq)}
               >
-                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
                   {EQUIPMENT_LABELS[eq]}
                 </Text>
               </Pressable>

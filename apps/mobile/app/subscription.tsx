@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,6 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import type { SubscriptionPlan } from '@muscleos/types';
-import type { PurchasesPackage } from 'react-native-purchases';
 import { useAuthStore } from '@/store/authStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import {
@@ -32,9 +30,18 @@ import {
   PRO_FEATURE_LABELS,
   parseProFeatureParam,
 } from '@/subscription/features';
-import { FALLBACK_PRICE_LABELS, annualSavingsPercent } from '@/subscription/pricing';
 import { LEGAL_URLS } from '@/subscription/legal';
-import { isLifetimeExpiry } from '@/subscription/plan';
+import {
+  DEFAULT_PLAN,
+  PLAN_LABELS,
+  PURCHASABLE_PLANS,
+  annualSavingsFromPrices,
+  currentPlanLines,
+  planPriceLabel,
+  planSubtitle,
+  purchaseButtonState,
+  type PlanKey,
+} from '@/subscription/paywall';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -42,24 +49,6 @@ import { fontScaleCap } from '@/theme/layout';
 
 /** Dev builds only — release builds (TestFlight, Play testing tracks, production) never show it. */
 const showGrantProTesting = __DEV__;
-
-type PlanKey = 'monthly' | 'annual';
-
-const PLAN_LABELS: Record<NonNullable<SubscriptionPlan>, string> = {
-  monthly: 'Monthly',
-  annual: 'Annual',
-  complimentary: 'Complimentary',
-};
-
-const PURCHASABLE_PLANS: PlanKey[] = ['monthly', 'annual'];
-
-const PERIOD_SUFFIX: Record<PlanKey, string> = { monthly: '/mo', annual: '/yr' };
-
-/** Store price with the billing period, matching the fallback label format ("$2.99/mo"). */
-function packagePrice(plan: PlanKey, pkg: PurchasesPackage | null): string {
-  const store = pkg?.product.priceString;
-  return store ? `${store}${PERIOD_SUFFIX[plan]}` : FALLBACK_PRICE_LABELS[plan];
-}
 
 export default function SubscriptionScreen() {
   const { colors } = useTheme();
@@ -70,7 +59,6 @@ export default function SubscriptionScreen() {
   const isAnonymous = useAuthStore((s) => s.isAnonymous);
   const userId = useAuthStore((s) => s.user?.id);
   const load = useSubscriptionStore((s) => s.load);
-  const isPro = useSubscriptionStore((s) => s.isPro);
   const setPro = useSubscriptionStore((s) => s.setPro);
   const setBasic = useSubscriptionStore((s) => s.setBasic);
   const purchasePackage = useSubscriptionStore((s) => s.purchasePackage);
@@ -81,35 +69,48 @@ export default function SubscriptionScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [managing, setManaging] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PlanKey>('annual');
+  const [selectedPlan, setSelectedPlan] = useState<PlanKey>(DEFAULT_PLAN);
   const [packages, setPackages] = useState<OfferingPackages>({ monthly: null, annual: null });
+  const hasApiKey = hasRevenueCatApiKey();
+  /** RevenueCat configure + offerings in flight. Reactive, so the button updates when it settles. */
+  const [offersLoading, setOffersLoading] = useState(hasApiKey);
 
   useEffect(() => {
     void load(userId);
   }, [load, userId]);
 
   useEffect(() => {
-    if (!hasRevenueCatApiKey()) return;
-    getOfferingPackages().then(setPackages);
-  }, []);
+    if (!hasApiKey) return;
+    let cancelled = false;
+    getOfferingPackages()
+      .then((next) => {
+        if (!cancelled) setPackages(next);
+      })
+      .finally(() => {
+        if (!cancelled) setOffersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasApiKey]);
 
-  const pro = isPro();
-  // Promotional grants have no store subscription to renew or manage.
-  const complimentary = state?.plan === 'complimentary';
+  const planLines = currentPlanLines(state, new Date());
+  const pro = planLines.tierLabel === 'Pro';
 
   const selectedPackage = packages[selectedPlan];
 
-  const annualSavings = useMemo(() => {
-    const monthly = packages.monthly?.product.price;
-    const annual = packages.annual?.product.price;
-    if (monthly != null && annual != null && monthly > 0) {
-      const pct = Math.round((1 - annual / (monthly * 12)) * 100);
-      if (pct > 0) return pct;
-    }
-    return annualSavingsPercent();
-  }, [packages.monthly, packages.annual]);
+  const annualSavings = annualSavingsFromPrices(
+    packages.monthly?.product.price,
+    packages.annual?.product.price
+  );
 
-  const purchasesReady = isRevenueCatConfigured();
+  const purchaseButton = purchaseButtonState({
+    isAnonymous,
+    hasApiKey,
+    offersLoading,
+    purchasing,
+    selectedPlan,
+  });
 
   async function handlePurchase() {
     if (!selectedPackage) {
@@ -164,11 +165,6 @@ export default function SubscriptionScreen() {
     await setPro(expiresAt.toISOString(), { devOverride: true, plan: 'annual' });
   }
 
-  function planSubtitle(plan: PlanKey): string | null {
-    if (plan === 'annual') return `Save ${annualSavings}% vs monthly`;
-    return null;
-  }
-
   return (
     <Screen>
       <View style={styles.header}>
@@ -187,31 +183,6 @@ export default function SubscriptionScreen() {
           <SkeletonCard lines={2} />
           <SkeletonCard lines={4} />
         </View>
-      ) : isAnonymous ? (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <Card>
-            <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>
-              Link your account
-            </Text>
-            <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-              Subscriptions are tied to your account so Pro restores on any device.
-            </Text>
-            <PrimaryButton label="Link account" onPress={() => router.push('/auth')} />
-          </Card>
-          {showGrantProTesting && (
-            <View style={[styles.devSection, { borderColor: colors.border }]}>
-              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.sm }]}>
-                Testing
-              </Text>
-              <Pressable
-                style={[styles.devBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={handleGrantProTesting}
-              >
-                <Text style={[typography.label, { color: colors.primary }]}>Grant Pro (testing)</Text>
-              </Pressable>
-            </View>
-          )}
-        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
           <Card>
@@ -221,23 +192,21 @@ export default function SubscriptionScreen() {
             <Text style={[typography.dataLarge, { color: pro ? colors.primary : colors.text }]}>
               {pro ? 'Pro' : 'Basic'}
             </Text>
-            {pro && state?.plan && (
+            {planLines.planLabel && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-                {PLAN_LABELS[state.plan]} plan
+                {planLines.planLabel}
               </Text>
             )}
-            {pro && complimentary && (!state?.expiresAt || isLifetimeExpiry(state.expiresAt)) && (
+            {planLines.expiry && (
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-                Lifetime
+                {planLines.expiry.kind === 'lifetime'
+                  ? 'Lifetime'
+                  : `${planLines.expiry.kind === 'until' ? 'Until' : 'Renews'} ${new Date(
+                      planLines.expiry.at
+                    ).toLocaleDateString(undefined, { dateStyle: 'medium' })}`}
               </Text>
             )}
-            {state?.expiresAt && pro && !isLifetimeExpiry(state.expiresAt) && (
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
-                {complimentary ? 'Until' : 'Renews'}{' '}
-                {new Date(state.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-              </Text>
-            )}
-            {pro && !complimentary && (
+            {planLines.showManage && (
               <Pressable
                 style={[
                   styles.manageBtn,
@@ -305,7 +274,7 @@ export default function SubscriptionScreen() {
                 </Text>
                 {PURCHASABLE_PLANS.map((plan) => {
                   const selected = selectedPlan === plan;
-                  const subtitle = planSubtitle(plan);
+                  const subtitle = planSubtitle(plan, annualSavings);
                   return (
                     <Pressable
                       key={plan}
@@ -325,7 +294,7 @@ export default function SubscriptionScreen() {
                           </Text>
                           {plan === 'annual' && (
                             <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                              <Text style={[typography.caption, { color: '#fff', fontFamily: typography.label.fontFamily }]}>
+                              <Text style={[typography.caption, { color: colors.primaryOn, fontFamily: typography.label.fontFamily }]}>
                                 Best value
                               </Text>
                             </View>
@@ -336,7 +305,7 @@ export default function SubscriptionScreen() {
                         )}
                       </View>
                       <Text style={[typography.label, { color: selected ? colors.primary : colors.text }]}>
-                        {packagePrice(plan, packages[plan])}
+                        {planPriceLabel(plan, packages[plan]?.product.priceString)}
                       </Text>
                     </Pressable>
                   );
@@ -347,29 +316,41 @@ export default function SubscriptionScreen() {
                     styles.primaryBtn,
                     {
                       backgroundColor: colors.primary,
-                      opacity: purchasing || !purchasesReady ? 0.8 : 1,
+                      opacity: purchaseButton.disabled ? 0.8 : 1,
                     },
                   ]}
-                  onPress={handlePurchase}
-                  disabled={purchasing || !purchasesReady}
+                  onPress={
+                    purchaseButton.kind === 'link-account' ? () => router.push('/auth') : handlePurchase
+                  }
+                  disabled={purchaseButton.disabled}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: purchaseButton.disabled }}
                 >
                   {purchasing ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.primaryOn} />
                   ) : (
-                    <Text style={[typography.button, { color: '#fff', textAlign: 'center' }]}>
-                      {purchasesReady
-                        ? `Continue with ${PLAN_LABELS[selectedPlan]}`
-                        : 'Purchases unavailable'}
+                    <Text style={[typography.button, { color: colors.primaryOn, textAlign: 'center' }]}>
+                      {purchaseButton.label}
                     </Text>
                   )}
                 </Pressable>
-                {__DEV__ && !isRevenueCatConfigured() && hasRevenueCatApiKey() && (
+                {isAnonymous && (
+                  <Text
+                    style={[
+                      typography.caption,
+                      { color: colors.textMuted, marginTop: spacing.md, textAlign: 'center' },
+                    ]}
+                  >
+                    Subscriptions are tied to your account so Pro restores on any device.
+                  </Text>
+                )}
+                {__DEV__ && !offersLoading && !isRevenueCatConfigured() && hasApiKey && (
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
                     RevenueCat could not load plans. On Android, set EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID
                     (goog_…). Use a dev build with Google Play sandbox.
                   </Text>
                 )}
-                {__DEV__ && !hasRevenueCatApiKey() && (
+                {__DEV__ && !hasApiKey && (
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.md }]}>
                     Set platform RevenueCat keys in .env and use a development build. See docs/monetization/revenuecat-setup.md.
                   </Text>

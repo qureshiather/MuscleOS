@@ -3,7 +3,10 @@ import type { Exercise, MuscleId, WorkoutSession } from '@muscleos/types';
 import {
   activeRecoveryAt,
   justTrainedMuscleIds,
+  musclesTrainedInSession,
   recentlyWorkedMuscleIds,
+  recoveryBuckets,
+  recoveryBucketsCopy,
   recoveryFromSessions,
   sameRecovery,
 } from './recovery';
@@ -188,5 +191,57 @@ describe('sameRecovery', () => {
     expect(sameRecovery([chest], [chest, quads])).toBe(false);
     expect(sameRecovery([chest, quads], [chest])).toBe(false);
     expect(sameRecovery([chest], [{ ...chest, trainedAt: '2026-01-03T11:00:00.000Z' }])).toBe(false);
+  });
+});
+
+describe('musclesTrainedInSession', () => {
+  it('collects muscles of exercises with a completed set, once each, in first-seen order', () => {
+    const muscles = musclesTrainedInSession(
+      session({
+        exercises: [
+          { exerciseId: 'bench', sets: [{ completed: true, reps: 5 }] },
+          { exerciseId: 'squat', sets: [{ completed: false, reps: 5 }] },
+          { exerciseId: 'bench', sets: [{ completed: true, reps: 5 }] },
+        ],
+      }),
+      getExercise
+    );
+    expect(muscles).toEqual(['chest', 'triceps']);
+  });
+
+  it('falls back to the bundled catalog with alias resolution, like recovery', () => {
+    // `barbell-shrug` is a legacy alias of the seeded `shrug` (traps, forearms).
+    const s = session({
+      completedAt: '2026-01-01T11:00:00.000Z',
+      exercises: [{ exerciseId: 'barbell-shrug', sets: [{ completed: true, reps: 10 }] }],
+    });
+    const muscles = musclesTrainedInSession(s, () => undefined);
+    expect(muscles).toEqual(['traps', 'forearms']);
+    expect(recoveryFromSessions([s], () => undefined).map((r) => r.muscleId)).toEqual(muscles);
+  });
+
+  it('is empty when nothing was completed', () => {
+    expect(
+      musclesTrainedInSession(session({ exercises: [{ exerciseId: 'bench', sets: [{ completed: false }] }] }), getExercise)
+    ).toEqual([]);
+  });
+});
+
+describe('recoveryBuckets / recoveryBucketsCopy', () => {
+  it('groups all 18 muscles into the 36 / 48 / 72 hour buckets', () => {
+    const buckets = recoveryBuckets();
+    expect(buckets.map((b) => b.hours)).toEqual([36, 48, 72]);
+    expect([...buckets[0].muscleIds].sort()).toEqual(['abs', 'biceps', 'forearms', 'obliques', 'triceps']);
+    expect([...buckets[1].muscleIds].sort()).toEqual(['adductors', 'calves', 'front_delts', 'rear_delts', 'side_delts']);
+    expect(buckets[2].muscleIds).toHaveLength(8);
+    expect(buckets.flatMap((b) => b.muscleIds)).toHaveLength(18);
+  });
+
+  it('writes the explainer copy from the duration table', () => {
+    expect(recoveryBucketsCopy()).toBe(
+      'Biceps, triceps, forearms, abs and obliques are ready after 36 hours; ' +
+        'front delts, side delts, rear delts, adductors and calves after 48 hours; ' +
+        'chest, traps, lats, rhomboids, lower back, quads, hamstrings and glutes after 72 hours.'
+    );
   });
 });

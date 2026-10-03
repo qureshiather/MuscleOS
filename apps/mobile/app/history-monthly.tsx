@@ -11,57 +11,18 @@ import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
-import type { WorkoutSession } from '@muscleos/types';
 import { useRequirePro } from '@/hooks/useProGate';
+import { localDayKey, monthGrid, sessionsOnDay, WEEKDAY_LABELS, workoutDaysSet } from '@/utils/calendar';
+import { formatSessionDuration } from '@/utils/sessionStats';
+import { templateDisplayName } from '@/utils/historyCards';
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-function workoutDaysSet(sessions: WorkoutSession[]): Set<string> {
-  const set = new Set<string>();
-  for (const s of sessions) {
-    if (!s.completedAt) continue;
-    const d = new Date(s.completedAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    set.add(key);
-  }
-  return set;
-}
-
-function formatDayLabel(isoDate: string): string {
-  const d = new Date(isoDate + 'T12:00:00');
+function formatDayLabel(dayKey: string): string {
+  const d = new Date(dayKey + 'T12:00:00');
   return d.toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
-}
-
-function getSessionDuration(session: WorkoutSession): string | null {
-  if (!session.startedAt || !session.completedAt) return null;
-  const ms = new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-function monthGrid(year: number, month: number): (number | null)[][] {
-  const first = new Date(year, month, 1);
-  const last = new Date(year, month + 1, 0);
-  const daysInMonth = last.getDate();
-  const startWeekday = first.getDay();
-
-  const flat: (number | null)[] = [];
-  for (let i = 0; i < startWeekday; i++) flat.push(null);
-  for (let d = 1; d <= daysInMonth; d++) flat.push(d);
-  while (flat.length % 7 !== 0) flat.push(null);
-
-  const rows: (number | null)[][] = [];
-  for (let i = 0; i < flat.length; i += 7) {
-    rows.push(flat.slice(i, i + 7));
-  }
-  return rows;
 }
 
 export default function HistoryMonthlyScreen() {
@@ -85,18 +46,10 @@ export default function HistoryMonthlyScreen() {
   const completed = completedSessions();
   const templates = allTemplates();
   const workoutDays = useMemo(() => workoutDaysSet(completed), [completed]);
-  const getTemplateName = (templateId: string) =>
-    templates.find((t) => t.id === templateId)?.name ?? 'Workout';
-
-  const sessionsForSelectedDay = useMemo(() => {
-    if (!selectedDayKey) return [];
-    return completed.filter((s) => {
-      if (!s.completedAt) return false;
-      const d = new Date(s.completedAt);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      return key === selectedDayKey;
-    });
-  }, [completed, selectedDayKey]);
+  const sessionsForSelectedDay = useMemo(
+    () => (selectedDayKey ? sessionsOnDay(completed, selectedDayKey) : []),
+    [completed, selectedDayKey]
+  );
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -117,8 +70,7 @@ export default function HistoryMonthlyScreen() {
   }
 
   function dayKey(day: number | null): string {
-    if (day == null) return '';
-    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return day == null ? '' : localDayKey(new Date(year, month, day));
   }
 
   if (!isPro) return null;
@@ -131,6 +83,8 @@ export default function HistoryMonthlyScreen() {
         <View style={styles.monthNav}>
           <Pressable
             onPress={goPrevMonth}
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
             style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
             hitSlop={8}
           >
@@ -139,6 +93,8 @@ export default function HistoryMonthlyScreen() {
           <Text style={[typography.sectionTitle, { color: colors.text }]}>{monthLabel}</Text>
           <Pressable
             onPress={goNextMonth}
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
             style={({ pressed }) => [styles.navButton, pressed && { opacity: 0.7 }]}
             hitSlop={8}
           >
@@ -149,7 +105,7 @@ export default function HistoryMonthlyScreen() {
         <Card style={{ padding: cardPad }}>
           <View style={styles.weekdayRow}>
             {WEEKDAY_LABELS.map((label, i) => (
-              <View key={i} style={[styles.weekdayCell, { width: cellWidth }]}>
+              <View key={i} testID="calendar-weekday" style={[styles.weekdayCell, { width: cellWidth }]}>
                 <Text
                   style={[typography.caption, styles.weekdayLabel, { color: colors.textMuted }]}
                   maxFontSizeMultiplier={fontScaleCap.fixed}
@@ -161,7 +117,7 @@ export default function HistoryMonthlyScreen() {
           </View>
 
           {grid.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.calendarRow}>
+            <View key={rowIndex} testID="calendar-row" style={styles.calendarRow}>
               {row.map((day, colIndex) => {
                 const key = dayKey(day);
                 const hasWorkout = day != null && workoutDays.has(key);
@@ -171,6 +127,9 @@ export default function HistoryMonthlyScreen() {
                     {day != null ? (
                       <Pressable
                         onPress={() => setSelectedDayKey(isSelected ? null : key)}
+                        testID={`calendar-day-${key}`}
+                        accessibilityState={{ selected: isSelected }}
+                        accessibilityHint={hasWorkout ? 'Has a workout' : undefined}
                         style={({ pressed }) => [
                           styles.dayInner,
                           {
@@ -181,7 +140,7 @@ export default function HistoryMonthlyScreen() {
                           hasWorkout && { backgroundColor: colors.primary },
                           isSelected && {
                             borderWidth: 2,
-                            borderColor: hasWorkout ? '#fff' : colors.primary,
+                            borderColor: hasWorkout ? colors.primaryOn : colors.primary,
                           },
                           pressed && { opacity: 0.8 },
                         ]}
@@ -190,7 +149,7 @@ export default function HistoryMonthlyScreen() {
                           style={[
                             typography.data,
                             styles.dayText,
-                            { color: hasWorkout ? '#fff' : colors.text },
+                            { color: hasWorkout ? colors.primaryOn : colors.text },
                           ]}
                           maxFontSizeMultiplier={fontScaleCap.fixed}
                         >
@@ -225,11 +184,11 @@ export default function HistoryMonthlyScreen() {
                   ]}
                 >
                   <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]}>
-                    {getTemplateName(s.templateId)}
+                    {templateDisplayName(templates, s.templateId)}
                   </Text>
-                  {getSessionDuration(s) ? (
+                  {formatSessionDuration(s) ? (
                     <Text style={[typography.data, { color: colors.textSecondary }]}>
-                      {getSessionDuration(s)}
+                      {formatSessionDuration(s)}
                     </Text>
                   ) : null}
                 </View>

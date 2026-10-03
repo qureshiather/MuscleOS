@@ -25,7 +25,7 @@ import {
   type ExercisePrevious,
   type SyncedAppSettings,
 } from '@/storage/localStorage';
-import { getOutboxMap, outboxEntryKey, setOutbox } from './outbox';
+import { commitOutboxEdits, getOutboxMap, outboxEntryKey } from './outbox';
 import {
   bumpUpdatedAtIfNeeded,
   decideEntityApply,
@@ -86,6 +86,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     getAppSettings(),
     getOutboxMap(),
   ]);
+  const outboxBefore = Array.from(outboxMap.values());
 
   for (const [key, entry] of outboxMap) {
     if (entry.entityType === 'recovery') outboxMap.delete(key);
@@ -354,88 +355,83 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     setExercisePrevious(previousData),
     setExerciseNotes(notesData),
     setAppSettings(settingsData),
-    setOutbox(Array.from(outboxMap.values())),
+    commitOutboxEdits(outboxBefore, Array.from(outboxMap.values())),
   ]);
 
   return changed || records.length > 0;
 }
 
-/** Snapshot of all local user data for initial account link upload. */
-export async function collectFullLocalSnapshot(): Promise<
-  Array<{
-    entityType: SyncEntityType;
-    entityId: string;
-    payload: unknown;
-    updatedAt: string;
-  }>
-> {
-  const [
-    sessions,
-    templates,
-    folders,
-    customExercises,
-    exercisePrevious,
-    exerciseNotes,
-    appSettings,
-  ] = await Promise.all([
-    getSessions(),
-    getTemplates(),
-    getTemplateFolders(),
-    getCustomExercises(),
-    getExercisePrevious(),
-    getExerciseNotes(),
-    getAppSettings(),
-  ]);
+export type SnapshotItem = {
+  entityType: SyncEntityType;
+  entityId: string;
+  payload: unknown;
+  updatedAt: string;
+};
 
-  const now = new Date().toISOString();
-  const items: Array<{
-    entityType: SyncEntityType;
-    entityId: string;
-    payload: unknown;
-    updatedAt: string;
-  }> = [];
+export interface LocalSyncData {
+  sessions: WorkoutSession[];
+  templates: WorkoutTemplate[];
+  folders: TemplateFolder[];
+  customExercises: Exercise[];
+  exercisePrevious: Record<string, ExercisePrevious>;
+  exerciseNotes: Record<string, string>;
+  appSettings: SyncedAppSettings;
+}
 
-  for (const session of sessions) {
-    items.push({
-      entityType: 'session',
-      entityId: session.id,
-      payload: session,
-      updatedAt: sessionUpdatedAt(session),
-    });
+/** Entity types that are whole documents (one row per id), as opposed to per-account snapshots. */
+export const ENTITY_SYNC_TYPES: ReadonlySet<SyncEntityType> = new Set([
+  'session',
+  'template',
+  'template_folder',
+  'custom_exercise',
+]);
+
+/**
+ * Every synced local row as an upload item. Sessions keep their own clock (completedAt, else
+ * startedAt); everything else is stamped `now`. Empty previous/notes maps are skipped; settings
+ * always go.
+ */
+export function snapshotItems(data: LocalSyncData, now: string): SnapshotItem[] {
+  const items: SnapshotItem[] = [];
+  for (const session of data.sessions) {
+    items.push({ entityType: 'session', entityId: session.id, payload: session, updatedAt: sessionUpdatedAt(session) });
   }
-  for (const template of templates) {
+  for (const template of data.templates) {
     items.push({ entityType: 'template', entityId: template.id, payload: template, updatedAt: now });
   }
-  for (const folder of folders) {
+  for (const folder of data.folders) {
     items.push({ entityType: 'template_folder', entityId: folder.id, payload: folder, updatedAt: now });
   }
-  for (const exercise of customExercises) {
+  for (const exercise of data.customExercises) {
     items.push({ entityType: 'custom_exercise', entityId: exercise.id, payload: exercise, updatedAt: now });
   }
-  if (Object.keys(exercisePrevious).length) {
-    items.push({
-      entityType: 'exercise_previous',
-      entityId: 'default',
-      payload: exercisePrevious,
-      updatedAt: now,
-    });
+  if (Object.keys(data.exercisePrevious).length) {
+    items.push({ entityType: 'exercise_previous', entityId: 'default', payload: data.exercisePrevious, updatedAt: now });
   }
-  if (Object.keys(exerciseNotes).length) {
-    items.push({
-      entityType: 'exercise_note',
-      entityId: 'default',
-      payload: exerciseNotes,
-      updatedAt: now,
-    });
+  if (Object.keys(data.exerciseNotes).length) {
+    items.push({ entityType: 'exercise_note', entityId: 'default', payload: data.exerciseNotes, updatedAt: now });
   }
-  items.push({
-    entityType: 'app_settings',
-    entityId: 'default',
-    payload: appSettings,
-    updatedAt: now,
-  });
-
+  items.push({ entityType: 'app_settings', entityId: 'default', payload: data.appSettings, updatedAt: now });
   return items;
+}
+
+export async function readLocalSyncData(): Promise<LocalSyncData> {
+  const [sessions, templates, folders, customExercises, exercisePrevious, exerciseNotes, appSettings] =
+    await Promise.all([
+      getSessions(),
+      getTemplates(),
+      getTemplateFolders(),
+      getCustomExercises(),
+      getExercisePrevious(),
+      getExerciseNotes(),
+      getAppSettings(),
+    ]);
+  return { sessions, templates, folders, customExercises, exercisePrevious, exerciseNotes, appSettings };
+}
+
+/** Snapshot of all local user data for initial account link upload. */
+export async function collectFullLocalSnapshot(now = new Date().toISOString()): Promise<SnapshotItem[]> {
+  return snapshotItems(await readLocalSyncData(), now);
 }
 
 export async function reloadSyncedStores(): Promise<void> {

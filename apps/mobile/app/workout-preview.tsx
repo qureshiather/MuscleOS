@@ -6,8 +6,10 @@ import { Screen, ScreenFooter } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import { useProGate } from '@/hooks/useProGate';
-import { requiresProToStart, subscriptionPaywallPath } from '@/subscription/features';
+import { useProGate, useRedirectWhenReady } from '@/hooks/useProGate';
+import { startFromParamsDecision, subscriptionPaywallPath } from '@/subscription/features';
+import { startPlanFromParams } from '@/subscription/startPlan';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
@@ -15,11 +17,11 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { formatMuscleLabels } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
-import { formatWeight } from '@/utils/weightUnits';
+import { formatPrevious, formatRestDuration, previewEntryState } from '@/utils/workoutPreview';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { parseStartParams, encodeStartParams } from '@/store/activeWorkoutLogic';
+import { encodeStartParams } from '@/store/activeWorkoutLogic';
 import { formatTemplateSetLabel } from '@/utils/templateExercises';
 import { fontScaleCap } from '@/theme/layout';
 
@@ -35,20 +37,26 @@ export default function WorkoutPreviewScreen() {
     warmUpSets?: string;
     defaultSets?: string;
   }>();
-  const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
 
   const templateId = params.templateId ?? '';
-  const plan = parseStartParams({
-    exerciseIds: params.exerciseIds,
-    sets: params.sets,
-    warmUpSets: params.warmUpSets,
-    defaultSets: params.defaultSets,
+  const template = useTemplatesStore((s) => s.allTemplates().find((t) => t.id === templateId));
+  const templatesLoaded = useTemplatesStore((s) => !s.isLoading);
+  const subscriptionLoaded = useSubscriptionStore((s) => !s.isLoading);
+  // Basic previews (and starts) a built-in exactly as defined — URL exercises are ignored.
+  const plan = startPlanFromParams({
+    isPro,
+    template,
+    params: {
+      exerciseIds: params.exerciseIds,
+      sets: params.sets,
+      warmUpSets: params.warmUpSets,
+      defaultSets: params.defaultSets,
+    },
   });
   const exerciseIds = plan.map((p) => p.exerciseId);
 
-  const template = allTemplates().find((t) => t.id === templateId);
   const templateName = template?.name ?? 'Workout';
 
   const getExercise = useExercisesStore((s) => s.getExercise);
@@ -61,18 +69,30 @@ export default function WorkoutPreviewScreen() {
     getExercisePrevious().then(setPreviousMap);
   }, []);
 
-  useEffect(() => {
-    if (activeSession) {
-      router.replace('/active-workout');
-    }
-  }, [activeSession, router]);
+  const entry = previewEntryState({
+    templateId,
+    exerciseIds,
+    hasActiveSession: activeSession != null,
+  });
+  useRedirectWhenReady(entry === 'active-session' ? '/active-workout' : null);
 
-  /** Custom templates stay runnable only while Pro is active, including via deep links. */
-  const startBlocked = !isPro && template != null && requiresProToStart(template);
-  useEffect(() => {
-    if (!startBlocked) return;
-    router.replace(subscriptionPaywallPath('custom_templates') as Href);
-  }, [startBlocked, router]);
+  /**
+   * Same rule as the start-from-params path in /active-workout, so a deep link to the preview
+   * can't reach a Pro-only start: on Basic, custom templates and unknown ids go to the paywall.
+   */
+  const startDecision = startFromParamsDecision({
+    hasSession: activeSession != null,
+    templatesLoaded,
+    subscriptionLoaded,
+    isPro,
+    templateId,
+    template,
+  });
+  useRedirectWhenReady(
+    startDecision !== 'wait' && startDecision !== 'start'
+      ? (subscriptionPaywallPath(startDecision) as Href)
+      : null
+  );
 
   function handleStart() {
     if (activeSession) return;
@@ -85,7 +105,7 @@ export default function WorkoutPreviewScreen() {
     });
   }
 
-  if (!templateId || exerciseIds.length === 0) {
+  if (entry === 'missing') {
     return (
       <Screen kind="chrome">
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
@@ -114,7 +134,7 @@ export default function WorkoutPreviewScreen() {
             style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
             onPress={handleStart}
           >
-            <Text style={[typography.button, { color: '#fff' }]}>Start</Text>
+            <Text style={[typography.button, { color: colors.primaryOn }]}>Start</Text>
           </Pressable>
         </View>
       </View>
@@ -141,7 +161,7 @@ export default function WorkoutPreviewScreen() {
         </Text>
         {exerciseIds.map((exerciseId, index) => {
           const exercise = getExercise(exerciseId);
-          const prev = previousMap[exerciseId];
+          const previousLine = formatPrevious(previousMap[exerciseId], weightUnit);
           const muscleNames =
             exercise ? formatMuscleLabels(exercise.muscles) : '—';
           return (
@@ -160,10 +180,9 @@ export default function WorkoutPreviewScreen() {
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
                     {formatTemplateSetLabel(plan[index]?.sets ?? 3, plan[index]?.warmUpSets ?? 0)}
                   </Text>
-                  {prev ? (
+                  {previousLine ? (
                     <Text style={[typography.caption, styles.previous, { color: colors.primary }]}>
-                      Previous: {formatWeight(prev.weightKg, weightUnit)}
-                      {prev.reps != null ? ` × ${prev.reps}` : ''}
+                      {previousLine}
                     </Text>
                   ) : null}
                   <View
@@ -192,12 +211,6 @@ export default function WorkoutPreviewScreen() {
       </ScreenFooter>
     </Screen>
   );
-}
-
-function formatRestDuration(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({

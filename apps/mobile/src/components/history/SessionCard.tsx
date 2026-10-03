@@ -6,7 +6,8 @@ import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
 import { typography } from '@/theme/typography';
 import { spacing, touch } from '@/theme/tokens';
-import { formatSessionDuration, formatSetGroups, formatVolume, sessionVolumeKg } from '@/utils/sessionStats';
+import { formatSetGroups } from '@/utils/sessionStats';
+import { sessionCardSummary, volumeDeltaLabel } from '@/utils/historyCards';
 import type { WeightUnit } from '@/utils/weightUnits';
 
 function formatSessionDate(isoDate: string): string {
@@ -44,15 +45,12 @@ export function SessionCard({
   weightUnit,
 }: SessionCardProps) {
   const { colors } = useTheme();
-  const exercises = session.exercises
-    .map((se) => ({ exerciseId: se.exerciseId, sets: se.sets.filter((set) => set.completed) }))
-    .filter((se) => se.sets.length > 0);
-  const setCount = exercises.reduce((n, se) => n + se.sets.length, 0);
-  const prCount = exercises.filter((se) => prExerciseIds?.has(se.exerciseId)).length;
-  const duration = formatSessionDuration(session);
-  const volume = sessionVolumeKg(session);
-  const stats = [duration, volume > 0 ? formatVolume(volume, weightUnit) : null].filter(Boolean).join(' · ');
-  const showDelta = volumeDelta != null && volumeDelta !== 0;
+  const { exercises, countsLine, prLabel, statsLine: stats } = sessionCardSummary(
+    session,
+    prExerciseIds,
+    weightUnit
+  );
+  const delta = volumeDeltaLabel(volumeDelta);
 
   return (
     <Card style={styles.card}>
@@ -85,10 +83,8 @@ export function SessionCard({
           {stats ? (
             <Text style={[styles.stats, { color: colors.textSecondary }]}>
               {stats}
-              {showDelta ? (
-                <Text style={{ color: volumeDelta > 0 ? colors.success : colors.danger }}>
-                  {` ${volumeDelta > 0 ? '↑' : '↓'}${Math.abs(volumeDelta)}%`}
-                </Text>
+              {delta ? (
+                <Text style={{ color: delta.up ? colors.success : colors.danger }}>{` ${delta.text}`}</Text>
               ) : null}
             </Text>
           ) : null}
@@ -96,11 +92,8 @@ export function SessionCard({
 
         <View style={styles.row}>
           <Text style={[typography.caption, styles.peek, { color: colors.textMuted }]} numberOfLines={1}>
-            {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} · {setCount}{' '}
-            {setCount === 1 ? 'set' : 'sets'}
-            {prCount > 0 ? (
-              <Text style={{ color: colors.warning }}>{` · ${prCount} ${prCount === 1 ? 'PR' : 'PRs'}`}</Text>
-            ) : null}
+            {countsLine}
+            {prLabel ? <Text style={{ color: colors.warning }}>{` · ${prLabel}`}</Text> : null}
           </Text>
           <Ionicons
             name="chevron-forward"

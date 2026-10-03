@@ -1,6 +1,11 @@
 import type { Exercise } from '@muscleos/types';
 import { buildExerciseAliasMap } from '@/utils/exerciseSearch';
 
+/** Custom exercises have no flag; they are identified by the `custom_` id prefix. */
+export function isCustomExerciseId(id: string): boolean {
+  return id.startsWith('custom_');
+}
+
 /** Custom exercise ids are `custom_<n>`, n = highest existing numeric suffix + 1 (gaps aren't reused). */
 export function nextCustomExerciseId(custom: Exercise[]): string {
   const max = custom.reduce((acc, e) => {

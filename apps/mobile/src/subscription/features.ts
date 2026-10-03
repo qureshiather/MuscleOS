@@ -51,23 +51,61 @@ export function requiresProToStart(template: { isBuiltIn?: boolean }): boolean {
   return template.isBuiltIn !== true;
 }
 
+/** Template id the home screen uses for an empty / ad-hoc workout. */
+export const EMPTY_WORKOUT_TEMPLATE_ID = '_empty';
+
 /**
- * The gate that must block *starting* a workout from route params, or null to proceed.
+ * What the start-from-params path in `/active-workout` (and the guard in `/workout-preview`)
+ * should do: `'wait'` (nothing to do yet), `'start'`, or the Pro feature whose paywall to show.
  *
- * `/active-workout` is reachable directly by deep link and notification tap, so this is the last
- * line of defence: a lapsed subscription must not start Pro-only work here. Pro users are never
- * blocked, and an unknown/missing template is allowed through (nothing to gate on).
- * See docs/features/workout-logging.md#starting.
+ * Those routes are reachable directly by deep link and notification tap, so this is the last line
+ * of defence. It waits until templates and the subscription tier have loaded, so a custom template
+ * is never mistaken for an unknown id and a Pro user is never bounced while the tier is unknown.
+ * On Basic only a **known built-in** template starts: `_empty` and any unknown id would be an
+ * ad-hoc workout, so both go to the `empty_workout` paywall. An existing session is never touched
+ * (`'wait'`): a lapse doesn't block finishing a workout already in progress.
+ * See docs/features/subscriptions.md#single-enforcement-predicate.
  */
-export function blockedStartFeature(args: {
+export function startFromParamsDecision(args: {
+  hasSession: boolean;
+  templatesLoaded: boolean;
+  subscriptionLoaded: boolean;
   isPro: boolean;
   templateId: string;
   template: { isBuiltIn?: boolean } | undefined;
-}): ProFeature | null {
-  if (args.isPro) return null;
-  if (args.templateId === '_empty') return 'empty_workout';
-  if (args.template != null && requiresProToStart(args.template)) return 'custom_templates';
-  return null;
+}): 'wait' | 'start' | ProFeature {
+  if (args.hasSession || !args.templateId) return 'wait';
+  if (!args.templatesLoaded || !args.subscriptionLoaded) return 'wait';
+  if (args.isPro) return 'start';
+  if (args.templateId === EMPTY_WORKOUT_TEMPLATE_ID || args.template == null) return 'empty_workout';
+  if (requiresProToStart(args.template)) return 'custom_templates';
+  return 'start';
+}
+
+/**
+ * Whether a whole-screen gate (`useRequirePro`) should send the user to the paywall. Never while
+ * the tier is still loading, so a Pro user isn't bounced before the cached tier or RevenueCat
+ * answers.
+ */
+export function shouldRedirectToPaywall(args: { isPro: boolean; isLoading: boolean }): boolean {
+  return !args.isPro && !args.isLoading;
+}
+
+/**
+ * Mid-workout add / replace / remove. On Basic a **built-in** workout gets the "Built-in workout"
+ * alert for all three (built-ins are immutable for everyone); otherwise add and replace are Pro
+ * features and removing an exercise is allowed.
+ */
+export function midWorkoutEditDecision(args: {
+  action: 'add' | 'replace' | 'remove';
+  isBuiltIn: boolean;
+  isPro: boolean;
+}): 'allow' | 'builtin-alert' | ProFeature {
+  if (args.isPro) return 'allow';
+  if (args.isBuiltIn) return 'builtin-alert';
+  if (args.action === 'add') return 'add_exercise_mid_workout';
+  if (args.action === 'replace') return 'replace_exercise_mid_workout';
+  return 'allow';
 }
 
 export function subscriptionPaywallPath(feature?: ProFeature): `/subscription${string}` {

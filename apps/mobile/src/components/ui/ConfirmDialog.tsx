@@ -65,7 +65,10 @@ export function ConfirmDialog({
           accessibilityLabel="Dismiss"
         />
         <View
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+          ]}
           accessibilityRole="alert"
           accessibilityLabel={title}
         >
@@ -130,7 +133,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.18,
         shadowRadius: 24,

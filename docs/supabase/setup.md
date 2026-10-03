@@ -20,19 +20,21 @@ Do **not** put catalog rows in `sync_records`. Custom exercises used to live the
 
 **Content change** (new exercise, category fix, instruction copy): `UPDATE`/`INSERT` with `updated_at = now()`. Never delete a catalog id — set `is_published = false`. Seed scripts upsert by id and never write `user_exercises`.
 
-**Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` / `exercise_tracking_type` by adding values; old apps that see an unknown category treat it as `free_weight`.
+**Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` / `exercise_tracking_type` by adding values; old apps that see an unknown category infer one from the row's equipment (cable → machine → bodyweight → free weight).
 
-Regenerate the bundled seed and SQL together:
+Regenerate the bundled seed after editing `apps/mobile/src/data/exercises.ts`:
 
 ```bash
 node apps/mobile/scripts/generate-exercise-catalog.mjs
 ```
 
-The seed SQL leaves `instructions` null and never overwrites it. Instruction copy is written in-house in `apps/mobile/src/data/exercises.ts`; to ship a change, add a new migration with the generator (it updates only rows whose text differs and bumps their `updated_at` so clients pull them):
+It writes only `apps/mobile/src/data/catalogSeed.ts`, **instructions included**, so a fresh install has every row's copy without a delta pull. Bump `SEED_UPDATED_AT` in the script when the seed content changes so existing installs re-apply it. The generator never rewrites an applied migration (the original `20260830020000_catalog_exercises_seed.sql` is historical); server rows change only through new migrations. Instruction copy has a generator mode for that (it updates only rows whose text differs and bumps their `updated_at` so clients pull them; it refuses to overwrite an existing file):
 
 ```bash
 node apps/mobile/scripts/generate-exercise-catalog.mjs --instructions-migration=<timestamp>_catalog_exercise_instructions
 ```
+
+Other field changes (names, muscles, equipment, category, publish state) are hand-written migrations with `updated_at = now()`, mirroring the edit in `exercises.ts`.
 
 ### Merge policy
 
@@ -43,10 +45,13 @@ Sync is **entity-level** (sessions, templates, etc.), with field-aware merges fo
 | Missing locally | Take remote (server fills gaps) |
 | Net-new locally | Keep local; push via outbox |
 | Conflict, local dirty (pending outbox) | **Local wins**; outbox `updated_at` is bumped if remote is newer so push lands |
-| Conflict, local clean | **Last-write-wins** by `updated_at`; ties keep local |
-| Notes / previous / settings while keeping local | Union keys; empty local slots fill from remote; non-empty conflicts prefer local |
+| Conflict, local clean — session | **Last-write-wins**: remote `updated_at` vs local `completedAt` (or `startedAt`); ties keep local |
+| Conflict, local clean — template, folder, custom exercise | No local timestamp, so **remote is taken** |
+| Notes / previous / settings, local clean or empty | Remote snapshot replaces local |
+| Notes / previous / settings, local pending | Keep local; union keys, empty local slots fill from remote. Pending local units/sounds/theme win whole; biodata merges per field |
+| Remote delete (`deleted_at`) | Same decision as an update; a deleted snapshot resets local to empty / defaults |
 
-Push uses `upsert_sync_records`, which only overwrites the server when incoming `updated_at` is **≥** the stored value (equal timestamps → incoming/local wins).
+Push uses `upsert_sync_records`, which only overwrites the server when incoming `updated_at` is **≥** the stored value (equal timestamps → incoming/local wins). If that RPC is missing (`PGRST202`), the app silently falls back to a plain `sync_records` upsert with no clock check. If the `user_exercises` table is missing (`PGRST205`), its pull returns no rows.
 
 ### 1. Run migrations (Supabase CLI)
 
@@ -99,10 +104,13 @@ Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabas
 | App launch | Catalog delta pull (all users). Account sync if linked. |
 | App foreground | Catalog delta pull. Account sync if linked. |
 | Finish workout | Immediate push |
-| Link account (Apple/Google/email) | Upload local data, then sync |
+| Guest upgraded in place (Apple/Google `linkIdentity`) | Upload a full snapshot of local data, then sync |
+| Sign into an existing account (another device, email, or a different account) | Drop the previous account's outbox, pull everything, upload the local rows the account doesn't have (guest sessions, templates, folders, customs; snapshots only if the account has none), then push |
+| Sign out | New anonymous guest; outbox and sync meta reset. Local data stays on the device |
 | History pull-to-refresh | Force sync |
 | Data → Sync now | Force sync |
 | Account → sync row tap | Force sync |
+| Any local change | Push 2 s after the last change |
 
 Anonymous users stay device-only until they link an account.
 

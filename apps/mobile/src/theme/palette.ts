@@ -22,6 +22,8 @@ export type PaletteBase = {
   accent: string;
   accentDim: string;
   danger: string;
+  /** Foreground (text/icons) on a `danger` fill. */
+  dangerOn: string;
   warning: string;
   success: string;
   successOn: string;
@@ -32,6 +34,10 @@ export type PaletteBase = {
   recoveryReady: string;
   bodyDiagramBorder: string;
   bodyDiagramFill: string;
+  /** Default drop-shadow colour (cards, dialogs, sheets). */
+  shadow: string;
+  /** Cool slate shadow for lifted/dragged rows and exercise cards. */
+  shadowCool: string;
 };
 
 /** Mode-specific UI tints (tables, set rows, overlays). */
@@ -41,12 +47,18 @@ export type PaletteUi = {
   rowFuture: string;
   inputBorder: string;
   overlay: string;
+  /** Hairline divider inside sheets/modals. */
+  subtleDivider: string;
 };
 
 export type PaletteAlpha = {
   primarySurface: number;
   primaryBorder: number;
   successSurface: number;
+  /** Secondary text/icons on a primary fill (derived from `primaryOn`). */
+  primaryOnMuted: number;
+  /** Translucent chip/icon well on a primary fill (derived from `primaryOn`). */
+  primaryOnSurface: number;
 };
 
 export type PaletteConfig = {
@@ -66,6 +78,8 @@ export const paletteConfig: PaletteConfig = {
     primarySurface: 0.1,
     primaryBorder: 0.22,
     successSurface: 0.08,
+    primaryOnMuted: 0.88,
+    primaryOnSurface: 0.2,
   },
   dark: {
     background: '#14161E',
@@ -81,6 +95,7 @@ export const paletteConfig: PaletteConfig = {
     accent: '#7EB4FF',
     accentDim: '#5C9AFF',
     danger: '#FF4757',
+    dangerOn: '#FFFFFF',
     warning: '#FFB020',
     success: '#3DD68C',
     successOn: '#FFFFFF',
@@ -91,6 +106,8 @@ export const paletteConfig: PaletteConfig = {
     recoveryReady: '#3DD68C',
     bodyDiagramBorder: '#454A5A',
     bodyDiagramFill: '#5A6070',
+    shadow: '#000000',
+    shadowCool: '#0F172A',
   },
   light: {
     background: '#F2F4FA',
@@ -106,6 +123,7 @@ export const paletteConfig: PaletteConfig = {
     accent: '#60A5FA',
     accentDim: '#3B82F6',
     danger: '#DC2626',
+    dangerOn: '#FFFFFF',
     warning: '#D97706',
     success: '#059669',
     successOn: '#FFFFFF',
@@ -116,6 +134,8 @@ export const paletteConfig: PaletteConfig = {
     recoveryReady: '#059669',
     bodyDiagramBorder: '#B8BCC8',
     bodyDiagramFill: '#C8CCD8',
+    shadow: '#000000',
+    shadowCool: '#0F172A',
   },
   ui: {
     dark: {
@@ -124,6 +144,7 @@ export const paletteConfig: PaletteConfig = {
       rowFuture: 'rgba(255,255,255,0.03)',
       inputBorder: '#353A4A',
       overlay: 'rgba(0,0,0,0.55)',
+      subtleDivider: 'rgba(255,255,255,0.08)',
     },
     light: {
       tableHeader: '#EEF1F8',
@@ -131,6 +152,7 @@ export const paletteConfig: PaletteConfig = {
       rowFuture: '#F2F4F8',
       inputBorder: '#CBD5E1',
       overlay: 'rgba(0,0,0,0.45)',
+      subtleDivider: 'rgba(255,255,255,0.08)',
     },
   },
 };
@@ -158,11 +180,14 @@ export type ThemeColors = PaletteBase & {
   primarySurface: string;
   primaryBorder: string;
   successSurface: string;
+  primaryOnMuted: string;
+  primaryOnSurface: string;
   tableHeader: string;
   rowWarmUp: string;
   rowFuture: string;
   inputBorder: string;
   overlay: string;
+  subtleDivider: string;
 };
 
 export function buildThemeColors(mode: ColorMode): ThemeColors {
@@ -175,11 +200,14 @@ export function buildThemeColors(mode: ColorMode): ThemeColors {
     primarySurface: withAlpha(base.primary, alpha.primarySurface),
     primaryBorder: withAlpha(base.primary, alpha.primaryBorder),
     successSurface: withAlpha(base.success, alpha.successSurface),
+    primaryOnMuted: withAlpha(base.primaryOn, alpha.primaryOnMuted),
+    primaryOnSurface: withAlpha(base.primaryOn, alpha.primaryOnSurface),
     tableHeader: ui.tableHeader,
     rowWarmUp: ui.rowWarmUp,
     rowFuture: ui.rowFuture,
     inputBorder: ui.inputBorder,
     overlay: ui.overlay,
+    subtleDivider: ui.subtleDivider,
   };
 }
 

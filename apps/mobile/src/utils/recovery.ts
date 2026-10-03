@@ -1,7 +1,10 @@
 import {
   type Exercise,
+  getRecoveryHoursForMuscle,
   getRecoveryUntil,
+  MUSCLE_GROUPS,
   type MuscleId,
+  muscleLabel,
   type MuscleRecovery,
   type WorkoutSession,
 } from '@muscleos/types';
@@ -23,6 +26,23 @@ function musclesForExercise(
   const fromLookup = getExercise?.(exerciseId)?.muscles;
   if (fromLookup && fromLookup.length > 0) return fromLookup;
   return musclesFromSeed(exerciseId);
+}
+
+/**
+ * Muscles worked in one session, for the post-workout "Good work" diagram: every muscle of each
+ * exercise with at least one completed set, resolved the same way as recovery (live lookup, then
+ * the bundled catalog with alias resolution). Order follows first appearance.
+ */
+export function musclesTrainedInSession(
+  session: Pick<WorkoutSession, 'exercises'>,
+  getExercise?: (id: string) => Exercise | undefined
+): MuscleId[] {
+  const out = new Set<MuscleId>();
+  for (const se of session.exercises) {
+    if (!se.sets.some((s) => s.completed)) continue;
+    for (const muscleId of musclesForExercise(se.exerciseId, getExercise)) out.add(muscleId);
+  }
+  return [...out];
 }
 
 /** Latest trainedAt per muscle from completed sets. Uses completedAt, not startedAt. */
@@ -96,4 +116,38 @@ export function recentlyWorkedMuscleIds(
     }
   }
   return out;
+}
+
+/** One recovery-duration bucket: its hours and the muscles in it, in taxonomy order. */
+export type RecoveryBucket = { hours: number; muscleIds: MuscleId[] };
+
+/** Every muscle grouped by its recovery hours (`getRecoveryHoursForMuscle`), fastest first. */
+export function recoveryBuckets(): RecoveryBucket[] {
+  const byHours = new Map<number, MuscleId[]>();
+  for (const id of Object.keys(MUSCLE_GROUPS) as MuscleId[]) {
+    const hours = getRecoveryHoursForMuscle(id);
+    byHours.set(hours, [...(byHours.get(hours) ?? []), id]);
+  }
+  return [...byHours]
+    .sort(([a], [b]) => a - b)
+    .map(([hours, muscleIds]) => ({ hours, muscleIds }));
+}
+
+function listJoin(items: string[]): string {
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * The "Some recover faster" paragraph in the How recovery works explainer, generated from the
+ * duration table so the copy can't drift from the model:
+ * `Abs, obliques, … and forearms are ready after 36 hours; … after 48 hours; … after 72 hours.`
+ */
+export function recoveryBucketsCopy(): string {
+  const parts = recoveryBuckets().map(({ hours, muscleIds }, i) => {
+    const names = muscleIds.map((id) => muscleLabel(id).toLowerCase());
+    if (i === 0) names[0] = muscleLabel(muscleIds[0]);
+    return `${listJoin(names)} ${i === 0 ? 'are ready after' : 'after'} ${hours} hours`;
+  });
+  return `${parts.join('; ')}.`;
 }
