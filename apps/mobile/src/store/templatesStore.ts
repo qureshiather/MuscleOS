@@ -20,6 +20,7 @@ import {
   allTemplates as computeAllTemplates,
   deleteFolderCascade,
   isTemplateHidden,
+  templatesInFolder,
   toggleHiddenId,
 } from '@/store/templatesLogic';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
@@ -41,7 +42,10 @@ export interface TemplatesState {
   isTemplateHidden: (template: WorkoutTemplate) => boolean;
   addFolder: (f: TemplateFolder) => Promise<void>;
   updateFolder: (id: string, f: Partial<TemplateFolder>) => Promise<void>;
+  /** Delete a folder, keeping its templates (their `folderId` is cleared). */
   deleteFolder: (id: string) => Promise<void>;
+  /** Delete a folder and every template filed in it, hidden ones included. */
+  deleteFolderAndTemplates: (id: string) => Promise<void>;
   /** All templates = built-in + user (built-in first) */
   allTemplates: () => WorkoutTemplate[];
 }
@@ -134,6 +138,7 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
   },
 
   deleteFolder: async (id) => {
+    const affectedIds = new Set(templatesInFolder(get().userTemplates, id).map((t) => t.id));
     const { folders: nextFolders, templates: nextTemplates } = deleteFolderCascade(
       get().folders,
       get().userTemplates,
@@ -142,7 +147,18 @@ export const useTemplatesStore = create<TemplatesState>((set, get) => ({
     set({ folders: nextFolders, userTemplates: nextTemplates });
     await Promise.all([setTemplateFolders(nextFolders), setTemplates(nextTemplates)]);
     notifyFolderDelete(id);
-    for (const t of nextTemplates) notifyTemplateUpsert(t);
+    // Only templates that were in the folder changed (their folderId was cleared).
+    for (const t of nextTemplates) if (affectedIds.has(t.id)) notifyTemplateUpsert(t);
+  },
+
+  deleteFolderAndTemplates: async (id) => {
+    const ids = new Set(templatesInFolder(get().userTemplates, id).map((t) => t.id));
+    const nextTemplates = get().userTemplates.filter((t) => !ids.has(t.id));
+    const nextFolders = get().folders.filter((f) => f.id !== id);
+    set({ userTemplates: nextTemplates, folders: nextFolders });
+    await Promise.all([setTemplates(nextTemplates), setTemplateFolders(nextFolders)]);
+    for (const templateId of ids) notifyTemplateDelete(templateId);
+    notifyFolderDelete(id);
   },
 
   allTemplates: () => computeAllTemplates(get().userTemplates),
