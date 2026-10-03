@@ -23,7 +23,21 @@ export const DAY = 24 * 60 * 60 * 1000;
 export function renderAtNow(routes: Routes, initialUrl = '/') {
   const result = renderApp(routes, initialUrl);
   jest.setSystemTime(NOW);
+  current = result;
   return result;
+}
+
+let current: ReturnType<typeof renderApp> | null = null;
+
+/** Current route of the last `renderAtNow` (expo-router's own matchers ship without types). */
+export function pathname(): string {
+  if (!current) throw new Error('renderAtNow() first');
+  return current.getPathname();
+}
+
+export function searchParams(): Record<string, string | string[]> {
+  if (!current) throw new Error('renderAtNow() first');
+  return current.getSearchParams();
 }
 
 export async function resetTemplatesTestState(): Promise<void> {

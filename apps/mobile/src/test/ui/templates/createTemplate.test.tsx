@@ -6,7 +6,14 @@ import { router } from 'expo-router';
 import CreateTemplateScreen from '../../../../app/create-template';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { routeStub, setPro } from '../render';
-import { customTemplate, renderAtNow, resetTemplatesTestState, seed, storedTemplates } from './helpers';
+import {
+  customTemplate,
+  renderAtNow,
+  resetTemplatesTestState,
+  searchParams,
+  seed,
+  storedTemplates,
+} from './helpers';
 
 jest.mock('@/sync', () => ({
   notifyTemplateUpsert: jest.fn(),
@@ -50,7 +57,7 @@ describe('gate', () => {
     setPro(false);
     await open();
     expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(screen).toHaveSearchParams({ feature: 'custom_templates' });
+    expect(searchParams()).toEqual({ feature: 'custom_templates' });
   });
 });
 

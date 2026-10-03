@@ -9,14 +9,15 @@ import TemplatesRedirect from '../../../../app/templates';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
-import { renderApp, routeStub, setPro } from '../render';
-// renderApp is used directly only for the redirect test (no clock needed).
+import { routeStub, setPro } from '../render';
 import {
   DAY,
   NOW,
   completedSession,
   customTemplate,
+  pathname,
   renderAtNow,
+  searchParams,
   resetTemplatesTestState,
   seed,
   startActiveSession,
@@ -187,7 +188,7 @@ describe('sections', () => {
       'Archived',
     ];
     const all = screen.UNSAFE_root.findAll(
-      (n) =>
+      (n: { type: unknown; props: Record<string, string> }) =>
         typeof n.type !== 'string' &&
         (order.includes(n.props.testID) || order.includes(n.props.accessibilityLabel)) &&
         n.props.accessibilityRole === 'button'
@@ -292,8 +293,8 @@ describe('starting', () => {
     fireEvent.press(screen.getByLabelText('Built-in'));
     fireEvent.press(screen.getByTestId('template-card-sl-a'));
     expect(await screen.findByText('route:workout-preview')).toBeTruthy();
-    expect(screen).toHavePathname('/workout-preview');
-    expect(screen).toHaveSearchParams({
+    expect(pathname()).toBe('/workout-preview');
+    expect(searchParams()).toEqual({
       templateId: 'sl-a',
       exerciseIds: 'squat,bench-press,barbell-row',
       sets: '5,5,5',
@@ -306,7 +307,7 @@ describe('starting', () => {
     await ready();
     fireEvent.press(screen.getByTestId('template-card-tpl_l'));
     expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(screen).toHaveSearchParams({ feature: 'custom_templates' });
+    expect(searchParams()).toEqual({ feature: 'custom_templates' });
   });
 
   it('Empty workout on Pro skips the preview → /active-workout?templateId=_empty', async () => {
@@ -316,7 +317,7 @@ describe('starting', () => {
     expect(screen.getByText('Add exercises as you go')).toBeTruthy();
     fireEvent.press(screen.getByText('Empty workout'));
     expect(await screen.findByText('route:active-workout')).toBeTruthy();
-    expect(screen).toHaveSearchParams({ templateId: '_empty', exerciseIds: '' });
+    expect(searchParams()).toEqual({ templateId: '_empty', exerciseIds: '' });
   });
 
   it('Empty workout on Basic reads "Included with Pro" and opens the paywall', async () => {
@@ -325,7 +326,7 @@ describe('starting', () => {
     expect(screen.getByText('Included with Pro')).toBeTruthy();
     fireEvent.press(screen.getByText('Empty workout'));
     expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(screen).toHaveSearchParams({ feature: 'empty_workout' });
+    expect(searchParams()).toEqual({ feature: 'empty_workout' });
   });
 
   it('with a session in progress, a card shows "Workout in progress"; Resume goes to the workout', async () => {
@@ -340,7 +341,7 @@ describe('starting', () => {
     ).toBeTruthy();
     fireEvent.press(screen.getByTestId('resume-workout-confirm'));
     expect(await screen.findByText('route:active-workout')).toBeTruthy();
-    expect(screen).toHaveSearchParams({});
+    expect(searchParams()).toEqual({});
   });
 
   it('Cancel workout discards the session and continues to the tapped template', async () => {
@@ -352,7 +353,7 @@ describe('starting', () => {
     fireEvent.press(screen.getByTestId('resume-workout-cancel'));
     expect(await screen.findByText('route:workout-preview')).toBeTruthy();
     expect(useActiveWorkoutStore.getState().session).toBeNull();
-    expect(screen).toHaveSearchParams(expect.objectContaining({ templateId: 'ppl-pull' }));
+    expect(searchParams()).toEqual(expect.objectContaining({ templateId: 'ppl-pull' }));
   });
 
   it('the empty-workout hero shows the same dialog when a session is in progress', async () => {
@@ -445,7 +446,7 @@ describe('context menus', () => {
     openMenu('Chest day');
     fireEvent.press(screen.getByTestId('template-menu-edit'));
     expect(await screen.findByText('route:create-template')).toBeTruthy();
-    expect(screen).toHaveSearchParams({ templateId: 'tpl_c' });
+    expect(searchParams()).toEqual({ templateId: 'tpl_c' });
   });
 
   it('gated custom actions on Basic open the paywall; Hide and Delete still work', async () => {
@@ -459,7 +460,7 @@ describe('context menus', () => {
     openMenu('Chest day');
     fireEvent.press(screen.getByTestId('template-menu-rename'));
     expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(screen).toHaveSearchParams({ feature: 'custom_templates' });
+    expect(searchParams()).toEqual({ feature: 'custom_templates' });
   });
 
   it('Move lists No folder, other folders, and New folder… → Create & move', async () => {
@@ -618,8 +619,8 @@ describe('folders', () => {
 
 describe('redirects', () => {
   it('/templates replaces to the Workouts tab', async () => {
-    renderApp({ ...routes, templates: TemplatesRedirect }, '/templates');
+    renderAtNow({ ...routes, templates: TemplatesRedirect }, '/templates');
     await ready();
-    expect(screen).toHavePathname('/');
+    expect(pathname()).toBe('/');
   });
 });

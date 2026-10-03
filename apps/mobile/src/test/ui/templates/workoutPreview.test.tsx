@@ -7,7 +7,14 @@ import { router } from 'expo-router';
 import WorkoutPreviewScreen from '../../../../app/workout-preview';
 import { useSettingsStore } from '@/store/settingsStore';
 import { routeStub, setPro } from '../render';
-import { renderAtNow, resetTemplatesTestState, seed, startActiveSession } from './helpers';
+import {
+  pathname,
+  renderAtNow,
+  resetTemplatesTestState,
+  searchParams,
+  seed,
+  startActiveSession,
+} from './helpers';
 
 jest.mock('@/sync', () => ({
   notifyTemplateUpsert: jest.fn(),
@@ -53,7 +60,7 @@ it('a workout already in progress redirects to /active-workout', async () => {
   await screen.findByText('route:home');
   act(() => router.push(SL_A));
   expect(await screen.findByText('route:active-workout')).toBeTruthy();
-  expect(screen).toHavePathname('/active-workout');
+  expect(pathname()).toBe('/active-workout');
 });
 
 it('shows the template name, Muscles used, the count line, and one card per exercise', async () => {
@@ -103,7 +110,7 @@ it('Start workout replaces the route with /active-workout and the same plan', as
   renderAtNow(routes, SL_A);
   fireEvent.press(await screen.findByText('Start workout'));
   expect(await screen.findByText('route:active-workout')).toBeTruthy();
-  expect(screen).toHaveSearchParams({
+  expect(searchParams()).toEqual({
     templateId: 'sl-a',
     exerciseIds: 'squat,bench-press,barbell-row',
     sets: '5,5,5',
@@ -118,7 +125,7 @@ it('the header Start button does the same', async () => {
   );
   fireEvent.press(await screen.findByText('Start'));
   expect(await screen.findByText('route:active-workout')).toBeTruthy();
-  expect(screen).toHaveSearchParams({
+  expect(searchParams()).toEqual({
     templateId: 'tpl_x',
     exerciseIds: 'squat,bench-press',
     warmUpSets: '1,0',
