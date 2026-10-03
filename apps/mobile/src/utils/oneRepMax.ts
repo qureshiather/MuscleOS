@@ -1,4 +1,5 @@
 import type { WorkoutSession } from '@muscleos/types';
+import { KG_TO_LB, type WeightUnit } from '@/utils/weightUnits';
 
 /**
  * Epley formula: 1RM ≈ weight × (1 + reps/30)
@@ -28,11 +29,24 @@ export interface ExercisePR {
   history: SetWithDate[];
 }
 
+/** Estimated 1RM for display: the user's unit, one decimal, trailing `.0` dropped (`116.7 kg`). */
+export function formatE1RM(kg: number, unit: WeightUnit): string {
+  const value = unit === 'lb' ? kg * KG_TO_LB : kg;
+  return `${Math.round(value * 10) / 10} ${unit}`;
+}
+
 /**
  * From completed sessions, build per-exercise PR and 1RM history.
- * Sessions should be newest first (e.g. completedSessions()).
+ * Sessions should be newest first (e.g. completedSessions()); on an e1RM tie the set that comes
+ * first in that order is the best set.
+ *
+ * Exercises are keyed by `canonicalId`, so sets logged under a legacy alias merge into the
+ * current catalog exercise.
  */
-export function buildExercisePRs(sessions: WorkoutSession[]): ExercisePR[] {
+export function buildExercisePRs(
+  sessions: WorkoutSession[],
+  canonicalId: (exerciseId: string) => string = (id) => id
+): ExercisePR[] {
   const byExercise = new Map<string, SetWithDate[]>();
 
   for (const session of sessions) {
@@ -43,14 +57,15 @@ export function buildExercisePRs(sessions: WorkoutSession[]): ExercisePR[] {
         const reps = set.reps ?? 0;
         if (reps < 1) continue;
         const e1rm = estimatedOneRepMax(set.weightKg, reps);
-        const list = byExercise.get(se.exerciseId) ?? [];
+        const id = canonicalId(se.exerciseId);
+        const list = byExercise.get(id) ?? [];
         list.push({
           weightKg: set.weightKg,
           reps,
           estimated1RM: e1rm,
           completedAt: session.completedAt,
         });
-        byExercise.set(se.exerciseId, list);
+        byExercise.set(id, list);
       }
     }
   }

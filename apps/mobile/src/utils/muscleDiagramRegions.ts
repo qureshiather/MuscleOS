@@ -50,6 +50,28 @@ export function regionStatesForMuscles(
   return states;
 }
 
+/** Body-highlighter data: one entry per region, `intensity` indexing the colour palette (1-based). */
+export type BodyDataItem = { slug: Slug; intensity: number };
+
+/**
+ * Region states as body-highlighter data for the recovery palette (`getRecoveryPalette`).
+ * Three states: just trained 1 (hot), recovering 2 (warm), ready 3 (ready green). Two states: just
+ * trained and recovering both 1 (warm), ready 2. Regions absent from `states` aren't in the data, so
+ * they keep the diagram's neutral untrained fill.
+ */
+export function regionStatesToBodyData(
+  states: Partial<Record<Slug, RegionState>>,
+  threeStates: boolean
+): BodyDataItem[] {
+  const intensity: Record<RegionState, number> = threeStates
+    ? { justTrained: 1, recovering: 2, ready: 3 }
+    : { justTrained: 1, recovering: 1, ready: 2 };
+  return (Object.entries(states) as [Slug, RegionState][]).map(([slug, state]) => ({
+    slug,
+    intensity: intensity[state],
+  }));
+}
+
 /**
  * The regions a template is mostly about: regions trained by two or more of its exercises. A
  * region only one accessory exercise trains (plank on leg day) is left out so it can't widen the

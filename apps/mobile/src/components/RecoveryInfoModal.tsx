@@ -4,6 +4,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography, fontFamily } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { fontScaleCap, useModalMaxHeight } from '@/theme/layout';
+import { recoveryBucketsCopy } from '@/utils/recovery';
 
 type RecoveryInfoModalProps = {
   visible: boolean;
@@ -25,7 +26,8 @@ const POINTS: InfoPoint[] = [
   {
     icon: 'time-outline',
     title: 'Some recover faster',
-    body: 'Smaller muscles bounce back quicker. Biceps, triceps and abs are ready in about 36 hours; shoulders and calves around 48; big movers like chest, back and legs take about 72.',
+    // Generated from the duration table so the explainer can't drift from the model.
+    body: `Smaller muscles bounce back quicker. ${recoveryBucketsCopy()}`,
   },
   {
     icon: 'color-palette-outline',

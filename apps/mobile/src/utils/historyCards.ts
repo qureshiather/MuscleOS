@@ -1,10 +1,91 @@
-import type { WorkoutSession } from '@muscleos/types';
+import type { SetRecord, WorkoutSession, WorkoutTemplate } from '@muscleos/types';
 import { startOfWeek } from '@/utils/homeStats';
 import { estimatedOneRepMax } from '@/utils/oneRepMax';
-import { sessionVolumeKg } from '@/utils/sessionStats';
+import { formatCompactVolume, formatSessionDuration, formatVolume, sessionVolumeKg } from '@/utils/sessionStats';
+import type { WeightUnit } from '@/utils/weightUnits';
 
 /** Ad-hoc sessions have no template to compare against. */
 const EMPTY_TEMPLATE_ID = '_empty';
+
+/** Maps a logged exercise id to its canonical id (alias → current catalog id). Identity by default. */
+export type CanonicalExerciseId = (exerciseId: string) => string;
+const identity: CanonicalExerciseId = (id) => id;
+
+/**
+ * Display name for a session's template everywhere a finished session is listed: the template's
+ * name, `Empty workout` for ad-hoc sessions, and `Workout` when the template no longer resolves.
+ */
+export function templateDisplayName(
+  templates: readonly Pick<WorkoutTemplate, 'id' | 'name'>[],
+  templateId: string
+): string {
+  const template = templates.find((t) => t.id === templateId);
+  if (template) return template.name;
+  return templateId === EMPTY_TEMPLATE_ID ? 'Empty workout' : 'Workout';
+}
+
+/** The newest session starts expanded and every other card collapsed; `toggled` flips either. */
+export function isCardExpanded(
+  id: string,
+  newestId: string | undefined,
+  toggled: ReadonlySet<string>
+): boolean {
+  return toggled.has(id) !== (id === newestId);
+}
+
+export type SessionCardSummary = {
+  /** Exercises with at least one completed set, with only their completed sets. */
+  exercises: { exerciseId: string; sets: SetRecord[] }[];
+  exerciseCount: number;
+  setCount: number;
+  prCount: number;
+  /** `6 exercises · 18 sets` */
+  countsLine: string;
+  /** `2 PRs`, or null when there are none (always null on Basic, which passes no PR ids). */
+  prLabel: string | null;
+  /** `59m · 5,518 kg`; either part dropped when missing or zero. Empty when both are. */
+  statsLine: string;
+};
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Everything the collapsed History card shows, from the session and its PR exercise ids. */
+export function sessionCardSummary(
+  session: WorkoutSession,
+  prExerciseIds: ReadonlySet<string> | undefined,
+  weightUnit: WeightUnit
+): SessionCardSummary {
+  const exercises = session.exercises
+    .map((se) => ({ exerciseId: se.exerciseId, sets: se.sets.filter((set) => set.completed) }))
+    .filter((se) => se.sets.length > 0);
+  const setCount = exercises.reduce((n, se) => n + se.sets.length, 0);
+  const prCount = exercises.filter((se) => prExerciseIds?.has(se.exerciseId)).length;
+  const volume = sessionVolumeKg(session);
+  const statsLine = [formatSessionDuration(session), volume > 0 ? formatVolume(volume, weightUnit) : null]
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    exercises,
+    exerciseCount: exercises.length,
+    setCount,
+    prCount,
+    countsLine: `${plural(exercises.length, 'exercise', 'exercises')} · ${plural(setCount, 'set', 'sets')}`,
+    prLabel: prCount > 0 ? plural(prCount, 'PR', 'PRs') : null,
+    statsLine,
+  };
+}
+
+/** `↑4%` / `↓3%`, or null when there is no change to show (missing or 0%). */
+export function volumeDeltaLabel(delta: number | undefined): { text: string; up: boolean } | null {
+  if (delta == null || delta === 0) return null;
+  return { text: `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}%`, up: delta > 0 };
+}
+
+/** Week header summary: `1 session · 8,240 kg`, volume omitted when zero. */
+export function weekSummary(week: Pick<HistoryWeek, 'sessions' | 'volumeKg'>, weightUnit: WeightUnit): string {
+  const count = plural(week.sessions.length, 'session', 'sessions');
+  return week.volumeKg > 0 ? `${count} · ${formatCompactVolume(week.volumeKg, weightUnit)}` : count;
+}
 
 function oldestFirst(sessions: readonly WorkoutSession[]): WorkoutSession[] {
   return sessions
@@ -16,26 +97,37 @@ function oldestFirst(sessions: readonly WorkoutSession[]): WorkoutSession[] {
  * Per session, the exercises whose best e1RM beat every earlier session's best for that
  * exercise. Uses the same qualifying sets as Personal Records (completed, weight > 0, reps ≥ 1).
  * The first session to log an exercise sets a baseline, not a PR. Ties are not PRs.
+ *
+ * Lifts are compared by canonical id, so a session logged under a legacy alias competes with the
+ * current catalog id. The returned sets hold the ids **as logged in that session**, so the card
+ * can match them against its own exercises.
  */
-export function buildSessionPRs(sessions: readonly WorkoutSession[]): Map<string, Set<string>> {
+export function buildSessionPRs(
+  sessions: readonly WorkoutSession[],
+  canonicalId: CanonicalExerciseId = identity
+): Map<string, Set<string>> {
   const bestSoFar = new Map<string, number>();
   const result = new Map<string, Set<string>>();
   for (const session of oldestFirst(sessions)) {
     const bestHere = new Map<string, number>();
+    const loggedIds = new Map<string, string[]>();
     for (const se of session.exercises) {
+      const id = canonicalId(se.exerciseId);
       for (const set of se.sets) {
         if (!set.completed || set.weightKg == null || set.weightKg <= 0) continue;
         const reps = set.reps ?? 0;
         if (reps < 1) continue;
         const e1rm = estimatedOneRepMax(set.weightKg, reps);
-        if (e1rm > (bestHere.get(se.exerciseId) ?? 0)) bestHere.set(se.exerciseId, e1rm);
+        if (e1rm > (bestHere.get(id) ?? 0)) bestHere.set(id, e1rm);
+        const logged = loggedIds.get(id) ?? [];
+        if (!logged.includes(se.exerciseId)) loggedIds.set(id, [...logged, se.exerciseId]);
       }
     }
     const prs = new Set<string>();
-    for (const [exerciseId, e1rm] of bestHere) {
-      const prior = bestSoFar.get(exerciseId);
-      if (prior != null && e1rm > prior) prs.add(exerciseId);
-      if (prior == null || e1rm > prior) bestSoFar.set(exerciseId, e1rm);
+    for (const [id, e1rm] of bestHere) {
+      const prior = bestSoFar.get(id);
+      if (prior != null && e1rm > prior) for (const logged of loggedIds.get(id) ?? []) prs.add(logged);
+      if (prior == null || e1rm > prior) bestSoFar.set(id, e1rm);
     }
     if (prs.size > 0) result.set(session.id, prs);
   }
