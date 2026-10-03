@@ -19,9 +19,16 @@ import {
   restorePurchases as rcRestorePurchases,
 } from '@/utils/revenueCat';
 import { canHoldPro } from '@/subscription/plan';
+import {
+  BASIC_STATE,
+  type CustomerEntitlement,
+  cachedStateForPaint,
+  isProState,
+  resolveSubscriptionState,
+} from '@/subscription/state';
 import { useAuthStore } from '@/store/authStore';
 
-const BASIC: SubscriptionState = { tier: 'basic' };
+const BASIC: SubscriptionState = BASIC_STATE;
 const LINK_ACCOUNT_MESSAGE = 'Link an account to use Pro.';
 
 function isGuest(): boolean {
@@ -34,6 +41,16 @@ function stateFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionState {
     tier: 'pro',
     expiresAt: getProExpirationDate(customerInfo),
     plan,
+  };
+}
+
+function entitlementFromCustomerInfo(customerInfo: CustomerInfo | null): CustomerEntitlement | null {
+  if (!customerInfo) return null;
+  if (!hasProEntitlement(customerInfo)) return { active: false };
+  return {
+    active: true,
+    expiresAt: getProExpirationDate(customerInfo),
+    plan: getProPlan(customerInfo),
   };
 }
 
@@ -81,71 +98,52 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     set({ state: stored, isLoading: false });
   },
 
-  load: async (_appUserId?: string | null) => {
+  load: async (appUserId?: string | null) => {
     const generation = ++loadGeneration;
 
     // Show cached tier immediately so the subscription screen is never stuck on skeleton.
     const stored = await getSubscription();
     if (generation !== loadGeneration) return;
-    // A Pro cache left from a linked account must not flash Pro for the guest that replaced it.
-    const cached = stored?.tier === 'pro' && isGuest() ? BASIC : stored;
-    // Persist the downgrade so hydrate() on the next launch can't flash Pro either.
-    if (cached !== stored) void setSubscription(BASIC);
+    const cached = cachedStateForPaint({ stored, isGuest: isGuest() });
+    // Persist the guest downgrade so hydrate() on the next launch can't flash Pro either.
+    if (cached?.tier !== stored?.tier) void setSubscription(BASIC);
     if (cached) {
       set({ state: cached, isLoading: false });
     } else if (!hasRevenueCatApiKey()) {
-      const state: SubscriptionState = { tier: 'basic' };
-      await setSubscription(state);
-      set({ state, isLoading: false });
+      await setSubscription(BASIC);
+      set({ state: BASIC, isLoading: false });
       return;
     } else {
       set({ isLoading: true });
     }
 
     try {
-      await ensureRevenueCatConfigured(_appUserId);
-      const devOverride = await readDevProOverride();
+      await ensureRevenueCatConfigured(appUserId);
+      const devOverride = await getDevProOverride();
+      if (generation !== loadGeneration) return;
+      const guest = isGuest();
+      const needsCustomer = !(__DEV__ && devOverride) && !guest && hasRevenueCatApiKey();
+      const customerInfo = needsCustomer ? await getRevenueCatCustomerInfo() : null;
+      // Re-read: a purchase / restore may have written a newer state while RevenueCat answered.
+      const latest = await getSubscription();
       if (generation !== loadGeneration) return;
 
-      if (devOverride) {
-        const state: SubscriptionState = {
-          tier: 'pro',
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          plan: 'annual',
-        };
-        const stored = await getSubscription();
-        if (generation !== loadGeneration) return;
-        set({
-          state: stored?.tier === 'pro' ? stored : state,
-          isLoading: false,
-        });
-        return;
-      }
-
-      if (isGuest()) {
-        await setSubscription(BASIC);
-        if (generation !== loadGeneration) return;
-        set({ state: BASIC, isLoading: false });
-        return;
-      }
-
-      const customerInfo = await getRevenueCatCustomerInfo();
+      const resolved = resolveSubscriptionState({
+        stored: latest,
+        isGuest: guest,
+        devOverride,
+        isDev: __DEV__,
+        hasApiKey: hasRevenueCatApiKey(),
+        customerInfo: entitlementFromCustomerInfo(customerInfo),
+        now: new Date(),
+      });
+      if (resolved.clearDevOverride) await setDevProOverride(false);
+      if (resolved.persist) await setSubscription(resolved.state);
       if (generation !== loadGeneration) return;
-
-      if (customerInfo && hasProEntitlement(customerInfo)) {
-        const state = stateFromCustomerInfo(customerInfo);
-        await setSubscription(state);
-        set({ state, isLoading: false });
-        return;
-      }
-
-      const state: SubscriptionState = { tier: 'basic' };
-      await setSubscription(state);
-      set({ state, isLoading: false });
+      set({ state: resolved.state, isLoading: false });
     } catch {
       if (generation !== loadGeneration) return;
-      const fallback = cached ?? { tier: 'basic' as const };
-      set({ state: fallback, isLoading: false });
+      set({ state: cached ?? BASIC, isLoading: false });
     }
   },
 
@@ -167,12 +165,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>((set, get) =>
     set({ state, isLoading: false });
   },
 
-  isPro: () => {
-    const { state } = get();
-    if (!state || state.tier !== 'pro') return false;
-    if (state.expiresAt && new Date(state.expiresAt) < new Date()) return false;
-    return true;
-  },
+  isPro: () => isProState(get().state, new Date()),
 
   purchasePackage: async (pkg) => {
     if (isGuest()) return { success: false, error: LINK_ACCOUNT_MESSAGE };
