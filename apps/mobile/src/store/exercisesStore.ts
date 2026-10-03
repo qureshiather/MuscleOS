@@ -12,6 +12,7 @@ import { mergeCatalogById, reconcileCatalogCache } from '@/sync/catalogMerge';
 import { fetchCatalogDelta } from '@/sync/catalogPull';
 import { nextCustomExerciseId, resolveExerciseById } from '@/utils/exerciseIds';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
+import { libraryExercises } from '@/utils/exerciseLibraryFilter';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 
 export interface ExercisesStoreState {
@@ -67,10 +68,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
 
   getExercise: (id) => resolveExerciseById(id, get().catalogExercises, get().customExercises),
 
-  getAllExercises: () => {
-    const published = get().catalogExercises.filter((e) => e.isPublished !== false);
-    return [...published, ...get().customExercises];
-  },
+  getAllExercises: () => libraryExercises(get().catalogExercises, get().customExercises),
 
   addExercise: async (exercise) => {
     const { customExercises } = get();

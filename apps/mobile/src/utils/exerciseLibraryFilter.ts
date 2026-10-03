@@ -12,6 +12,11 @@ export const LARGE_MUSCLE_GROUPS: Record<string, { label: string; muscles: Muscl
   shoulders: { label: 'Shoulders', muscles: ['front_delts', 'side_delts', 'rear_delts'] },
 };
 
+/** Everything browsable: published catalog rows in catalog order, then customs. */
+export function libraryExercises(catalog: Exercise[], custom: Exercise[]): Exercise[] {
+  return [...catalog.filter((e) => e.isPublished !== false), ...custom];
+}
+
 export interface LibraryFilters {
   query: string;
   /** null = All */

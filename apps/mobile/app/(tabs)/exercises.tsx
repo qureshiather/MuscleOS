@@ -28,6 +28,7 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 import {
   LARGE_MUSCLE_GROUPS,
   filterLibraryExercises,
+  libraryExercises,
   libraryFilterSummary,
 } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
@@ -42,7 +43,10 @@ export default function ExercisesScreen() {
   const sheetMaxHeight = useModalMaxHeight();
   const sheetBottomPad = useBottomSpace(spacing.xl);
   const detailScrollMaxHeight = Math.max(160, sheetMaxHeight - sheetBottomPad - DETAIL_HEADER_HEIGHT);
-  const getAllExercises = useExercisesStore((s) => s.getAllExercises);
+  // Subscribe to the arrays (not the getAllExercises function) so deletes and catalog refreshes
+  // re-render the list.
+  const catalogExercises = useExercisesStore((s) => s.catalogExercises);
+  const customExercises = useExercisesStore((s) => s.customExercises);
   const removeExercise = useExercisesStore((s) => s.removeExercise);
   const notes = useExerciseNotesStore((s) => s.notes);
   const setNote = useExerciseNotesStore((s) => s.setNote);
@@ -53,7 +57,10 @@ export default function ExercisesScreen() {
   const [noteDraft, setNoteDraft] = useState('');
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-  const allExercises = getAllExercises();
+  const allExercises = useMemo(
+    () => libraryExercises(catalogExercises, customExercises),
+    [catalogExercises, customExercises]
+  );
 
   const toggleFilters = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
