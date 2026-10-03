@@ -43,10 +43,13 @@ Sync is **entity-level** (sessions, templates, etc.), with field-aware merges fo
 | Missing locally | Take remote (server fills gaps) |
 | Net-new locally | Keep local; push via outbox |
 | Conflict, local dirty (pending outbox) | **Local wins**; outbox `updated_at` is bumped if remote is newer so push lands |
-| Conflict, local clean | **Last-write-wins** by `updated_at`; ties keep local |
-| Notes / previous / settings while keeping local | Union keys; empty local slots fill from remote; non-empty conflicts prefer local |
+| Conflict, local clean — session | **Last-write-wins**: remote `updated_at` vs local `completedAt` (or `startedAt`); ties keep local |
+| Conflict, local clean — template, folder, custom exercise | No local timestamp, so **remote is taken** |
+| Notes / previous / settings, local clean or empty | Remote snapshot replaces local |
+| Notes / previous / settings, local pending | Keep local; union keys, empty local slots fill from remote. Pending local units/sounds/theme win whole; biodata merges per field |
+| Remote delete (`deleted_at`) | Same decision as an update; a deleted snapshot resets local to empty / defaults |
 
-Push uses `upsert_sync_records`, which only overwrites the server when incoming `updated_at` is **≥** the stored value (equal timestamps → incoming/local wins).
+Push uses `upsert_sync_records`, which only overwrites the server when incoming `updated_at` is **≥** the stored value (equal timestamps → incoming/local wins). If that RPC is missing (`PGRST202`), the app silently falls back to a plain `sync_records` upsert with no clock check. If the `user_exercises` table is missing (`PGRST205`), its pull returns no rows.
 
 ### 1. Run migrations (Supabase CLI)
 
@@ -99,10 +102,13 @@ Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabas
 | App launch | Catalog delta pull (all users). Account sync if linked. |
 | App foreground | Catalog delta pull. Account sync if linked. |
 | Finish workout | Immediate push |
-| Link account (Apple/Google/email) | Upload local data, then sync |
+| Guest upgraded in place (Apple/Google `linkIdentity`) | Upload a full snapshot of local data, then sync |
+| Sign into an existing account (another device, email, or a different account) | Drop the previous account's outbox, pull everything, upload the local rows the account doesn't have (guest sessions, templates, folders, customs; snapshots only if the account has none), then push |
+| Sign out | New anonymous guest; outbox and sync meta reset. Local data stays on the device |
 | History pull-to-refresh | Force sync |
 | Data → Sync now | Force sync |
 | Account → sync row tap | Force sync |
+| Any local change | Push 2 s after the last change |
 
 Anonymous users stay device-only until they link an account.
 
