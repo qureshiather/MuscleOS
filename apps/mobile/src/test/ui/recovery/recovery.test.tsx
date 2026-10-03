@@ -116,6 +116,9 @@ test('shows the loading skeleton (no diagram) before the first load', async () =
     expect(screen.getByText('Recovery')).toBeTruthy();
     expect(screen.UNSAFE_queryAllByType(Body)).toHaveLength(0);
   } finally {
+    // Unmount first: restoring the action re-runs the focus effect, which would load the store
+    // outside act and leak updates into the next test.
+    screen.unmount();
     useRecoveryStore.setState({ ensureLoaded });
   }
 });

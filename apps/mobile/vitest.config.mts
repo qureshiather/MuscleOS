@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Fails a test on unexpected console.error/warn — see src/test/consoleGuard.ts.
+    setupFiles: ['src/test/vitestSetup.ts'],
   },
   resolve: {
     alias: {
