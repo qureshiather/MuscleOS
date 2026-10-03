@@ -6,7 +6,10 @@ export function isCustomExerciseId(id: string): boolean {
   return id.startsWith('custom_');
 }
 
-/** Custom exercise ids are `custom_<n>`, n = highest existing numeric suffix + 1 (gaps aren't reused). */
+/**
+ * Custom exercise ids are `custom_<n>`, n = highest numeric suffix + 1 (gaps aren't reused). Pass
+ * retired customs too: an id past sessions still reference must never go to a new exercise.
+ */
 export function nextCustomExerciseId(custom: Exercise[]): string {
   const max = custom.reduce((acc, e) => {
     const m = e.id.match(/^custom_(\d+)$/);
@@ -22,8 +25,18 @@ export function nextCustomExerciseId(custom: Exercise[]): string {
 export function resolveExerciseById(
   id: string,
   catalog: Exercise[],
-  custom: Exercise[]
+  custom: Exercise[],
+  retired: Exercise[] = []
 ): Exercise | undefined {
   const resolved = buildExerciseAliasMap(catalog).get(id) ?? id;
-  return catalog.find((e) => e.id === resolved) ?? custom.find((e) => e.id === resolved || e.id === id);
+  return (
+    catalog.find((e) => e.id === resolved) ??
+    custom.find((e) => e.id === resolved || e.id === id) ??
+    retired.find((e) => e.id === id)
+  );
+}
+
+/** Adds a deleted custom to the retired list, replacing an older copy with the same id. */
+export function retireExercise(retired: readonly Exercise[], exercise: Exercise): Exercise[] {
+  return [...retired.filter((e) => e.id !== exercise.id), exercise];
 }

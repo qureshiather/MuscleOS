@@ -124,6 +124,8 @@ describe('custom-template workout', () => {
     fireEvent.press(await screen.findByText('Finish'));
     fireEvent.press(await screen.findByText('Overwrite this template'));
     await expectPaywall(r, 'save_as_template');
+    // The native modal would otherwise sit on top of the paywall.
+    expect(screen.queryByText('Workout summary')).toBeNull();
     expect(useActiveWorkoutStore.getState().session?.id).toBe('session_live');
     expect(useTemplatesStore.getState().userTemplates[0]?.exerciseIds).toEqual(CUSTOM_TEMPLATE.exerciseIds);
   });
@@ -133,6 +135,7 @@ describe('custom-template workout', () => {
     fireEvent.press(await screen.findByText('Finish'));
     fireEvent.press(await screen.findByText('Save as new template'));
     await expectPaywall(r, 'save_as_template');
+    expect(screen.queryByText('Workout summary')).toBeNull();
     expect(useActiveWorkoutStore.getState().session?.id).toBe('session_live');
   });
 
@@ -181,6 +184,14 @@ describe('built-in workout on Basic', () => {
     fireEvent.press(await screen.findByText('Finish'));
     fireEvent.press(await screen.findByText('Save as new template'));
     await expectPaywall(r, 'save_as_template');
+    expect(screen.queryByText('Workout summary')).toBeNull();
+  });
+
+  test('Pro-only finish options are marked Pro; Save values only is not', async () => {
+    render();
+    fireEvent.press(await screen.findByText('Finish'));
+    expect(await screen.findByLabelText('Save as new template, Pro')).toBeTruthy();
+    expect(screen.getByLabelText('Save values only')).toBeTruthy();
   });
 });
 

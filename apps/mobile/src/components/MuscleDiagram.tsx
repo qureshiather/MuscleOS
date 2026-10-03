@@ -11,6 +11,7 @@ import {
   MUSCLE_ID_TO_DIAGRAM_REGION,
   regionStatesForMuscles,
   regionStatesToBodyData,
+  withNeutralFill,
 } from '@/utils/muscleDiagramRegions';
 
 /** Library figure size at `scale={1}`. */
@@ -88,6 +89,8 @@ export function MuscleDiagram({
     data = Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
   }
 
+  const bodyData = withNeutralFill(data, colors.bodyDiagramFill);
+
   const useGreen = highlightColor === 'green';
   // Each figure is 200pt wide at scale 1. Size the pair from the real row
   // width so front + back never wrap — including inside padded cards.
@@ -107,7 +110,7 @@ export function MuscleDiagram({
     >
       <View style={styles.row}>
         <Body
-          data={data}
+          data={bodyData}
           gender={gender}
           side="front"
           scale={resolvedScale}
@@ -116,7 +119,7 @@ export function MuscleDiagram({
           defaultFill={colors.bodyDiagramFill}
         />
         <Body
-          data={data}
+          data={bodyData}
           gender={gender}
           side="back"
           scale={resolvedScale}

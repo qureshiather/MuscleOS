@@ -155,7 +155,8 @@ the result as a **new** template. See
 ## Paywall UX
 
 Locked actions navigate to `/subscription?feature=<gate_key>`. The screen highlights the relevant
-feature: *"{label} is included with Pro."*
+feature: its label (`PRO_FEATURE_LABELS`) with *"Included with Pro."* under it — two lines
+rather than one sentence, because most labels are plural.
 
 The comparison lists `BASIC_FEATURES_LIST` and `PRO_FEATURES_LIST` each contain **5 items** so the
 two columns stay visually balanced — keep the counts equal when editing either.

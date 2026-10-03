@@ -152,8 +152,9 @@ describe('setRowView', () => {
 
 describe('previousLabel', () => {
   it('formats the snapshot in the user unit, or —', () => {
-    expect(previousLabel({ weightKg: 60, reps: 5 }, 'kg')).toBe('60 kg × 5');
-    expect(previousLabel({ weightKg: 100, reps: 5 }, 'lb')).toBe('220.5 lb × 5');
+    expect(previousLabel({ weightKg: 60, reps: 5 }, 'kg')).toBe('60 × 5');
+    expect(previousLabel({ weightKg: 56.25, reps: 8 }, 'kg')).toBe('56.25 × 8');
+    expect(previousLabel({ weightKg: 100, reps: 5 }, 'lb')).toBe('220.5 × 5');
     expect(previousLabel({ weightKg: 60 }, 'kg')).toBe('60 kg');
     expect(previousLabel(undefined, 'kg')).toBe('—');
   });

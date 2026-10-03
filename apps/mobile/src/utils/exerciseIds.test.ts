@@ -1,7 +1,7 @@
 import type { Exercise } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
 import { CATALOG_SEED } from '@/data/catalogSeed';
-import { nextCustomExerciseId, resolveExerciseById } from './exerciseIds';
+import { nextCustomExerciseId, resolveExerciseById, retireExercise } from './exerciseIds';
 
 const custom = (id: string): Exercise => ({
   id,
@@ -39,6 +39,25 @@ describe('resolveExerciseById', () => {
   it('finds custom exercises, and returns undefined for unknown ids', () => {
     expect(resolveExerciseById('custom_2', CATALOG_SEED, [custom('custom_2')])?.id).toBe('custom_2');
     expect(resolveExerciseById('custom_9', CATALOG_SEED, [])).toBeUndefined();
+  });
+
+  it('falls back to retired (deleted) customs, after live ones', () => {
+    const retired = [{ ...custom('custom_3'), name: 'Old' }];
+    expect(resolveExerciseById('custom_3', CATALOG_SEED, [], retired)?.name).toBe('Old');
+    expect(resolveExerciseById('custom_3', CATALOG_SEED, [{ ...custom('custom_3'), name: 'Live' }], retired)?.name).toBe(
+      'Live'
+    );
+  });
+});
+
+describe('retireExercise', () => {
+  it('appends, replacing an older copy with the same id', () => {
+    const once = retireExercise([], { ...custom('custom_1'), name: 'A' });
+    const twice = retireExercise([...once, custom('custom_2')], { ...custom('custom_1'), name: 'B' });
+    expect(twice.map((e) => [e.id, e.name])).toEqual([
+      ['custom_2', custom('custom_2').name],
+      ['custom_1', 'B'],
+    ]);
   });
 });
 

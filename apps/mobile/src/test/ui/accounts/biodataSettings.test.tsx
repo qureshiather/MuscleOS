@@ -29,10 +29,14 @@ describe('Biodata', () => {
   test('Edit → Save stores valid values in kg/cm and syncs them', async () => {
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
+    // Each field has a visible label (the read-only row shows the same text), not just a placeholder.
+    expect(screen.getAllByText('Height (cm)')).toHaveLength(2);
+    expect(screen.getAllByText('Weight (kg)')).toHaveLength(2);
+    expect(screen.getAllByText('Age')).toHaveLength(2);
     fireEvent.press(screen.getByText('female'));
-    fireEvent.changeText(screen.getByPlaceholderText('Height (cm)'), '170');
-    fireEvent.changeText(screen.getByPlaceholderText('Weight (kg)'), '65.5');
-    fireEvent.changeText(screen.getByPlaceholderText('Age'), '34');
+    fireEvent.changeText(screen.getByLabelText('Height (cm)'), '170');
+    fireEvent.changeText(screen.getByLabelText('Weight (kg)'), '65.5');
+    fireEvent.changeText(screen.getByLabelText('Age'), '34');
     fireEvent.press(screen.getByText('Save'));
     await waitFor(async () =>
       expect((await getAppSettings()).profile).toEqual({ heightCm: 170, weightKg: 65.5, age: 34, sex: 'female' })
@@ -47,9 +51,9 @@ describe('Biodata', () => {
     await useSettingsStore.getState().setProfile({ heightCm: 180, weightKg: 80, age: 30 });
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
-    fireEvent.changeText(screen.getByPlaceholderText('Height (cm)'), '0');
-    fireEvent.changeText(screen.getByPlaceholderText('Weight (kg)'), 'abc');
-    fireEvent.changeText(screen.getByPlaceholderText('Age'), '150');
+    fireEvent.changeText(screen.getByLabelText('Height (cm)'), '0');
+    fireEvent.changeText(screen.getByLabelText('Weight (kg)'), 'abc');
+    fireEvent.changeText(screen.getByLabelText('Age'), '150');
     fireEvent.press(screen.getByText('Save'));
     await waitFor(async () => expect((await getAppSettings()).profile).toEqual({}));
   });
@@ -59,8 +63,8 @@ describe('Biodata', () => {
     await useSettingsStore.getState().setBodyWeightUnit('lb');
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
-    fireEvent.changeText(screen.getByPlaceholderText('Height (in)'), '70');
-    fireEvent.changeText(screen.getByPlaceholderText('Weight (lb)'), '176');
+    fireEvent.changeText(screen.getByLabelText('Height (in)'), '70');
+    fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '176');
     fireEvent.press(screen.getByText('Save'));
     await waitFor(async () => expect((await getAppSettings()).profile).toMatchObject({ heightCm: 177.8, weightKg: 79.83 }));
     expect(screen.getByText('70 in')).toBeTruthy();
@@ -71,7 +75,7 @@ describe('Biodata', () => {
     await useSettingsStore.getState().setProfile({ age: 30 });
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
-    fireEvent.changeText(screen.getByPlaceholderText('Age'), '45');
+    fireEvent.changeText(screen.getByLabelText('Age'), '45');
     fireEvent.press(screen.getByText('Cancel'));
     expect((await getAppSettings()).profile).toEqual({ age: 30 });
   });

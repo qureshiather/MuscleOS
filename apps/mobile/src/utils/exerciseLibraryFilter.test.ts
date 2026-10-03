@@ -6,6 +6,7 @@ import {
   filterLibraryExercises,
   libraryFilterSummary,
   muscleFilterLabel,
+  exerciseTypeLine,
 } from './exerciseLibraryFilter';
 
 const squat: Exercise = {
@@ -119,5 +120,22 @@ describe('libraryFilterSummary', () => {
     expect(muscleFilterLabel('legs')).toBe('Legs');
     expect(muscleFilterLabel('lower_back')).toBe('Lower Back');
     expect(muscleFilterLabel(null)).toBe('All');
+  });
+});
+
+describe('exerciseTypeLine', () => {
+  it('lists the category, then equipment', () => {
+    expect(exerciseTypeLine({ category: 'free_weight', equipment: ['barbell'] })).toBe('Free Weight · Barbell');
+    expect(exerciseTypeLine({ category: 'cable', equipment: ['band'] })).toBe('Cable · Band');
+  });
+
+  it('does not repeat equipment that reads the same as the category', () => {
+    expect(exerciseTypeLine({ category: 'machine', equipment: ['machine'] })).toBe('Machine');
+    expect(exerciseTypeLine({ category: 'bodyweight', equipment: ['bodyweight'] })).toBe('Bodyweight');
+    expect(exerciseTypeLine({ category: 'cable', equipment: ['cable'] })).toBe('Cable');
+  });
+
+  it('is the category alone with no equipment', () => {
+    expect(exerciseTypeLine({ category: 'machine', equipment: [] })).toBe('Machine');
   });
 });

@@ -44,7 +44,7 @@ describe('guest', () => {
     expect(screen.queryByText('Sign out')).toBeNull();
     expect(screen.queryByTestId('delete-account')).toBeNull();
     expect(screen.queryByTestId('change-password')).toBeNull();
-    expect(screen.getByText('Export or clear this device')).toBeTruthy();
+    expect(screen.getByText('Export, import, clear this device')).toBeTruthy();
     fireEvent.press(screen.getByText('Sign in'));
     expect(await screen.findByText('route:auth')).toBeTruthy();
   });
@@ -65,7 +65,7 @@ describe('linked account', () => {
     renderApp(routes, '/account');
     expect(await screen.findByText('Google')).toBeTruthy();
     expect(screen.getByText('sam@gmail.com')).toBeTruthy();
-    expect(screen.getByText('Sync, export, clear this device')).toBeTruthy();
+    expect(screen.getByText('Sync, export, import, clear')).toBeTruthy();
     expect(screen.getByTestId('delete-account')).toBeTruthy();
     expect(screen.queryByTestId('link-google')).toBeNull();
   });

@@ -32,7 +32,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       {
         title: 'Basic',
         steps: [
-          'Tap one of the built-in templates: Push Pull Legs, Upper/Lower, or Strong Lifts 5×5.',
+          'Tap a Suggested or Recent workout, or open Built-in and pick a template from Push Pull Legs, Upper/Lower, or Strong Lifts 5×5.',
           'Check the exercises and what you lifted last time, then tap Start workout.',
         ],
       },
@@ -44,9 +44,10 @@ export const FAQ_ITEMS: FaqItem[] = [
         ],
       },
     ],
-    aside: 'Only one workout runs at a time. Finish or cancel the current one before starting another.',
+    aside:
+      'Only one workout runs at a time. If you leave it, tap Resume workout above the tabs to get back to it.',
     answerText:
-      'Open the Workouts tab and tap a built-in template (Push Pull Legs, Upper/Lower, or Strong Lifts 5×5), check the preview, and tap Start workout. Pro can also run custom templates or start an empty workout. Only one workout runs at a time.',
+      'Open the Workouts tab and tap a Suggested or Recent workout, or open Built-in and pick a template (Push Pull Legs, Upper/Lower, or Strong Lifts 5×5). Check the preview and tap Start workout. Pro can also run custom templates or start an empty workout. Only one workout runs at a time.',
   },
   {
     id: 'log-sets',
@@ -55,15 +56,17 @@ export const FAQ_ITEMS: FaqItem[] = [
       'Tap the weight or reps in a set to open the number pad. Next moves from weight to reps, and Done completes the set. You can also tap the checkmark at the end of the row.',
       'A set needs at least 1 rep. Weight is optional, for bodyweight work.',
       'Previous shows the best set from the last time you did that exercise. Its weight and reps are filled in as a suggestion; the first digit you type replaces it.',
+      'The number pad types whole numbers. Use − and + to step the weight by 0.25 kg or 2.5 lb.',
+      'Tap + Add set for another set, or Add warm-up set in the three-dot menu. Swipe a set left to delete it.',
     ],
     answerText:
-      'Tap weight or reps to open the number pad, enter the values, and tap Done (or the checkmark) to complete the set. A set needs at least 1 rep. Previous shows your best set from the last session and is filled in as a suggestion.',
+      'Tap weight or reps to open the number pad, enter the values, and tap Done (or the checkmark) to complete the set. A set needs at least 1 rep. Previous shows your best set from the last session and is filled in as a suggestion. Use − and + for 0.25 kg or 2.5 lb steps; swipe a set left to delete it.',
   },
   {
     id: 'rest-timer',
     question: 'How does the rest timer work?',
     paragraphs: [
-      'Completing a working set starts a 2:00 rest. While it runs you can add or remove 30 seconds or skip it. The rest you actually took is shown under the set number.',
+      'Completing a working set starts a 2:00 rest. Tap the timer at the top of the screen to add or remove 30 seconds or skip it. The rest you actually took is shown under the set number.',
       'To change the rest for an exercise, tap the three dots beside its name and choose Update rest timers. Each exercise has a work-set rest and a warm-up rest, from 0:00 to 15:00. Warm-ups don’t start a timer unless you set one.',
       'When the rest ends you get a notification, even if the app is in the background.',
     ],
@@ -79,11 +82,12 @@ export const FAQ_ITEMS: FaqItem[] = [
       'Add: tap Add Exercise at the bottom of the workout. Requires Pro.',
       'Replace: tap the three dots beside an exercise and choose Replace exercise. Requires Pro.',
       'Remove: tap the three dots and choose Remove exercise.',
+      'Note: tap the three dots and choose Edit note to save a setup cue, like seat height. It shows every time you do that exercise.',
     ],
     aside:
       'Built-in workouts can’t be edited on Basic. With Pro you can change the session and save it as a new template when you finish.',
     answerText:
-      'Press and hold an exercise name to reorder (Basic). Add Exercise and Replace exercise require Pro. Remove is in the three-dot menu. On Basic, built-in workouts can’t be edited; Pro can save the changed session as a new template.',
+      'Press and hold an exercise name to reorder (Basic). Add Exercise and Replace exercise require Pro. Remove and Edit note are in the three-dot menu. On Basic, built-in workouts can’t be edited; Pro can save the changed session as a new template.',
   },
   {
     id: 'finish-cancel',
@@ -91,7 +95,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     paragraphs: [
       'Tap Finish in the top-right once you’ve completed at least one set. Review the summary and tap Save values. Sets you didn’t complete are kept in the session but don’t count toward recovery or your stats.',
       'If you changed the exercises or number of sets, Pro can also save the workout as a new template, or overwrite the custom template you started from.',
-      'To cancel, scroll to the bottom and tap Cancel workout, then Discard workout.',
+      'To cancel, scroll to the bottom and tap Cancel workout, then Discard workout. The X on the Resume workout bar also discards the workout, without asking.',
     ],
     answerText:
       'Tap Finish after completing at least one set, review the summary, and save. Pro can save a changed workout as a new template or overwrite its custom template. To cancel, tap Cancel workout at the bottom and confirm.',
@@ -111,7 +115,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'How do I create a workout template?',
     paragraphs: [
       'On the Workouts tab, tap New. Name the template, add exercises, and set how many working and warm-up sets each one starts with.',
-      'You can also finish a workout and save it as a new template.',
+      'You can also finish a workout and save it as a new template. The folder button next to New creates a folder to group templates.',
     ],
     aside:
       'Custom templates require Pro to create and to run. If Pro ends, your templates are kept and locked until you resubscribe.',
@@ -130,7 +134,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       '72 hours: chest, traps, lats, rhomboids, lower back, quads, hamstrings, glutes.',
     ],
     aside:
-      'Weight, reps, and sets don’t change the timer. The Workouts tab suggests templates that use muscles that are ready. Recovery is included with Basic.',
+      'On the body map, red is just trained, amber is still recovering, and green is ready. Weight, reps, and sets don’t change the timer. The Workouts tab suggests templates that use muscles that are ready. Recovery is included with Basic.',
     answerText:
       'Finishing a workout starts a recovery timer for each muscle you trained: 36 hours for smaller muscles like arms and abs, 48 hours for delts, calves, and adductors, and 72 hours for chest, back, and legs. Recovery is included with Basic.',
   },
@@ -138,11 +142,11 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'history',
     question: 'Where can I see past workouts?',
     paragraphs: [
-      'Open the History tab. Each workout shows its date, duration, total volume, and every completed set. Tap the trash icon to delete one; recovery and your previous values update to match.',
-      'With Pro, the trophy button opens personal records (estimated one-rep max for each exercise, with progression charts) and the calendar button opens a monthly view.',
+      'Open the History tab. Workouts are grouped by week. Each one shows its date, duration, total volume, and how the volume compares with the last time you did that workout; tap it to see every completed set. Tap the trash icon to delete one; recovery and your previous values update to match.',
+      'With Pro, workouts where you set a personal record are marked PR. The trophy button opens personal records (estimated one-rep max for each exercise, with progression charts) and the calendar button opens a monthly view.',
     ],
     answerText:
-      'Open the History tab to see each workout’s date, duration, volume, and completed sets. Tap the trash icon to delete one. Pro adds personal records, progression charts, and a monthly calendar.',
+      'Open the History tab to see your workouts grouped by week, with each one’s date, duration, volume, and change from last time. Tap a workout to see its sets, or the trash icon to delete it. Pro adds PR badges, personal records, progression charts, and a monthly calendar.',
   },
   {
     id: 'exercises',
@@ -158,10 +162,11 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'hide-templates',
     question: 'How do I hide a template?',
     paragraphs: [
-      'On the Workouts tab, tap the three dots on the template and choose Hide. Use the same menu to show it again.',
+      'On the Workouts tab, tap the three dots on the template and choose Hide. You can hide a whole built-in folder from its own three-dot menu.',
+      'Hidden templates move to a Hidden group at the bottom of their section. Open it and use the same menu to show them again.',
     ],
     answerText:
-      'Tap the three dots on a template and choose Hide. Use the same menu to show it again.',
+      'Tap the three dots on a template (or a built-in folder) and choose Hide. Hidden templates move to a Hidden group at the bottom of their section; use the same menu there to show them again.',
   },
   {
     id: 'units',
@@ -197,13 +202,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     paragraphs: ['Everything is under Profile → Account:'],
     bullets: [
       'Export: Data → Export my data saves a JSON file of your workouts, templates, and exercises.',
+      'Import: Data → Import data adds the workouts and templates from an export file. Nothing already on the phone is changed.',
       'Clear this phone: Data → Clear all data.',
       'Delete your account: Delete account removes it and your backup, then clears this phone.',
     ],
     aside:
       'Deleting your account doesn’t cancel a subscription. Cancel it in your App Store or Google Play settings.',
     answerText:
-      'Go to Profile → Account. Data → Export my data saves a JSON file. Data → Clear all data clears this phone. Delete account removes your account and backup. Cancel subscriptions in App Store or Google Play settings.',
+      'Go to Profile → Account. Data → Export my data saves a JSON file, and Data → Import data adds one back. Data → Clear all data clears this phone. Delete account removes your account and backup. Cancel subscriptions in App Store or Google Play settings.',
   },
   {
     id: 'support',

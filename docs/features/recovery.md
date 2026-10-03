@@ -189,6 +189,11 @@ The diagram has three modes (`regionStatesForMuscles()` → `regionStatesToBodyD
 
 The diagram shows no text labels.
 
+The untrained fill is passed as an explicit colour for every part the data leaves out
+(`withNeutralFill()`, all parts except the head and hair): the library's assets bake a dark
+`#3f3f3f` into each part, which would otherwise win over its `defaultFill` prop and draw a
+charcoal figure in light mode.
+
 ## Recovery tab
 
 Renders, in order:
@@ -266,7 +271,8 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 - `sameRecovery()` — equal records in order; added, removed or retrained records differ
 - `recoveryBuckets()` / `recoveryBucketsCopy()` — the 36/48/72 buckets and the exact explainer copy
 - Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate;
-  `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral
+  `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral;
+  `withNeutralFill()` paints every part but head and hair, covering every muscle region
 - `recoveryStore` — load persists, unchanged reload skips the write, `ensureLoaded()` computes once
   and shares an in-flight first load, later reloads keep items (no skeleton), overlapping loads
   resolve to the latest, expiry drops muscles without a recompute, the exercises-store subscription

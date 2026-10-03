@@ -31,12 +31,16 @@ function formatChartDate(iso: string): string {
 function ProgressionChart({
   points,
   colors,
+  weightUnit,
 }: {
   points: ProgressPoint[];
   colors: Record<string, string>;
+  weightUnit: 'kg' | 'lb';
 }) {
   const chartHeight = useTextScaledSize(CHART_HEIGHT);
   if (points.length === 0) return null;
+  const firstDate = formatChartDate(points[0].completedAt);
+  const lastDate = formatChartDate(points[points.length - 1].completedAt);
 
   return (
     <View style={[styles.chartContainer, { backgroundColor: colors.surfaceElevated }]}>
@@ -44,7 +48,12 @@ function ProgressionChart({
         {points.map((p, i) => {
           const barH = Math.max(4, p.ratio * (chartHeight - 24));
           return (
-            <View key={`${p.completedAt}-${i}`} testID="progression-bar" style={styles.barColumn}>
+            <View
+              key={`${p.completedAt}-${i}`}
+              testID="progression-bar"
+              accessibilityLabel={`${formatChartDate(p.completedAt)}, ${formatE1RM(p.estimated1RM, weightUnit)}`}
+              style={styles.barColumn}
+            >
               <View
                 style={[
                   styles.bar,
@@ -55,15 +64,20 @@ function ProgressionChart({
                   },
                 ]}
               />
-              <Text
-                style={[styles.barLabel, { color: colors.textMuted }]}
-                numberOfLines={1}
-              >
-                {formatChartDate(p.completedAt)}
-              </Text>
             </View>
           );
         })}
+      </View>
+      {/* One axis for the whole range: a date under every bar can't fit once there are more than a few. */}
+      <View style={styles.chartAxis}>
+        <Text style={[styles.axisLabel, { color: colors.textMuted }]} testID="progression-axis-start">
+          {firstDate}
+        </Text>
+        {lastDate !== firstDate ? (
+          <Text style={[styles.axisLabel, { color: colors.textMuted }]} testID="progression-axis-end">
+            {lastDate}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.chartLegend}>
         <Text style={[styles.legendText, { color: colors.textMuted }]}>
@@ -171,7 +185,11 @@ export default function ExerciseProgressionScreen() {
             <Text style={[typography.sectionTitle, styles.sectionTitle, { color: colors.text }]}>
               Est. 1RM over time
             </Text>
-            <ProgressionChart points={progressionPoints(pr.history, pr.bestEstimated1RM)} colors={colors} />
+            <ProgressionChart
+              points={progressionPoints(pr.history, pr.bestEstimated1RM)}
+              colors={colors}
+              weightUnit={weightUnit}
+            />
           </>
         )}
 
@@ -229,19 +247,20 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
+  // No fixed gap: each bar takes an equal share and its width leaves the space, so a long
+  // history narrows the bars instead of overflowing the chart.
   chart: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 6,
   },
   barColumn: { flex: 1, alignItems: 'center', minWidth: 0 },
   bar: {
-    width: '80%',
+    width: '70%',
     borderRadius: 4,
     minHeight: 4,
   },
-  barLabel: { fontSize: 9, marginTop: 4, fontFamily: typography.caption.fontFamily },
+  chartAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  axisLabel: { fontSize: 11, fontFamily: typography.caption.fontFamily },
   chartLegend: { marginTop: spacing.sm },
   legendText: { fontSize: 11, fontFamily: typography.caption.fontFamily },
   historySection: { marginTop: spacing.sm },

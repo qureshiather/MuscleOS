@@ -208,7 +208,7 @@ export default function AccountScreen() {
           <ListRow
             inset
             title="Data"
-            hint={isLinked ? 'Sync, export, clear this device' : 'Export or clear this device'}
+            hint={isLinked ? 'Sync, export, import, clear' : 'Export, import, clear this device'}
             onPress={() => router.push('/data')}
           />
           {canLinkGoogle ? (

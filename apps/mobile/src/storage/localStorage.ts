@@ -469,6 +469,23 @@ export async function setCustomExercises(exercises: Exercise[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.customExercises, JSON.stringify(exercises));
 }
 
+/** Deleted custom exercises kept for history (see `STORAGE_KEYS.retiredCustomExercises`). */
+export async function getRetiredCustomExercises(): Promise<Exercise[]> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.retiredCustomExercises);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((row) => typeof row?.id === 'string').map((row) => normalizeExercise(row, row.id));
+  } catch {
+    return [];
+  }
+}
+
+export async function setRetiredCustomExercises(exercises: Exercise[]): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.retiredCustomExercises, JSON.stringify(exercises));
+}
+
 export async function getDevProOverride(): Promise<boolean> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.devProOverride);
   return raw === 'true';
@@ -551,6 +568,7 @@ export const CLEAR_ALL_DATA_KEYS = [
   STORAGE_KEYS.exercisePrevious,
   STORAGE_KEYS.exerciseNotes,
   STORAGE_KEYS.customExercises,
+  STORAGE_KEYS.retiredCustomExercises,
   STORAGE_KEYS.catalogExercises,
   STORAGE_KEYS.catalogWatermark,
   STORAGE_KEYS.catalogSeedAppliedAt,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSession } from '@muscleos/types';
 import {
+  restAlertAction,
   WORKOUT_NOTIFICATION_TITLES,
   trayNotificationContent,
   workoutNotificationCopy,
@@ -109,5 +110,20 @@ describe('trayNotificationContent', () => {
   it('shows the idle body when no rest is running or it has ended', () => {
     expect(trayNotificationContent(copy, null, true, NOW, clock).body).toBe('Next: Bench Press');
     expect(trayNotificationContent(copy, NOW, false, NOW, clock).body).toBe('Next: Bench Press');
+  });
+});
+
+describe('restAlertAction', () => {
+  it('schedules the alert only while resting in the background', () => {
+    expect(restAlertAction(true, false)).toBe('schedule');
+    expect(restAlertAction(true, true)).toBe('cancel');
+  });
+
+  it('cancels in the foreground once no rest is running', () => {
+    expect(restAlertAction(false, true)).toBe('cancel');
+  });
+
+  it('keeps the alert when the rest ends in the background, so the delivered one is not withdrawn', () => {
+    expect(restAlertAction(false, false)).toBe('keep');
   });
 });

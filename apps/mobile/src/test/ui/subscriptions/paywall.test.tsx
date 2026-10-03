@@ -88,13 +88,14 @@ describe('Basic (linked account)', () => {
   test('highlights the feature from ?feature=', async () => {
     render('/subscription?feature=personal_records');
     await settle();
-    expect(screen.getByText('Personal records & 1RM tracking is included with Pro.')).toBeTruthy();
+    expect(screen.getByText('Personal records & 1RM tracking')).toBeTruthy();
+    expect(screen.getByText('Included with Pro.')).toBeTruthy();
   });
 
   test('ignores an unknown ?feature=', async () => {
     render('/subscription?feature=grant_everything');
     await settle();
-    expect(screen.queryByText(/is included with Pro\./)).toBeNull();
+    expect(screen.queryByText('Included with Pro.')).toBeNull();
   });
 
   test('"Purchases unavailable" only when there is no API key', async () => {
@@ -178,7 +179,8 @@ describe('guest (anonymous)', () => {
   test('sees the highlight, comparison and prices, with Link account to purchase instead of buying', async () => {
     const r = render('/subscription?feature=custom_templates');
     await settle();
-    expect(screen.getByText('Custom workout templates is included with Pro.')).toBeTruthy();
+    expect(screen.getByText('Custom workout templates')).toBeTruthy();
+    expect(screen.getByText('Included with Pro.')).toBeTruthy();
     expect(screen.getByText('Basic vs Pro')).toBeTruthy();
     expect(screen.getByText('$19.99/yr')).toBeTruthy();
     expect(screen.queryByText('Continue with Annual')).toBeNull();
@@ -202,7 +204,7 @@ describe('Pro current plan card', () => {
     expect(screen.getByText(/^Renews /)).toBeTruthy();
     expect(screen.getByText('Manage subscription')).toBeTruthy();
     expect(screen.queryByText('Choose a plan')).toBeNull();
-    expect(screen.queryByText(/is included with Pro\./)).toBeNull();
+    expect(screen.queryByText('Included with Pro.')).toBeNull();
     expect(screen.getByText('Reset to Basic (testing)')).toBeTruthy();
   });
 

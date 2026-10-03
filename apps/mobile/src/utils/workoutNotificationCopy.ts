@@ -96,3 +96,19 @@ export function trayNotificationContent(
   }
   return { title, body: copy.idleBody };
 }
+
+/**
+ * What to do with the scheduled rest-over alert when the rest state or app state changes.
+ *
+ * - Resting in the background → `schedule` it for the rest's end.
+ * - Resting in the foreground → `cancel`: the in-app timer and sound handle it.
+ * - No rest, in the foreground → `cancel` (also dismisses one already delivered).
+ * - No rest, in the background → `keep`. The JS timer can keep running briefly after the app is
+ *   backgrounded and ends the rest at the same moment the OS fires the alert; cancelling then
+ *   would withdraw the alert just delivered, or drop it before it fires. Returning to the app
+ *   clears it.
+ */
+export function restAlertAction(resting: boolean, appActive: boolean): 'schedule' | 'cancel' | 'keep' {
+  if (resting) return appActive ? 'cancel' : 'schedule';
+  return appActive ? 'cancel' : 'keep';
+}

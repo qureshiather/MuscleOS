@@ -54,7 +54,7 @@ describe('starting', () => {
     expect(setsOf(0)[0]).toEqual({ completed: false, isWarmUp: true });
     expect(setsOf(0)[1]).toMatchObject({ reps: 6, weightPrefilled: true, repsPrefilled: true });
     // same value on every row of the exercise, warm-up included
-    expect((await screen.findAllByText('80 kg × 6')).length).toBe(4);
+    expect((await screen.findAllByText('80 × 6')).length).toBe(4);
   });
 
   test('shows the template rows: warm-ups numbered W1, working sets 1, 2, 3', async () => {

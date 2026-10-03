@@ -505,6 +505,21 @@ describe('context menus', () => {
     await waitFor(async () => expect((await storedTemplates())[0].folderId).toBeUndefined());
   });
 
+  it('Move does not offer No folder for a template that has none', async () => {
+    setPro(true);
+    await seed({
+      folders: [{ id: 'f_a', name: 'Folder A' }],
+      templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })],
+    });
+    renderHome();
+    await ready();
+    openMenu('Chest day');
+    fireEvent.press(screen.getByTestId('template-menu-move'));
+    expect(screen.getByText('Move "Chest day" to')).toBeTruthy();
+    expect(screen.queryByText('No folder')).toBeNull();
+    expect(screen.getAllByText('Folder A').length).toBeGreaterThan(0);
+  });
+
   it('Delete asks a themed confirm; Cancel keeps, Delete removes', async () => {
     setPro(true);
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });

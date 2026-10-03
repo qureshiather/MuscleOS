@@ -14,6 +14,11 @@ export const STORAGE_KEYS = {
   exercisePrevious: 'muscleos_exercise_previous',
   exerciseNotes: 'muscleos_exercise_notes',
   customExercises: 'muscleos_custom_exercises',
+  /**
+   * Deleted custom exercises, kept on this device so past sessions still resolve their name and
+   * muscles, and so their `custom_<n>` id is never handed to a new exercise. Local only.
+   */
+  retiredCustomExercises: 'muscleos_retired_custom_exercises',
   catalogExercises: 'muscleos_catalog_exercises',
   catalogWatermark: 'muscleos_catalog_watermark',
   catalogSeedAppliedAt: 'muscleos_catalog_seed_applied_at',

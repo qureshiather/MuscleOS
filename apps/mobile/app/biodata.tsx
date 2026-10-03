@@ -48,8 +48,8 @@ export default function BiodataScreen() {
   const weightDisplay = profile.weightKg != null ? formatBodyWeight(profile.weightKg, bodyWeightUnit) : '—';
   const ageDisplay = profile.age != null ? String(profile.age) : '—';
   const sexDisplay = formatSex(profile.sex) ?? '—';
-  const heightPlaceholder = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
-  const weightPlaceholder = bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
+  const heightLabel = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
+  const weightLabel = bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
 
   return (
     <Screen>
@@ -143,37 +143,46 @@ export default function BiodataScreen() {
                 );
               })}
             </View>
+            {/* Labels sit above the fields: a placeholder alone disappears once a value is in. */}
             <View style={styles.inputRow}>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder={heightPlaceholder}
-                placeholderTextColor={colors.textMuted}
-                value={heightInput}
-                onChangeText={setHeightInput}
-                keyboardType="decimal-pad"
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-                ]}
-                placeholder={weightPlaceholder}
-                placeholderTextColor={colors.textMuted}
-                value={weightInput}
-                onChangeText={setWeightInput}
-                keyboardType="decimal-pad"
-              />
+              <View style={styles.field}>
+                <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
+                  {heightLabel}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  ]}
+                  accessibilityLabel={heightLabel}
+                  value={heightInput}
+                  onChangeText={setHeightInput}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
+                  {weightLabel}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  ]}
+                  accessibilityLabel={weightLabel}
+                  value={weightInput}
+                  onChangeText={setWeightInput}
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
+            <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>Age</Text>
             <TextInput
               style={[
                 styles.inputFull,
                 { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
               ]}
-              placeholder="Age"
-              placeholderTextColor={colors.textMuted}
+              accessibilityLabel="Age"
               value={ageInput}
               onChangeText={setAgeInput}
               keyboardType="number-pad"
@@ -257,8 +266,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   inputRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  field: { flex: 1 },
+  fieldLabel: { marginBottom: spacing.xs },
   input: {
-    flex: 1,
     borderWidth: 1,
     borderRadius: radius.md,
     padding: spacing.md,

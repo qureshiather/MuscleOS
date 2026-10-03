@@ -87,3 +87,46 @@ export function focusRegions(exerciseMuscles: readonly (readonly MuscleId[])[]):
   const repeated = [...counts].filter(([, n]) => n >= 2).map(([slug]) => slug);
   return repeated.length > 0 ? repeated : [...counts.keys()];
 }
+
+/**
+ * Every figure part the highlighter draws except `head` and `hair`, which keep the library's own
+ * colours so the figure still reads as a person.
+ */
+export const NEUTRAL_FILL_SLUGS: readonly Slug[] = [
+  'abs',
+  'adductors',
+  'ankles',
+  'biceps',
+  'calves',
+  'chest',
+  'deltoids',
+  'feet',
+  'forearm',
+  'gluteal',
+  'hamstring',
+  'hands',
+  'knees',
+  'lower-back',
+  'neck',
+  'obliques',
+  'quadriceps',
+  'tibialis',
+  'trapezius',
+  'triceps',
+  'upper-back',
+];
+
+export type BodyDiagramItem = BodyDataItem | { slug: Slug; color: string };
+
+/**
+ * Paints every part that `data` leaves out with the neutral untrained fill. The highlighter's
+ * assets bake a dark `#3f3f3f` into each part, and that wins over its `defaultFill` prop, so
+ * without an explicit colour an unhighlighted region ignores the theme.
+ */
+export function withNeutralFill(data: readonly BodyDataItem[], fill: string): BodyDiagramItem[] {
+  const highlighted = new Set(data.map((d) => d.slug));
+  return [
+    ...data,
+    ...NEUTRAL_FILL_SLUGS.filter((slug) => !highlighted.has(slug)).map((slug) => ({ slug, color: fill })),
+  ];
+}

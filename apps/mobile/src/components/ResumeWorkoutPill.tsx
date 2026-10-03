@@ -46,7 +46,14 @@ export function ResumeWorkoutPill() {
         <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>Resume workout</Text>
         <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatClockMs(elapsedMs)}</Text>
       </Pressable>
-      <Pressable onPress={handleCancel} hitSlop={12} style={styles.cancelBtn} accessibilityLabel="Cancel workout">
+      <Pressable
+        onPress={handleCancel}
+        hitSlop={12}
+        style={styles.cancelBtn}
+        accessibilityRole="button"
+        // Discards straight away (no confirm), so say so rather than "Cancel".
+        accessibilityLabel="Discard workout"
+      >
         <Ionicons name="close" size={22} color={colors.textMuted} />
       </Pressable>
     </View>

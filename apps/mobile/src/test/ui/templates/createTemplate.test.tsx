@@ -2,7 +2,7 @@
  * Create / edit template — docs/features/templates.md#creating-and-editing.
  */
 import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
-import { router } from 'expo-router';
+import { type Href, router } from 'expo-router';
 import CreateTemplateScreen from '../../../../app/create-template';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { routeStub, setPro } from '../render';
@@ -33,7 +33,7 @@ const routes = {
 async function open(params = '') {
   renderAtNow(routes, '/');
   await screen.findByText('route:home');
-  act(() => router.push(`/create-template${params}`));
+  act(() => router.push(`/create-template${params}` as Href));
 }
 
 async function addExercise(name: string) {

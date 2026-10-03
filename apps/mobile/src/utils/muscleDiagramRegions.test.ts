@@ -5,6 +5,8 @@ import {
   MUSCLE_ID_TO_DIAGRAM_REGION,
   regionStatesForMuscles,
   regionStatesToBodyData,
+  NEUTRAL_FILL_SLUGS,
+  withNeutralFill,
 } from './muscleDiagramRegions';
 
 describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
@@ -110,5 +112,24 @@ describe('regionStatesToBodyData', () => {
     expect(data).toHaveLength(15);
     expect(data.find((d) => d.slug === 'upper-back')?.intensity).toBe(1);
     expect(data.filter((d) => d.intensity === 2)).toHaveLength(14);
+  });
+});
+
+describe('withNeutralFill', () => {
+  it('paints every part the data leaves out, except head and hair', () => {
+    const out = withNeutralFill([{ slug: 'chest', intensity: 1 }], '#C8CCD8');
+    expect(out[0]).toEqual({ slug: 'chest', intensity: 1 });
+    const neutral = out.slice(1);
+    expect(neutral).toHaveLength(NEUTRAL_FILL_SLUGS.length - 1);
+    expect(neutral.every((d) => 'color' in d && d.color === '#C8CCD8')).toBe(true);
+    expect(neutral.map((d) => d.slug)).not.toContain('chest');
+    expect(NEUTRAL_FILL_SLUGS).not.toContain('head');
+    expect(NEUTRAL_FILL_SLUGS).not.toContain('hair');
+  });
+
+  it('covers every region a muscle maps to', () => {
+    for (const slug of new Set(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION))) {
+      expect(NEUTRAL_FILL_SLUGS).toContain(slug);
+    }
   });
 });

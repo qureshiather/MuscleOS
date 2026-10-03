@@ -194,9 +194,10 @@ Validation (`buildCustomExerciseDraft()`): the name is trimmed, and Save stays d
 there is a name, a Type and at least one muscle. Blank instructions are saved as none, so editing
 them to empty clears them. Custom exercises always track `weight_reps`.
 
-Ids are assigned as `custom_<n>` where n is the highest existing suffix + 1
-(`nextCustomExerciseId()` in `src/utils/exerciseIds.ts`). Gaps below the highest are never
-filled, but deleting the highest-numbered custom frees its number for the next one.
+Ids are assigned as `custom_<n>` where n is the highest suffix + 1 across live **and retired**
+customs (`nextCustomExerciseId()` in `src/utils/exerciseIds.ts`). Gaps are never filled and a
+deleted custom's number is never reused: sessions, PRs and the previous map key on the id, so a
+reused id would hand the old exercise's history to the new one.
 
 **Editing** is only possible for `custom_*` ids; catalog exercises cannot be edited.
 `/create-exercise?id=<id>` edits only when the id is a custom that exists
@@ -231,13 +232,15 @@ users keep customs on-device only.
 ### Deleting a custom exercise
 
 Deleting is **not gated**: a Basic user (for example after a Pro downgrade) can still remove
-their customs. Delete asks for confirmation (Cancel / Delete), removes the exercise, queues the
-soft delete, and also deletes that exercise's note.
+their customs. Delete asks for confirmation (*"Past workouts keep the name if you logged it."* — Cancel /
+Delete), removes the exercise, queues the soft delete, and also deletes that exercise's note.
 
-The confirmation reads *"Past workouts keep the name if you logged it."* **This is inaccurate.**
-Sessions store only `exerciseId`, never a name snapshot, so after deletion history renders the raw
-id (e.g. `custom_3`). Either the copy or the behaviour should change; the copy describes the
-intended design.
+Sessions store only `exerciseId`, never a name snapshot, so the deleted definition is **retired**
+rather than dropped: it moves to a local list (`muscleos_retired_custom_exercises`) that
+`getExercise()` falls back to after the catalog and live customs. History, PRs, progression and
+recovery keep resolving its name and muscles; the library, pickers and `getAllExercises()` never
+show it. A delete arriving from another device by sync (a tombstone) retires the local copy the
+same way. The retired list is device-local and is cleared by Clear all data.
 
 ## Search
 
@@ -295,8 +298,11 @@ search text.
 
 Default order with no query is catalog array order with customs appended — **not alphabetical**.
 
-**List item:** name plus a "Custom" badge where applicable, muscle labels, then category and
-equipment labels (category alone when a custom has no equipment).
+**List item:** name plus a "Custom" badge where applicable, muscle labels, then the type line
+(`exerciseTypeLine()`): the category, then any equipment whose label differs from it —
+`Free Weight · Barbell`, `Cable · Band`, but just `Machine` or `Bodyweight` rather than repeating
+the word, and the category alone when a custom has no equipment. The detail sheet's Type row uses
+the same line.
 
 **Empty states:** with a search query and no results, a **Create "<query>"** row offers to save
 it as a custom ("Add it as a custom exercise on your account." on Pro, "Pro · save your own
@@ -340,7 +346,7 @@ exercise are all **Basic**.
 | Instructions ship in the binary and from the server | Bundled seed includes them; later copy changes arrive by delta |
 | Custom exercises always track `weight_reps` | The field isn't editable |
 | No dedupe against the catalog or between customs | Names are not unique |
-| Sessions reference exercises by id only | No name snapshot — deleting a custom breaks history display |
+| Sessions reference exercises by id only | No name snapshot — deleted customs are retired, not dropped, so history still resolves them |
 | Custom exercises are account-private | Enforced by RLS |
 | The catalog is shared and pulled by anonymous users too | It isn't user data |
 | Default list order is catalog order | Not alphabetical, not by usage |
@@ -366,11 +372,12 @@ Covered (Vitest):
   stored watermark, state set without waiting on the network; refresh merge + persist + watermark,
   empty delta writes nothing, single in-flight pull; `getAllExercises` hides unpublished rows and
   lists catalog then customs; custom add / update / remove (ids, normalization, instructions
-  cleared, catalog ids not updatable, sync notifications, note deleted with the custom)
+  cleared, catalog ids not updatable, sync notifications, note deleted with the custom); a removed
+  custom is retired (still resolvable, never listed, persisted) and its id never reused
 - `src/store/exerciseNotesStore.test.ts` — load, trim, delete on empty, snapshot notification
 - `src/sync/userExercises.test.ts` — custom-exercise notifications skipped when sync is off,
   queued when on (delete replaces a pending upsert); outbox → `user_exercises` rows and soft
-  tombstones; `applyRemoteUserExercises` (add, take remote, tombstone removes, dirty local wins)
+  tombstones; `applyRemoteUserExercises` (add, take remote, tombstone removes and retires, dirty local wins)
 - `src/utils/exerciseSearch.test.ts`, `exerciseSearchScoring.test.ts` — normalization, every
   score tier (1000 / 960 / 800 / 700 / 640 / 520 / 400 / 280 / 260), the 5-char floor for
   whole-string fuzzy, fuzzy limits by length, field bonuses, the 350 metadata cap, tie-break by
@@ -379,12 +386,13 @@ Covered (Vitest):
   stripped, `['chest']` fallback only when nothing valid is left, name → id fallback,
   `weight_reps` default, instructions trimmed/dropped, snake_case mapping
 - `src/utils/exerciseLibraryFilter.test.ts` — Muscle groups (single Chest), Type / Muscle / query
-  AND, order kept with no query, the `<Type> · <Muscle>` summary
+  AND, order kept with no query, the `<Type> · <Muscle>` summary, and the type line (equipment
+  matching the category isn't repeated)
 - `src/utils/customExerciseForm.test.ts` — edit target only for existing customs; validation
   (trimmed name, Type, ≥1 muscle, no max length, blank instructions → none)
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper including every lowercase word;
   every catalog name matches it
-- `src/utils/exerciseIds.test.ts` — custom id numbering; alias resolution, unpublished rows still
+- `src/utils/exerciseIds.test.ts` — custom id numbering; retired customs resolve after live ones; alias resolution, unpublished rows still
   resolving, unknown ids; catalog invariants
 - `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels
 - `src/data/builtInTemplates.test.ts` — every built-in template exercise id exists in the catalog
@@ -404,7 +412,6 @@ Covered (Jest UI, `src/test/ui/exercises/`):
 Not covered:
 
 - The template-builder and active-workout exercise pickers (covered with their screens' specs)
-- Display behaviour after deleting a custom exercise referenced by history
 - The generator script itself (its output is checked through `catalogSeed.ts`)
 - Mounting `/create-exercise` as the very first route on Basic: the test renderer rejects a
   redirect before the root layout mounts, so the gate is tested with the form opened over a tab

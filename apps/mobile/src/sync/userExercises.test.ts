@@ -1,7 +1,7 @@
 import type { Exercise } from '@muscleos/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetAsyncStorage } from '@/test/mocks/asyncStorage';
-import { getCustomExercises, setCustomExercises } from '@/storage/localStorage';
+import { getCustomExercises, getRetiredCustomExercises, setCustomExercises } from '@/storage/localStorage';
 
 /**
  * Custom exercise sync (docs/features/exercise-library.md#storage-and-privacy): notifications only
@@ -140,10 +140,16 @@ describe('applyRemoteUserExercises', () => {
     expect((await getCustomExercises())[0].name).toBe('Remote Name');
   });
 
-  it('applies a remote tombstone by removing the local custom', async () => {
+  it('applies a remote tombstone by removing the local custom and retiring it for history', async () => {
     await setCustomExercises([custom]);
     expect(await applyRemoteUserExercises([remote({ deleted_at: '2026-10-03T00:00:00.000Z' })])).toBe(true);
     expect(await getCustomExercises()).toEqual([]);
+    expect((await getRetiredCustomExercises()).map((e) => [e.id, e.name])).toEqual([['custom_1', 'Band Pull-Apart']]);
+  });
+
+  it('retires nothing for a tombstone of a custom this device never had', async () => {
+    expect(await applyRemoteUserExercises([remote({ deleted_at: '2026-10-03T00:00:00.000Z' })])).toBe(false);
+    expect(await getRetiredCustomExercises()).toEqual([]);
   });
 
   it('keeps a locally edited (dirty) custom over a remote change', async () => {

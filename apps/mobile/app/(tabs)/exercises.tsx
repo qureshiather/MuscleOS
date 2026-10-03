@@ -22,13 +22,14 @@ import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useProGate } from '@/hooks/useProGate';
-import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatEquipmentLabels, formatMuscleLabels } from '@muscleos/types';
+import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatMuscleLabels } from '@muscleos/types';
 import type { Exercise, ExerciseCategory } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import {
   LARGE_MUSCLE_GROUPS,
   filterLibraryExercises,
   libraryExercises,
+  exerciseTypeLine,
   libraryFilterSummary,
 } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
@@ -328,8 +329,7 @@ export default function ExercisesScreen() {
               {formatMuscleLabels(item.muscles, ' · ')}
             </Text>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
-              {EXERCISE_CATEGORY_LABELS[item.category]}
-              {item.equipment.length ? ` · ${formatEquipmentLabels(item.equipment)}` : ''}
+              {exerciseTypeLine(item)}
             </Text>
           </Pressable>
         )}
@@ -388,8 +388,7 @@ export default function ExercisesScreen() {
                   </Text>
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Type</Text>
                   <Text style={[styles.bodyText, { color: colors.text }]}>
-                    {EXERCISE_CATEGORY_LABELS[selected.category]}
-                    {selected.equipment.length ? ` · ${formatEquipmentLabels(selected.equipment)}` : ''}
+                    {exerciseTypeLine(selected)}
                   </Text>
                   {isCustomExerciseId(selected.id) ? (
                     <View style={styles.customActions}>

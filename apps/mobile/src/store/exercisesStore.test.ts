@@ -258,7 +258,25 @@ describe('custom exercise CRUD', () => {
     });
   });
 
-  it('numbers from the highest remaining custom, so deleting the highest frees its number', async () => {
+  it('retires a removed custom: still resolvable for history, never listed', async () => {
+    const { AsyncStorage, STORAGE_KEYS, useExercisesStore } = await load();
+    useExercisesStore.setState({ customExercises: [exercise('custom_1'), exercise('custom_2')] });
+    await useExercisesStore.getState().removeExercise('custom_2');
+
+    const state = useExercisesStore.getState();
+    expect(state.getExercise('custom_2')?.id).toBe('custom_2');
+    expect(state.getAllExercises().map((e) => e.id)).not.toContain('custom_2');
+    expect(JSON.parse((await AsyncStorage.getItem(STORAGE_KEYS.retiredCustomExercises)) ?? '[]')).toEqual([
+      expect.objectContaining({ id: 'custom_2' }),
+    ]);
+
+    // A fresh load reads the retired list back.
+    useExercisesStore.setState({ retiredExercises: [] });
+    await useExercisesStore.getState().load();
+    expect(useExercisesStore.getState().getExercise('custom_2')?.id).toBe('custom_2');
+  });
+
+  it('never reuses a deleted custom id, so a new exercise cannot inherit its history', async () => {
     const { useExercisesStore } = await load();
     useExercisesStore.setState({ customExercises: [exercise('custom_1'), exercise('custom_2')] });
     await useExercisesStore.getState().removeExercise('custom_2');
@@ -268,6 +286,6 @@ describe('custom exercise CRUD', () => {
       equipment: [],
       category: 'machine',
     });
-    expect(created.id).toBe('custom_2');
+    expect(created.id).toBe('custom_3');
   });
 });

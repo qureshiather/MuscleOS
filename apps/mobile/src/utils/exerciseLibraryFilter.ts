@@ -1,5 +1,5 @@
 import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
-import { EXERCISE_CATEGORY_LABELS, muscleLabel } from '@muscleos/types';
+import { EXERCISE_CATEGORY_LABELS, equipmentLabel, muscleLabel } from '@muscleos/types';
 import { searchExercises } from '@/utils/exerciseSearch';
 
 /**
@@ -48,4 +48,15 @@ export function muscleFilterLabel(muscle: string | null): string {
 export function libraryFilterSummary(type: ExerciseCategory | null, muscle: string | null): string {
   const typeLabel = type === null ? 'All' : EXERCISE_CATEGORY_LABELS[type];
   return `${typeLabel} · ${muscleFilterLabel(muscle)}`;
+}
+
+/**
+ * The Type line on a library row and in the detail sheet: the category, then any equipment whose
+ * label differs from it — `Free Weight · Barbell`, `Cable · Band`, but `Machine`, not
+ * `Machine · Machine`.
+ */
+export function exerciseTypeLine(exercise: Pick<Exercise, 'category' | 'equipment'>): string {
+  const category = EXERCISE_CATEGORY_LABELS[exercise.category];
+  const extra = exercise.equipment.map(equipmentLabel).filter((label) => label !== category);
+  return [category, ...extra].join(' · ');
 }

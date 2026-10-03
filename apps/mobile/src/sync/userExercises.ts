@@ -1,7 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import type { Exercise } from '@muscleos/types';
-import { getCustomExercises, setCustomExercises } from '@/storage/localStorage';
+import {
+  getCustomExercises,
+  getRetiredCustomExercises,
+  setCustomExercises,
+  setRetiredCustomExercises,
+} from '@/storage/localStorage';
 import { catalogRowToExercise, exerciseToUserRow, normalizeExercise } from '@/utils/exerciseNormalize';
+import { retireExercise } from '@/utils/exerciseIds';
 import { commitOutboxEdits, getOutboxMap, outboxEntryKey } from './outbox';
 import { bumpUpdatedAtIfNeeded, decideEntityApply } from './mergePolicy';
 import { isMissingServerClock } from './pullWatermark';
@@ -78,6 +84,7 @@ export async function applyRemoteUserExercises(rows: RemoteUserExercise[]): Prom
   const [customExercises, outboxMap] = await Promise.all([getCustomExercises(), getOutboxMap()]);
   const outboxBefore = Array.from(outboxMap.values());
   const exerciseMap = new Map(customExercises.map((e) => [e.id, e]));
+  const retiredByTombstone: Exercise[] = [];
   let changed = false;
 
   for (const row of rows) {
@@ -93,6 +100,7 @@ export async function applyRemoteUserExercises(rows: RemoteUserExercise[]): Prom
         remoteUpdatedAt: row.updated_at,
       });
       if (decision === 'take_remote') {
+        if (local) retiredByTombstone.push(local);
         if (exerciseMap.delete(row.id)) changed = true;
       } else if (pending) {
         const updatedAt = bumpUpdatedAtIfNeeded(pending.updatedAt, row.updated_at);
@@ -126,6 +134,11 @@ export async function applyRemoteUserExercises(rows: RemoteUserExercise[]): Prom
 
   if (changed) {
     await setCustomExercises(Array.from(exerciseMap.values()));
+  }
+  if (retiredByTombstone.length > 0) {
+    // Deleted on another device: keep resolving it for this device's history, like a local delete.
+    const retired = retiredByTombstone.reduce(retireExercise, await getRetiredCustomExercises());
+    await setRetiredCustomExercises(retired);
   }
   await commitOutboxEdits(outboxBefore, Array.from(outboxMap.values()));
   return changed;
