@@ -58,7 +58,7 @@ async function openMenu() {
   fireEvent.press(await screen.findByTestId('exercise-menu-0'));
   // Mocked host views never answer measureInWindow; make every mounted one report a box.
   for (const node of screen.UNSAFE_root.findAll(
-    (n) => typeof (n.instance as { measureInWindow?: unknown } | null)?.measureInWindow === 'function'
+    (n: { instance: unknown }) => typeof (n.instance as { measureInWindow?: unknown } | null)?.measureInWindow === 'function'
   )) {
     (node.instance as { measureInWindow: unknown }).measureInWindow = (
       cb: (x: number, y: number, w: number, h: number) => void
