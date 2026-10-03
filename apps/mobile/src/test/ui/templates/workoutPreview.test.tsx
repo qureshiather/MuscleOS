@@ -41,10 +41,18 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-it('missing params → "Missing workout details"', async () => {
-  renderAtNow(routes, '/workout-preview?templateId=sl-a');
+it('no exercises to show → "Missing workout details"', async () => {
+  // Pro, an id that resolves to no template, and no URL exercises: nothing to preview.
+  setPro(true);
+  renderAtNow(routes, '/workout-preview?templateId=not-a-template');
   expect(await screen.findByText('Missing workout details')).toBeTruthy();
   expect(screen.queryByText('Start workout')).toBeNull();
+});
+
+it('a built-in with no URL exercises previews its own exercises', async () => {
+  renderAtNow(routes, '/workout-preview?templateId=sl-a');
+  expect(await screen.findByText('Barbell Squat')).toBeTruthy();
+  expect(screen.queryByText('Missing workout details')).toBeNull();
 });
 
 it('missing template id → "Missing workout details"', async () => {

@@ -17,7 +17,7 @@ Store consoles display localized prices; the table above is the **USD list price
 
 ## Store product IDs
 
-These IDs must match across App Store Connect, Google Play, RevenueCat, and [`apps/mobile/src/utils/revenueCat.ts`](../../apps/mobile/src/utils/revenueCat.ts).
+These IDs must match across App Store Connect, Google Play, RevenueCat, and `PRODUCT_IDS` in [`apps/mobile/src/subscription/plan.ts`](../../apps/mobile/src/subscription/plan.ts) (re-exported by `src/utils/revenueCat.ts`).
 
 | Product ID | Type |
 |------------|------|
@@ -34,7 +34,7 @@ These IDs must match across App Store Connect, Google Play, RevenueCat, and [`ap
 
 ## Code reference
 
-Fallback UI labels (when RC prices aren’t loaded yet) live in [`apps/mobile/src/subscription/pricing.ts`](../../apps/mobile/src/subscription/pricing.ts).
+Fallback UI labels (when RC prices aren’t loaded yet) live in [`apps/mobile/src/subscription/pricing.ts`](../../apps/mobile/src/subscription/pricing.ts). The paywall shows the store's localized `priceString` with the period appended, and computes the annual row's “Save N% vs monthly” from the store's numeric prices, falling back to the USD list prices (44%) when either package hasn't loaded or annual isn't cheaper — see `src/subscription/paywall.ts`.
 
 ## Rationale
 

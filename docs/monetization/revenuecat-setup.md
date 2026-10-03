@@ -50,7 +50,7 @@ Create a subscription group for monthly + annual on iOS.
 ## Supabase identity
 
 - RevenueCat `appUserID` = Supabase `user.id` (set on app init and after account link).
-- Users must link an account before purchasing (anonymous guests see a link-account prompt).
+- Users must link an account before purchasing (anonymous guests see the plans with a **Link account to purchase** button).
 - Restore purchases on a new device after signing in with the same account.
 
 ## Testing

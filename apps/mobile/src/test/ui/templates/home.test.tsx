@@ -146,8 +146,8 @@ describe('sections', () => {
     renderHome();
     await ready();
     expect(screen.queryByLabelText('Custom')).toBeNull();
-    // Basic gets no New / New folder buttons.
-    expect(screen.queryByLabelText('New template')).toBeNull();
+    // Basic still sees New / New folder; they open the paywall (covered in subscriptions/homeGates).
+    expect(screen.getByLabelText('New template')).toBeTruthy();
   });
 
   it('Pro with no customs sees the Custom empty state, expanded by default', async () => {

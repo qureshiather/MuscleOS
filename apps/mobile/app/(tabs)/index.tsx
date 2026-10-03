@@ -29,6 +29,7 @@ import {
   HIDDEN_BUILT_IN_SECTION,
   HIDDEN_CUSTOM_SECTION,
   customSectionVisible,
+  decideTemplateStart,
   defaultFolderExpanded,
   lastDoneByTemplate as computeLastDoneByTemplate,
   showLapsedNotice,
@@ -452,18 +453,26 @@ export default function WorkoutsScreen() {
     return true;
   }
 
-  function handleStartTemplate(template: WorkoutTemplate) {
-    if (!isPro && requiresProToStart(template)) {
-      gatePro('custom_templates');
+  function startFrom(start: PendingStart) {
+    const decision = decideTemplateStart({
+      isPro,
+      template: start.kind === 'empty' ? 'empty' : start.template,
+      hasActiveSession: activeSession != null,
+    });
+    if (decision.startsWith('paywall:')) {
+      gatePro(decision.slice('paywall:'.length) as ProFeature);
       return;
     }
-    if (promptResumeIfActive({ kind: 'template', template })) return;
-    navigateToStart({ kind: 'template', template });
+    if (decision === 'resume-prompt' && promptResumeIfActive(start)) return;
+    navigateToStart(start);
+  }
+
+  function handleStartTemplate(template: WorkoutTemplate) {
+    startFrom({ kind: 'template', template });
   }
 
   function handleStartEmptyWorkout() {
-    if (promptResumeIfActive({ kind: 'empty' })) return;
-    navigateToStart({ kind: 'empty' });
+    startFrom({ kind: 'empty' });
   }
 
   function handleDismissResumeConfirm() {
@@ -767,9 +776,7 @@ export default function WorkoutsScreen() {
                 }),
               },
             ]}
-            onPress={() =>
-              isPro ? handleStartEmptyWorkout() : gatePro('empty_workout')
-            }
+            onPress={handleStartEmptyWorkout}
           >
             <View style={styles.startEmptyCardInner}>
               <View
@@ -844,8 +851,8 @@ export default function WorkoutsScreen() {
 
           <View style={styles.templatesSectionRow}>
             <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
-            {isPro ? (
-              <View style={styles.templatesSectionActions}>
+            {/* Shown on Basic too: tapping opens the custom_templates paywall. */}
+            <View style={styles.templatesSectionActions}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="New folder"
@@ -868,7 +875,6 @@ export default function WorkoutsScreen() {
                   <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
                 </Pressable>
               </View>
-            ) : null}
           </View>
 
           {isLoading ? (

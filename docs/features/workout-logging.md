@@ -466,7 +466,7 @@ the real router.
 - `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and `pickerFooter`
 - `src/utils/formatClock.test.ts` — the shared `m:ss` formatter
 - `src/storage/localStorage.activeWorkout.test.ts` — persist/resume round-trip and guards
-- Deep-link Pro gate: `src/subscription/features.test.ts` (`blockedStartFeature`)
+- Deep-link Pro gate: `src/subscription/features.test.ts` (`startFromParamsDecision`)
 
 **Jest UI (`src/test/ui/workout/`):**
 
