@@ -881,8 +881,8 @@ export default function WorkoutsScreen() {
 
           <View style={styles.templatesSectionRow}>
             <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
-            {isPro ? (
-              <View style={styles.templatesSectionActions}>
+            {/* Shown on Basic too: tapping opens the custom_templates paywall. */}
+            <View style={styles.templatesSectionActions}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="New folder"
@@ -905,7 +905,6 @@ export default function WorkoutsScreen() {
                   <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
                 </Pressable>
               </View>
-            ) : null}
           </View>
 
           {isLoading ? (

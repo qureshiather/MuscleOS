@@ -32,10 +32,16 @@ import {
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import { blockedStartFeature, subscriptionPaywallPath } from '@/subscription/features';
+import {
+  midWorkoutEditDecision,
+  startFromParamsDecision,
+  subscriptionPaywallPath,
+} from '@/subscription/features';
+import { startPlanFromParams } from '@/subscription/startPlan';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useProGate } from '@/hooks/useProGate';
+import { useProGate, useRedirectWhenReady } from '@/hooks/useProGate';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
@@ -71,7 +77,6 @@ import {
 import { isCurrentSet as computeIsCurrentSet, setLabel } from '@/utils/workoutSetView';
 import {
   canCompleteSet,
-  parseStartParams,
   restDurationAfterComplete,
   startPrefillPatch,
 } from '@/store/activeWorkoutLogic';
@@ -572,6 +577,11 @@ export default function ActiveWorkoutScreen() {
   const exerciseNotes = useExerciseNotesStore((s) => s.notes);
   const setExerciseNote = useExerciseNotesStore((s) => s.setNote);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
+  const templatesLoaded = useTemplatesStore((s) => !s.isLoading);
+  const subscriptionLoaded = useSubscriptionStore((s) => !s.isLoading);
+  const paramsTemplate = useTemplatesStore((s) =>
+    params.templateId ? s.allTemplates().find((t) => t.id === params.templateId) : undefined
+  );
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
   const updateTemplate = useTemplatesStore((s) => s.updateTemplate);
   // Selected through the store (not allTemplates(), which is a stable function) so the
@@ -728,41 +738,49 @@ export default function ActiveWorkoutScreen() {
     setExerciseMenuExIdx(exIdx);
   };
 
+  // Last line of defence: notifications and deep links reach this screen directly, so a lapsed
+  // subscription must not be able to start Pro-only work here either. Waits for the persisted
+  // workout, templates and tier to load; an already-running session is untouched.
+  const startDecision =
+    startedFromParamsRef.current || leavingWorkoutRef.current
+      ? 'wait'
+      : startFromParamsDecision({
+          hasSession: session != null || !hydrated,
+          templatesLoaded,
+          subscriptionLoaded,
+          isPro,
+          templateId: params.templateId ?? '',
+          template: paramsTemplate,
+        });
+  useRedirectWhenReady(
+    startDecision !== 'wait' && startDecision !== 'start'
+      ? (subscriptionPaywallPath(startDecision) as Href)
+      : null
+  );
   useEffect(() => {
-    if (!params.templateId || session || startedFromParamsRef.current || leavingWorkoutRef.current) {
-      return;
-    }
-    // Last line of defence: notifications and deep links reach this screen directly, so
-    // a lapsed subscription must not be able to start Pro-only work here either. An
-    // already-running session is untouched — this only blocks starting a new one.
-    const blockedBy = blockedStartFeature({
-      isPro,
-      templateId: params.templateId,
-      template: allTemplates().find((t) => t.id === params.templateId),
-    });
-    if (blockedBy != null) {
-      router.replace(subscriptionPaywallPath(blockedBy) as Href);
-      return;
-    }
+    if (startDecision !== 'start' || !params.templateId || startedFromParamsRef.current) return;
     startedFromParamsRef.current = true;
-    const plan = parseStartParams({
-      exerciseIds: params.exerciseIds,
-      sets: params.sets,
-      warmUpSets: params.warmUpSets,
-      defaultSets: params.defaultSets,
+    const plan = startPlanFromParams({
+      isPro,
+      template: paramsTemplate,
+      params: {
+        exerciseIds: params.exerciseIds,
+        sets: params.sets,
+        warmUpSets: params.warmUpSets,
+        defaultSets: params.defaultSets,
+      },
     });
     startWorkout(params.templateId, plan);
   }, [
+    startDecision,
     params.templateId,
     params.exerciseIds,
     params.sets,
     params.warmUpSets,
     params.defaultSets,
-    session,
     startWorkout,
     isPro,
-    allTemplates,
-    router,
+    paramsTemplate,
   ]);
 
   // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page),
@@ -924,16 +942,15 @@ export default function ActiveWorkoutScreen() {
 
   async function handleFinish(updateCustomTemplate?: boolean) {
     if (!session) return;
+    const template = allTemplates().find((t) => t.id === session.templateId);
+    const overwrite = updateCustomTemplate === true && template != null && !template.isBuiltIn;
+    // Gate before leaving: a Basic tap must not close the summary or mark the workout as leaving.
+    if (overwrite && !gatePro('save_as_template')) return;
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
     leavingWorkoutRef.current = true;
 
-    const template = allTemplates().find((t) => t.id === session.templateId);
-    if (updateCustomTemplate && template && !template.isBuiltIn) {
-      if (!isPro) {
-        gatePro('save_as_template');
-        return;
-      }
+    if (overwrite) {
       await updateTemplate(session.templateId, {
         ...serializeTemplateExercises(templateExercisesFromSession(session.exercises)),
       });
@@ -1157,6 +1174,14 @@ export default function ActiveWorkoutScreen() {
   }
 
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
+  /** Mid-workout add / replace / remove gate: built-in alert or paywall on Basic. */
+  const allowMidWorkoutEdit = (action: 'add' | 'replace' | 'remove'): boolean => {
+    const decision = midWorkoutEditDecision({ action, isBuiltIn: isBuiltInWorkout, isPro });
+    if (decision === 'allow') return true;
+    if (decision === 'builtin-alert') alertCannotEditBuiltIn();
+    else gatePro(decision);
+    return false;
+  };
   const isNoTemplateWorkout = session.templateId === '_empty';
   const templateListChanged =
     currentTemplate != null &&
@@ -1411,13 +1436,7 @@ export default function ActiveWorkoutScreen() {
                   : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
               ]}
               onPress={() => {
-                if (isBuiltInWorkout && !isPro) {
-                  alertCannotEditBuiltIn();
-                  return;
-                }
-                if (gatePro('add_exercise_mid_workout')) {
-                  setExercisePicker({ mode: 'add' });
-                }
+                if (allowMidWorkoutEdit('add')) setExercisePicker({ mode: 'add' });
               }}
             >
               <Ionicons name="add-circle-outline" size={22} color={isPro ? colors.primary : colors.textSecondary} />
@@ -1987,13 +2006,7 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onReplace={() => {
                     closeExerciseMenu();
-                    if (isBuiltInWorkout && !isPro) {
-                      alertCannotEditBuiltIn();
-                      return;
-                    }
-                    if (gatePro('replace_exercise_mid_workout')) {
-                      setExercisePicker({ mode: 'replace', exIdx });
-                    }
+                    if (allowMidWorkoutEdit('replace')) setExercisePicker({ mode: 'replace', exIdx });
                   }}
                   onEditRest={() => {
                     const ex = session.exercises[exIdx];
@@ -2010,10 +2023,7 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onRemove={() => {
                     closeExerciseMenu();
-                    if (isBuiltInWorkout && !isPro) {
-                      alertCannotEditBuiltIn();
-                      return;
-                    }
+                    if (!allowMidWorkoutEdit('remove')) return;
                     setRemoveExerciseTarget({
                       exIdx,
                       name: exercise?.name ?? se.exerciseId,
