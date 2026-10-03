@@ -10,7 +10,7 @@ import { APP_SETTINGS_KEYS, getAppSettings } from '@/storage/localStorage';
 const notifyAppSettingsSnapshot = vi.hoisted(() => vi.fn());
 vi.mock('@/sync', () => ({ notifyAppSettingsSnapshot }));
 
-const { useSettingsStore } = await import('./settingsStore');
+const { persistAndNotify, useSettingsStore } = await import('./settingsStore');
 
 beforeEach(() => {
   __resetAsyncStorage();
@@ -64,5 +64,27 @@ describe('settingsStore setters', () => {
     });
     expect(notifyAppSettingsSnapshot).toHaveBeenCalledTimes(5);
     expect(notifyAppSettingsSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({ themePreference: 'auto', profile: { weightKg: 80 } });
+  });
+});
+
+describe('shared settings write queue', () => {
+  it('a theme change at the same moment as a unit change keeps both', async () => {
+    await useSettingsStore.getState().load();
+    // The theme picker (ThemeContext.setTheme) writes through persistAndNotify too.
+    await Promise.all([
+      persistAndNotify({ themePreference: 'dark' }),
+      useSettingsStore.getState().setWeightUnit('lb'),
+      useSettingsStore.getState().setWorkoutSoundsEnabled(false),
+    ]);
+    expect(await getAppSettings()).toMatchObject({
+      themePreference: 'dark',
+      weightUnit: 'lb',
+      workoutSoundsEnabled: false,
+    });
+    expect(notifyAppSettingsSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({
+      themePreference: 'dark',
+      weightUnit: 'lb',
+      workoutSoundsEnabled: false,
+    });
   });
 });
