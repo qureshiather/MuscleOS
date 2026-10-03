@@ -32,11 +32,12 @@ type ZoomCardProps = {
   width?: number;
   subtitle: ReactNode;
   accessibilityLabel: string;
+  testID?: string;
   onPress: () => void;
 };
 
 /** Template card with the trained muscles as zoomed body art behind the name. */
-function ZoomCard({ template, art, gender, height, width, subtitle, accessibilityLabel, onPress }: ZoomCardProps) {
+function ZoomCard({ template, art, gender, height, width, subtitle, accessibilityLabel, testID, onPress }: ZoomCardProps) {
   const { colors, isDark } = useTheme();
   const [measured, setMeasured] = useState(width ?? 0);
   const cardWidth = width ?? measured;
@@ -47,6 +48,7 @@ function ZoomCard({ template, art, gender, height, width, subtitle, accessibilit
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      testID={testID}
       onLayout={width ? undefined : (e) => setMeasured(Math.round(e.nativeEvent.layout.width))}
       style={({ pressed }) => [
         styles.zoomCard,
@@ -110,6 +112,7 @@ export function RecentWorkoutsRow({ items, onPress, formatRelative, getRegions, 
             width={cardWidth}
             height={RECENT_CARD_HEIGHT}
             accessibilityLabel={`${template.name}${completedAgo ? `, ${completedAgo}` : ''}`}
+            testID={`recent-card-${template.id}`}
             onPress={() => onPress(template)}
             subtitle={
               completedAgo ? (
@@ -145,6 +148,7 @@ export function SuggestedWorkoutsGrid({ items, onPress, getRegions, gender }: Su
           gender={gender}
           height={SUGGESTED_CARD_HEIGHT}
           accessibilityLabel={`${template.name}, ${template.exerciseIds.length} exercises`}
+          testID={`suggested-card-${template.id}`}
           onPress={() => onPress(template)}
           subtitle={
             <View style={styles.count}>
