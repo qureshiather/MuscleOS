@@ -7,7 +7,10 @@ export interface ExerciseNotesStoreState {
   isLoading: boolean;
   load: () => Promise<void>;
   getNote: (exerciseId: string) => string;
+  /** Notes are trimmed; an empty note deletes the entry. Every change pushes a full snapshot. */
   setNote: (exerciseId: string, note: string) => Promise<void>;
+  /** Drop an exercise's note (used when a custom exercise is deleted). No-op when there is none. */
+  removeNote: (exerciseId: string) => Promise<void>;
 }
 
 export const useExerciseNotesStore = create<ExerciseNotesStoreState>((set, get) => ({
@@ -34,5 +37,12 @@ export const useExerciseNotesStore = create<ExerciseNotesStoreState>((set, get) 
     await setExerciseNotes(next);
     set({ notes: next });
     notifyExerciseNotesSnapshot(next);
+  },
+
+  removeNote: async (exerciseId) => {
+    // Notes may not be loaded yet; writing from the empty initial state would wipe storage.
+    if (get().isLoading) await get().load();
+    if (!(exerciseId in get().notes)) return;
+    await get().setNote(exerciseId, '');
   },
 }));

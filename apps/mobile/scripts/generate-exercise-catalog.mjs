@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /**
- * Generate catalog seed TS + SQL from src/data/exercises.ts (the hand-maintained source).
- * The bundled seed and seed SQL omit instructions; instruction copy ships to
- * catalog_exercises through a separate migration.
+ * Generate the bundled catalog seed (src/data/catalogSeed.ts) from src/data/exercises.ts (the
+ * hand-maintained source). The seed carries instructions so a fresh install has them without a
+ * delta pull.
+ *
+ * It never writes an already-applied migration. Server-side catalog changes ship as new
+ * migrations: instruction copy through --instructions-migration, other field changes by hand.
  *
  * Usage:
  *   node scripts/generate-exercise-catalog.mjs
@@ -10,7 +13,7 @@
  *     also writes supabase/migrations/<timestamp>_<name>.sql, which sets every catalog
  *     row's instructions from exercises.ts and bumps updated_at so clients pull it.
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +21,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '../../..');
 const SRC_PATH = join(__dirname, '../src/data/exercises.ts');
 const TS_OUT = join(__dirname, '../src/data/catalogSeed.ts');
-const SQL_OUT = join(ROOT, 'supabase/migrations/20260830020000_catalog_exercises_seed.sql');
 
 const SEED_UPDATED_AT = '2026-10-02T00:00:00.000Z';
 
@@ -130,7 +132,7 @@ for (const e of catalog) counts[e.category]++;
 const tsLines = [
   `import type { Exercise } from '@muscleos/types';`,
   ``,
-  `/** Bundled catalog floor. Same rows as the SQL seed. Generated — do not edit by hand. */`,
+  `/** Bundled catalog floor, instructions included. Generated — do not edit by hand. */`,
   `export const CATALOG_SEED_UPDATED_AT = ${tsString(SEED_UPDATED_AT)};`,
   ``,
   `export const CATALOG_SEED: Exercise[] = [`,
@@ -146,38 +148,13 @@ for (const e of catalog) {
   ];
   if (e.aliases.length) parts.push(`aliases: [${e.aliases.map(tsString).join(', ')}]`);
   if (!e.isPublished) parts.push(`isPublished: false`);
+  if (e.instructions) parts.push(`instructions: ${tsString(e.instructions)}`);
   tsLines.push(`  { ${parts.join(', ')} },`);
 }
 
 tsLines.push(`];`, ``);
 
-const sqlRows = catalog.map((e) => {
-  return `  (${sqlString(e.id)}, ${sqlString(e.name)}, NULL, ${sqlString(e.category)}, ${sqlTextArray(e.muscles)}, ${sqlTextArray(e.equipment)}, ${sqlTextArray(e.aliases)}, 'weight_reps', ${e.isPublished}, timestamptz '${SEED_UPDATED_AT}')`;
-});
-
-const sql = `-- Generated catalog seed. Instructions left null until reviewed.
--- Do not edit by hand; regenerate with apps/mobile/scripts/generate-exercise-catalog.mjs
-
-insert into public.catalog_exercises (
-  id, name, instructions, category, muscles, equipment, aliases, tracking_type, is_published, updated_at
-) values
-${sqlRows.join(',\n')}
-on conflict (id) do update set
-  name = excluded.name,
-  category = excluded.category,
-  muscles = excluded.muscles,
-  equipment = excluded.equipment,
-  aliases = excluded.aliases,
-  tracking_type = excluded.tracking_type,
-  is_published = excluded.is_published,
-  updated_at = excluded.updated_at
-  -- instructions are not overwritten so reviewed copy on the server is kept
-  where public.catalog_exercises.updated_at <= excluded.updated_at;
-`;
-
-mkdirSync(dirname(SQL_OUT), { recursive: true });
 writeFileSync(TS_OUT, tsLines.join('\n'));
-writeFileSync(SQL_OUT, sql);
 
 if (INSTRUCTIONS_MIGRATION) {
   const missing = catalog.filter((e) => !e.instructions).map((e) => e.id);
@@ -202,6 +179,10 @@ where c.id = v.id
   and c.instructions is distinct from v.instructions;
 `;
   const instructionsOut = join(ROOT, `supabase/migrations/${INSTRUCTIONS_MIGRATION}.sql`);
+  if (existsSync(instructionsOut)) {
+    console.error(`${instructionsOut} already exists; applied migrations are never rewritten`);
+    process.exit(1);
+  }
   writeFileSync(instructionsOut, instructionsSql);
   console.log(`Instructions SQL: ${instructionsOut}`);
 }
@@ -210,4 +191,3 @@ console.log(`Wrote ${catalog.length} exercises`);
 console.log(counts);
 console.log(`unpublished: ${catalog.filter((e) => !e.isPublished).map((e) => e.id).join(', ')}`);
 console.log(`TS: ${TS_OUT}`);
-console.log(`SQL: ${SQL_OUT}`);

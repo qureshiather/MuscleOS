@@ -22,39 +22,15 @@ import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useProGate } from '@/hooks/useProGate';
-import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatEquipmentLabels, formatMuscleLabels, muscleLabel } from '@muscleos/types';
-import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
+import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatEquipmentLabels, formatMuscleLabels } from '@muscleos/types';
+import type { Exercise, ExerciseCategory } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
-import { searchExercises } from '@/utils/exerciseSearch';
-
-/** Large muscle groups for filtering: small muscle IDs in each. */
-const LARGE_MUSCLE_GROUPS: Record<string, MuscleId[]> = {
-  legs: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves'],
-  back: ['lats', 'traps', 'lower_back', 'rhomboids'],
-  chest: ['chest'],
-  shoulders: ['front_delts', 'side_delts', 'rear_delts'],
-};
-
-const LARGE_GROUP_LABELS: Record<string, string> = {
-  legs: 'Legs',
-  back: 'Back',
-  chest: 'Chest',
-  shoulders: 'Shoulders',
-};
-
-function exerciseMatchesType(e: Exercise, typeKey: ExerciseCategory | null): boolean {
-  if (!typeKey) return true;
-  return e.category === typeKey;
-}
-
-function exerciseMatchesMuscleFilter(e: Exercise, muscleFilter: string | null): boolean {
-  if (!muscleFilter) return true;
-  const largeIds = LARGE_MUSCLE_GROUPS[muscleFilter];
-  if (largeIds) {
-    return e.muscles.some((m) => largeIds.includes(m));
-  }
-  return e.muscles.includes(muscleFilter as MuscleId);
-}
+import {
+  LARGE_MUSCLE_GROUPS,
+  filterLibraryExercises,
+  libraryFilterSummary,
+} from '@/utils/exerciseLibraryFilter';
+import { isCustomExerciseId } from '@/utils/exerciseIds';
 
 /** Approximate detail-sheet header (title + Close + padding + hairline). */
 const DETAIL_HEADER_HEIGHT = 64;
@@ -84,16 +60,12 @@ export default function ExercisesScreen() {
     setFiltersExpanded((v) => !v);
   };
 
-  const typeLabel = typeFilter === null ? 'All' : EXERCISE_CATEGORY_LABELS[typeFilter];
-  const muscleFilterLabel = muscleFilter === null ? 'All' : LARGE_GROUP_LABELS[muscleFilter] ?? muscleLabel(muscleFilter as MuscleId);
-  const filterSummary = `${typeLabel} · ${muscleFilterLabel}`;
+  const filterSummary = libraryFilterSummary(typeFilter, muscleFilter);
 
-  const filtered = useMemo(() => {
-    let list = searchExercises(allExercises, search);
-    list = list.filter((e) => exerciseMatchesType(e, typeFilter));
-    list = list.filter((e) => exerciseMatchesMuscleFilter(e, muscleFilter));
-    return list;
-  }, [allExercises, search, typeFilter, muscleFilter]);
+  const filtered = useMemo(
+    () => filterLibraryExercises(allExercises, { query: search, type: typeFilter, muscle: muscleFilter }),
+    [allExercises, search, typeFilter, muscleFilter]
+  );
 
   return (
     <Screen kind="tab">
@@ -118,6 +90,8 @@ export default function ExercisesScreen() {
               pressed && { opacity: 0.85 },
             ]}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Create exercise"
           >
             <Ionicons name="add" size={22} color={isPro ? colors.primary : colors.textSecondary} />
           </Pressable>
@@ -177,6 +151,7 @@ export default function ExercisesScreen() {
                     styles.chip,
                     { backgroundColor: typeFilter === null ? colors.primary : colors.surface },
                   ]}
+                  testID="type-chip-all"
                   onPress={() => setTypeFilter(null)}
                 >
                   <Text
@@ -192,6 +167,7 @@ export default function ExercisesScreen() {
                 {EXERCISE_CATEGORIES.map((key) => (
                   <Pressable
                     key={key}
+                    testID={`type-chip-${key}`}
                     style={[
                       styles.chip,
                       { backgroundColor: typeFilter === key ? colors.primary : colors.surface },
@@ -226,6 +202,7 @@ export default function ExercisesScreen() {
                     styles.chip,
                     { backgroundColor: muscleFilter === null ? colors.primary : colors.surface },
                   ]}
+                  testID="muscle-chip-all"
                   onPress={() => setMuscleFilter(null)}
                 >
                   <Text
@@ -238,9 +215,10 @@ export default function ExercisesScreen() {
                     All
                   </Text>
                 </Pressable>
-                {Object.keys(LARGE_MUSCLE_GROUPS).map((key) => (
+                {Object.entries(LARGE_MUSCLE_GROUPS).map(([key, group]) => (
                   <Pressable
                     key={key}
+                    testID={`muscle-chip-${key}`}
                     style={[
                       styles.chip,
                       { backgroundColor: muscleFilter === key ? colors.primary : colors.surface },
@@ -254,13 +232,14 @@ export default function ExercisesScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {LARGE_GROUP_LABELS[key]}
+                      {group.label}
                     </Text>
                   </Pressable>
                 ))}
                 {Object.values(MUSCLE_GROUPS).map((m) => (
                   <Pressable
                     key={m.id}
+                    testID={`muscle-chip-${m.id}`}
                     style={[
                       styles.chip,
                       { backgroundColor: muscleFilter === m.id ? colors.primary : colors.surface },
@@ -330,7 +309,7 @@ export default function ExercisesScreen() {
           >
             <View style={styles.cardTitleRow}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
-              {item.id.startsWith('custom_') && (
+              {isCustomExerciseId(item.id) && (
                 <View style={[styles.customBadge, { backgroundColor: colors.border }]}>
                   <Text style={[styles.customBadgeText, { color: colors.textSecondary }]}>
                     Custom
@@ -405,7 +384,7 @@ export default function ExercisesScreen() {
                     {EXERCISE_CATEGORY_LABELS[selected.category]}
                     {selected.equipment.length ? ` · ${formatEquipmentLabels(selected.equipment)}` : ''}
                   </Text>
-                  {selected.id.startsWith('custom_') ? (
+                  {isCustomExerciseId(selected.id) ? (
                     <View style={styles.customActions}>
                       <Pressable
                         onPress={() => {
