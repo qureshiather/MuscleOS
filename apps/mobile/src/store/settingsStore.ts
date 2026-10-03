@@ -36,11 +36,19 @@ export interface SettingsState {
   setProfile: (profile: UserAppProfile) => Promise<void>;
 }
 
-async function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<void> {
-  const current = await getAppSettings();
-  const next: SyncedAppSettings = { ...current, ...partial };
-  await setAppSettings(next);
-  notifyAppSettingsSnapshot(next);
+let settingsWrites: Promise<unknown> = Promise.resolve();
+
+/** Read-modify-write of the settings keys, one at a time so quick taps don't drop a change. */
+function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<void> {
+  const write = async () => {
+    const current = await getAppSettings();
+    const next: SyncedAppSettings = { ...current, ...partial };
+    await setAppSettings(next);
+    notifyAppSettingsSnapshot(next);
+  };
+  const run = settingsWrites.then(write, write);
+  settingsWrites = run.catch(() => undefined);
+  return run;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
