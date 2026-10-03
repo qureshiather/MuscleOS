@@ -25,8 +25,14 @@ import type { WorkoutSession } from '@muscleos/types';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 import { fontScaleCap } from '@/theme/layout';
-import { formatCompactVolume } from '@/utils/sessionStats';
-import { buildSessionPRs, buildVolumeDeltas, groupSessionsByWeek } from '@/utils/historyCards';
+import {
+  buildSessionPRs,
+  buildVolumeDeltas,
+  groupSessionsByWeek,
+  isCardExpanded,
+  templateDisplayName,
+  weekSummary,
+} from '@/utils/historyCards';
 import { useSettingsStore } from '@/store/settingsStore';
 
 export default function HistoryScreen() {
@@ -63,17 +69,19 @@ export default function HistoryScreen() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: completedSessions() reads `sessions` from the store.
   const completed = useMemo(() => completedSessions(), [sessions, completedSessions]);
   const templates = allTemplates();
-  const getTemplateName = (templateId: string) =>
-    templates.find((t) => t.id === templateId)?.name ?? 'Workout';
 
   const weeks = useMemo(() => groupSessionsByWeek(completed), [completed]);
-  const sessionPRs = useMemo(() => buildSessionPRs(completed), [completed]);
+  // Alias-logged lifts compete with their canonical catalog exercise.
+  const sessionPRs = useMemo(
+    () => buildSessionPRs(completed, (id) => getExercise(id)?.id ?? id),
+    [completed, getExercise]
+  );
   const volumeDeltas = useMemo(() => buildVolumeDeltas(completed), [completed]);
 
   // The newest session starts open; every other card starts collapsed. `toggled` flips either.
   const newestId = completed[0]?.id;
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
-  const isExpanded = (id: string) => toggled.has(id) !== (id === newestId);
+  const isExpanded = (id: string) => isCardExpanded(id, newestId, toggled);
   const toggle = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setToggled((prev) => {
@@ -114,6 +122,8 @@ export default function HistoryScreen() {
                 pressed && styles.iconButtonPressed,
               ]}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Personal records"
             >
               <Ionicons name="trophy-outline" size={22} color={colors.primary} />
             </Pressable>
@@ -127,39 +137,45 @@ export default function HistoryScreen() {
                 pressed && styles.iconButtonPressed,
               ]}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Monthly calendar"
             >
               <Ionicons name="calendar-outline" size={22} color={colors.primary} />
             </Pressable>
           </View>
         </View>
       </View>
-      {completed.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.surface }]}>
-            <Ionicons name="time-outline" size={28} color={colors.textMuted} />
+      <ScrollView
+        contentContainerStyle={[
+          screenHeaderStyles.scrollContent,
+          { paddingBottom: 40 },
+          completed.length === 0 && styles.emptyContent,
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        testID="history-scroll"
+      >
+        {completed.length === 0 ? (
+          <View style={styles.empty}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.surface }]}>
+              <Ionicons name="time-outline" size={28} color={colors.textMuted} />
+            </View>
+            <Text style={[typography.sectionTitle, { color: colors.text, marginTop: spacing.md }]}>
+              No sessions yet
+            </Text>
+            <Text style={[typography.body, styles.emptyText, { color: colors.textMuted }]}>
+              Finish a workout and it will show up here with duration, volume, and sets.
+            </Text>
           </View>
-          <Text style={[typography.sectionTitle, { color: colors.text, marginTop: spacing.md }]}>
-            No sessions yet
-          </Text>
-          <Text style={[typography.body, styles.emptyText, { color: colors.textMuted }]}>
-            Finish a workout and it will show up here with duration, volume, and sets.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={[screenHeaderStyles.scrollContent, { paddingBottom: 40 }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-          }
-        >
-          {weeks.map((week) => (
+        ) : (
+          weeks.map((week) => (
             <View key={week.weekStart} style={styles.week}>
               <View style={styles.weekHeader}>
                 <Text style={[styles.weekLabel, { color: colors.textMuted }]}>{week.label}</Text>
                 <Text style={[styles.weekStats, { color: colors.textMuted }]}>
-                  {week.sessions.length} {week.sessions.length === 1 ? 'session' : 'sessions'}
-                  {week.volumeKg > 0 ? ` · ${formatCompactVolume(week.volumeKg, weightUnit)}` : ''}
+                  {weekSummary(week, weightUnit)}
                 </Text>
               </View>
               <View style={styles.cardsContainer}>
@@ -167,7 +183,7 @@ export default function HistoryScreen() {
                   <SessionCard
                     key={s.id}
                     session={s}
-                    title={getTemplateName(s.templateId)}
+                    title={templateDisplayName(templates, s.templateId)}
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
                     onDelete={() => setDeleteTarget(s)}
@@ -179,9 +195,9 @@ export default function HistoryScreen() {
                 ))}
               </View>
             </View>
-          ))}
-        </ScrollView>
-      )}
+          ))
+        )}
+      </ScrollView>
       <ConfirmDialog
         visible={deleteTarget != null}
         title="Delete workout"
@@ -225,6 +241,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButtonPressed: { opacity: 0.8 },
+  emptyContent: { flexGrow: 1 },
   empty: {
     flex: 1,
     justifyContent: 'center',
