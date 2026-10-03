@@ -8,7 +8,7 @@ import { spacing, touch } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { cmToDisplay, kgToDisplay } from '@/utils/weightUnits';
+import { biodataSummary } from '@/utils/biodata';
 import { Card } from '@/components/ui/Card';
 import { ListRow } from '@/components/ui/ListRow';
 import { authProviderLabel, linkedAuthProvider } from '@/auth/accountProvider';
@@ -28,14 +28,7 @@ export default function ProfileScreen() {
   const providerIcon =
     provider === 'apple' ? 'logo-apple' : provider === 'google' ? 'logo-google' : 'mail-outline';
 
-  const biodataParts = [
-    profile.heightCm != null
-      ? `${cmToDisplay(profile.heightCm, heightUnit)} ${heightUnit === 'in' ? 'in' : 'cm'}`
-      : null,
-    profile.weightKg != null ? `${kgToDisplay(profile.weightKg, bodyWeightUnit)} ${bodyWeightUnit}` : null,
-    profile.age != null ? String(profile.age) : null,
-    profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : null,
-  ].filter((part): part is string => part != null);
+  const biodataHint = biodataSummary(profile, { heightUnit, bodyWeightUnit });
 
   return (
     <Screen kind="tab">
@@ -112,7 +105,7 @@ export default function ProfileScreen() {
             inset
             last
             title="Height, weight, age, gender"
-            hint={biodataParts.length > 0 ? biodataParts.join(' · ') : 'Used for recovery estimates'}
+            hint={biodataHint}
             testID="profile-biodata"
             onPress={() => router.push('/biodata')}
           />

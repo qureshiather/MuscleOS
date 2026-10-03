@@ -53,6 +53,33 @@ export function parseEmailCallback(url: string): EmailCallback | null {
   return null;
 }
 
+export type EmailCallbackResult =
+  | { result: 'recovery' | 'signed-in' }
+  | { result: 'ignored' }
+  | { result: 'failed'; message: string };
+
+/** How long the auth-callback route waits for the link to complete before giving up. */
+export const AUTH_CALLBACK_FALLBACK_MS = 15_000;
+
+/**
+ * Where to go once a confirm or recovery link is handled. Recovery opens New password; a confirmed
+ * sign-in and a failed link (after its alert) both land on the tabs. Null: not an auth link, so
+ * nothing navigates.
+ */
+export function emailLinkDestination(
+  outcome: EmailCallbackResult
+): '/auth-new-password' | '/(tabs)' | null {
+  switch (outcome.result) {
+    case 'recovery':
+      return '/auth-new-password';
+    case 'signed-in':
+    case 'failed':
+      return '/(tabs)';
+    default:
+      return null;
+  }
+}
+
 export function emailCallbackNeedsNewPassword(callback: EmailCallback | null): boolean {
   if (!callback) return false;
   if (callback.kind === 'otp') return callback.otpType === 'recovery';

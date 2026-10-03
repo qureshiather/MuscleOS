@@ -18,7 +18,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { hydrateActiveWorkout } from '@/store/activeWorkoutStore';
 import { syncNow } from '@/sync';
 import { useSyncStore } from '@/store/syncStore';
-import { parseEmailCallback } from '@/auth/emailCallback';
+import { emailLinkDestination, parseEmailCallback } from '@/auth/emailCallback';
 import { completeEmailCallback } from '@/auth/completeEmailCallback';
 
 // expo-notifications is not supported in Expo Go (SDK 53+). Load only in dev builds / production.
@@ -42,15 +42,13 @@ function EmailAuthLinks() {
       if (!url || seen.has(url) || !parseEmailCallback(url)) return;
       seen.add(url);
       const outcome = await completeEmailCallback(url);
-      if (cancelled || outcome.result === 'ignored') return;
+      if (cancelled) return;
       if (outcome.result === 'failed') {
         if (__DEV__) console.warn('[auth] email link failed', outcome.message);
         Alert.alert('Could not open link', friendlyAuthError({ message: outcome.message }, 'link'));
-        return;
       }
-      router.replace(
-        (outcome.result === 'recovery' ? '/auth-new-password' : '/(tabs)') as Href
-      );
+      const destination = emailLinkDestination(outcome);
+      if (destination) router.replace(destination as Href);
     }
 
     void Linking.getInitialURL().then((url) => {

@@ -6,7 +6,8 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
-import { kgToDisplay, displayToKg, cmToDisplay, displayToCm } from '@/utils/weightUnits';
+import { cmToDisplay, kgToDisplay } from '@/utils/weightUnits';
+import { buildProfileFromInputs, formatBodyWeight, formatHeight, formatSex } from '@/utils/biodata';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { fontScaleCap } from '@/theme/layout';
@@ -34,30 +35,19 @@ export default function BiodataScreen() {
   }
 
   function saveBiodata() {
-    const h = parseFloat(heightInput);
-    const w = parseFloat(weightInput);
-    const a = parseInt(ageInput, 10);
-    const next: typeof profile = { ...profile };
-    if (!Number.isNaN(h) && h > 0) next.heightCm = displayToCm(h, heightUnit);
-    else delete next.heightCm;
-    if (!Number.isNaN(w) && w > 0) next.weightKg = displayToKg(w, bodyWeightUnit);
-    else delete next.weightKg;
-    if (!Number.isNaN(a) && a > 0 && a < 150) next.age = a;
-    else delete next.age;
-    next.sex = sexSelection ?? profile.sex;
-    if (next.sex == null) delete next.sex;
+    const next = buildProfileFromInputs(
+      { height: heightInput, weight: weightInput, age: ageInput, sex: sexSelection },
+      { heightUnit, bodyWeightUnit },
+      profile
+    );
     void setProfile(next);
     setEditorVisible(false);
   }
 
-  const heightDisplay =
-    profile.heightCm != null
-      ? `${cmToDisplay(profile.heightCm, heightUnit)} ${heightUnit === 'in' ? 'in' : 'cm'}`
-      : '—';
-  const weightDisplay =
-    profile.weightKg != null ? `${kgToDisplay(profile.weightKg, bodyWeightUnit)} ${bodyWeightUnit}` : '—';
+  const heightDisplay = profile.heightCm != null ? formatHeight(profile.heightCm, heightUnit) : '—';
+  const weightDisplay = profile.weightKg != null ? formatBodyWeight(profile.weightKg, bodyWeightUnit) : '—';
   const ageDisplay = profile.age != null ? String(profile.age) : '—';
-  const sexDisplay = profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : '—';
+  const sexDisplay = formatSex(profile.sex) ?? '—';
   const heightPlaceholder = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
   const weightPlaceholder = bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
 
@@ -65,7 +55,7 @@ export default function BiodataScreen() {
     <Screen>
       <ScreenHeader
         title="Biodata"
-        subtitle="Used for recovery estimates"
+        subtitle="Used for strength standards"
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={styles.scroll}>

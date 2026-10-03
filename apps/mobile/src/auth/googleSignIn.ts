@@ -1,7 +1,20 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+/**
+ * Google Cloud Web OAuth client id: `extra.googleWebClientId` (app.config.js, build time) first,
+ * then the Metro-inlined env var — the same order as the Supabase keys.
+ */
+export function resolveGoogleWebClientId(extra: Record<string, unknown> | undefined, envValue: string | undefined): string {
+  const fromExtra = typeof extra?.googleWebClientId === 'string' ? extra.googleWebClientId.trim() : '';
+  return fromExtra || envValue?.trim() || '';
+}
 
 export function googleWebClientId(): string {
-  return process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '';
+  return resolveGoogleWebClientId(
+    Constants.expoConfig?.extra as Record<string, unknown> | undefined,
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  );
 }
 
 export type GoogleTokens = { idToken: string; accessToken?: string };
