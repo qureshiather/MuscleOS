@@ -1,3 +1,9 @@
+import { friendlyAuthError } from '@/auth/authErrors';
+
+/** Developer hint for a delete-account call that got a bare non-2xx (function not deployed). */
+export const DELETE_ACCOUNT_DEPLOY_HINT =
+  'Account deletion is not available yet. Deploy the delete-account Edge Function, then try again.';
+
 /** Prefer the function JSON body over the generic FunctionsHttpError message. */
 export async function edgeFunctionErrorMessage(
   error: { message?: string; context?: unknown },
@@ -21,7 +27,25 @@ export async function edgeFunctionErrorMessage(
 
   const message = error.message?.trim();
   if (message?.includes('non-2xx')) {
-    return 'Account deletion is not available yet. Deploy the delete-account Edge Function, then try again.';
+    return DELETE_ACCOUNT_DEPLOY_HINT;
   }
   return message || 'Could not delete account.';
+}
+
+/**
+ * What the Delete account failure dialog says. Raw function and Supabase messages never reach
+ * users: known cases (network, timeout, rate limit) get plain copy, anything else a delete-specific
+ * fallback. The deploy hint shows only in dev builds.
+ */
+export function friendlyDeleteAccountError(error: unknown, isDev: boolean): string {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  if (message === DELETE_ACCOUNT_DEPLOY_HINT) {
+    return isDev ? DELETE_ACCOUNT_DEPLOY_HINT : friendlyAuthError(null, 'delete_account');
+  }
+  if (/expired/i.test(message)) {
+    // An expired JWT here is the session, not an email link.
+    return 'Your sign-in has expired. Sign out, sign back in, and try again.';
+  }
+  const name = error instanceof Error ? error.name : undefined;
+  return friendlyAuthError({ message, name }, 'delete_account');
 }

@@ -13,7 +13,7 @@ import {
   setTemplates,
 } from '@/storage/localStorage';
 import { __resetAsyncStorage } from '@/test/mocks/asyncStorage';
-import { applyRemoteRecords } from './merge';
+import { applyRemoteRecords, snapshotItems } from './merge';
 import { getOutbox, setOutbox } from './outbox';
 import type { RemoteSyncRecord, SyncEntityType } from './types';
 
@@ -124,5 +124,70 @@ describe('applyRemoteRecords', () => {
     ]);
     await applyRemoteRecords([remote('session', 's1', session('s1', T2), T2)]);
     expect(await getOutbox()).toEqual([]);
+  });
+});
+
+describe('snapshotItems (account-link upload)', () => {
+  const settings = {
+    heightUnit: 'cm' as const,
+    weightUnit: 'kg' as const,
+    bodyWeightUnit: 'kg' as const,
+    workoutSoundsEnabled: true,
+    themePreference: 'auto' as const,
+    profile: {},
+  };
+
+  it('uploads every row; sessions keep their own clock, the rest are stamped now', () => {
+    const items = snapshotItems(
+      {
+        sessions: [session('s1', T2)],
+        templates: [template('t1', 'T')],
+        folders: [{ id: 'f1', name: 'F' }],
+        customExercises: [{ id: 'c1' } as never],
+        exercisePrevious: { 'bench-press': { weightKg: 60 } },
+        exerciseNotes: { squat: 'x' },
+        appSettings: settings,
+      },
+      T3
+    );
+    expect(items.map((i) => `${i.entityType}:${i.entityId}:${i.updatedAt}`)).toEqual([
+      `session:s1:${T2}`,
+      `template:t1:${T3}`,
+      `template_folder:f1:${T3}`,
+      `custom_exercise:c1:${T3}`,
+      `exercise_previous:default:${T3}`,
+      `exercise_note:default:${T3}`,
+      `app_settings:default:${T3}`,
+    ]);
+  });
+
+  it('skips empty previous/notes maps but always sends settings', () => {
+    const items = snapshotItems(
+      {
+        sessions: [],
+        templates: [],
+        folders: [],
+        customExercises: [],
+        exercisePrevious: {},
+        exerciseNotes: {},
+        appSettings: settings,
+      },
+      T3
+    );
+    expect(items.map((i) => i.entityType)).toEqual(['app_settings']);
+  });
+});
+
+describe('applyRemoteRecords and a concurrent enqueue (H2)', () => {
+  it('keeps an outbox entry queued while the merge was running', async () => {
+    await setOutbox([
+      { entityType: 'recovery', entityId: 'default', op: 'upsert', payload: [], updatedAt: T1 },
+    ]);
+    const { enqueueOutbox } = await import('./outbox');
+    await Promise.all([
+      applyRemoteRecords([remote('template', 't9', template('t9', 'Remote'), T2)]),
+      enqueueOutbox({ entityType: 'session', entityId: 'new', op: 'upsert', payload: {}, updatedAt: T3 }),
+    ]);
+    expect((await getOutbox()).map((e) => `${e.entityType}:${e.entityId}`)).toEqual(['session:new']);
   });
 });

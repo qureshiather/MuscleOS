@@ -7,14 +7,17 @@ import { spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { exportAndShareData } from '@/storage/exportData';
 import { applyImport, pickImportFile } from '@/storage/importData';
-import { describeImportPlan, importPlanIsEmpty, type ImportPlan } from '@/storage/importPlan';
+import {
+  describeImportPlan,
+  importConfirmMessage,
+  importFailureMessage,
+  importPlanIsEmpty,
+  type ImportPlan,
+} from '@/storage/importPlan';
 import { clearAllData } from '@/storage/localStorage';
-import { useSettingsStore } from '@/store/settingsStore';
-import { useTemplatesStore } from '@/store/templatesStore';
-import { useRecoveryStore } from '@/store/recoveryStore';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { useSessionsStore } from '@/store/sessionsStore';
-import { useExercisesStore } from '@/store/exercisesStore';
+import { reloadAllStores, reloadDataStores } from '@/store/reloadStores';
+import { useSyncStore } from '@/store/syncStore';
+import { manualSyncResult, SYNC_FAILED_MESSAGE, SYNC_FAILED_TITLE } from '@/sync/syncStatus';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ListRow } from '@/components/ui/ListRow';
@@ -22,19 +25,13 @@ import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 
 export default function DataScreen() {
-  const { colors, setTheme } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const isLinked = !useAuthStore((s) => s.isAnonymous);
-  const loadTemplates = useTemplatesStore((s) => s.load);
-  const loadRecovery = useRecoveryStore((s) => s.load);
-  const loadSubscription = useSubscriptionStore((s) => s.load);
-  const loadSettings = useSettingsStore((s) => s.load);
-  const loadSessions = useSessionsStore((s) => s.load);
-  const loadExercises = useExercisesStore((s) => s.load);
 
   async function handleExport() {
     setExporting(true);
@@ -55,12 +52,7 @@ export default function DataScreen() {
       const picked = await pickImportFile();
       if (picked.status === 'cancelled') return;
       if (picked.status === 'failed') {
-        Alert.alert(
-          "Can't import this file",
-          picked.reason === 'unsupported_version'
-            ? 'This export is from a different version of MuscleOS. Update the app and try again.'
-            : 'Choose a file made with Export my data in MuscleOS.'
-        );
+        Alert.alert("Can't import this file", importFailureMessage(picked.reason));
         return;
       }
       if (importPlanIsEmpty(picked.plan)) {
@@ -80,7 +72,7 @@ export default function DataScreen() {
     const summary = describeImportPlan(plan);
     Alert.alert(
       'Import data',
-      `Add ${summary} to this device? Nothing already here is changed or removed.${isLinked ? ' It also backs up to your account.' : ''}`,
+      importConfirmMessage(summary, isLinked),
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -105,18 +97,16 @@ export default function DataScreen() {
   async function handleForceSync() {
     setSyncing(true);
     try {
+      // syncNow never throws; a failure lands in the sync store.
       await syncNow();
-      await Promise.all([
-        loadTemplates(),
-        loadRecovery(),
-        loadSettings(),
-        loadSessions(),
-        loadExercises(),
-      ]);
-      Alert.alert('Synced', 'Your workout data is up to date.');
+      const { lastError } = useSyncStore.getState();
+      if (lastError && __DEV__) console.warn('[sync] failed', lastError);
+      if (!lastError) await reloadDataStores();
+      const result = manualSyncResult(lastError);
+      Alert.alert(result.title, result.message);
     } catch (e) {
       if (__DEV__) console.warn('[sync] failed', e);
-      Alert.alert('Sync failed', "Couldn't sync right now. Check your internet connection and try again.");
+      Alert.alert(SYNC_FAILED_TITLE, SYNC_FAILED_MESSAGE);
     } finally {
       setSyncing(false);
     }
@@ -134,9 +124,10 @@ export default function DataScreen() {
           onPress: async () => {
             setClearing(true);
             try {
+              // Device only: nothing is pushed, so the account's cloud copy is untouched. The theme
+              // provider re-reads storage (Auto) on its own.
               await clearAllData();
-              await setTheme('auto');
-              await Promise.all([loadTemplates(), loadRecovery(), loadSubscription(), loadSettings()]);
+              await reloadAllStores(useAuthStore.getState().user?.id ?? null);
               Alert.alert('Done', 'All data has been cleared.');
             } catch (e) {
               if (__DEV__) console.warn('[data] clear failed', e);

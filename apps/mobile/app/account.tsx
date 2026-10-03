@@ -8,12 +8,8 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
-import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { useTemplatesStore } from '@/store/templatesStore';
-import { useRecoveryStore } from '@/store/recoveryStore';
-import { useSessionsStore } from '@/store/sessionsStore';
-import { useExercisesStore } from '@/store/exercisesStore';
+import { reloadAllStores } from '@/store/reloadStores';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -21,7 +17,8 @@ import { ListRow } from '@/components/ui/ListRow';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useSyncStore } from '@/store/syncStore';
 import { syncNow } from '@/sync';
-import { formatRelative } from '@/utils/relativeTime';
+import { syncStatusLabel } from '@/sync/syncStatus';
+import { friendlyDeleteAccountError } from '@/auth/edgeFunctionError';
 import { LEGAL_URLS } from '@/subscription/legal';
 import {
   authProviderLabel,
@@ -33,7 +30,7 @@ import {
 import { useSignIn } from '@/auth/signIn';
 
 export default function AccountScreen() {
-  const { colors, setTheme } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deletePhase, setDeletePhase] = useState<null | 'warn' | 'confirm' | 'done' | 'failed'>(null);
@@ -47,11 +44,6 @@ export default function AccountScreen() {
   const signOut = useAuthStore((s) => s.signOut);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const loadSubscription = useSubscriptionStore((s) => s.load);
-  const loadSettings = useSettingsStore((s) => s.load);
-  const loadTemplates = useTemplatesStore((s) => s.load);
-  const loadRecovery = useRecoveryStore((s) => s.load);
-  const loadSessions = useSessionsStore((s) => s.load);
-  const loadExercises = useExercisesStore((s) => s.load);
   const isPro = useSubscriptionStore((s) => s.isPro());
   const isSyncing = useSyncStore((s) => s.isSyncing);
   const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
@@ -73,23 +65,12 @@ export default function AccountScreen() {
 
   async function handleSyncTap() {
     if (isSyncing) return;
-    try {
-      await syncNow();
-    } catch (e) {
-      if (__DEV__) console.warn('[sync] failed', e);
-      Alert.alert('Sync failed', "Couldn't sync right now. Check your internet connection and try again.");
-    }
+    // syncNow never throws; a failure shows on the row via the sync store.
+    await syncNow();
   }
 
-  const syncStatusText = isSyncing
-    ? 'Syncing…'
-    : lastSyncError
-      ? 'Sync failed — tap to retry'
-      : lastSyncedAt
-        ? `Last synced ${formatRelative(lastSyncedAt)}`
-        : 'Not synced yet — tap to sync';
-
-  const syncStatusColor = lastSyncError && !isSyncing ? colors.danger : colors.textMuted;
+  const syncStatus = syncStatusLabel({ isSyncing, lastError: lastSyncError, lastSyncedAt });
+  const syncStatusColor = syncStatus.failed ? colors.danger : colors.textMuted;
 
   async function confirmSignOut() {
     setSignOutVisible(false);
@@ -107,18 +88,12 @@ export default function AccountScreen() {
     setDeletingAccount(true);
     try {
       await deleteAccount();
-      await setTheme('auto');
-      await Promise.all([
-        loadTemplates(),
-        loadRecovery(),
-        loadSubscription(),
-        loadSettings(),
-        loadSessions(),
-        loadExercises(),
-      ]);
+      // The wipe resets the theme to Auto through storage; reload every store from the empty device.
+      await reloadAllStores(useAuthStore.getState().user?.id ?? null);
       setDeletePhase('done');
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : String(e));
+      if (__DEV__) console.warn('[account] delete failed', e);
+      setDeleteError(friendlyDeleteAccountError(e, __DEV__));
       setDeletePhase('failed');
     } finally {
       setDeletingAccount(false);
@@ -200,7 +175,7 @@ export default function AccountScreen() {
                   />
                 )}
                 <Text style={[typography.caption, { color: syncStatusColor, flex: 1 }]}>
-                  {syncStatusText}
+                  {syncStatus.label}
                 </Text>
                 {!isSyncing ? (
                   <Ionicons name="refresh-outline" size={16} color={colors.textMuted} />

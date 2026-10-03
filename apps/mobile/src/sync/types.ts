@@ -17,9 +17,19 @@ export interface OutboxEntry {
 }
 
 export interface SyncMeta {
+  /**
+   * The account this transport (outbox + watermark) belongs to. Null in metas written before it
+   * was tracked; the next signed-in sync adopts the current user.
+   */
+  userId: string | null;
   lastPulledAt: string | null;
   lastPushedAt: string | null;
   lastSyncedAt: string | null;
+  /**
+   * Set when the transport switched to a different account. The next sync pulls everything, then
+   * uploads the local rows that account doesn't have yet (the guest's data on sign-in).
+   */
+  pendingLocalUpload?: boolean;
 }
 
 export interface RemoteSyncRecord {

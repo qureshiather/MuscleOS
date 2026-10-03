@@ -6,7 +6,7 @@
 
 type AuthErrorLike = { message?: string; code?: string; status?: number; name?: string } | null | undefined;
 
-export type AuthErrorContext = 'sign_in' | 'sign_up' | 'google' | 'apple' | 'password' | 'link';
+export type AuthErrorContext = 'sign_in' | 'sign_up' | 'google' | 'apple' | 'password' | 'link' | 'delete_account';
 
 export const AUTH_UNAVAILABLE_MESSAGE = "Sign-in isn't available right now. Try again later.";
 
@@ -19,6 +19,7 @@ const FALLBACK: Record<AuthErrorContext, string> = {
   apple: "Couldn't sign in with Apple. Try again, or use another sign-in option.",
   password: "Couldn't update your password. Try again in a moment.",
   link: "Couldn't open that link. Request a new one from the app.",
+  delete_account: "Couldn't delete your account. Try again in a moment.",
 };
 
 export function friendlyAuthError(error: AuthErrorLike, context: AuthErrorContext): string {
