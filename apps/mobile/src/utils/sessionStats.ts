@@ -16,10 +16,14 @@ export function sessionVolumeKg(session: WorkoutSession): number {
   return total;
 }
 
-/** `completedAt − startedAt` to the nearest minute: `45m`, `1h 15m`, `2h`. Null while in progress. */
+/**
+ * `completedAt − startedAt` to the nearest minute: `45m`, `1h 15m`, `2h`. Null while in progress
+ * and for sessions under a minute, so a card never reads `0m`.
+ */
 export function formatSessionDuration(session: WorkoutSession): string | null {
   if (!session.startedAt || !session.completedAt) return null;
   const ms = new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
+  if (!(ms >= 60_000)) return null;
   const min = Math.round(ms / 60000);
   if (min < 60) return `${min}m`;
   const h = Math.floor(min / 60);

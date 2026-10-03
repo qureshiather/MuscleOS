@@ -51,6 +51,8 @@ import { playWorkoutSound } from '@/utils/workoutSounds';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { musclesTrainedInSession } from '@/utils/recovery';
+import { templateDisplayName } from '@/utils/historyCards';
 import { Ionicons } from '@expo/vector-icons';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
 import { pickerFooter, pickerResults } from '@/utils/exercisePicker';
@@ -901,18 +903,14 @@ export default function ActiveWorkoutScreen() {
       });
     }
 
-    const muscleIdSet = new Set<MuscleId>();
-    for (const se of session.exercises) {
-      if (!se.sets.some((s) => s.completed)) continue;
-      const exercise = getExercise(se.exerciseId);
-      for (const m of exercise?.muscles ?? []) {
-        muscleIdSet.add(m);
-      }
-    }
-
     const summary: FinishedSummary = {
-      ...buildFinishSummary(session, template?.name, exerciseName, elapsedMs),
-      muscleIds: [...muscleIdSet],
+      ...buildFinishSummary(
+        session,
+        templateDisplayName(allTemplates(), session.templateId),
+        exerciseName,
+        elapsedMs
+      ),
+      muscleIds: musclesTrainedInSession(session, getExercise),
     };
 
     if (workoutSoundsEnabled) {
@@ -1040,9 +1038,7 @@ export default function ActiveWorkoutScreen() {
                 Muscles trained
               </Text>
               <MuscleDiagram
-                muscleIds={finishedSummary.muscleIds}
-                recoveringMuscleIds={finishedSummary.muscleIds}
-                justTrainedMuscleIds={finishedSummary.muscleIds}
+                sessionMuscleIds={finishedSummary.muscleIds}
                 size={0.72}
               />
             </View>

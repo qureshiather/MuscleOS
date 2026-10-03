@@ -8,6 +8,13 @@ import {
 import { notifySessionDelete, notifyExercisePreviousSnapshot } from '@/sync';
 import { rebuildPreviousSnapshot } from '@/store/activeWorkoutLogic';
 import { useRecoveryStore } from '@/store/recoveryStore';
+/** Completed sessions, newest first (by `completedAt`). */
+export function completedNewestFirst(sessions: readonly WorkoutSession[]): WorkoutSession[] {
+  return sessions
+    .filter((s) => s.completedAt != null)
+    .sort((a, b) => b.completedAt!.localeCompare(a.completedAt!));
+}
+
 export interface SessionsState {
   sessions: WorkoutSession[];
   isLoading: boolean;
@@ -45,10 +52,5 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     notifyExercisePreviousSnapshot(prev);
   },
 
-  completedSessions: () => {
-    const { sessions } = get();
-    return sessions
-      .filter((s) => s.completedAt != null)
-      .sort((a, b) => (b.completedAt!.localeCompare(a.completedAt!)));
-  },
+  completedSessions: () => completedNewestFirst(get().sessions),
 }));

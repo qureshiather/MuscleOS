@@ -8,20 +8,17 @@ import { radius, spacing } from '@/theme/tokens';
 import { useTextScaledSize } from '@/theme/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
-import { useSessionsStore } from '@/store/sessionsStore';
+import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatWeight } from '@/utils/weightUnits';
+import { buildExercisePRs, formatE1RM } from '@/utils/oneRepMax';
 import {
-  buildExercisePRs,
-  type ExercisePR,
-  type SetWithDate,
-} from '@/utils/oneRepMax';
-import {
-  compareToStrengthStandards,
-  STRENGTH_LEVEL_LABELS,
-  type StrengthLevel,
-} from '@/data/strengthStandards';
+  type ProgressPoint,
+  progressionPoints,
+  type StrengthSummary,
+  strengthSummary,
+} from '@/utils/personalRecords';
 import { useRequirePro } from '@/hooks/useProGate';
 
 const CHART_HEIGHT = 180;
@@ -32,28 +29,22 @@ function formatChartDate(iso: string): string {
 }
 
 function ProgressionChart({
-  history,
-  max1RM,
+  points,
   colors,
 }: {
-  history: SetWithDate[];
-  max1RM: number;
+  points: ProgressPoint[];
   colors: Record<string, string>;
 }) {
   const chartHeight = useTextScaledSize(CHART_HEIGHT);
-  const points = [...history].sort(
-    (a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
-  );
   if (points.length === 0) return null;
 
   return (
     <View style={[styles.chartContainer, { backgroundColor: colors.surfaceElevated }]}>
       <View style={[styles.chart, { height: chartHeight }]}>
         {points.map((p, i) => {
-          const ratio = max1RM > 0 ? Math.min(1, p.estimated1RM / max1RM) : 0;
-          const barH = Math.max(4, ratio * (chartHeight - 24));
+          const barH = Math.max(4, p.ratio * (chartHeight - 24));
           return (
-            <View key={`${p.completedAt}-${i}`} style={styles.barColumn}>
+            <View key={`${p.completedAt}-${i}`} testID="progression-bar" style={styles.barColumn}>
               <View
                 style={[
                   styles.bar,
@@ -84,24 +75,20 @@ function ProgressionChart({
 }
 
 function StrengthStandardBar({
-  comparison,
+  strength,
   weightUnit,
   colors,
 }: {
-  comparison: { level: StrengthLevel; nextLevel1RMKg: number | null; nextLevelName: string | null; hasStandards: boolean };
+  strength: StrengthSummary;
   weightUnit: 'kg' | 'lb';
   colors: Record<string, string>;
 }) {
-  if (!comparison.hasStandards) return null;
-  const { level, nextLevel1RMKg, nextLevelName } = comparison;
   return (
     <View style={[styles.standardCard, { backgroundColor: colors.surfaceElevated }]}>
-      <Text style={[styles.standardTitle, { color: colors.text }]}>
-        Strength level: {STRENGTH_LEVEL_LABELS[level]}
-      </Text>
-      {nextLevelName && nextLevel1RMKg != null && (
+      <Text style={[styles.standardTitle, { color: colors.text }]}>Strength level: {strength.label}</Text>
+      {strength.next && (
         <Text style={[styles.standardHint, { color: colors.textMuted }]}>
-          Next ({nextLevelName}): {formatWeight(nextLevel1RMKg, weightUnit)}
+          Next ({strength.next.label}): {formatE1RM(strength.next.oneRepMaxKg, weightUnit)}
         </Text>
       )}
     </View>
@@ -116,7 +103,9 @@ export default function ExerciseProgressionScreen() {
   const exerciseId = params.exerciseId ?? '';
 
   const loadSessions = useSessionsStore((s) => s.load);
-  const completedSessions = useSessionsStore((s) => s.completedSessions);
+  // Subscribe to `sessions` (not the stable `completedSessions` getter) so the screen re-renders
+  // once its focus load lands.
+  const sessions = useSessionsStore((s) => s.sessions);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const profile = useSettingsStore((s) => s.profile);
@@ -127,23 +116,13 @@ export default function ExerciseProgressionScreen() {
     }, [loadSessions])
   );
 
-  const completed = completedSessions();
-  const allPRs = buildExercisePRs(completed);
-  const pr = allPRs.find((p) => p.exerciseId === exerciseId);
+  const completed = completedNewestFirst(sessions);
+  // Canonical ids: an alias in the link or in old sessions resolves to the current exercise.
+  const canonicalId = (id: string) => getExercise(id)?.id ?? id;
+  const allPRs = buildExercisePRs(completed, canonicalId);
+  const pr = allPRs.find((p) => p.exerciseId === canonicalId(exerciseId));
   const exerciseName = getExercise(exerciseId)?.name ?? exerciseId;
-
-  const comparison =
-    pr &&
-    profile.weightKg != null &&
-    profile.weightKg > 0 &&
-    profile.sex
-      ? compareToStrengthStandards(
-          exerciseId,
-          pr.bestEstimated1RM,
-          profile.weightKg,
-          profile.sex
-        )
-      : null;
+  const strength = pr ? strengthSummary(pr.exerciseId, pr.bestEstimated1RM, profile) : null;
 
   if (!isPro) return null;
 
@@ -176,7 +155,7 @@ export default function ExerciseProgressionScreen() {
             Best est. 1RM
           </Text>
           <Text style={[typography.dataLarge, { color: colors.primary }]}>
-            {formatWeight(pr.bestEstimated1RM, weightUnit)}
+            {formatE1RM(pr.bestEstimated1RM, weightUnit)}
           </Text>
           {pr.bestSet && (
             <Text style={[typography.data, styles.bestSetText, { color: colors.textSecondary }]}>
@@ -185,24 +164,14 @@ export default function ExerciseProgressionScreen() {
           )}
         </Card>
 
-        {comparison && (
-          <StrengthStandardBar
-            comparison={comparison}
-            weightUnit={weightUnit}
-            colors={colors}
-          />
-        )}
+        {strength && <StrengthStandardBar strength={strength} weightUnit={weightUnit} colors={colors} />}
 
         {pr.history.length > 0 && (
           <>
             <Text style={[typography.sectionTitle, styles.sectionTitle, { color: colors.text }]}>
               Est. 1RM over time
             </Text>
-            <ProgressionChart
-              history={pr.history}
-              max1RM={pr.bestEstimated1RM}
-              colors={colors}
-            />
+            <ProgressionChart points={progressionPoints(pr.history, pr.bestEstimated1RM)} colors={colors} />
           </>
         )}
 
@@ -213,6 +182,7 @@ export default function ExerciseProgressionScreen() {
           {[...pr.history].map((p, i) => (
             <View
               key={`${p.completedAt}-${i}`}
+              testID="progression-set"
               style={[styles.historyRow, { borderBottomColor: colors.border }]}
             >
               <Text style={[typography.caption, styles.historyDate, { color: colors.textSecondary }]}>
@@ -222,7 +192,7 @@ export default function ExerciseProgressionScreen() {
                 {formatWeight(p.weightKg, weightUnit)} × {p.reps}
               </Text>
               <Text style={[typography.data, styles.history1RM, { color: colors.primary }]}>
-                ~{formatWeight(p.estimated1RM, weightUnit)}
+                ~{formatE1RM(p.estimated1RM, weightUnit)}
               </Text>
             </View>
           ))}

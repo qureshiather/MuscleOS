@@ -1,7 +1,7 @@
 export type WeightUnit = 'kg' | 'lb';
 export type HeightUnit = 'cm' | 'in';
 
-const KG_TO_LB = 2.20462;
+export const KG_TO_LB = 2.20462;
 const CM_TO_IN = 1 / 2.54;
 
 /**
