@@ -47,20 +47,26 @@ Then, in `_layout.tsx`:
 
 **Immediately, independent of auth** — so a workout in progress is never lost to a slow network:
 
-1. `hydrateActiveWorkout()` — restore any in-progress session
+1. `hydrateActiveWorkout()` — restore any in-progress session; a workout idle for 3 h or more is
+   closed instead (see [workout-logging.md](workout-logging.md)). The same stale check runs on
+   every foreground.
 2. `loadTemplates()` — needed to name that session
+3. `loadCustomExercises()` — customs, seed, and cache; kicks off a background catalog refresh
+4. `subscriptionStore.hydrate()` — paints the cached tier before auth answers
 
 **Main init:** auth and subscription load sequentially; the remaining loads are then started
 without awaiting one another.
 
-3. `initAuth()` — existing Supabase session, or anonymous sign-in (`resolveLaunchUser`,
+5. `initAuth()` — existing Supabase session, or anonymous sign-in (`resolveLaunchUser`,
    `src/auth/authSession.ts`). Each call gives up after **10 s** (`AUTH_INIT_TIMEOUT_MS`); a timeout
    or error leaves the app an unauthenticated, device-only guest for this launch
-4. `loadSubscription(userId)` — RevenueCat plus the cached tier
-5. Start `loadSettings()` — units, theme, biodata, sounds
-6. Start `loadCustomExercises()` — customs, seed, and cache; kicks off a background catalog refresh
-7. Start `loadExerciseNotes()`
-8. Start `loadStatus()` and `syncNow()` — cloud sync if an account is linked
+6. `loadSubscription(userId)` — RevenueCat plus the cached tier
+7. Start `loadSettings()` — units, theme, biodata, sounds
+8. Start `loadExerciseNotes()`
+9. Start `loadStatus()` and `syncNow()` — cloud sync if an account is linked
+
+**Email links** (`EmailAuthLinks`): the initial URL and every later `url` event are checked once
+each; confirm/recovery links are completed and routed (see [Authentication](#authentication)).
 
 **Notifications** load last, skipped in Expo Go, after an 800 ms delay that works around an Android
 native module registry timing issue.

@@ -63,7 +63,7 @@ MuscleOS/
 | `pnpm build` | Build all packages |
 | `pnpm typecheck` | Type-check all packages |
 | `pnpm lint` | Lint all packages with Biome |
-| `pnpm test` | Run unit/regression tests |
+| `pnpm test` | Run unit (Vitest) then UI (Jest) tests |
 | `pnpm check` | Lint + typecheck + test (CI) |
 | `pnpm clean` | Clean build artifacts and node_modules |
 
@@ -84,7 +84,7 @@ MuscleOS/
 | Mobile storage | AsyncStorage (all app data, and the Supabase auth session) |
 | Types | Shared `@muscleos/types` package |
 | Lint | Biome (ESLint replacement) |
-| Tests | Vitest, run via Turbo |
+| Tests | Vitest (pure logic, stores) + Jest with jest-expo and React Native Testing Library (components, screens), run via Turbo |
 | Landing | Next.js 15, React 19, Tailwind CSS |
 
 ---
@@ -110,12 +110,18 @@ apps/mobile/
 │   ├── workout-preview.tsx
 │   └── ...
 ├── src/
+│   ├── auth/               # Sign-in, account linking, delete account, auth copy
 │   ├── components/         # Reusable UI (MuscleDiagram, etc.)
 │   ├── data/               # Static data (exercises, builtInTemplates)
-│   ├── storage/            # AsyncStorage wrappers + keys
-│   ├── store/              # Zustand stores (authStore, templatesStore, etc.)
+│   ├── hooks/              # useProGate, useWorkoutNotification
+│   ├── lib/                # Supabase client
+│   ├── storage/            # AsyncStorage wrappers + keys, import/export
+│   ├── store/              # Zustand stores (authStore, templatesStore, etc.) + *Logic.ts rules
+│   ├── subscription/       # Tiers, gate decisions, paywall helpers, pricing
+│   ├── sync/               # Outbox, push/pull engine, merge
+│   ├── test/               # Test harnesses: mocks/ (Vitest), ui/ (Jest render helpers + screen tests)
 │   ├── theme/              # ThemeProvider, useTheme, colors
-│   └── utils/              # Helpers (weightUnits, relativeTime, etc.)
+│   └── utils/              # Pure helpers (weightUnits, relativeTime, etc.)
 └── assets/
 ```
 
@@ -185,7 +191,7 @@ apps/mobile/
 3. **New store**: Follow `authStore`/`templatesStore` pattern — load on app init from layout if needed.
 4. **New screen**: Add file under `app/`; use `Stack`/`Tabs` screen options for layout. Add it to the [screen map](docs/product/overview.md#screen-map).
 5. **New component**: Place in `src/components/`, use `@/` imports and `useTheme()` for colors.
-6. **Tests**: Put `*.test.ts` next to domain helpers (`src/utils`, `@muscleos/types`). CI runs `pnpm check` (Biome + `tsc` + Vitest via Turbo). Current coverage: [`docs/engineering/testing.md`](docs/engineering/testing.md).
+6. **Tests**: every spec rule needs a test. Pure logic → `*.test.ts` next to it (Vitest). Screens and components → `*.test.tsx` (Jest): screen tests go in `src/test/ui/<area>/` using `renderApp()` from `src/test/ui/render.tsx` — **never under `app/`** (expo-router would make them routes). Keep decisions out of screens: extract them to pure functions and unit-test those. CI runs `pnpm check` (Biome + `tsc` + Vitest + Jest via Turbo). Harness and coverage: [`docs/engineering/testing.md`](docs/engineering/testing.md).
 
 ### Behaviours that are easy to break
 
