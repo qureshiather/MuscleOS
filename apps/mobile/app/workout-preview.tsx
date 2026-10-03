@@ -134,7 +134,7 @@ export default function WorkoutPreviewScreen() {
             style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
             onPress={handleStart}
           >
-            <Text style={[typography.button, { color: '#fff' }]}>Start</Text>
+            <Text style={[typography.button, { color: colors.primaryOn }]}>Start</Text>
           </Pressable>
         </View>
       </View>

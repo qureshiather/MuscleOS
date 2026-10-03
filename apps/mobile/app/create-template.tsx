@@ -246,7 +246,7 @@ export default function CreateTemplateScreen() {
                     onPress={() => setFolderId(undefined)}
                   >
                     <Text
-                      style={[typography.label, { color: !folderId ? '#fff' : colors.textSecondary }]}
+                      style={[typography.label, { color: !folderId ? colors.primaryOn : colors.textSecondary }]}
                     >
                       None
                     </Text>
@@ -264,7 +264,7 @@ export default function CreateTemplateScreen() {
                       onPress={() => setFolderId(f.id)}
                     >
                       <Text
-                        style={[typography.label, { color: folderId === f.id ? '#fff' : colors.text }]}
+                        style={[typography.label, { color: folderId === f.id ? colors.primaryOn : colors.text }]}
                       >
                         {f.name}
                       </Text>
@@ -364,7 +364,7 @@ export default function CreateTemplateScreen() {
                     borderBottomRightRadius: isLast ? radius.md : 0,
                     marginBottom: isLast ? spacing.md : 0,
                   },
-                  isActive && styles.selectedRowActive,
+                  isActive && [styles.selectedRowActive, { shadowColor: colors.shadowCool }],
                 ]}
               >
                 <View style={styles.selectedRowBody}>
@@ -670,7 +670,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectedRowActive: {
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,

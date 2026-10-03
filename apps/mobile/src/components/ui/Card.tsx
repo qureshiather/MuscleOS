@@ -15,7 +15,7 @@ export function Card({ elevated, style, children, ...rest }: CardProps) {
       style={[
         styles.card,
         { backgroundColor: bg, borderColor: colors.border },
-        !isDark && styles.cardLight,
+        !isDark && [styles.cardLight, { shadowColor: colors.shadow }],
         style,
       ]}
       {...rest}
@@ -33,7 +33,6 @@ const styles = StyleSheet.create({
   },
   cardLight: Platform.select({
     ios: {
-      shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
       shadowRadius: 4,

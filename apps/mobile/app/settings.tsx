@@ -95,7 +95,7 @@ export default function SettingsScreen() {
               value={workoutSoundsEnabled}
               onValueChange={(v) => void setWorkoutSoundsEnabled(v)}
               trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor="#fff"
+              thumbColor={colors.primaryOn}
               ios_backgroundColor={colors.border}
             />
           </View>

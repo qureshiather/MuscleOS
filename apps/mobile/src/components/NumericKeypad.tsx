@@ -111,6 +111,7 @@ export function NumericKeypad({
         {
           backgroundColor: colors.surfaceElevated,
           borderTopColor: colors.border,
+          shadowColor: colors.shadow,
           paddingBottom: bottomInset,
           opacity: enter,
           transform: [
@@ -303,7 +304,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
     paddingTop: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.14,
     shadowRadius: 12,

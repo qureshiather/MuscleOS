@@ -152,7 +152,7 @@ export default function CreateExerciseScreen() {
                 ]}
                 onPress={() => setCategory(key)}
               >
-                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
                   {EXERCISE_CATEGORY_LABELS[key]}
                 </Text>
               </Pressable>
@@ -178,7 +178,7 @@ export default function CreateExerciseScreen() {
                 ]}
                 onPress={() => toggleMuscle(id)}
               >
-                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
                   {muscleLabel(id)}
                 </Text>
               </Pressable>
@@ -210,7 +210,7 @@ export default function CreateExerciseScreen() {
                 ]}
                 onPress={() => toggleEquip(eq)}
               >
-                <Text style={[typography.label, { color: selected ? '#fff' : colors.textSecondary }]}>
+                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
                   {EQUIPMENT_LABELS[eq]}
                 </Text>
               </Pressable>

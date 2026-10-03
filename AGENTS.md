@@ -148,7 +148,7 @@ apps/mobile/
 - `ThemeProvider` + `useTheme()` — provides `colors` and `isDark`.
 - **Palette config**: edit hex values in `apps/mobile/src/theme/palette.ts` (`paletteConfig`). Derived tokens (`primarySurface`, `primaryBorder`, `successSurface`, table/row tints, overlays) are built automatically via `buildThemeColors()`.
 - **Use `useTheme().colors` in components** — do not hardcode hex/rgba in screens. Import theme utilities from `@/theme` when needed.
-- Color roles: `primary` (CTAs/links), `success` (completed sets), `warning` (favorites), `danger` (delete/errors), `surface*` / `border` / `text*`, plus UI tokens (`tableHeader`, `rowWarmUp`, `overlay`, etc.).
+- Color roles: `primary` (CTAs/links), `success` (completed sets), `warning` (favorites), `danger` (delete/errors), `surface*` / `border` / `text*`, foreground-on-fill `primaryOn` / `successOn` / `dangerOn` (plus `primaryOnMuted` / `primaryOnSurface` for translucent white on primary), `shadow` / `shadowCool` (shadowColor), plus UI tokens (`tableHeader`, `rowWarmUp`, `overlay`, `subtleDivider`, etc.). Hex/rgba literals in `app/` and `src/components/` fail `src/theme/noHardcodedColors.test.ts`.
 - `getRecoveryPalette()` for muscle diagram heat colors.
 
 ### 7. Routing (expo-router)

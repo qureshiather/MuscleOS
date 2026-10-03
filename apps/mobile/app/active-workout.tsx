@@ -331,12 +331,14 @@ function SetDonePressable({
 function SetRowSwipeable({
   onDelete,
   dangerColor,
+  dangerOnColor,
   children,
   testID,
 }: {
   testID?: string;
   onDelete: () => void;
   dangerColor: string;
+  dangerOnColor: string;
   children: ReactNode;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
@@ -366,7 +368,7 @@ function SetRowSwipeable({
           accessibilityLabel="Remove set"
           style={[styles.swipeDeleteAction, { backgroundColor: dangerColor }]}
         >
-          <Ionicons name="trash-outline" size={22} color="#fff" />
+          <Ionicons name="trash-outline" size={22} color={dangerOnColor} />
         </Pressable>
       )}
     >
@@ -1003,7 +1005,7 @@ export default function ActiveWorkoutScreen() {
         >
           <View style={styles.finishedHero}>
             <View style={[styles.finishedBadge, { backgroundColor: colors.primary }]}>
-              <Ionicons name="checkmark" size={28} color="#fff" />
+              <Ionicons name="checkmark" size={28} color={colors.primaryOn} />
             </View>
             <Text style={[styles.finishedTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Good work</Text>
             <Text style={[styles.finishedSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
@@ -1081,7 +1083,7 @@ export default function ActiveWorkoutScreen() {
             onPress={leaveFinishedWorkout}
             testID="finished-done"
           >
-            <Text style={styles.finishedDoneBtnText}>Done</Text>
+            <Text style={[styles.finishedDoneBtnText, { color: colors.primaryOn }]}>Done</Text>
           </Pressable>
         </ScreenFooter>
         <WorkoutConfetti visible={showConfetti} />
@@ -1349,7 +1351,7 @@ export default function ActiveWorkoutScreen() {
                       backgroundColor: isActive ? colors.surfaceElevated : colors.surface,
                       borderColor: colors.border,
                     },
-                    isActive && styles.reorderRowActive,
+                    isActive && [styles.reorderRowActive, { shadowColor: colors.shadowCool }],
                   ]}
                 >
                   <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
@@ -1378,7 +1380,7 @@ export default function ActiveWorkoutScreen() {
                     ? withAlpha(colors.success, isDark ? 0.45 : 0.4)
                     : colors.border,
                 },
-                !isDark && styles.exerciseCardShadow,
+                !isDark && [styles.exerciseCardShadow, { shadowColor: colors.shadowCool }],
               ]}
             >
               <View style={styles.exerciseCardHeaderWrap}>
@@ -1674,6 +1676,7 @@ export default function ActiveWorkoutScreen() {
                       {canDeleteSet ? (
                         <SetRowSwipeable
                           dangerColor={colors.danger}
+                          dangerOnColor={colors.dangerOn}
                           onDelete={deleteThisSet}
                           testID={`set-swipe-delete-${rowName}`}
                         >
@@ -2187,7 +2190,7 @@ export default function ActiveWorkoutScreen() {
                   onPress={() => void handleSaveAsTemplate()}
                   disabled={savingAsTemplate}
                 >
-                  <Text style={styles.summarySaveBtnText}>
+                  <Text style={[styles.summarySaveBtnText, { color: colors.primaryOn }]}>
                     {savingAsTemplate ? 'Saving…' : 'Save'}
                   </Text>
                 </Pressable>
@@ -2298,7 +2301,7 @@ export default function ActiveWorkoutScreen() {
                     <Text
                       style={
                         isPrimary
-                          ? styles.summarySaveBtnText
+                          ? [styles.summarySaveBtnText, { color: colors.primaryOn }]
                           : [styles.summarySecondaryBtnText, { color: colors.text }]
                       }
                     >
@@ -2337,7 +2340,7 @@ export default function ActiveWorkoutScreen() {
                 : undefined
             }
           >
-            <View style={styles.addExerciseModalHeader}>
+            <View style={[styles.addExerciseModalHeader, { borderBottomColor: colors.subtleDivider }]}>
               <View style={styles.addExerciseModalTitleBlock}>
                 <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>
                   {exercisePicker?.mode === 'replace' ? 'Replace exercise' : 'Add exercise'}
@@ -2599,7 +2602,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   exerciseCardShadow: {
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -2620,58 +2622,6 @@ const styles = StyleSheet.create({
   },
   exerciseTitleBlock: {
     gap: 3,
-  },
-  restBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  restBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,
-  },
-  restBannerTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  restBannerTime: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  restBannerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  restBannerAdj: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  restBannerAdjText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  restBannerSkip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.28)',
-  },
-  restBannerSkipText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
   },
   headerReorderBtn: {
     paddingHorizontal: 8,
@@ -2702,7 +2652,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   reorderRowActive: {
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -3197,7 +3146,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   addExerciseModalTitleBlock: {
     flex: 1,
@@ -3268,7 +3216,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
   },
-  summarySaveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  summarySaveBtnText: { fontSize: 17, fontWeight: '600' },
   summarySecondaryBtn: { backgroundColor: 'transparent', borderWidth: 2 },
   summarySecondaryBtnText: { fontSize: 17, fontWeight: '600' },
   summaryCancelBtn: { paddingVertical: 12, alignItems: 'center' },
@@ -3392,7 +3340,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   finishedDoneBtnText: {
-    color: '#fff',
     fontSize: 17,
     fontWeight: '700',
   },

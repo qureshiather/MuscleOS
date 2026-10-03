@@ -294,7 +294,7 @@ export default function SubscriptionScreen() {
                           </Text>
                           {plan === 'annual' && (
                             <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                              <Text style={[typography.caption, { color: '#fff', fontFamily: typography.label.fontFamily }]}>
+                              <Text style={[typography.caption, { color: colors.primaryOn, fontFamily: typography.label.fontFamily }]}>
                                 Best value
                               </Text>
                             </View>
@@ -327,9 +327,9 @@ export default function SubscriptionScreen() {
                   accessibilityState={{ disabled: purchaseButton.disabled }}
                 >
                   {purchasing ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.primaryOn} />
                   ) : (
-                    <Text style={[typography.button, { color: '#fff', textAlign: 'center' }]}>
+                    <Text style={[typography.button, { color: colors.primaryOn, textAlign: 'center' }]}>
                       {purchaseButton.label}
                     </Text>
                   )}

@@ -140,7 +140,7 @@ export default function HistoryMonthlyScreen() {
                           hasWorkout && { backgroundColor: colors.primary },
                           isSelected && {
                             borderWidth: 2,
-                            borderColor: hasWorkout ? '#fff' : colors.primary,
+                            borderColor: hasWorkout ? colors.primaryOn : colors.primary,
                           },
                           pressed && { opacity: 0.8 },
                         ]}
@@ -149,7 +149,7 @@ export default function HistoryMonthlyScreen() {
                           style={[
                             typography.data,
                             styles.dayText,
-                            { color: hasWorkout ? '#fff' : colors.text },
+                            { color: hasWorkout ? colors.primaryOn : colors.text },
                           ]}
                           maxFontSizeMultiplier={fontScaleCap.fixed}
                         >

@@ -500,7 +500,7 @@ export default function WorkoutsScreen() {
       borderColor: colors.border,
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.05,
           shadowRadius: 3,
@@ -782,7 +782,7 @@ export default function WorkoutsScreen() {
               <View
                 style={[
                   styles.startEmptyIconWrap,
-                  { backgroundColor: isPro ? 'rgba(255,255,255,0.2)' : colors.background },
+                  { backgroundColor: isPro ? colors.primaryOnSurface : colors.background },
                 ]}
               >
                 <Ionicons
@@ -808,7 +808,7 @@ export default function WorkoutsScreen() {
                 <Text
                   style={[
                     styles.startEmptyCardSubtitle,
-                    { color: isPro ? 'rgba(255,255,255,0.88)' : colors.textMuted },
+                    { color: isPro ? colors.primaryOnMuted : colors.textMuted },
                   ]}
                 >
                   {isPro ? 'Add exercises as you go' : 'Included with Pro'}
@@ -817,7 +817,7 @@ export default function WorkoutsScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={22}
-                color={isPro ? 'rgba(255,255,255,0.88)' : colors.textMuted}
+                color={isPro ? colors.primaryOnMuted : colors.textMuted}
               />
             </View>
           </Pressable>
@@ -1182,7 +1182,7 @@ export default function WorkoutsScreen() {
                 onPress={handleCreateFolder}
                 disabled={!newFolderName.trim()}
               >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Create</Text>
+                <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Create</Text>
               </Pressable>
             </View>
           </View>
@@ -1242,7 +1242,7 @@ export default function WorkoutsScreen() {
                 onPress={handleSaveFolderRename}
                 disabled={!editingFolderName.trim()}
               >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -1377,7 +1377,7 @@ export default function WorkoutsScreen() {
                 onPress={handleSaveTemplateRename}
                 disabled={!editingTemplateNewName.trim()}
               >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+                <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -1444,7 +1444,7 @@ export default function WorkoutsScreen() {
                     onPress={handleCreateFolderAndMove}
                     disabled={!moveModalNewFolderName.trim()}
                   >
-                    <Text style={[styles.modalBtnText, { color: '#fff' }]}>Create & move</Text>
+                    <Text style={[styles.modalBtnText, { color: colors.primaryOn }]}>Create & move</Text>
                   </Pressable>
                 </View>
               </View>

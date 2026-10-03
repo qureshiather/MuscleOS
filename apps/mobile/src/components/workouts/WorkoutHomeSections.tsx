@@ -54,7 +54,7 @@ function ZoomCard({ template, art, gender, height, width, subtitle, accessibilit
         styles.zoomCard,
         { height, backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 },
         width ? { width } : styles.zoomCardFlex,
-        !isDark && styles.cardLight,
+        !isDark && [styles.cardLight, { shadowColor: colors.shadow }],
       ]}
       onPress={onPress}
     >
@@ -170,7 +170,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   cardLight: {
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
