@@ -15,9 +15,8 @@ import {
   type ImportPlan,
 } from '@/storage/importPlan';
 import { clearAllData } from '@/storage/localStorage';
-import { reloadAllStores } from '@/store/reloadStores';
+import { reloadAllStores, reloadDataStores } from '@/store/reloadStores';
 import { useSyncStore } from '@/store/syncStore';
-import { reloadSyncedStores } from '@/sync/merge';
 import { manualSyncResult, SYNC_FAILED_MESSAGE, SYNC_FAILED_TITLE } from '@/sync/syncStatus';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -102,7 +101,7 @@ export default function DataScreen() {
       await syncNow();
       const { lastError } = useSyncStore.getState();
       if (lastError && __DEV__) console.warn('[sync] failed', lastError);
-      if (!lastError) await reloadSyncedStores();
+      if (!lastError) await reloadDataStores();
       const result = manualSyncResult(lastError);
       Alert.alert(result.title, result.message);
     } catch (e) {
