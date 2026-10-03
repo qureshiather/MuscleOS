@@ -14,7 +14,7 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useBottomSpace, useDeviceMetrics } from '@/theme/layout';
-import { useSessionsStore } from '@/store/sessionsStore';
+import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatWeight } from '@/utils/weightUnits';
@@ -139,7 +139,9 @@ export default function PersonalRecordsScreen() {
   const scrollPaddingBottom = useBottomSpace(spacing.xl);
   const [search, setSearch] = useState('');
   const loadSessions = useSessionsStore((s) => s.load);
-  const completedSessions = useSessionsStore((s) => s.completedSessions);
+  // Subscribe to `sessions` (not the stable `completedSessions` getter) so the screen re-renders
+  // once its focus load lands.
+  const sessions = useSessionsStore((s) => s.sessions);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const profile = useSettingsStore((s) => s.profile);
@@ -150,7 +152,7 @@ export default function PersonalRecordsScreen() {
     }, [loadSessions])
   );
 
-  const completed = completedSessions();
+  const completed = completedNewestFirst(sessions);
   // Keyed by canonical id so alias-logged sets merge into the current catalog exercise.
   const allPRs = buildExercisePRs(completed, (id) => getExercise(id)?.id ?? id);
   const nameOf = (id: string) => getExercise(id)?.name ?? id;

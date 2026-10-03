@@ -8,7 +8,7 @@ import { radius, spacing } from '@/theme/tokens';
 import { useTextScaledSize } from '@/theme/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
-import { useSessionsStore } from '@/store/sessionsStore';
+import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatWeight } from '@/utils/weightUnits';
@@ -103,7 +103,9 @@ export default function ExerciseProgressionScreen() {
   const exerciseId = params.exerciseId ?? '';
 
   const loadSessions = useSessionsStore((s) => s.load);
-  const completedSessions = useSessionsStore((s) => s.completedSessions);
+  // Subscribe to `sessions` (not the stable `completedSessions` getter) so the screen re-renders
+  // once its focus load lands.
+  const sessions = useSessionsStore((s) => s.sessions);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const profile = useSettingsStore((s) => s.profile);
@@ -114,7 +116,7 @@ export default function ExerciseProgressionScreen() {
     }, [loadSessions])
   );
 
-  const completed = completedSessions();
+  const completed = completedNewestFirst(sessions);
   // Canonical ids: an alias in the link or in old sessions resolves to the current exercise.
   const canonicalId = (id: string) => getExercise(id)?.id ?? id;
   const allPRs = buildExercisePRs(completed, canonicalId);
