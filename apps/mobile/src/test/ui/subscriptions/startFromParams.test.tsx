@@ -144,6 +144,15 @@ describe('/workout-preview guard', () => {
     expect(r.getSearchParams()).toMatchObject({ templateId: 'ppl-push', exerciseIds: pushIds.join(',') });
   });
 
+  test('cold start with a workout in progress goes to /active-workout without crashing the router', async () => {
+    const running = createEmptySession('ppl-push', [{ exerciseId: 'bench-press', sets: 3, warmUpSets: 0 }]);
+    useActiveWorkoutStore.setState({ session: running, hydrated: true });
+    const r = renderPreview('/workout-preview?templateId=ppl-push');
+    expect(await screen.findByText('route:active-workout')).toBeTruthy();
+    expect(r.getPathname()).toBe('/active-workout');
+    expect(session()?.id).toBe(running.id);
+  });
+
   test('Pro: a custom template previews (no redirect)', async () => {
     setPro(true);
     seedCustomTemplates();
