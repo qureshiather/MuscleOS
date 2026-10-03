@@ -3,17 +3,21 @@ import { setSessions } from '@/storage/localStorage';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { renderApp, type Routes } from '../render';
+import { type Href, router } from 'expo-router';
+import { act } from 'expo-router/testing-library';
+import { renderApp, routeStub, type Routes } from '../render';
 
 /**
  * Mount routes with the clock pinned to `now`. `renderRouter` switches Jest to fake timers itself
- * (resetting the fake clock to the real time), so the clock can only be pinned after it returns;
- * the first synchronous render happens before any store has loaded. Move the clock later with
- * `setNow()`; `afterEach(restoreNow)` puts real timers back.
+ * (resetting the fake clock to the real time), so the router first mounts a blank placeholder
+ * route, then the clock is pinned, then it replaces into `initialUrl` — the screen under test
+ * renders for the first time with the pinned clock. Move the clock later with `setNow()`;
+ * `afterEach(restoreNow)` puts real timers back.
  */
 export function renderAt(now: Date | number, routes: Routes, initialUrl: string) {
-  const result = renderApp(routes, initialUrl);
+  const result = renderApp({ ...routes, __clock: routeStub('clock') }, '/__clock');
   jest.setSystemTime(now);
+  act(() => router.replace(initialUrl as Href));
   return result;
 }
 
