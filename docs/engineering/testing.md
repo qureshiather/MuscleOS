@@ -31,6 +31,7 @@ runners gate merges.
 
 ### Vitest harness
 
+`src/test/vitestSetup.ts` (`setupFiles`) installs the [console guard](#conventions).
 `src/test/mocks/` is wired in through `vitest.config.mts` aliases:
 
 - `asyncStorage.ts` — in-memory AsyncStorage; `__resetAsyncStorage()` between tests.
@@ -46,9 +47,13 @@ state.
 
 ### Jest harness
 
-- `src/test/ui/setup.ts` — global stand-ins for native modules the renderer can't load: AsyncStorage
-  (official mock), Reanimated, gesture handler, safe-area context, RevenueCat, expo-notifications,
-  expo-audio.
+- `src/test/ui/setup.ts` (`setupFilesAfterEnv`) — global stand-ins for native modules the renderer
+  can't load: AsyncStorage (official mock), Reanimated, gesture handler, safe-area context,
+  RevenueCat, expo-notifications, expo-audio — and the [console guard](#conventions).
+- `jest.config.js` resolves two packages the way Metro does: `react-native-draggable-flatlist` from
+  its TS source (the prebuilt build triggers React's "outdated JSX transform" warning) and
+  `punycode` to the npm package expo's URL polyfill depends on (not Node's deprecated core module).
+  `watchman: false` keeps local watchman warnings out of the output.
 - `src/test/ui/render.tsx`:
   - `renderApp(routes, initialUrl)` mounts real screens from `app/` through expo-router
     (`expo-router/testing-library`) inside the app's providers (safe area + theme), without the root
@@ -171,6 +176,16 @@ Things the current setup can't reach; each spec's **Tests** section has the deta
 - The root layout's boot sequence runs only in the app; its pieces are tested individually.
 
 ## Conventions
+
+**Tests run without console noise.** `src/test/consoleGuard.ts`, installed by both runners' setup,
+fails a test that writes an unexpected `console.error` or `console.warn` — React `act(...)`
+warnings, app `__DEV__` logging, library deprecations. Fix the cause: wrap updates in `act` (including
+`Alert` button handlers a test calls directly), `await` `findBy*`/`waitFor`, unmount before
+restoring state a mounted screen subscribes to. When a test deliberately drives a path that logs
+(a failed sync, export, or delete), spy on the console in that test —
+`jest.spyOn(console, 'warn').mockImplementation(() => undefined)` / `vi.spyOn(...)` — assert the
+call, and restore it. Never silence the console globally; the guard's allowlist is only for
+unavoidable third-party lines, each documented where it's added (it is empty today).
 
 **Co-locate:** `foo.test.ts` next to `foo.ts`; screen tests under `src/test/ui/<area>/`.
 

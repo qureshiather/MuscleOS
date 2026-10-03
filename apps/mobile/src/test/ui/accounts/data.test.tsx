@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { fireEvent, screen, waitFor } from 'expo-router/testing-library';
+import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DataScreen from '../../../../app/data';
 import { STORAGE_KEYS } from '@/storage/keys';
@@ -38,8 +38,12 @@ function lastAlert(): { title: string; message?: string; buttons?: AlertButton[]
 }
 async function pressAlertButton(text: string) {
   const button = lastAlert().buttons?.find((b) => b.text === text);
-  if (!button?.onPress) throw new Error(`No alert button ${text}`);
-  await button.onPress();
+  const onPress = button?.onPress;
+  if (!onPress) throw new Error(`No alert button ${text}`);
+  // The handler sets screen state (and Clear all reloads the theme), so run it inside act.
+  await act(async () => {
+    await onPress();
+  });
 }
 
 const plan = (sessions = 2) => ({
@@ -89,6 +93,7 @@ describe('Sync now (A21)', () => {
   });
 
   test('says Sync failed when the sync store reports an error', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     sync.syncNow.mockImplementation(async () => {
       useSyncStore.getState().setError('Failed to fetch');
     });
@@ -100,6 +105,8 @@ describe('Sync now (A21)', () => {
       title: 'Sync failed',
       message: "Couldn't sync right now. Check your internet connection and try again.",
     });
+    expect(warn).toHaveBeenCalledWith('[sync] failed', 'Failed to fetch');
+    warn.mockRestore();
   });
 });
 
@@ -118,9 +125,12 @@ describe('Export', () => {
     renderApp(routes, '/data');
     fireEvent.press(await screen.findByText('Export my data'));
     await waitFor(() => expect(lastAlert().message).toBe('Sharing is not available on this device.'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     exportAndShareData.mockRejectedValueOnce(new Error('disk'));
     fireEvent.press(await screen.findByText('Export my data'));
     await waitFor(() => expect(lastAlert()).toMatchObject({ title: 'Export failed', message: "Couldn't export your data. Try again." }));
+    expect(warn).toHaveBeenCalledWith('[export] failed', expect.any(Error));
+    warn.mockRestore();
   });
 });
 
@@ -186,8 +196,11 @@ describe('Import', () => {
     renderApp(routes, '/data');
     fireEvent.press(await screen.findByTestId('import-data'));
     await waitFor(() => expect(lastAlert().message).toMatch(/It also backs up to your account\.$/));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     await pressAlertButton('Import');
     expect(lastAlert()).toMatchObject({ title: 'Import failed', message: "Couldn't import your data. Try again." });
+    expect(warn).toHaveBeenCalledWith('[import] apply failed', expect.any(Error));
+    warn.mockRestore();
   });
 });
 

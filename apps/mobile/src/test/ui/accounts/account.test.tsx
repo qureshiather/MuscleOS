@@ -178,6 +178,7 @@ describe('delete account', () => {
   });
 
   test('a failure shows friendly copy, never the raw error (A22)', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     const deleteAccount = jest.fn(async () => {
       throw new Error('Edge Function returned a non-2xx status code: Server misconfigured');
     });
@@ -190,5 +191,8 @@ describe('delete account', () => {
     expect(await screen.findByText('Could not delete account')).toBeTruthy();
     expect(screen.getByText("Couldn't delete your account. Try again in a moment.")).toBeTruthy();
     expect(screen.queryByText(/Server misconfigured/)).toBeNull();
+    // The raw error goes to the dev log only.
+    expect(warn).toHaveBeenCalledWith('[account] delete failed', expect.any(Error));
+    warn.mockRestore();
   });
 });

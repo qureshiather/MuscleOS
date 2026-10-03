@@ -3,7 +3,7 @@
  * through AsyncStorage; navigation targets are stubs.
  */
 import { Alert } from 'react-native';
-import { fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
+import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import HomeScreen from '../../../../app/(tabs)/index';
 import TemplatesRedirect from '../../../../app/templates';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
@@ -535,7 +535,12 @@ describe('folders', () => {
   type AlertButtons = { text: string; onPress?: () => unknown }[];
   function lastAlert(spy: jest.SpyInstance) {
     const [title, message, buttons] = spy.mock.calls.at(-1) as [string, string, AlertButtons];
-    return { title, message, buttons, press: (text: string) => buttons.find((b) => b.text === text)?.onPress?.() };
+    // Alert handlers update the store and screen, so run them inside act.
+    const press = (text: string) =>
+      act(async () => {
+        await buttons.find((b) => b.text === text)?.onPress?.();
+      });
+    return { title, message, buttons, press };
   }
 
   it('custom folder menu: Rename, Pin to top, Archive, Delete', async () => {

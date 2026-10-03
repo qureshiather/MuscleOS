@@ -3,6 +3,8 @@
  * no-op stand-ins. Per-test behaviour (Pro status, sessions, etc.) is set through the real Zustand
  * stores — see src/test/ui/render.tsx.
  */
+import { installConsoleGuard } from '../consoleGuard';
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
@@ -51,3 +53,7 @@ jest.mock('expo-audio', () => ({
   createAudioPlayer: () => ({ play: jest.fn(), seekTo: jest.fn(), pause: jest.fn(), remove: jest.fn() }),
   setAudioModeAsync: jest.fn(async () => undefined),
 }));
+
+// Fail a test on unexpected console.error/warn (act warnings, app logging, deprecations). Tests
+// that deliberately trigger logging spy on the console themselves. No allowlist is needed today.
+installConsoleGuard(afterEach);
