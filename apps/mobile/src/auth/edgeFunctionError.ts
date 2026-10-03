@@ -42,6 +42,10 @@ export function friendlyDeleteAccountError(error: unknown, isDev: boolean): stri
   if (message === DELETE_ACCOUNT_DEPLOY_HINT) {
     return isDev ? DELETE_ACCOUNT_DEPLOY_HINT : friendlyAuthError(null, 'delete_account');
   }
+  if (/expired/i.test(message)) {
+    // An expired JWT here is the session, not an email link.
+    return 'Your sign-in has expired. Sign out, sign back in, and try again.';
+  }
   const name = error instanceof Error ? error.name : undefined;
   return friendlyAuthError({ message, name }, 'delete_account');
 }

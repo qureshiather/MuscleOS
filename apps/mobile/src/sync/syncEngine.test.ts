@@ -45,6 +45,8 @@ import type { OutboxEntry } from './types';
  * Supabase (src/test/mocks/fakeSupabase.ts) and the AsyncStorage harness.
  */
 
+vi.stubGlobal('__DEV__', false);
+
 vi.mock('@/lib/supabase', async () => {
   const { createFakeSupabase } = await import('@/test/mocks/fakeSupabase');
   const fake = createFakeSupabase();
@@ -231,6 +233,7 @@ describe('notify* (local mutation → outbox)', () => {
 
 describe('schedulePush', () => {
   it('debounces local mutations into one push 2 s after the last one', async () => {
+    vi.useRealTimers();
     vi.useFakeTimers();
     vi.setSystemTime(new Date(NOW));
     signIn('user-a');
@@ -242,10 +245,14 @@ describe('schedulePush', () => {
     await vi.advanceTimersByTimeAsync(1999);
     expect(fake.calls.rpc).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(1);
+    // The timer only starts the push; let its storage reads settle.
+    vi.useRealTimers();
+    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(fake.calls.rpc).toHaveLength(1);
   });
 
   it('does nothing for a guest', async () => {
+    vi.useRealTimers();
     vi.useFakeTimers();
     signIn('guest', true);
     schedulePush(0);
