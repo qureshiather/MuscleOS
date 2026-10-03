@@ -37,6 +37,7 @@ import {
   syncNow,
 } from './syncEngine';
 import { reloadSyncedStores } from './merge';
+import { PULL_OVERLAP_MS } from './pullWatermark';
 import * as notify from './notify';
 import type { OutboxEntry } from './types';
 
@@ -318,19 +319,100 @@ describe('pushNow', () => {
   });
 });
 
-describe('pullNow and the watermark', () => {
-  it('first pull is full, later pulls ask only for rows newer than lastPulledAt', async () => {
+describe('pullNow and the server-clock watermark (MUS-91)', () => {
+  const S1 = '2026-06-01T00:00:00.000Z';
+  const S2 = '2026-06-02T00:00:00.000Z';
+  const S3 = '2026-06-03T00:00:00.000Z';
+
+  it('first pull is full; later pulls ask for server_updated_at past the watermark, less the overlap', async () => {
     signIn('user-a');
-    fake.tables.sync_records.push(remoteRow('template', 't1', template('t1', 'Remote')));
+    fake.server.now = S1;
+    fake.serverInsert('sync_records', [remoteRow('template', 't1', template('t1', 'Remote'))]);
     expect(await pullNow()).toBe(true);
-    expect(fake.calls.select[0]).toEqual({ table: 'sync_records', since: null });
+    expect(fake.calls.select[0]).toEqual({ table: 'sync_records', since: null, column: 'server_updated_at' });
     expect((await getTemplates()).map((t) => t.name)).toEqual(['Remote']);
     expect(reloadSyncedStores).toHaveBeenCalledTimes(1);
-    expect((await getSyncMeta()).lastPulledAt).toBe(NOW);
+    const meta = await getSyncMeta();
+    expect(meta.lastPulledAt).toBe(NOW);
+    expect(meta.pullCursor?.watermark).toBe(S1);
 
     expect(await pullNow()).toBe(false);
-    expect(fake.calls.select.at(-1)).toEqual({ table: 'user_exercises', since: NOW });
-    expect(fake.calls.select.filter((c) => c.table === 'sync_records').at(-1)?.since).toBe(NOW);
+    const since = new Date(Date.parse(S1) - PULL_OVERLAP_MS).toISOString();
+    expect(fake.calls.select.filter((c) => c.table === 'sync_records').at(-1)).toEqual({
+      table: 'sync_records',
+      since,
+      column: 'server_updated_at',
+    });
+    expect(fake.calls.select.filter((c) => c.table === 'user_exercises').at(-1)?.since).toBe(since);
+  });
+
+  it('a row uploaded late with an old device updated_at is still pulled', async () => {
+    signIn('user-a');
+    fake.server.now = S2;
+    fake.serverInsert('sync_records', [remoteRow('template', 't1', template('t1'))]);
+    await pullNow();
+
+    // Another device finishes a session offline last year, and uploads it now.
+    fake.server.now = S3;
+    fake.serverInsert('sync_records', [
+      remoteRow('session', 'offline', session('offline', '2025-01-01T08:00:00.000Z'), '2025-01-01T08:00:00.000Z'),
+    ]);
+    expect(await pullNow()).toBe(true);
+    expect((await getSessions()).map((x) => x.id)).toContain('offline');
+  });
+
+  it('device clock skew can’t hide a row: only server times are compared', async () => {
+    signIn('user-a');
+    fake.server.now = S2;
+    await pullNow();
+    // This device's clock runs a year ahead; the server's doesn't.
+    vi.setSystemTime(new Date('2027-06-01T00:00:00.000Z'));
+    fake.server.now = S3;
+    fake.serverInsert('sync_records', [remoteRow('template', 't2', template('t2'), S3)]);
+    expect(await pullNow()).toBe(true);
+    expect((await getTemplates()).map((t) => t.id)).toContain('t2');
+  });
+
+  it('the overlap re-reads recent rows but doesn’t re-apply them', async () => {
+    signIn('user-a');
+    fake.server.now = S1;
+    fake.serverInsert('sync_records', [remoteRow('template', 't1', template('t1'))]);
+    await pullNow();
+    vi.mocked(reloadSyncedStores).mockClear();
+    expect(await pullNow()).toBe(false);
+    expect(reloadSyncedStores).not.toHaveBeenCalled();
+  });
+
+  it('a row committed late with a stamp just before the watermark is still pulled', async () => {
+    signIn('user-a');
+    fake.server.now = S1;
+    fake.serverInsert('sync_records', [remoteRow('template', 't1', template('t1'))]);
+    await pullNow();
+    // A concurrent write stamped 2 s earlier only became visible after that pull.
+    fake.server.now = new Date(Date.parse(S1) - 2000).toISOString();
+    fake.serverInsert('sync_records', [remoteRow('template', 't-late', template('t-late'))]);
+    expect(await pullNow()).toBe(true);
+    expect((await getTemplates()).map((t) => t.id)).toContain('t-late');
+  });
+
+  it('a meta from before MUS-91 (no cursor) does one full pull', async () => {
+    signIn('user-a');
+    await setSyncMeta({ userId: 'user-a', lastPulledAt: '2026-05-01T00:00:00.000Z' });
+    fake.serverInsert('sync_records', [remoteRow('template', 't1', template('t1'))]);
+    await pullNow();
+    expect(fake.calls.select[0]?.since).toBeNull();
+  });
+
+  it('falls back to a full pull by updated_at when the server has no server_updated_at yet', async () => {
+    signIn('user-a');
+    fake.server.hasServerClock = false;
+    fake.serverInsert('sync_records', [remoteRow('template', 't1', template('t1', 'Remote'))]);
+    expect(await pullNow()).toBe(true);
+    expect((await getTemplates()).map((t) => t.name)).toEqual(['Remote']);
+    // Nothing stamped → no cursor, so the next pull is full again rather than missing rows.
+    expect((await getSyncMeta()).pullCursor?.watermark ?? null).toBeNull();
+    await pullNow();
+    expect(fake.calls.select.filter((c) => c.table === 'sync_records').every((c) => c.since == null)).toBe(true);
   });
 
   it('a missing user_exercises table is treated as no rows', async () => {

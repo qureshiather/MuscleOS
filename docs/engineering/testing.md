@@ -151,7 +151,7 @@ state.
 
 | File | Covers |
 |------|--------|
-| `src/sync/outbox.test.ts`, `syncEngine.test.ts`, `syncStatus.test.ts` | Serialized outbox, push/pull, account switch, guest upload, debounce, status copy |
+| `src/sync/outbox.test.ts`, `syncEngine.test.ts`, `syncStatus.test.ts`, `pullWatermark.test.ts` | Serialized outbox, push, server-clock pull watermark, account switch, guest upload, debounce, status copy |
 | `src/sync/merge.test.ts`, `mergePolicy.test.ts` | Conflict rules, `applyRemoteRecords`, snapshot items |
 | `src/auth/*.test.ts` | Session launch and sign-out, provider resolution, attach, delete wipe, error copy, email links |
 | `src/storage/localStorage.*.test.ts`, `src/store/settingsStore.test.ts` | Settings parsing and migrations, profile, serialized writes, clear-data key lists |

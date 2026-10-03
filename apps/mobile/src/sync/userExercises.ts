@@ -4,6 +4,7 @@ import { getCustomExercises, setCustomExercises } from '@/storage/localStorage';
 import { catalogRowToExercise, exerciseToUserRow, normalizeExercise } from '@/utils/exerciseNormalize';
 import { commitOutboxEdits, getOutboxMap, outboxEntryKey } from './outbox';
 import { bumpUpdatedAtIfNeeded, decideEntityApply } from './mergePolicy';
+import { isMissingServerClock } from './pullWatermark';
 import type { OutboxEntry } from './types';
 
 export interface RemoteUserExercise {
@@ -15,6 +16,8 @@ export interface RemoteUserExercise {
   equipment: string[];
   tracking_type: string;
   updated_at: string;
+  /** Stamped by the database on every write; absent before the MUS-91 migration. */
+  server_updated_at?: string;
   deleted_at: string | null;
 }
 
@@ -50,10 +53,15 @@ export async function pushUserExercises(entries: OutboxEntry[]): Promise<void> {
   }
 }
 
+/** `since` is a server-clock bound (`server_updated_at`); null pulls everything. */
 export async function pullUserExercises(since: string | null): Promise<RemoteUserExercise[]> {
   let query = supabase.from('user_exercises').select('*');
-  if (since) query = query.gt('updated_at', since);
-  const { data, error } = await query.order('updated_at', { ascending: true });
+  if (since) query = query.gt('server_updated_at', since);
+  let { data, error } = await query.order('server_updated_at', { ascending: true });
+  if (error && isMissingServerClock(error)) {
+    // The MUS-91 migration isn't applied yet: fall back to a full pull, which can't miss rows.
+    ({ data, error } = await supabase.from('user_exercises').select('*').order('updated_at', { ascending: true }));
+  }
   if (error) {
     if (__DEV__) console.warn('[sync] user_exercises pull failed:', error.message);
     if (error.code === 'PGRST205' || error.message?.includes('user_exercises')) {
