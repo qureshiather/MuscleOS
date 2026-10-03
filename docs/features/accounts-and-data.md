@@ -241,7 +241,9 @@ The three unit settings are **independent**, so you can weigh yourself in pounds
 A legacy migration promotes older single-unit preferences to `unit_system: imperial`. Unset units
 default from `unit_system` (imperial → in / lb), exercise weight falls back to the legacy single
 weight unit, and body weight falls back to exercise weight (`parseStoredAppSettings`). Each change
-is written and offered to sync immediately; writes are serialized so quick taps never drop one.
+is written and offered to sync immediately. Every settings write — units, sounds, biodata and the
+theme picker — goes through one queue (`persistAndNotify` in `settingsStore`), so quick taps or a
+theme change at the same moment as a unit change never drop one.
 
 Settings is **Appearance**, **Units**, and **Sounds** only.
 
@@ -606,7 +608,7 @@ Covered:
   `importOutboxEntries`, and `applyImport` writes, previous/recovery rebuild, and outbox (guest vs
   linked)
 - `src/store/settingsStore.test.ts` — load (defaults written back, lb/in → imperial), setters
-  persist and notify sync
+  persist and notify sync, a theme change racing unit/sounds changes keeps all of them
 - `src/store/healthStore.test.ts` — BMR, TDEE multipliers, macros and floors, local persistence
 - `src/utils/biodata.test.ts` — editor validation and unit conversion, gender can't be cleared,
   Profile hint summary

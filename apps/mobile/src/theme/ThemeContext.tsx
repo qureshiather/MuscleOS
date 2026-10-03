@@ -5,13 +5,8 @@ import {
   lightThemeColors,
   type ThemeColors,
 } from './palette';
-import {
-  getAppSettings,
-  setAppSettings,
-  onThemeStorageChanged,
-  type ThemePreference,
-} from '@/storage/localStorage';
-import { notifyAppSettingsSnapshot } from '@/sync';
+import { getAppSettings, onThemeStorageChanged, type ThemePreference } from '@/storage/localStorage';
+import { persistAndNotify } from '@/store/settingsStore';
 
 export type { ThemeColors } from './palette';
 export type { ThemePreference };
@@ -45,10 +40,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = async (preference: ThemePreference) => {
     setThemePreference(preference);
-    const current = await getAppSettings();
-    const next = { ...current, themePreference: preference };
-    await setAppSettings(next);
-    notifyAppSettingsSnapshot(next);
+    // Shares the settings write queue, so a theme change can't race a unit or sounds change.
+    await persistAndNotify({ themePreference: preference });
   };
 
   const isDark =

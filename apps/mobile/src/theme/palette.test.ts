@@ -29,7 +29,12 @@ describe.each([
     }
     expect(colors.shadow).toBe('#000000');
     expect(colors.shadowCool).toBe('#0F172A');
-    expect(colors.subtleDivider).toBe('rgba(255,255,255,0.08)');
+  });
+
+  it('subtle divider is a faint line that contrasts with each background', () => {
+    expect(darkThemeColors.subtleDivider).toBe('rgba(255,255,255,0.08)');
+    // Light mode used the dark-mode white line, which was invisible on a light background.
+    expect(lightThemeColors.subtleDivider).toBe('rgba(15,23,42,0.08)');
   });
 });
 

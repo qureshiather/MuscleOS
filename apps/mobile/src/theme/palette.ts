@@ -152,7 +152,7 @@ export const paletteConfig: PaletteConfig = {
       rowFuture: '#F2F4F8',
       inputBorder: '#CBD5E1',
       overlay: 'rgba(0,0,0,0.45)',
-      subtleDivider: 'rgba(255,255,255,0.08)',
+      subtleDivider: 'rgba(15,23,42,0.08)',
     },
   },
 };
