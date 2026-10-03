@@ -15,8 +15,8 @@ const EXTRA_DELETION_KEYS = [
 
 export type AnonymousGuestUser = { id: string };
 
-export type AnonymousGuestDeps = {
-  signInAnonymously: () => Promise<{ user: AnonymousGuestUser | null }>;
+export type AnonymousGuestDeps<U extends AnonymousGuestUser = AnonymousGuestUser> = {
+  signInAnonymously: () => Promise<{ user: U | null }>;
   revenueCatLogOut: () => Promise<void>;
   revenueCatLogIn: (userId: string) => Promise<void>;
 };
@@ -31,9 +31,9 @@ export async function wipeDeviceAfterAccountDeletion(): Promise<void> {
 }
 
 /** Start a new guest session and re-point RevenueCat at it. */
-export async function startFreshAnonymousGuest(
-  deps: AnonymousGuestDeps
-): Promise<AnonymousGuestUser | null> {
+export async function startFreshAnonymousGuest<U extends AnonymousGuestUser>(
+  deps: AnonymousGuestDeps<U>
+): Promise<U | null> {
   const { user } = await deps.signInAnonymously();
   if (user?.id) {
     await deps.revenueCatLogOut();

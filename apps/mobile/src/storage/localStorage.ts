@@ -16,7 +16,7 @@ import { STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
 
-const APP_SETTINGS_KEYS = {
+export const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
   profile: 'muscleos_profile',
   weightUnitLegacy: 'muscleos_weight_unit',
@@ -85,16 +85,65 @@ export function parseThemePreference(s: string | null | undefined): ThemePrefere
   return null;
 }
 
-export async function getAppSettings(): Promise<SyncedAppSettings> {
+/** Raw AsyncStorage values behind the synced settings (null = never written). */
+export interface StoredAppSettingsValues {
+  unitSystem: string | null;
+  profile: string | null;
+  weightUnitLegacy: string | null;
+  heightUnit: string | null;
+  exerciseWeightUnit: string | null;
+  bodyWeightUnit: string | null;
+  workoutSounds: string | null;
+  theme: string | null;
+}
+
+/**
+ * Settings from their stored strings, with the fallbacks for keys never written or holding junk:
+ * units default from `unit_system` (imperial → in/lb, else cm/kg); exercise weight falls back to the
+ * legacy single weight unit; body weight follows exercise weight; sounds default on; theme Auto.
+ */
+export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppSettings {
+  const unitSystem = raw.unitSystem === 'imperial' ? 'imperial' : 'metric';
+  const defaultHeight: HeightUnit = unitSystem === 'imperial' ? 'in' : 'cm';
+  const defaultWeight: WeightUnit = unitSystem === 'imperial' ? 'lb' : 'kg';
+
+  let profile: UserAppProfile = {};
+  if (raw.profile) {
+    try {
+      profile = normalizeProfile(JSON.parse(raw.profile));
+    } catch {
+      // ignore
+    }
+  }
+
+  const heightUnit = parseHeightUnit(raw.heightUnit) ?? defaultHeight;
+  const weightUnit =
+    parseWeightUnit(raw.exerciseWeightUnit) ?? parseWeightUnit(raw.weightUnitLegacy) ?? defaultWeight;
+  const bodyWeightUnit = parseWeightUnit(raw.bodyWeightUnit) ?? weightUnit;
+
+  let workoutSoundsEnabled = true;
+  if (raw.workoutSounds === '0' || raw.workoutSounds === 'false') workoutSoundsEnabled = false;
+
+  return {
+    heightUnit,
+    weightUnit,
+    bodyWeightUnit,
+    workoutSoundsEnabled,
+    themePreference: parseThemePreference(raw.theme) ?? 'auto',
+    profile,
+  };
+}
+
+export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsValues> {
   const [
-    systemStored,
-    profileRaw,
-    legacyWeight,
-    heightRaw,
-    exerciseStored,
-    bodyStored,
-    workoutSoundsRaw,
-    themeRaw,
+    unitSystem,
+    profile,
+    weightUnitLegacy,
+    heightUnit,
+    exerciseWeightUnit,
+    bodyWeightUnit,
+    workoutSounds,
+    theme,
   ] = await Promise.all([
     AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.profile),
@@ -105,37 +154,35 @@ export async function getAppSettings(): Promise<SyncedAppSettings> {
     AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.theme),
   ]);
-
-  const unitSystem = systemStored === 'imperial' ? 'imperial' : 'metric';
-  const defaultHeight: HeightUnit = unitSystem === 'imperial' ? 'in' : 'cm';
-  const defaultWeight: WeightUnit = unitSystem === 'imperial' ? 'lb' : 'kg';
-
-  let profile: UserAppProfile = {};
-  if (profileRaw) {
-    try {
-      profile = normalizeProfile(JSON.parse(profileRaw));
-    } catch {
-      // ignore
-    }
-  }
-
-  const heightUnit = parseHeightUnit(heightRaw) ?? defaultHeight;
-  const weightUnit =
-    parseWeightUnit(exerciseStored) ?? parseWeightUnit(legacyWeight) ?? defaultWeight;
-  const bodyWeightUnit = parseWeightUnit(bodyStored) ?? weightUnit;
-
-  let workoutSoundsEnabled = true;
-  if (workoutSoundsRaw === '0' || workoutSoundsRaw === 'false') workoutSoundsEnabled = false;
-  if (workoutSoundsRaw === '1' || workoutSoundsRaw === 'true') workoutSoundsEnabled = true;
-
   return {
-    heightUnit,
-    weightUnit,
-    bodyWeightUnit,
-    workoutSoundsEnabled,
-    themePreference: parseThemePreference(themeRaw) ?? 'auto',
+    unitSystem,
     profile,
+    weightUnitLegacy,
+    heightUnit,
+    exerciseWeightUnit,
+    bodyWeightUnit,
+    workoutSounds,
+    theme,
   };
+}
+
+export async function getAppSettings(): Promise<SyncedAppSettings> {
+  return parseStoredAppSettings(await readStoredAppSettingsValues());
+}
+
+/**
+ * Older builds stored one unit preference. If `unit_system` was never written but the legacy
+ * weight unit is lb or the height unit is in, promote the device to `unit_system: imperial` so
+ * unset units default to imperial. Returns the value to write, or null when nothing changes.
+ */
+export function legacyUnitMigration(raw: Pick<StoredAppSettingsValues, 'unitSystem' | 'weightUnitLegacy' | 'heightUnit'>): 'imperial' | null {
+  if (raw.unitSystem) return null;
+  return raw.weightUnitLegacy === 'lb' || raw.heightUnit === 'in' ? 'imperial' : null;
+}
+
+/** Any of the three unit keys unset: write the resolved settings back so they stop being derived. */
+export function settingsNeedPersist(raw: Pick<StoredAppSettingsValues, 'heightUnit' | 'exerciseWeightUnit' | 'bodyWeightUnit'>): boolean {
+  return raw.heightUnit == null || raw.exerciseWeightUnit == null || raw.bodyWeightUnit == null;
 }
 
 const themeStorageListeners = new Set<() => void>();
@@ -487,8 +534,12 @@ export async function setSubscription(state: SubscriptionState): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.subscription, JSON.stringify(state));
 }
 
-/** All AsyncStorage keys used by the app (for clear-all-data). */
-const ALL_APP_KEYS = [
+/**
+ * Keys Clear all data removes. Deliberately not here: the Supabase auth session (you stay signed
+ * in), the in-progress workout, the sync outbox and meta, the exact-alarm prompt flag, and the
+ * Apple authorization code — see CLEAR_ALL_DATA_KEPT_KEYS.
+ */
+export const CLEAR_ALL_DATA_KEYS = [
   STORAGE_KEYS.templates,
   STORAGE_KEYS.templateFolders,
   STORAGE_KEYS.hiddenBuiltInTemplateIds,
@@ -514,9 +565,22 @@ const ALL_APP_KEYS = [
   APP_SETTINGS_KEYS.theme,
 ] as const;
 
-/** Clears the app-owned AsyncStorage keys below. Supabase auth uses separate AsyncStorage keys and is not cleared here. */
+/** App keys Clear all data leaves in place (Delete account removes the first three too). */
+export const CLEAR_ALL_DATA_KEPT_KEYS = [
+  STORAGE_KEYS.activeWorkout,
+  STORAGE_KEYS.syncOutbox,
+  STORAGE_KEYS.syncMeta,
+  STORAGE_KEYS.exactAlarmPromptShown,
+  STORAGE_KEYS.appleAuthorizationCode,
+] as const;
+
+/**
+ * Device-only reset: removes CLEAR_ALL_DATA_KEYS and nothing is pushed to the cloud. Supabase auth
+ * uses separate AsyncStorage keys and is not cleared here.
+ */
 export async function clearAllData(): Promise<void> {
-  await Promise.all(ALL_APP_KEYS.map((key) => AsyncStorage.removeItem(key)));
+  await Promise.all(CLEAR_ALL_DATA_KEYS.map((key) => AsyncStorage.removeItem(key)));
+  emitThemeStorageChanged();
 }
 
 export async function buildExportData(profile?: UserProfile | null): Promise<ExportData> {

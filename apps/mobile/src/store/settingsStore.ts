@@ -2,8 +2,13 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
 import {
+  APP_SETTINGS_KEYS,
   getAppSettings,
+  legacyUnitMigration,
+  parseStoredAppSettings,
+  readStoredAppSettingsValues,
   setAppSettings,
+  settingsNeedPersist,
   type UserAppProfile,
   type SyncedAppSettings,
   type ThemePreference,
@@ -11,12 +16,6 @@ import {
 import { notifyAppSettingsSnapshot } from '@/sync';
 
 export type { UserAppProfile, SyncedAppSettings, ThemePreference };
-
-const UNIT_SYSTEM_KEY = 'muscleos_unit_system';
-const HEIGHT_UNIT_KEY = 'muscleos_height_unit';
-const EXERCISE_WEIGHT_UNIT_KEY = 'muscleos_exercise_weight_unit';
-const BODY_WEIGHT_UNIT_KEY = 'muscleos_body_weight_unit';
-const WEIGHT_UNIT_KEY_LEGACY = 'muscleos_weight_unit';
 
 export interface SettingsState {
   /** Stored height display (profile, etc.) */
@@ -54,23 +53,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   load: async () => {
     try {
-      const [systemStored, legacyWeight, heightRaw, exerciseStored, bodyStored] = await Promise.all([
-        AsyncStorage.getItem(UNIT_SYSTEM_KEY),
-        AsyncStorage.getItem(WEIGHT_UNIT_KEY_LEGACY),
-        AsyncStorage.getItem(HEIGHT_UNIT_KEY),
-        AsyncStorage.getItem(EXERCISE_WEIGHT_UNIT_KEY),
-        AsyncStorage.getItem(BODY_WEIGHT_UNIT_KEY),
-      ]);
-
-      if (!systemStored && (legacyWeight === 'lb' || heightRaw === 'in')) {
-        await AsyncStorage.setItem(UNIT_SYSTEM_KEY, 'imperial');
+      const raw = await readStoredAppSettingsValues();
+      const unitSystem = legacyUnitMigration(raw);
+      if (unitSystem) {
+        await AsyncStorage.setItem(APP_SETTINGS_KEYS.unitSystem, unitSystem);
       }
-
-      const settings = await getAppSettings();
-
-      const needsPersist =
-        heightRaw == null || exerciseStored == null || bodyStored == null;
-      if (needsPersist) {
+      const settings = parseStoredAppSettings({ ...raw, unitSystem: unitSystem ?? raw.unitSystem });
+      if (settingsNeedPersist(raw)) {
         await setAppSettings(settings);
       }
 

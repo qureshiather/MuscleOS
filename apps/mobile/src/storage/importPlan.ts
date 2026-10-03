@@ -135,3 +135,54 @@ export function describeImportPlan(plan: ImportPlan): string {
   if (parts.length <= 1) return parts[0] ?? 'nothing new';
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
+
+/** Data → Import data: dialog copy when the file can't be used. */
+export function importFailureMessage(reason: Extract<ParseImportResult, { ok: false }>['reason']): string {
+  return reason === 'unsupported_version'
+    ? 'This export is from a different version of MuscleOS. Update the app and try again.'
+    : 'Choose a file made with Export my data in MuscleOS.';
+}
+
+/** Data → Import data: the confirm dialog body. Signed-in users are told it also backs up. */
+export function importConfirmMessage(summary: string, isLinked: boolean): string {
+  return `Add ${summary} to this device? Nothing already here is changed or removed.${
+    isLinked ? ' It also backs up to your account.' : ''
+  }`;
+}
+
+/** Shape-compatible with the sync outbox entry (structural, so this file stays pure). */
+export type ImportOutboxEntry = {
+  entityType: 'session' | 'template' | 'template_folder' | 'custom_exercise' | 'exercise_previous' | 'exercise_note';
+  entityId: string;
+  op: 'upsert';
+  payload: unknown;
+  updatedAt: string;
+};
+
+/**
+ * Outbox upserts for an applied import: every imported row, plus the rebuilt previous snapshot when
+ * sessions were added and the merged notes snapshot when notes were added. Sessions keep their own
+ * clock (completedAt, else startedAt); everything else is stamped `now`.
+ */
+export function importOutboxEntries(
+  plan: ImportPlan,
+  previous: unknown,
+  nextNotes: Record<string, string>,
+  now: string
+): ImportOutboxEntry[] {
+  const upsert = (
+    entityType: ImportOutboxEntry['entityType'],
+    entityId: string,
+    payload: unknown,
+    updatedAt = now
+  ): ImportOutboxEntry => ({ entityType, entityId, op: 'upsert', payload, updatedAt });
+  const entries: ImportOutboxEntry[] = [
+    ...plan.sessions.map((s) => upsert('session', s.id, s, s.completedAt ?? s.startedAt ?? now)),
+    ...plan.templates.map((t) => upsert('template', t.id, t)),
+    ...plan.templateFolders.map((f) => upsert('template_folder', f.id, f)),
+    ...plan.customExercises.map((e) => upsert('custom_exercise', e.id, e)),
+  ];
+  if (plan.sessions.length) entries.push(upsert('exercise_previous', 'default', previous));
+  if (Object.keys(plan.exerciseNotes).length) entries.push(upsert('exercise_note', 'default', nextNotes));
+  return entries;
+}

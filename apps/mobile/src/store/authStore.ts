@@ -13,8 +13,7 @@ import {
   wipeDeviceAfterAccountDeletion,
 } from '@/auth/deleteAccount';
 import { signOutGoogle } from '@/auth/googleSignIn';
-
-const AUTH_INIT_TIMEOUT_MS = 10_000;
+import { resolveLaunchUser, signOutToGuest } from '@/auth/authSession';
 
 function userToProfile(user: User): UserProfile | null {
   if (user.is_anonymous) return null;
@@ -86,58 +85,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   init: async () => {
     set({ isLoading: true });
-    if (!isSupabaseConfigured()) {
-      set({ user: null, isAnonymous: true, profile: null, isLoading: false });
-      return null;
-    }
-    try {
-      const sessionResult = await withTimeout(supabase.auth.getSession(), AUTH_INIT_TIMEOUT_MS);
-      if (!sessionResult) {
-        set({ user: null, isAnonymous: true, profile: null, isLoading: false });
-        return null;
-      }
-
-      const {
-        data: { session },
-      } = sessionResult;
-
-      if (session?.user) {
-        const user = session.user;
-        set({
-          user,
-          isAnonymous: user.is_anonymous ?? false,
-          profile: userToProfile(user),
-          isLoading: false,
-        });
-        return user.id;
-      }
-
-      const anonResult = await withTimeout(supabase.auth.signInAnonymously(), AUTH_INIT_TIMEOUT_MS);
-      if (!anonResult) {
-        set({ user: null, isAnonymous: true, profile: null, isLoading: false });
-        return null;
-      }
-      const { data, error } = anonResult;
-      if (error) {
-        set({ user: null, isAnonymous: true, profile: null, isLoading: false });
-        return null;
-      }
-      const user = data.user;
-      if (!user) {
-        set({ user: null, isAnonymous: true, profile: null, isLoading: false });
-        return null;
-      }
-      set({
-        user,
-        isAnonymous: true,
-        profile: null,
-        isLoading: false,
-      });
-      return user.id;
-    } catch {
-      set({ user: null, isAnonymous: true, profile: null, isLoading: false });
-      return null;
-    }
+    const user = await resolveLaunchUser<User>({
+      isConfigured: isSupabaseConfigured,
+      getSession: () => supabase.auth.getSession(),
+      signInAnonymously: () => supabase.auth.signInAnonymously(),
+      withTimeout,
+    });
+    set({
+      user,
+      isAnonymous: user ? (user.is_anonymous ?? false) : true,
+      profile: user ? userToProfile(user) : null,
+      isLoading: false,
+    });
+    return user?.id ?? null;
   },
 
   signOut: async () => {
@@ -146,19 +106,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     try {
-      await signOutGoogle();
-      await supabase.auth.signOut();
-      const { data } = await supabase.auth.signInAnonymously();
-      const user = data.user;
-      set({
-        user: user ?? null,
-        isAnonymous: true,
-        profile: null,
+      const user = await signOutToGuest<User>({
+        signOutGoogle,
+        signOutSupabase: () => supabase.auth.signOut(),
+        signInAnonymously: async () => {
+          const { data } = await supabase.auth.signInAnonymously();
+          // Guest from here on, before RevenueCat and sync are re-pointed.
+          set({ user: data.user ?? null, isAnonymous: true, profile: null });
+          return { user: data.user ?? null };
+        },
+        revenueCatLogOut,
+        revenueCatLogIn,
+        resetSyncTransport: async (userId) => {
+          const { resetSyncTransport } = await import('@/sync');
+          await resetSyncTransport(userId);
+        },
       });
-      if (user?.id) {
-        await revenueCatLogOut();
-        await revenueCatLogIn(user.id);
-      }
+      set({ user: user ?? null, isAnonymous: true, profile: null });
     } catch {
       set({ user: null, isAnonymous: true, profile: null });
     }

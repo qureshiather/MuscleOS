@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { Exercise } from '@muscleos/types';
 import { getCustomExercises, setCustomExercises } from '@/storage/localStorage';
 import { catalogRowToExercise, exerciseToUserRow, normalizeExercise } from '@/utils/exerciseNormalize';
-import { getOutboxMap, outboxEntryKey, setOutbox } from './outbox';
+import { commitOutboxEdits, getOutboxMap, outboxEntryKey } from './outbox';
 import { bumpUpdatedAtIfNeeded, decideEntityApply } from './mergePolicy';
 import type { OutboxEntry } from './types';
 
@@ -68,6 +68,7 @@ export async function applyRemoteUserExercises(rows: RemoteUserExercise[]): Prom
   if (rows.length === 0) return false;
 
   const [customExercises, outboxMap] = await Promise.all([getCustomExercises(), getOutboxMap()]);
+  const outboxBefore = Array.from(outboxMap.values());
   const exerciseMap = new Map(customExercises.map((e) => [e.id, e]));
   let changed = false;
 
@@ -118,6 +119,6 @@ export async function applyRemoteUserExercises(rows: RemoteUserExercise[]): Prom
   if (changed) {
     await setCustomExercises(Array.from(exerciseMap.values()));
   }
-  await setOutbox(Array.from(outboxMap.values()));
+  await commitOutboxEdits(outboxBefore, Array.from(outboxMap.values()));
   return changed;
 }
