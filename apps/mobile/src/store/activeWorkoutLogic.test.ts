@@ -5,15 +5,15 @@ import {
   DEFAULT_SETS_PER_EXERCISE,
   REST_MAX_SECONDS,
   REST_MIN_SECONDS,
+  REST_END_SOUND_GRACE_MS,
   STALE_WORKOUT_MS,
-  adjustRestSeconds,
+  adjustRunningRest,
   bestCompletedSet,
   buildAddedSet,
   buildPreviousSnapshot,
   buildReplacedExercise,
   bumpRestKeysForInsertedSet,
   canCompleteSet,
-  clampRestSeconds,
   completeSetInSets,
   createEmptySession,
   createPrefillingSets,
@@ -24,37 +24,179 @@ import {
   oldToNewForRemove,
   oldToNewForReorder,
   parseStartParams,
+  prefillSession,
   rebuildPreviousSnapshot,
   remapRestAfter,
   remapRestDurations,
+  resolveRestEnd,
   resolveStaleWorkout,
   restDurationAfterComplete,
+  restSecondsLeft,
+  restTakenSeconds,
+  sessionHasExercise,
+  shouldPlayRestTick,
   storedRestSeconds,
   startPrefillPatch,
   stripPrefillFlags,
 } from './activeWorkoutLogic';
 
-describe('rest duration', () => {
-  it('keeps the built-in presets on the 30-second grid', () => {
-    expect(clampRestSeconds(60)).toBe(60);
-    expect(clampRestSeconds(90)).toBe(90);
-    expect(clampRestSeconds(120)).toBe(120);
-    expect(clampRestSeconds(180)).toBe(180);
+describe('adjustRunningRest (header ±30)', () => {
+  const NOW = 1_000_000;
+  const running = (total: number, leftSec: number) => ({ endTime: NOW + leftSec * 1000, total });
+
+  it('+30 adds 30 s to the total and the end time, off-grid totals included', () => {
+    expect(adjustRunningRest(running(120, 50), 1, NOW)).toEqual(running(150, 80));
+    expect(adjustRunningRest(running(100, 10), 1, NOW)).toEqual(running(130, 40));
   });
 
-  it('snaps an off-grid value and clamps to 30s–15:00', () => {
-    expect(clampRestSeconds(100)).toBe(90);
-    expect(clampRestSeconds(0)).toBe(REST_MIN_SECONDS);
-    expect(clampRestSeconds(REST_MAX_SECONDS + 90)).toBe(REST_MAX_SECONDS);
-    expect(clampRestSeconds(Number.NaN)).toBe(120);
+  it('+30 caps the total at 15:00', () => {
+    expect(adjustRunningRest(running(REST_MAX_SECONDS - 10, 100), 1, NOW)).toEqual(
+      running(REST_MAX_SECONDS, 110)
+    );
+    expect(adjustRunningRest(running(REST_MAX_SECONDS, 100), 1, NOW)).toEqual(
+      running(REST_MAX_SECONDS, 100)
+    );
   });
 
-  it('steps by 30 seconds and stops at the floor and ceiling', () => {
-    expect(adjustRestSeconds(120, 1)).toBe(150);
-    expect(adjustRestSeconds(120, -1)).toBe(90);
-    expect(adjustRestSeconds(REST_MIN_SECONDS, -1)).toBe(REST_MIN_SECONDS);
-    expect(adjustRestSeconds(REST_MAX_SECONDS, 1)).toBe(REST_MAX_SECONDS);
-    expect(adjustRestSeconds(45, 1)).toBe(90);
+  it('−30 removes 30 s from the total and the end time', () => {
+    expect(adjustRunningRest(running(120, 100), -1, NOW)).toEqual(running(90, 70));
+  });
+
+  it('−30 never takes the total below 30 s', () => {
+    expect(adjustRunningRest(running(40, 35), -1, NOW)).toEqual(running(REST_MIN_SECONDS, 25));
+  });
+
+  it('−30 at a 30 s total does nothing, so the progress bar never jumps', () => {
+    const r = running(REST_MIN_SECONDS, 25);
+    const next = adjustRunningRest(r, -1, NOW);
+    expect(next).toEqual(r);
+    // progress = (total − left) / total is unchanged
+    expect((next.total - 25) / next.total).toBe((r.total - 25) / r.total);
+  });
+
+  it('−30 never leaves less than 1 s on the clock', () => {
+    // 10 s left: only 9 s can come off.
+    const next = adjustRunningRest(running(120, 10), -1, NOW);
+    expect(next.endTime - NOW).toBe(1000);
+    expect(next.total).toBe(111);
+  });
+
+  it('keeps total = time rested + time left, so the recorded duration stays true', () => {
+    // 110 s rested, 10 s left; after −30 the rest that gets recorded is 110 + 1.
+    const next = adjustRunningRest(running(120, 10), -1, NOW);
+    expect(next.total - (next.endTime - NOW) / 1000).toBe(110);
+  });
+});
+
+describe('restTakenSeconds / restSecondsLeft', () => {
+  it('skip records total minus the whole seconds left (rounded up)', () => {
+    expect(restTakenSeconds(120, 10_000 + 90_500, 10_000)).toBe(29);
+    expect(restTakenSeconds(120, 10_000 + 120_000, 10_000)).toBe(0);
+  });
+
+  it('never records a negative duration', () => {
+    expect(restTakenSeconds(30, 10_000 + 60_000, 10_000)).toBe(0);
+  });
+
+  it('shows remaining seconds rounded up, 0 once past, null with no timer', () => {
+    expect(restSecondsLeft(10_000 + 1_200, 10_000)).toBe(2);
+    expect(restSecondsLeft(10_000, 20_000)).toBe(0);
+    expect(restSecondsLeft(null, 10_000)).toBeNull();
+  });
+});
+
+describe('resolveRestEnd', () => {
+  const restAfter = { exIdx: 1, setIdx: 2 };
+
+  it('is null while the countdown is still running, or none is', () => {
+    expect(resolveRestEnd({ restEndTime: 5_000, restAfter, total: 90 }, 4_999)).toBeNull();
+    expect(resolveRestEnd({ restEndTime: null, restAfter, total: 90 }, 4_999)).toBeNull();
+  });
+
+  it('records the full duration against the set the rest followed', () => {
+    expect(resolveRestEnd({ restEndTime: 5_000, restAfter, total: 90 }, 5_000)).toEqual({
+      record: { exIdx: 1, setIdx: 2, seconds: 90 },
+      playEndSound: true,
+    });
+  });
+
+  it('records nothing for a manual rest (no set)', () => {
+    expect(resolveRestEnd({ restEndTime: 5_000, restAfter: null, total: 60 }, 5_100)).toEqual({
+      playEndSound: true,
+    });
+  });
+
+  it('plays the end sound only within the 1500 ms grace window', () => {
+    expect(REST_END_SOUND_GRACE_MS).toBe(1500);
+    const at = (now: number) =>
+      resolveRestEnd({ restEndTime: 5_000, restAfter, total: 90 }, now)?.playEndSound;
+    expect(at(5_000 + 1_499)).toBe(true);
+    expect(at(5_000 + 1_500)).toBe(false);
+    expect(at(5_000 + 60_000)).toBe(false);
+  });
+});
+
+describe('shouldPlayRestTick', () => {
+  it('ticks at 3, 2 and 1 seconds left', () => {
+    expect(shouldPlayRestTick(4, 3)).toBe(true);
+    expect(shouldPlayRestTick(3, 2)).toBe(true);
+    expect(shouldPlayRestTick(2, 1)).toBe(true);
+    expect(shouldPlayRestTick(null, 2)).toBe(true);
+  });
+
+  it('is silent outside 1–3 and on re-renders within the same second', () => {
+    expect(shouldPlayRestTick(5, 4)).toBe(false);
+    expect(shouldPlayRestTick(1, 0)).toBe(false);
+    expect(shouldPlayRestTick(3, 3)).toBe(false);
+    // +30 while ticking jumps up: no tick until it counts back down
+    expect(shouldPlayRestTick(2, 3)).toBe(false);
+  });
+});
+
+describe('prefillSession (session start)', () => {
+  const session: WorkoutSession = {
+    id: 's',
+    templateId: 't',
+    startedAt: '2026-01-01T00:00:00.000Z',
+    exercises: [
+      {
+        exerciseId: 'bench',
+        sets: [
+          { completed: false, isWarmUp: true },
+          { completed: false },
+          { completed: false, weightKg: 50 },
+        ],
+      },
+      { exerciseId: 'row', sets: [{ completed: false }] },
+    ],
+  };
+
+  it('fills only completely empty working sets, flagged as suggestions', () => {
+    const out = prefillSession(session, { bench: { weightKg: 60, reps: 5 } });
+    const [warm, empty, partial] = out.exercises[0].sets;
+    expect(warm).toEqual({ completed: false, isWarmUp: true });
+    expect(empty).toEqual({
+      completed: false,
+      weightKg: 60,
+      weightPrefilled: true,
+      reps: 5,
+      repsPrefilled: true,
+    });
+    expect(partial).toEqual({ completed: false, weightKg: 50 });
+    // no snapshot → untouched
+    expect(out.exercises[1]).toBe(session.exercises[1]);
+  });
+
+  it('returns the same session when there is nothing to fill', () => {
+    expect(prefillSession(session, {})).toBe(session);
+  });
+});
+
+describe('sessionHasExercise', () => {
+  it('detects an exercise already in the workout', () => {
+    const s = createEmptySession('t', [{ exerciseId: 'a' }], 1);
+    expect(sessionHasExercise(s, 'a')).toBe(true);
+    expect(sessionHasExercise(s, 'b')).toBe(false);
   });
 });
 
@@ -503,6 +645,18 @@ describe('normalizeHydratedState', () => {
     const state = normalizeHydratedState(saved, 20_000);
     expect(state.restEndTime).toBeNull();
     expect(state.restAfter).toBeNull();
+  });
+
+  it('records the expired rest full duration for its set before dropping the timer', () => {
+    const state = normalizeHydratedState(saved, 20_000);
+    expect(state.restDurationsBetweenSets).toEqual({ '0-0': 90 });
+    // input untouched
+    expect(saved.restDurationsBetweenSets).toEqual({ '0-0': 60 });
+  });
+
+  it('records nothing for an expired manual rest', () => {
+    const state = normalizeHydratedState({ ...saved, restAfter: null }, 20_000);
+    expect(state.restDurationsBetweenSets).toEqual({ '0-0': 60 });
   });
 
   it('falls back to defaults for missing rest fields', () => {

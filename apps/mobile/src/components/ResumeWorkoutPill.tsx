@@ -6,13 +6,7 @@ import { radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { Ionicons } from '@expo/vector-icons';
-
-function formatElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+import { formatClockMs } from '@/utils/formatClock';
 
 export function ResumeWorkoutPill() {
   const { colors } = useTheme();
@@ -50,7 +44,7 @@ export function ResumeWorkoutPill() {
           <Ionicons name="barbell" size={14} color={colors.primaryOn} />
         </View>
         <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>Resume workout</Text>
-        <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatElapsed(elapsedMs)}</Text>
+        <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatClockMs(elapsedMs)}</Text>
       </Pressable>
       <Pressable onPress={handleCancel} hitSlop={12} style={styles.cancelBtn} accessibilityLabel="Cancel workout">
         <Ionicons name="close" size={22} color={colors.textMuted} />

@@ -61,6 +61,9 @@ writes it), rest-pause, tempo, or duration/distance-based work. Every set is wei
 
 A new session creates each exercise's template plan: `warmUpSets` (default 0) blank warm-up
 rows, then `sets` (default 3) blank working rows. Strong Lifts slots ship with 5 working sets.
+`startWorkout` then loads the per-exercise "previous" snapshots and applies the session-start
+prefill (below) **once** — reopening or remounting the screen never prefills again, so a value
+you cleared stays cleared.
 
 **Pro gates are enforced here, not only on the home screen**, because `/active-workout` is
 reachable directly by deep link and notification tap: starting `_empty` needs `empty_workout`
@@ -76,9 +79,12 @@ it; tap the overlay to dismiss and keep it.
 ### Persisting and resuming
 
 State lives in `activeWorkoutStore` (session, rest timer state, recorded rest durations) and is
-mirrored to AsyncStorage under `muscleos_active_workout`, **debounced 400 ms**, plus an immediate
-write when the app backgrounds. `hydrateActiveWorkout()` restores it during app boot, discarding
-an already-expired rest timer.
+mirrored to AsyncStorage under `muscleos_active_workout`, **debounced 400 ms** (a burst of edits —
+one per keypad digit — coalesces into one write), plus an immediate write when the app
+backgrounds. Nothing is written until boot hydration has finished. `hydrateActiveWorkout()`
+restores it during app boot. A rest timer that expired while the app was dead is dropped, but
+first its full duration is recorded against the set it followed, exactly as if the app had seen
+it end.
 
 ### Stale workouts
 
@@ -119,7 +125,7 @@ session, and queues a cloud sync.
 Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the full width of the exercise card with no inner frame, and the weight and reps cells are large filled wells (every editable cell looks the same; only the focused one gets the accent ring) so they're easy to hit mid-set.
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
-- Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including those in later exercises — renders muted with an outlined number; there is never more than one highlighted set at a time.
+- Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including the first set of later exercises — is "upcoming": it renders muted with an outlined number; there is never more than one highlighted set at a time. The set number's accessibility label reads `Set <n>, current | upcoming | completed`.
 - Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint. A rest row between two completed sets carries the same tint and bar (no divider line), so a run of completed sets reads as one unbroken green column.
 - When every set in an exercise is completed, the card is marked done: a green border and a green check icon before the exercise name.
 - After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
@@ -136,7 +142,7 @@ Prefill rules:
 
 | When | Behaviour |
 |------|-----------|
-| Session starts | For any **working** set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Warm-up rows are left empty. Partially filled sets are left alone. |
+| Session starts (once, in `startWorkout`) | For any **working** set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Warm-up rows are left empty. Partially filled sets (including anything typed while the snapshot loads) are left alone. |
 | Add or replace exercise | Same as session start, for the **new** exercise's snapshot. A replace discards the old movement's set values first — they are not carried over. |
 | Completing a set | Copy that set's weight (not reps) into the next set if the next set's weight is empty — only when both are the same kind (warm-up vs working). |
 | Adding a set | Copy the last set's weight and reps if present. |
@@ -185,17 +191,27 @@ scrolled up so the pad never hides the row being edited.
   normal keyboard. The chevron key hides the pad. Neither reserved slot (Plates / RPE) is wired
   to anything yet.
 
-The pure entry maths (append, backspace, ± clamping, digit caps, and `m:ss` clock entry) lives in
-`src/utils/keypadInput.ts` and is unit-tested.
+The pure entry maths (append, backspace, ± clamping, digit caps, `m:ss` clock entry) and what each
+key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes) live in
+`src/utils/keypadInput.ts`; the screen only applies the outcome.
 
 ### Completing, adding, removing
 
-- **Done** requires `reps > 0`; weight is optional. Completing a set **auto-starts the rest
-  timer** for that set's duration: the work-set rest after a working set (default 120 s; an
-  explicit 0:00 starts nothing), and the warm-up rest after a warm-up (only when that duration
-  is greater than 0).
+- **Done** requires `reps > 0` (the control is disabled until then); weight is optional.
+  Completing a set **auto-starts the rest timer** for that set's duration: the work-set rest
+  after a working set (default 120 s; an explicit 0:00 starts nothing), and the warm-up rest
+  after a warm-up (only when that duration is greater than 0). Both the row's Done and the pad's
+  Done go through the store's `toggleSetComplete`.
+- **Tapping Done on a completed set un-completes it.** It only flips `completed` back: the
+  weight and reps stay, a countdown running for *that* set is cancelled, and nothing else is
+  undone — the weight already carried into the next set stays, prefill flags aren't restored, and
+  a recorded rest duration is kept (hidden until the set is completed again). The pad's Done on an
+  already-completed set just hides the pad.
 - **+ ADD SET** appends a set; the button label shows the current rest preset. The control is a full-width footer of the set table, separated from the last row by the same divider as the set rows, and shares the table’s edges.
-- **Swipe left** or long-press a set number to delete. Minimum **1 set** per exercise; no maximum.
+- **Swipe left** deletes a set immediately. **Long-press a set number** asks first, with the
+  themed confirm dialog ("Remove set — Delete this set from the exercise?", **Cancel** /
+  **Remove**). Deleting a set cancels a countdown running for it. Minimum **1 set** per exercise
+  (neither gesture is offered on the last one); no maximum.
 - **Add warm-up** inserts a warm-up set at position 0.
 
 ## Rest timer
@@ -203,8 +219,8 @@ The pure entry maths (append, backspace, ± clamping, digit caps, and `m:ss` clo
 | Setting | Value |
 |---------|------:|
 | App default (`DEFAULT_REST_SECONDS`) | **120 s** (working sets, when omitted) |
-| Running timer step | ±30 s |
-| Running timer floor / ceiling | 30 s / 15:00 (900 s) |
+| Running timer step | ±30 s, not snapped to a 30 s grid |
+| Running timer floor / ceiling | 30 s total / 15:00 (900 s) total; −30 never leaves less than 1 s |
 | Typed preset | any `m:ss` from 0:00 to 15:00, not snapped to 30 s |
 | Manual picker (header) | 60 / 120 / 180 s |
 
@@ -214,8 +230,17 @@ including the last. A working set uses `restBetweenSetsSeconds` (omitted means 1
 means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
 
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
-and app restarts. **Skip rest** records the elapsed time and clears the timer; recorded durations
-are kept per set and shown under the set number.
+and app restarts. **Skip rest** records the time actually rested (total minus the whole seconds
+left) and clears the timer; recorded durations are kept per set and shown under the set number.
+When a countdown reaches zero its **full duration** is recorded and the timer clears. A manual
+rest (header picker) is not tied to a set, so nothing is recorded for it.
+
+The header dialogue's ±30 (`adjustRunningRest`) moves the end time and the total by the same
+amount, so the progress bar and the duration recorded at the end stay true:
+
+- **+30** adds up to 30 s, capping the total at 15:00.
+- **−30** removes up to 30 s, but never takes the total below 30 s or leaves less than 1 s on the
+  clock. At a 30 s total it does nothing.
 
 A rest row sits after a set when that set's duration is greater than 0, so completing the set
 does not shove the rows below — the countdown replaces the preset in that same row. Tapping it
@@ -223,8 +248,11 @@ opens the header rest dialogue (running-timer controls, or the manual picker whe
 counting). It does not edit the row in place. The header dialogue's ±30 buttons change only the
 countdown already running.
 
-**Update rest timers** (exercise menu) sets the work-set and warm-up rests used next time. It
-does not change a countdown that is already running. Each duration is a time box. Tapping a box
+**Update rest timers** (exercise menu) sets the work-set and warm-up rests for the following sets
+of that exercise, for the rest of this workout. They are stored on the session's exercise only —
+not on the template, and not carried into later workouts. It does not change a countdown that is
+already running. The dialogue's hint reads "A running timer is not affected. Applies to the next
+sets of this exercise for the rest of this workout." Each duration is a time box. Tapping a box
 opens the logging keypad in time mode (digits only, `m:ss`, 0:00–15:00). **Next** moves from
 Work set to Warm up; **Done** hides the keypad. **Update rest timers** writes both durations
 onto the exercise.
@@ -236,8 +264,8 @@ mode.
 
 | Sound | Trigger |
 |-------|---------|
-| `restTick` | Rest countdown at 3, 2, 1 seconds |
-| `restEnd` | Rest reaches zero while the app is in the foreground |
+| `restTick` | Rest countdown at 3, 2, 1 seconds — once per second, only while counting down |
+| `restEnd` | Rest reaches zero while the app is in the foreground (noticed within 1500 ms of the end) |
 | `setComplete` | A set is marked complete |
 | `workoutComplete` | Workout finished |
 
@@ -255,8 +283,22 @@ Two delivery paths:
   iOS time-sensitive interruption level.
 
 Notification bodies name the upcoming work — `Next: <exercise>`, `Continue to <exercise>`, or
-`Finish your workout` — derived from the first exercise with incomplete sets. Tapping any of them
-opens the active workout.
+`Finish your workout` — derived from the first exercise with incomplete sets. While resting, the
+current exercise stays `Next:` if it has sets left; otherwise the copy advances (`Continue to`) to
+the next unfinished exercise, wrapping round to earlier ones. Tapping any of them opens the
+active workout (`data.screen: 'active-workout'`).
+
+| Path | Title | Body |
+|------|-------|------|
+| expo-notifications tray, resting (iOS, or Android backgrounded) | `MuscleOS — Workout` | `Rest until <clock time> • <next>` — an absolute time, so the entry never goes stale and costs one write |
+| expo-notifications tray, resting (Android foreground) | `MuscleOS — Workout` | `Rest m:ss • <next>`, rewritten every second |
+| expo-notifications tray, not resting | `MuscleOS — Workout` | `<next>` |
+| Native Android live notification | `Resting` / `Workout in progress` | `<next>`, with a platform chronometer while resting |
+| Rest-over alert (both paths) | `Rest over` | `Time for <exercise>`, or `Time to finish your workout` |
+
+The rest-over alert's sound follows `workoutSoundsEnabled`; with sounds off it still arrives,
+silently. In the foreground the OS alert is suppressed (cancelled / `alertEnabled: false`) and the
+in-app timer and sound handle it.
 
 When rest completes while the app is backgrounded, the OS notification fires and the handler
 records the rest duration and clears the timer on return, so the two paths don't double up. The
@@ -276,17 +318,21 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 | **Reorder exercises** | Basic | Long-press an exercise title to enter drag mode |
 | **Edit rest for an exercise** | Basic | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. 0:00 means that kind does not start a timer |
 | **Exercise note** | Basic | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
-| **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists |
-| **Replace exercise** | Pro `replace_exercise_mid_workout` | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement). The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. |
+| **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists. An exercise already in the workout can't be added again |
+| **Replace exercise** | Pro `replace_exercise_mid_workout` | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement), and a countdown running for that slot is cancelled. The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. Replacing with an exercise already in the workout (including itself) does nothing |
 | **Remove exercise** | No direct gate | Blocked only for a Basic user editing a built-in workout; otherwise a themed confirm ("Remove {name} from this workout?") removes it and remaps recorded rest. **Cancel** (or tap the overlay) dismisses; **Remove** removes. |
 
 On a **built-in** template, add/replace/remove are blocked for Basic users with the built-in
 alert rather than the paywall — the intended path is to edit the session and save it as a new
 template (Pro). On Basic the button reads **"Pro: Add Exercise"**.
 
-The exercise picker searches the full catalog plus your customs. Whenever the search box has text
-the picker also offers **Create "<query>"** (gated on `custom_exercises`), so a missing movement can
-be added even when the search has partial matches. It routes to `/create-exercise` pre-filled with
+The exercise picker (`pickerResults`) searches the full catalog plus your customs, **leaving out
+every exercise already in the workout** — in both Add and Replace mode — so a workout never holds
+the same exercise twice (the store's `addExercise` / `replaceExercise` refuse a duplicate too).
+Whenever the search box has text the picker also offers **Create "<query>"** (gated on
+`custom_exercises`), so a missing movement can be added even when the search has partial matches.
+When a search with text finds nothing, "No matching exercises" shows above the Create row; an
+empty search shows neither. It routes to `/create-exercise` pre-filled with
 the query; saving returns to the workout and drops the new exercise straight in — added to the end
 for the **Add** flow, or swapped in for the **Replace** flow.
 
@@ -298,14 +344,19 @@ working/warm-up row counts (incomplete rows still count):
 
 | Started from | Options |
 |--------------|---------|
-| Empty workout | Save as template (Pro) · Save values only · Discard |
-| Built-in, list or set structure changed | Save as new template (Pro) · Save values only · Discard |
-| Custom, list or set structure changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard |
-| Unchanged | Save values · Discard |
+| Empty workout | Save as template (Pro) · Save values only · Discard workout |
+| Built-in, list or set structure changed | Save as new template (Pro) · Save values only · Discard workout |
+| Custom, list or set structure changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard workout |
+| Unchanged (built-in or custom) | Save values · Discard workout |
 
-The summary lists duration and each exercise with completed sets. The list scrolls inside the
-modal so the actions stay on screen, and its bottom edge fades out while more exercises sit below.
-Tapping outside the card closes the flow.
+The first option is the filled primary button, other saves are outlined, and **Discard workout**
+is a muted text button. A changed custom template also shows the hint "You changed the exercises
+in this workout." A **Back** button under the options closes the modal and returns to the workout,
+as does tapping outside the card.
+
+The summary lists duration and each exercise with completed sets (`<n> set(s) · 60 × 5 reps, …`).
+The list scrolls inside the modal so the actions stay on screen, and its bottom edge fades out
+while more exercises sit below.
 
 "Overwrite" updates the template's `exerciseIds` and per-exercise set structure from the
 session (working vs warm-up row counts, including incomplete rows) — names and folders are
@@ -323,8 +374,11 @@ On finish:
 - Per-exercise "previous" is overwritten from this session's best completed weighted set
   (highest weight, then reps). It can therefore move down after a lighter workout.
 - Recovery is recomputed from all sessions.
-- Confetti plays, and a **"Good work"** screen shows duration, the exercises with at least one
-  completed set, and a diagram of the muscles trained.
+- Confetti plays, and a **"Good work"** screen shows the template name ("Empty workout" for an
+  ad-hoc session, "Workout" if the template is gone), three stats — **Duration**, **Exercises**
+  (with at least one completed set) and **Sets** (completed) — a diagram of the muscles trained,
+  and a summary of each exercise's completed sets (`60 kg × 5 reps  ·  …`). **Done** returns to
+  the tabs.
 
 Incomplete sets are excluded from the summary, from "previous", and from recovery — but they are
 still in the stored session.
@@ -339,7 +393,7 @@ them, so there is no cached value to invalidate. See
 |----------|------:|
 | Default working sets per exercise | 3 |
 | Default rest | 120 s |
-| Rest adjust step / floor / ceiling | 30 s / 30 s / 900 s |
+| Rest adjust step / floor / ceiling | 30 s / 30 s total / 900 s total (−30 leaves ≥ 1 s) |
 | Persist debounce | 400 ms |
 | Stale workout idle threshold | 3 h |
 | Timer tick | 1000 ms |
@@ -368,46 +422,80 @@ them, so there is no cached value to invalidate. See
 
 ## Tests
 
-The store's set-logging rules and the finish-flow decision are extracted into pure modules so
-they can be unit-tested without a React Native renderer. The store (`activeWorkoutStore`) and the
-screen (`active-workout.tsx`) import these, so the tests cover the real logic rather than a copy.
+The set-logging, rest, keypad and finish rules are extracted into pure modules that the store
+(`activeWorkoutStore`) and the screen (`active-workout.tsx`) import, so the unit tests cover the
+real logic rather than a copy. The screen itself is covered by Jest UI tests that mount it through
+the real router.
 
-Covered:
+**Vitest (pure logic and store):**
 
 - `src/store/activeWorkoutLogic.test.ts` — `createEmptySession` (default 3 working / optional
-  warm-ups / per-exercise counts),
-  set-complete weight prefill (same warm-up/working kind only, never reps), add-set carry-over,
-  `bestCompletedSet` / `buildPreviousSnapshot` (highest weight then reps; can move down; keeps a
-  prior snapshot when nothing qualifies), warm-up insert bumping rest keys, rest-key remap on
-  reorder / remove / replace, `canCompleteSet` (`reps > 0`), `restDurationAfterComplete` (working sets use their rest, default 120; explicit 0 skips; warm-ups rest only when `warmUpRestSeconds` > 0),
-  `storedRestSeconds` (typed `m:ss`, including 0:00, capped at 15:00, not snapped to 30 s),
-  `startPrefillPatch` (empty **working** sets only, flagged as suggestions; warm-ups skipped), suggestion flags set on
-  prefill/carry-over and cleared on complete, `stripPrefillFlags` (dropped before save),
-  `clampRestSeconds` / `adjustRestSeconds` (running-timer ±30 grid, 30 s floor, 15:00 ceiling),
-  `buildReplacedExercise` (resets to default sets and prefills from the **new** exercise, not
-  the one it replaced), `parseStartParams` / `encodeStartParams`, and `normalizeHydratedState` (an expired rest timer
-  is dropped on boot; legacy snapshots take `lastActivityAt` from `startedAt`), and
-  `resolveStaleWorkout` (3 h threshold, finish at last activity vs. discard when nothing completed)
-- `src/utils/workoutSetView.test.ts` — warm-up (`W1…`) vs working (`1,2,3…`) numbering and the
-  single "current" set rule (first incomplete set of the first unfinished exercise)
-- `src/utils/workoutFinish.test.ts` — `templateListChanged`, `templateStructureChanged` (set/warm-up
-  counts count as a change), the finish `variant` classifier, and
-  the save-options matrix: a built-in is never offered "Overwrite"; a changed built-in only forks
-  to a new template (Pro); a changed custom offers Overwrite + Save-as-new (both Pro)
-- `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping (session edits, not rest-timer
-  actions) and the stale close after hydration and on foreground, including overlapping closes
-  saving the session once; only one workout at a time; the 1-set minimum; and finish saving the
-  whole session (incomplete sets kept, prefill flags stripped) and updating previous and recovery
-- `src/storage/localStorage.activeWorkout.test.ts` — the persist/resume round-trip through the
-  in-memory AsyncStorage harness, including null-clear and corrupt/invalid-payload guards
-- `src/utils/workoutNotificationCopy.test.ts` — "Next:" / "Continue to" / "Finish your workout"
-  selection, including wrap-around to an earlier unfinished exercise
+  warm-ups / per-exercise counts), set-complete weight prefill (same warm-up/working kind only,
+  never reps), add-set carry-over, `bestCompletedSet` / `buildPreviousSnapshot` (highest weight
+  then reps; can move down; keeps a prior snapshot when nothing qualifies), warm-up insert bumping
+  rest keys, rest-key remap on reorder / remove / replace, `canCompleteSet`,
+  `restDurationAfterComplete`, `storedRestSeconds`, `startPrefillPatch` and `prefillSession`
+  (empty working sets only, flagged; warm-ups and partial sets skipped), `stripPrefillFlags`,
+  `adjustRunningRest` (+30 cap at 15:00, −30 floors the total at 30 s and leaves ≥ 1 s, no-op at
+  30 s, total and end move together), `restTakenSeconds` / `restSecondsLeft`, `resolveRestEnd`
+  (full duration recorded, manual rest records nothing, 1500 ms sound grace), `shouldPlayRestTick`
+  (3, 2, 1 only while counting down), `sessionHasExercise`, `buildReplacedExercise`,
+  `parseStartParams` / `encodeStartParams`, `normalizeHydratedState` (expired rest dropped after
+  recording its duration; legacy `lastActivityAt`), and `resolveStaleWorkout`
+- `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping and the stale close after
+  hydration and on foreground (overlapping closes save once); one workout at a time; 1-set
+  minimum; finish saving the whole session; the **debounced persist** (writes after 400 ms,
+  coalesces a burst, nothing before hydration) and the immediate **background** write; start
+  prefill applied once and never re-applied, keeping edits made while it loads; hydrate recording
+  an expired rest; `toggleSetComplete` (reps gate, work/warm-up rest, un-complete cancels only its
+  own countdown, carried weight not taken back); `skipRest`, `endRestIfDue`, ±30; `addWarmUpSet`,
+  `addSet`, `removeSet` / `removeExercise` / `replaceExercise` clearing an active rest; duplicate
+  add/replace guards
+- `src/utils/keypadInput.test.ts`, `src/utils/keypadInput.keys.test.ts` — entry maths, and
+  `applyKeypadKey` (first digit overwrites a suggestion, any edit clears the flag, digit caps,
+  lb→kg on write, ± steps, Next → reps, Done disabled until reps > 0 / completes and closes /
+  only closes on a completed set) and `applyRestTimeKey` (time mode)
+- `src/utils/workoutSetView.test.ts` — `W1`/`1,2,3` numbering, the single current set,
+  `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
+  `previousLabel`
+- `src/utils/workoutFinish.test.ts` — change detection, the finish variant and option matrix,
+  `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`
+- `src/utils/workoutNotificationCopy.test.ts` — body selection (Next / Continue to / Finish, with
+  wrap-around), alert copy, titles, and `trayNotificationContent` (`Rest until <clock> • …` vs
+  `Rest m:ss • …`)
+- `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and `pickerFooter`
+- `src/utils/formatClock.test.ts` — the shared `m:ss` formatter
+- `src/storage/localStorage.activeWorkout.test.ts` — persist/resume round-trip and guards
 - Deep-link Pro gate: `src/subscription/features.test.ts` (`blockedStartFeature`)
-- Number pad entry maths: `src/utils/keypadInput.test.ts`. Indirectly: `weightUnits`, `oneRepMax`
 
-Not currently covered (need a React Native renderer):
+**Jest UI (`src/test/ui/workout/`):**
 
-- The screen's live rendering, and the debounced-persist / `AppState`-backgrounding write wiring
-  inside `activeWorkoutStore` (the pure pieces it delegates to are covered above)
-- The notification *scheduling* side effects (channel setup, `scheduleNotificationAsync` timing)
-  as opposed to the body copy
+- `logging.test.tsx` — starting a built-in from route params (Pro and Basic), prefill ghost values
+  and PREVIOUS, W1/1/2/3 numbering, number-pad entry (kg and lb, suggestion overwrite, ±,
+  Next → reps), Done completing on the first tap from the pad and the row, un-complete, Done
+  disabled without reps, current/upcoming/completed labels across exercises and the done card,
+  the header rest dialog (±30, Skip, recorded rest), the rest row opening the manual picker, a
+  countdown ending, + ADD SET, add warm-up, long-press delete with the themed confirm, swipe
+  delete, and the 1-set minimum
+- `finish.test.tsx` — Finish disabled until a set is completed, the option matrix (unchanged
+  built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
+  custom-changed hint, Back, the save-as-template name step and its Back, summary contents,
+  Discard workout, the Good-work screen (Exercises and Sets counts, set detail, saved session
+  keeping incomplete sets, Done), and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
+  Discard)
+- `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with
+  and without matches, "No matching exercises", routing to `/create-exercise`
+- `resume.test.tsx` — the resume pill (hidden / elapsed / opens the workout / X discards with no
+  confirm) and the home screen's "Workout in progress" dialog (Resume, Cancel continues the
+  blocked start, overlay keeps)
+
+Not currently covered:
+
+- The exercise ⋯ menu (Update rest timers, Replace, Remove, Add warm-up) in UI tests: it is
+  positioned with `measureInWindow`, which never calls back under the test renderer, so the menu
+  never opens there. The rules behind it are unit-tested (`applyRestTimeKey`,
+  `storedRestSeconds`, `buildReplacedExercise`, store add/replace/remove tests).
+- Drag-to-reorder gestures, swipe *gesture* physics (the test presses the swipe action), sounds
+  actually playing, confetti, and the muscle diagram's rendering.
+- The notification *scheduling* side effects (channel setup, `scheduleNotificationAsync` timing,
+  the Android native module) as opposed to the copy, which is pure and tested.

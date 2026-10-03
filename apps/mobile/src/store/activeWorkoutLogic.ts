@@ -19,23 +19,94 @@ export { DEFAULT_SETS_PER_EXERCISE } from '@/utils/templateExercises';
  */
 
 export const DEFAULT_REST_SECONDS = 120;
-/** Rest durations move in 30-second steps. */
+/** The running timer's ±30 step. */
 export const REST_STEP_SECONDS = 30;
-/** Floor for the running timer's ±30 step. A typed preset may be 0:00. */
+/** Floor for the running timer's total when stepping down. A typed preset may be 0:00. */
 export const REST_MIN_SECONDS = 30;
 /** Longest rest a user can set, including time added to a running timer. */
 export const REST_MAX_SECONDS = 15 * 60;
+/** −30 never leaves less than this much of a running countdown. */
+export const REST_MIN_REMAINING_MS = 1000;
+/** A rest that ended this recently counts as "just ended" and plays the in-app sound. */
+export const REST_END_SOUND_GRACE_MS = 1500;
 
-/** Snap a ±30 rest step onto the 30-second grid. Typed presets use {@link storedRestSeconds} instead. */
-export function clampRestSeconds(seconds: number): number {
-  if (!Number.isFinite(seconds)) return DEFAULT_REST_SECONDS;
-  const stepped = Math.round(seconds / REST_STEP_SECONDS) * REST_STEP_SECONDS;
-  return Math.min(REST_MAX_SECONDS, Math.max(REST_MIN_SECONDS, stepped));
+export interface RunningRest {
+  /** Absolute end of the countdown (epoch ms). */
+  endTime: number;
+  /** The countdown's full length in seconds: time already rested plus time remaining. */
+  total: number;
 }
 
-/** Step a rest duration by ±30s, clamped to the allowed range. */
-export function adjustRestSeconds(seconds: number, direction: 1 | -1): number {
-  return clampRestSeconds(clampRestSeconds(seconds) + direction * REST_STEP_SECONDS);
+/**
+ * The header dialogue's ±30 on a running countdown. Not snapped to a 30-second grid.
+ *
+ * - **+30** adds up to 30 s, capping the total at 15:00.
+ * - **−30** removes up to 30 s, but never takes the total below 30 s or leaves less than 1 s on
+ *   the clock. At a 30 s total it does nothing.
+ *
+ * The end time and the total always move by the same amount, so the progress bar
+ * (`(total − left) / total`) and the duration recorded when the rest ends stay true.
+ */
+export function adjustRunningRest(
+  rest: RunningRest,
+  direction: 1 | -1,
+  now: number
+): RunningRest {
+  if (direction === 1) {
+    const added = Math.max(0, Math.min(REST_STEP_SECONDS, REST_MAX_SECONDS - rest.total));
+    return { endTime: rest.endTime + added * 1000, total: rest.total + added };
+  }
+  const remainingMs = rest.endTime - now;
+  const cut = Math.max(
+    0,
+    Math.min(
+      REST_STEP_SECONDS,
+      rest.total - REST_MIN_SECONDS,
+      Math.floor((remainingMs - REST_MIN_REMAINING_MS) / 1000)
+    )
+  );
+  return { endTime: rest.endTime - cut * 1000, total: rest.total - cut };
+}
+
+/** Seconds actually rested when a countdown is skipped: total minus the whole seconds left. */
+export function restTakenSeconds(total: number, endTime: number, now: number): number {
+  return Math.max(0, total - Math.ceil((endTime - now) / 1000));
+}
+
+/** Seconds left on a countdown, rounded up (what the UI shows), or null when no timer runs. */
+export function restSecondsLeft(endTime: number | null, now: number): number | null {
+  return endTime === null ? null : Math.max(0, Math.ceil((endTime - now) / 1000));
+}
+
+export interface RestEndResolution {
+  /** The full duration to record against the set the rest followed (none for a manual rest). */
+  record?: { exIdx: number; setIdx: number; seconds: number };
+  /** True when the countdown ended within the grace window, i.e. the app saw it end live. */
+  playEndSound: boolean;
+}
+
+/**
+ * What to do once a countdown reaches zero, or null while it is still running (or none runs).
+ * A rest noticed long after it ended — the app was backgrounded and the OS notification already
+ * alerted — still records its duration but skips the in-app sound.
+ */
+export function resolveRestEnd(
+  rest: { restEndTime: number | null; restAfter: RestAfter | null; total: number },
+  now: number
+): RestEndResolution | null {
+  if (rest.restEndTime === null || now < rest.restEndTime) return null;
+  return {
+    ...(rest.restAfter !== null && {
+      record: { exIdx: rest.restAfter.exIdx, setIdx: rest.restAfter.setIdx, seconds: rest.total },
+    }),
+    playEndSound: now - rest.restEndTime < REST_END_SOUND_GRACE_MS,
+  };
+}
+
+/** Countdown tick at 3, 2, 1 seconds left — once per second, only while counting down. */
+export function shouldPlayRestTick(prev: number | null, left: number): boolean {
+  if (left < 1 || left > 3) return false;
+  return prev === null || left < prev;
 }
 
 export interface RestAfter {
@@ -310,6 +381,38 @@ export function createPrefillingSets(
 }
 
 /**
+ * Session-start prefill: every completely empty **working** set takes its exercise's previous
+ * snapshot (see {@link startPrefillPatch}). Applied once, when the workout starts — never again,
+ * so a value the user clears stays cleared. Returns the same session object when nothing changes.
+ */
+export function prefillSession(
+  session: WorkoutSession,
+  previous: Readonly<Record<string, PreviousSnapshot>>
+): WorkoutSession {
+  let changed = false;
+  const exercises = session.exercises.map((se) => {
+    const p = previous[se.exerciseId];
+    if (!p) return se;
+    let exChanged = false;
+    const sets = se.sets.map((set) => {
+      const patch = startPrefillPatch(set, p);
+      if (!patch) return set;
+      exChanged = true;
+      return { ...set, ...patch };
+    });
+    if (!exChanged) return se;
+    changed = true;
+    return { ...se, sets };
+  });
+  return changed ? { ...session, exercises } : session;
+}
+
+/** True when the exercise is already in the session — the pickers never add a duplicate. */
+export function sessionHasExercise(session: WorkoutSession, exerciseId: string): boolean {
+  return session.exercises.some((se) => se.exerciseId === exerciseId);
+}
+
+/**
  * Swap a slot to a different movement. Logged sets, warm-ups, and per-set rest of the old
  * exercise are discarded — they belong to a different movement. The slot keeps its rest
  * preset and starts with default empty sets prefilled from the new exercise's previous
@@ -395,21 +498,31 @@ export interface HydratedState {
 
 /**
  * Normalize a persisted snapshot back into store state on app boot. A rest timer that already
- * expired while the app was dead is dropped (its `restEndTime` is in the past); missing fields
- * fall back to their defaults. Snapshots written before `lastActivityAt` existed count from the
- * session start.
+ * expired while the app was dead is dropped (its `restEndTime` is in the past) — but its full
+ * duration is first recorded against the set it followed, exactly as if the app had seen it end.
+ * Missing fields fall back to their defaults. Snapshots written before `lastActivityAt` existed
+ * count from the session start.
  */
 export function normalizeHydratedState(
   saved: PersistedActiveWorkout,
   now: number = Date.now()
 ): HydratedState {
-  const restEndTime = saved.restEndTime != null && saved.restEndTime > now ? saved.restEndTime : null;
+  const restTotalSeconds = saved.restTotalSeconds ?? DEFAULT_REST_SECONDS;
+  const restDurationsBetweenSets = { ...(saved.restDurationsBetweenSets ?? {}) };
+  const ended = resolveRestEnd(
+    { restEndTime: saved.restEndTime ?? null, restAfter: saved.restAfter ?? null, total: restTotalSeconds },
+    now
+  );
+  if (ended?.record) {
+    restDurationsBetweenSets[restKey(ended.record.exIdx, ended.record.setIdx)] = ended.record.seconds;
+  }
+  const restEndTime = saved.restEndTime != null && !ended ? saved.restEndTime : null;
   return {
     session: saved.session,
     restEndTime,
-    restTotalSeconds: saved.restTotalSeconds ?? DEFAULT_REST_SECONDS,
+    restTotalSeconds,
     restAfter: restEndTime != null ? saved.restAfter ?? null : null,
-    restDurationsBetweenSets: saved.restDurationsBetweenSets ?? {},
+    restDurationsBetweenSets,
     lastActivityAt: saved.lastActivityAt ?? new Date(saved.session.startedAt).getTime(),
   };
 }

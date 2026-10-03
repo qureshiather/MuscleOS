@@ -1,4 +1,6 @@
 import type { SetRecord, SessionExercise } from '@muscleos/types';
+import { DEFAULT_REST_SECONDS, type PreviousSnapshot, type RestAfter } from '@/store/activeWorkoutLogic';
+import { kgToDisplay, type WeightUnit } from '@/utils/weightUnits';
 
 /**
  * Pure view logic for the set-logging table (docs/features/workout-logging.md#set-logging).
@@ -49,4 +51,68 @@ export function isCurrentSet(
   if (activeExerciseIndex(exercises) !== exIdx) return false;
   const sets = exercises[exIdx]?.sets ?? [];
   return firstIncompleteSetIndex(sets) === setIdx && !sets[setIdx]?.completed;
+}
+
+/** completed → green; current → the one highlighted set; future → every other incomplete set (muted). */
+export type SetRowStatus = 'completed' | 'current' | 'future';
+
+export interface SetRowView {
+  label: string;
+  isWarmUp: boolean;
+  status: SetRowStatus;
+  /** The rest that follows this set: the exercise's warm-up or work-set preset. */
+  restPresetSeconds: number;
+  /** A countdown is running for the rest after this set. */
+  restActive: boolean;
+  /** A rest row sits after this set: its preset is > 0, or its countdown is running. */
+  showRestAfter: boolean;
+  /**
+   * The rest row sits between two completed sets (and isn't counting down), so it carries their
+   * green tint and bar — a run of completed sets reads as one unbroken column.
+   */
+  restJoinsCompleted: boolean;
+}
+
+/**
+ * Everything the set table needs to style one row. "Future" is decided against the single
+ * global current set, so incomplete sets in later exercises render muted too.
+ */
+export function setRowView(
+  exercises: readonly SessionExercise[],
+  exIdx: number,
+  setIdx: number,
+  rest: { restAfter: RestAfter | null; restSecondsLeft: number | null }
+): SetRowView {
+  const ex = exercises[exIdx];
+  const sets = ex?.sets ?? [];
+  const set = sets[setIdx];
+  const isWarmUp = set?.isWarmUp === true;
+  const status: SetRowStatus = set?.completed
+    ? 'completed'
+    : isCurrentSet(exercises, exIdx, setIdx)
+      ? 'current'
+      : 'future';
+  const restPresetSeconds = isWarmUp
+    ? (ex?.warmUpRestSeconds ?? 0)
+    : (ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
+  const restActive =
+    rest.restAfter?.exIdx === exIdx &&
+    rest.restAfter.setIdx === setIdx &&
+    rest.restSecondsLeft != null &&
+    rest.restSecondsLeft > 0;
+  return {
+    label: setLabel(sets, setIdx),
+    isWarmUp,
+    status,
+    restPresetSeconds,
+    restActive,
+    showRestAfter: restActive || restPresetSeconds > 0,
+    restJoinsCompleted: status === 'completed' && sets[setIdx + 1]?.completed === true && !restActive,
+  };
+}
+
+/** The PREVIOUS column: `"60 kg × 5"` (or without reps), in the user's unit, or `—`. */
+export function previousLabel(prev: PreviousSnapshot | undefined, unit: WeightUnit): string {
+  if (!prev) return '—';
+  return `${kgToDisplay(prev.weightKg, unit)} ${unit}${prev.reps != null ? ` × ${prev.reps}` : ''}`;
 }

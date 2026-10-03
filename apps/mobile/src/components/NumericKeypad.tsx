@@ -93,6 +93,7 @@ export function NumericKeypad({
       background={keyFace}
       border={colors.border}
       accessibilityLabel={digit}
+      testID={`keypad-key-${digit}`}
     >
       <Text style={[styles.digit, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.fixed}>
         {digit}
@@ -102,6 +103,7 @@ export function NumericKeypad({
 
   return (
     <Animated.View
+      testID="numeric-keypad"
       onLayout={(e) => onHeight?.(e.nativeEvent.layout.height)}
       style={[
         styles.root,
@@ -130,7 +132,11 @@ export function NumericKeypad({
             {unitLabel ? ` · ${unitLabel}` : ''}
           </Text>
         </View>
-        <Text style={[styles.contextValue, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.chrome}>
+        <Text
+          style={[styles.contextValue, { color: colors.text }]}
+          maxFontSizeMultiplier={fontScaleCap.chrome}
+          testID="keypad-value"
+        >
           {valueText || '0'}
         </Text>
       </View>
@@ -169,6 +175,7 @@ export function NumericKeypad({
               background={keyFace}
               border={colors.border}
               accessibilityLabel="Hide keypad"
+              testID="keypad-hide"
             >
               <Ionicons name="chevron-down" size={22} color={colors.textSecondary} />
             </KeypadKey>
@@ -182,6 +189,7 @@ export function NumericKeypad({
                   style={styles.adjustHalf}
                   accessibilityRole="button"
                   accessibilityLabel={`Decrease ${step}`}
+                  testID="keypad-minus"
                 >
                   <Ionicons name="remove" size={22} color={colors.text} />
                 </Pressable>
@@ -191,6 +199,7 @@ export function NumericKeypad({
                   style={styles.adjustHalf}
                   accessibilityRole="button"
                   accessibilityLabel={`Increase ${step}`}
+                  testID="keypad-plus"
                 >
                   <Ionicons name="add" size={22} color={colors.text} />
                 </Pressable>
@@ -205,6 +214,7 @@ export function NumericKeypad({
               background={keyFace}
               border={colors.border}
               accessibilityLabel="Delete"
+              testID="keypad-backspace"
             >
               <Ionicons name="backspace-outline" size={24} color={colors.text} />
             </KeypadKey>
@@ -212,7 +222,12 @@ export function NumericKeypad({
 
           <View style={styles.keyCell}>
             {showNext ? (
-              <KeypadKey onPress={onNext} background={colors.primary} accessibilityLabel="Next field">
+              <KeypadKey
+                onPress={onNext}
+                background={colors.primary}
+                accessibilityLabel="Next field"
+                testID="keypad-next"
+              >
                 <Text style={[styles.actionLabel, { color: colors.primaryOn }]}>NEXT</Text>
               </KeypadKey>
             ) : (
@@ -221,6 +236,7 @@ export function NumericKeypad({
                 disabled={!canComplete}
                 background={colors.success}
                 accessibilityLabel={isTime ? 'Done' : 'Complete set'}
+                testID="keypad-done"
               >
                 <View style={styles.doneInner}>
                   <Ionicons name="checkmark" size={20} color={colors.successOn} />
@@ -243,7 +259,9 @@ function KeypadKey({
   border,
   disabled,
   accessibilityLabel,
+  testID,
 }: {
+  testID?: string;
   children: ReactNode;
   onPress: () => void;
   onLongPress?: () => void;
@@ -260,6 +278,7 @@ function KeypadKey({
       accessibilityRole="button"
       accessibilityState={disabled ? { disabled: true } : undefined}
       accessibilityLabel={accessibilityLabel}
+      testID={testID}
       style={({ pressed }) => [
         styles.key,
         {
