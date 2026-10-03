@@ -211,8 +211,8 @@ folder (unhiding the single template would leave it hidden by the folder).
 
 - **Rename** opens "Rename template" with the current name; **Save** stores the trimmed name and
   is disabled while blank.
-- **Move** opens `Move "{name}" to` listing **No folder** (clears the folder), every other folder
-  (the current one isn't offered), and **New folder…**, which swaps in a name field with **Back**
+- **Move** opens `Move "{name}" to` listing **No folder** (clears the folder; offered only when the
+  template is in one), every other folder (the current one isn't offered), and **New folder…**, which swaps in a name field with **Back**
   and **Create & move** (creates the folder and moves the template into it).
 - **Edit** opens `/create-template?templateId=<id>`.
 - **Delete** shows a themed confirm: **Delete "{name}"? This cannot be undone.** **Cancel** (or

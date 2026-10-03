@@ -208,7 +208,10 @@ newest, as custom `View` bars (no chart library). Bar height is the ratio to the
 
 **One bar per qualifying set, not per session** — several sets on one day give several adjacent
 bars, and days without qualifying sets simply have no bar rather than a zero or a gap. There is
-**no time-range selector**; the full history is always shown.
+**no time-range selector**; the full history is always shown. Bars share the width equally, so a
+long history narrows them rather than overflowing. A single date axis under the chart shows the
+first and last dates (one date when they're the same day); each bar's accessibility label carries
+its date and e1RM.
 
 Above the chart, a card shows the best e1RM (one decimal) and best set, and — with bodyweight and
 sex on the profile, for an exercise with standards — a strength card: **Strength level: Novice**

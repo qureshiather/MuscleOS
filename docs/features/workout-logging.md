@@ -135,8 +135,9 @@ Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the fu
 
 **PREVIOUS** shows the same value for every set of an exercise: the highest-weight completed set
 (then highest reps as a tie-break) from the **most recent qualifying session** for that exercise,
-formatted `weight unit × reps`, or `—`. It is not an all-time best and does not preserve
-set-by-set values.
+formatted `weight × reps` in the display unit (`56.25 × 8`; the KG / LB column header beside it
+carries the unit), `60 kg` when the snapshot has no reps, or `—`. The label shrinks to fit rather
+than truncating. It is not an all-time best and does not preserve set-by-set values.
 
 Prefill rules:
 
@@ -279,8 +280,10 @@ Two delivery paths:
 - **Android dev/production builds** use a native module (`modules/workout-live-notification`)
   for an ongoing notification with a platform chronometer, plus an **exact alarm** for rest-over.
 - **iOS and any build without the native module** use `expo-notifications`: a silent ongoing
-  tray entry (`active-workout`) and a scheduled `rest-complete` alert at `restEndTime`, sent with
-  iOS time-sensitive interruption level.
+  tray entry (`active-workout`; on iOS posted at the **passive** interruption level, so it goes
+  straight to Notification Center with no banner when the app is backgrounded or the entry
+  updates) and a scheduled `rest-complete` alert at `restEndTime`, sent with iOS time-sensitive
+  interruption level.
 
 Notification bodies name the upcoming work — `Next: <exercise>`, `Continue to <exercise>`, or
 `Finish your workout` — derived from the first exercise with incomplete sets. While resting, the
@@ -303,6 +306,12 @@ in-app timer and sound handle it.
 When rest completes while the app is backgrounded, the OS notification fires and the handler
 records the rest duration and clears the timer on return, so the two paths don't double up. The
 in-app sound is suppressed in that case.
+
+What happens to the scheduled alert is `restAlertAction()`: resting in the background schedules
+it; in the foreground it's cancelled (and a delivered one dismissed). When the rest ends while
+the app is still backgrounded — JS can keep running briefly and end the rest at the same moment
+the OS fires — the alert is **kept**: cancelling then would withdraw the alert just delivered, or
+drop it before it fires. Returning to the app clears it.
 
 **Exact alarms (Android 13+).** On the first rest timer of a launch, if exact alarms aren't
 permitted, the app prompts once ("Let rest alerts fire on time"), explaining that alerts may
@@ -350,7 +359,9 @@ working/warm-up row counts (incomplete rows still count):
 | Unchanged (built-in or custom) | Save values · Discard workout |
 
 The first option is the filled primary button, other saves are outlined, and **Discard workout**
-is a muted text button. A changed custom template also shows the hint "You changed the exercises
+is a muted text button. On Basic the Pro options carry a lock icon; tapping one closes the summary
+before opening the paywall (`save_as_template`) — a native modal left open would cover the pushed
+paywall — and the workout keeps running. A changed custom template also shows the hint "You changed the exercises
 in this workout." A **Back** button under the options closes the modal and returns to the workout,
 as does tapping outside the card.
 
@@ -457,12 +468,12 @@ the real router.
   only closes on a completed set) and `applyRestTimeKey` (time mode)
 - `src/utils/workoutSetView.test.ts` — `W1`/`1,2,3` numbering, the single current set,
   `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
-  `previousLabel`
+  `previousLabel` (`weight × reps` with no unit, unit kept without reps)
 - `src/utils/workoutFinish.test.ts` — change detection, the finish variant and option matrix,
   `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`
 - `src/utils/workoutNotificationCopy.test.ts` — body selection (Next / Continue to / Finish, with
-  wrap-around), alert copy, titles, and `trayNotificationContent` (`Rest until <clock> • …` vs
-  `Rest m:ss • …`)
+  wrap-around), alert copy, titles, `trayNotificationContent` (`Rest until <clock> • …` vs
+  `Rest m:ss • …`), and `restAlertAction` (schedule / cancel / keep after a background rest end)
 - `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and `pickerFooter`
 - `src/utils/formatClock.test.ts` — the shared `m:ss` formatter
 - `src/storage/localStorage.activeWorkout.test.ts` — persist/resume round-trip and guards

@@ -227,7 +227,10 @@ export default function SubscriptionScreen() {
           {highlightedFeature && !pro && (
             <Card style={{ borderColor: colors.primaryBorder }}>
               <Text style={[typography.bodyMedium, { color: colors.text }]}>
-                {PRO_FEATURE_LABELS[highlightedFeature]} is included with Pro.
+                {PRO_FEATURE_LABELS[highlightedFeature]}
+              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                Included with Pro.
               </Text>
             </Card>
           )}

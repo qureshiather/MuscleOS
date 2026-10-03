@@ -44,7 +44,7 @@ describe('Resume workout pill', () => {
   test('X discards the workout immediately, with no confirmation', async () => {
     await startInProgress();
     renderPill();
-    fireEvent.press(screen.getByLabelText('Cancel workout'));
+    fireEvent.press(screen.getByLabelText('Discard workout'));
     expect(session()).toBeNull();
     expect(screen.queryByTestId('resume-workout-pill')).toBeNull();
   });

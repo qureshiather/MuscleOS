@@ -893,8 +893,8 @@ export default function ActiveWorkoutScreen() {
     if (!session) return;
     const template = allTemplates().find((t) => t.id === session.templateId);
     const overwrite = updateCustomTemplate === true && template != null && !template.isBuiltIn;
-    // Gate before leaving: a Basic tap must not close the summary or mark the workout as leaving.
-    if (overwrite && !gatePro('save_as_template')) return;
+    // Gate before leaving: a Basic tap must not mark the workout as leaving.
+    if (overwrite && !gateSaveAsTemplate()) return;
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
     leavingWorkoutRef.current = true;
@@ -946,7 +946,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   async function handleSaveAsTemplate() {
-    if (!session || !gatePro('save_as_template') || savingAsTemplateRef.current) return;
+    if (!session || !gateSaveAsTemplate() || savingAsTemplateRef.current) return;
     savingAsTemplateRef.current = true;
     setSavingAsTemplate(true);
     try {
@@ -965,8 +965,20 @@ export default function ActiveWorkoutScreen() {
     }
   }
 
+  /**
+   * The save-as-template gate for the finish modal. On Basic it closes the modal before opening
+   * the paywall: the paywall is pushed onto the stack, and a native modal left open would cover it.
+   * The workout keeps running, so Finish is one tap away after the paywall.
+   */
+  function gateSaveAsTemplate(): boolean {
+    if (isPro) return true;
+    closeFinishFlow();
+    gatePro('save_as_template');
+    return false;
+  }
+
   function openSaveAsTemplateModal() {
-    if (!gatePro('save_as_template')) return;
+    if (!gateSaveAsTemplate()) return;
     const dateLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     const template = session
       ? allTemplates().find((t) => t.id === session.templateId)
@@ -1561,6 +1573,8 @@ export default function ActiveWorkoutScreen() {
                         <Text
                           style={[styles.prevCell, { color: colors.textMuted }]}
                           numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.7}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
                         >
                           {prevLabel}
@@ -2212,6 +2226,7 @@ export default function ActiveWorkoutScreen() {
             {/* Scrolls so the save actions below stay on screen no matter how many exercises were logged. */}
             <View style={styles.summaryScroll}>
             <ScrollView
+              style={styles.summaryScrollView}
               contentContainerStyle={styles.summaryScrollContent}
               onLayout={(e) => updateSummaryScroll({ viewport: e.nativeEvent.layout.height, offset: 0 })}
               onContentSizeChange={(_, h) => updateSummaryScroll({ content: h })}
@@ -2282,15 +2297,16 @@ export default function ActiveWorkoutScreen() {
                   option.id === 'save_as_template'
                     ? openSaveAsTemplateModal
                     : option.id === 'overwrite'
-                      ? () => {
-                          if (gatePro('save_as_template')) void handleFinish(true);
-                        }
+                      ? () => void handleFinish(true)
                       : () => handleFinish(false);
                 const isPrimary = idx === 0;
+                const locked = !isPro && option.requiresPro;
                 return (
                   <Pressable
                     key={option.id}
                     testID={`finish-option-${option.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={locked ? `${option.label}, Pro` : option.label}
                     style={
                       isPrimary
                         ? [styles.summarySaveBtn, { backgroundColor: colors.primary }]
@@ -2298,6 +2314,13 @@ export default function ActiveWorkoutScreen() {
                     }
                     onPress={onPress}
                   >
+                    {locked ? (
+                      <Ionicons
+                        name="lock-closed"
+                        size={15}
+                        color={isPrimary ? colors.primaryOn : colors.textMuted}
+                      />
+                    ) : null}
                     <Text
                       style={
                         isPrimary
@@ -3199,6 +3222,8 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 15 },
   summaryValue: { ...typography.data, fontFamily: typography.data.fontFamily },
   summaryScroll: { flexGrow: 0, flexShrink: 1 },
+  // ScrollView grows by default; without this a short summary leaves a gap above the actions.
+  summaryScrollView: { flexGrow: 0 },
   summaryFade: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   summaryScrollContent: { paddingBottom: 20 },
   summaryExercises: { marginTop: 8 },
@@ -3214,7 +3239,10 @@ const styles = StyleSheet.create({
   summarySaveBtn: {
     padding: 16,
     borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   summarySaveBtnText: { fontSize: 17, fontWeight: '600' },
   summarySecondaryBtn: { backgroundColor: 'transparent', borderWidth: 2 },

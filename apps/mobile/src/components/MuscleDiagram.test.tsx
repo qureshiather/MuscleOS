@@ -28,14 +28,18 @@ function renderDiagram(props: Parameters<typeof MuscleDiagram>[0]) {
   );
   const bodies = utils.UNSAFE_getAllByType(Body);
   const props0 = bodies[0].props as {
-    data: { slug: string; intensity: number }[];
+    data: ({ slug: string; intensity: number } | { slug: string; color: string })[];
     colors: string[];
     defaultFill: string;
     gender: string;
     side: string;
   };
-  const bySlug = Object.fromEntries(props0.data.map((d) => [d.slug, d.intensity]));
-  return { ...utils, bodies, body: props0, bySlug };
+  const highlighted = props0.data.filter((d): d is { slug: string; intensity: number } => 'intensity' in d);
+  const bySlug = Object.fromEntries(highlighted.map((d) => [d.slug, d.intensity]));
+  const neutral = Object.fromEntries(
+    props0.data.filter((d): d is { slug: string; color: string } => 'color' in d).map((d) => [d.slug, d.color])
+  );
+  return { ...utils, bodies, body: props0, bySlug, highlighted, neutral };
 }
 
 beforeEach(() => {
@@ -81,7 +85,7 @@ describe('MuscleDiagram', () => {
   });
 
   it('three-state recovery: just trained 1, recovering 2, every other region ready 3', () => {
-    const { body, bySlug } = renderDiagram({
+    const { body, highlighted, bySlug } = renderDiagram({
       recoveringMuscleIds: ['chest', 'quads', 'front_delts'],
       justTrainedMuscleIds: ['chest'],
     });
@@ -90,30 +94,37 @@ describe('MuscleDiagram', () => {
     expect(bySlug.quadriceps).toBe(2);
     expect(bySlug.deltoids).toBe(2);
     expect(bySlug.calves).toBe(3);
-    expect(body.data).toHaveLength(15);
+    expect(highlighted).toHaveLength(15);
   });
 
   it('two-state recovery when no just-trained subset is supplied', () => {
-    const { body, bySlug } = renderDiagram({ recoveringMuscleIds: ['lats'] });
+    const { body, highlighted, bySlug } = renderDiagram({ recoveringMuscleIds: ['lats'] });
     expect(body.colors).toEqual(getRecoveryPalette(themeColors, false));
     expect(bySlug['upper-back']).toBe(1); // lats + rhomboids share a region
     expect(bySlug.chest).toBe(2);
-    expect(body.data).toHaveLength(15);
+    expect(highlighted).toHaveLength(15);
+    expect(body.colors).toHaveLength(2);
   });
 
   it('all-clear: every region highlighted in the ready green', () => {
-    const { body } = renderDiagram({ muscleIds: ALL, highlightColor: 'green' });
-    expect(body.data).toHaveLength(15);
+    const { body, highlighted } = renderDiagram({ muscleIds: ALL, highlightColor: 'green' });
+    expect(highlighted).toHaveLength(15);
     expect(body.colors[0]).toBe(themeColors.recoveryReady);
   });
 
   it('session mode (Good work): trained muscles just-trained, the rest neutral — not ready', () => {
-    const { body, bySlug } = renderDiagram({ sessionMuscleIds: ['chest', 'triceps', 'front_delts'] });
+    const { body, bySlug, highlighted, neutral } = renderDiagram({
+      sessionMuscleIds: ['chest', 'triceps', 'front_delts'],
+    });
     expect(body.colors[0]).toBe(themeColors.recoveryHot);
     expect(bySlug).toEqual({ chest: 1, triceps: 1, deltoids: 1 });
-    // Every other region is left out of the data, so it paints with the neutral fill.
-    expect(body.defaultFill).toBe(themeColors.bodyDiagramFill);
-    expect(body.data.some((d) => d.intensity === 3)).toBe(false);
+    expect(highlighted.some((d) => d.intensity === 3)).toBe(false);
+    // Every other part gets the theme's neutral fill explicitly: the library's assets bake a dark
+    // colour into each part that would otherwise win over `defaultFill`.
+    expect(neutral.quadriceps).toBe(themeColors.bodyDiagramFill);
+    expect(neutral.hands).toBe(themeColors.bodyDiagramFill);
+    expect(neutral.chest).toBeUndefined();
+    expect(neutral.head).toBeUndefined();
   });
 
   it('shows no "Targeted" label', () => {

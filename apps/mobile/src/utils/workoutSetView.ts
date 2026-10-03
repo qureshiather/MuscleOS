@@ -111,8 +111,13 @@ export function setRowView(
   };
 }
 
-/** The PREVIOUS column: `"60 kg × 5"` (or without reps), in the user's unit, or `—`. */
+/**
+ * The PREVIOUS column, in the user's unit: `"60 × 5"`, or `"60 kg"` without reps, or `—`. The unit
+ * is left off when there are reps — the KG / LB column header sits right beside it, and the narrow
+ * column can't fit `56.25 kg × 8`.
+ */
 export function previousLabel(prev: PreviousSnapshot | undefined, unit: WeightUnit): string {
   if (!prev) return '—';
-  return `${kgToDisplay(prev.weightKg, unit)} ${unit}${prev.reps != null ? ` × ${prev.reps}` : ''}`;
+  const weight = kgToDisplay(prev.weightKg, unit);
+  return prev.reps != null ? `${weight} × ${prev.reps}` : `${weight} ${unit}`;
 }

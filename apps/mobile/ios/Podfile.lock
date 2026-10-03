@@ -57,6 +57,8 @@ PODS:
     - ExpoModulesCore
   - ExpoCrypto (14.0.2):
     - ExpoModulesCore
+  - ExpoDocumentPicker (14.0.8):
+    - ExpoModulesCore
   - ExpoFileSystem (19.0.24):
     - ExpoModulesCore
   - ExpoFont (14.0.12):
@@ -2143,9 +2145,10 @@ DEPENDENCIES:
   - "ExpoAsset (from `../../../node_modules/.pnpm/expo-asset@12.0.13_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/expo-asset/ios`)"
   - "ExpoAudio (from `../../../node_modules/.pnpm/expo-audio@1.1.1_expo-asset@12.0.13_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@type_dzhww4r3mrmf5delizmvesft2q/node_modules/expo-audio/ios`)"
   - "ExpoCrypto (from `../../../node_modules/.pnpm/expo-crypto@14.0.2_expo@54.0.37/node_modules/expo-crypto/ios`)"
+  - "ExpoDocumentPicker (from `../../../node_modules/.pnpm/expo-document-picker@14.0.8_expo@54.0.37/node_modules/expo-document-picker/ios`)"
   - "ExpoFileSystem (from `../../../node_modules/.pnpm/expo-file-system@19.0.24_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0_/node_modules/expo-file-system/ios`)"
   - "ExpoFont (from `../../../node_modules/.pnpm/expo-font@14.0.12_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/expo-font/ios`)"
-  - "ExpoHead (from `../../../node_modules/.pnpm/expo-router@6.0.24_@expo+metro-runtime@6.1.2_@types+react-dom@19.2.3_@types+react@19.1.17__@t_m7gozm5nnk4ccdoxn72ynbrhni/node_modules/expo-router/ios`)"
+  - "ExpoHead (from `../../../node_modules/.pnpm/expo-router@6.0.24_sh6t2u2rwjxv627lqvceixly6a/node_modules/expo-router/ios`)"
   - "ExpoKeepAwake (from `../../../node_modules/.pnpm/expo-keep-awake@15.0.8_expo@54.0.37_react@19.1.0/node_modules/expo-keep-awake/ios`)"
   - "ExpoLinking (from `../../../node_modules/.pnpm/expo-linking@8.0.12_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/expo-linking/ios`)"
   - "ExpoModulesCore (from `../../../node_modules/.pnpm/expo-modules-core@3.0.30_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/expo-modules-core`)"
@@ -2263,12 +2266,14 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-audio@1.1.1_expo-asset@12.0.13_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@type_dzhww4r3mrmf5delizmvesft2q/node_modules/expo-audio/ios"
   ExpoCrypto:
     :path: "../../../node_modules/.pnpm/expo-crypto@14.0.2_expo@54.0.37/node_modules/expo-crypto/ios"
+  ExpoDocumentPicker:
+    :path: "../../../node_modules/.pnpm/expo-document-picker@14.0.8_expo@54.0.37/node_modules/expo-document-picker/ios"
   ExpoFileSystem:
     :path: "../../../node_modules/.pnpm/expo-file-system@19.0.24_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0_/node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../../../node_modules/.pnpm/expo-font@14.0.12_expo@54.0.37_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/expo-font/ios"
   ExpoHead:
-    :path: "../../../node_modules/.pnpm/expo-router@6.0.24_@expo+metro-runtime@6.1.2_@types+react-dom@19.2.3_@types+react@19.1.17__@t_m7gozm5nnk4ccdoxn72ynbrhni/node_modules/expo-router/ios"
+    :path: "../../../node_modules/.pnpm/expo-router@6.0.24_sh6t2u2rwjxv627lqvceixly6a/node_modules/expo-router/ios"
   ExpoKeepAwake:
     :path: "../../../node_modules/.pnpm/expo-keep-awake@15.0.8_expo@54.0.37_react@19.1.0/node_modules/expo-keep-awake/ios"
   ExpoLinking:
@@ -2447,6 +2452,7 @@ SPEC CHECKSUMS:
   ExpoAsset: 9e5a7c9c0a9fb83ad5b2bb365141f2bd7f289b66
   ExpoAudio: e4cfe3a2f3317b8487460685385a9867a07fb4fb
   ExpoCrypto: e97e864c8d7b9ce4a000bca45dddb93544a1b2b4
+  ExpoDocumentPicker: 7cd9e71a0f66fb19eb0a586d6f26eee1284692e0
   ExpoFileSystem: 8e87545aef1d8d31f244edbfdd0780df4e5bac2e
   ExpoFont: dfb7c572372b610da45b41e3b436321fd6a97215
   ExpoHead: 33924c5829f9a3f98a5bd432d23c0e02ef64afcc
@@ -2544,4 +2550,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 1bf62b7b984b2572e9b6e0de19567a2b1c40c493
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0

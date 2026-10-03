@@ -208,7 +208,7 @@ Rows on the Account screen: Subscription, Data (`/data`), Link Google (linked ac
 
 **Biodata** on this tab is a single row into `/biodata` (“Height, weight, age, gender”). The hint (`biodataSummary`) is “Used for strength standards” until a value is saved, then a compact summary of the saved fields in display units (“180 cm · 176.4 lb · 30 · Male”).
 
-**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for height, weight, age, and gender; Save writes them together (`buildProfileFromInputs`), converting from the display units to cm/kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
+**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for height, weight, age, and gender (each field labelled with its unit, so a filled field still says what it is); Save writes them together (`buildProfileFromInputs`), converting from the display units to cm/kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
@@ -410,6 +410,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_exercise_previous` | Best weighted set from the most recent qualifying session, per exercise | ● |
 | `muscleos_exercise_notes` | Per-exercise notes | ● |
 | `muscleos_custom_exercises` | Custom exercises | ● (`user_exercises`) |
+| `muscleos_retired_custom_exercises` | Deleted custom exercises, kept so past sessions still resolve them | ○ |
 | `muscleos_profile`, `muscleos_theme`, `muscleos_height_unit`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds` | Biodata and settings | ● (as `app_settings`) |
 | `muscleos_unit_system`, `muscleos_weight_unit` (legacy) | Default unit system; older single weight unit | ○ |
 | `muscleos_hidden_builtin_template_ids`, `..._folder_ids` | Hidden built-ins | ○ |

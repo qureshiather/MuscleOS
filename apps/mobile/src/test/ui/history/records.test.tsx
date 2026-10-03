@@ -133,8 +133,11 @@ describe('Exercise progression', () => {
 
     const bars = screen.getAllByTestId('progression-bar');
     expect(bars).toHaveLength(4); // two sets on Sep 10 → two adjacent bars
-    const barDates = bars.map((b) => b.findByProps({ numberOfLines: 1 }).props.children);
-    expect(barDates).toEqual(['Sep 3', 'Sep 10', 'Sep 10', 'Sep 15']);
+    const barLabels = bars.map((b) => b.props.accessibilityLabel);
+    expect(barLabels).toEqual(['Sep 3, 93.3 kg', 'Sep 10, 105 kg', 'Sep 10, 110.8 kg', 'Sep 15, 116.7 kg']);
+    // One date axis for the range rather than a clipped date under every bar.
+    expect(screen.getByTestId('progression-axis-start').props.children).toBe('Sep 3');
+    expect(screen.getByTestId('progression-axis-end').props.children).toBe('Sep 15');
 
     const rows = screen.getAllByTestId('progression-set');
     expect(rows).toHaveLength(4);

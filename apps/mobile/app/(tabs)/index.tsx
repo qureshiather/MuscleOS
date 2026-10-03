@@ -1178,6 +1178,7 @@ export default function WorkoutsScreen() {
                   styles.modalBtnInRow,
                   styles.modalBtnPrimary,
                   { backgroundColor: colors.primary },
+                  !newFolderName.trim() && styles.modalBtnDisabled,
                 ]}
                 onPress={handleCreateFolder}
                 disabled={!newFolderName.trim()}
@@ -1238,6 +1239,7 @@ export default function WorkoutsScreen() {
                   styles.modalBtnInRow,
                   styles.modalBtnPrimary,
                   { backgroundColor: colors.primary },
+                  !editingFolderName.trim() && styles.modalBtnDisabled,
                 ]}
                 onPress={handleSaveFolderRename}
                 disabled={!editingFolderName.trim()}
@@ -1373,6 +1375,7 @@ export default function WorkoutsScreen() {
                   styles.modalBtnInRow,
                   styles.modalBtnPrimary,
                   { backgroundColor: colors.primary },
+                  !editingTemplateNewName.trim() && styles.modalBtnDisabled,
                 ]}
                 onPress={handleSaveTemplateRename}
                 disabled={!editingTemplateNewName.trim()}
@@ -1440,6 +1443,7 @@ export default function WorkoutsScreen() {
                       styles.modalBtnInRow,
                       styles.modalBtnPrimary,
                       { backgroundColor: colors.primary },
+                      !moveModalNewFolderName.trim() && styles.modalBtnDisabled,
                     ]}
                     onPress={handleCreateFolderAndMove}
                     disabled={!moveModalNewFolderName.trim()}
@@ -1454,17 +1458,18 @@ export default function WorkoutsScreen() {
                   style={[styles.moveFolderList, { maxHeight: moveFolderListMaxHeight }]}
                   nestedScrollEnabled
                 >
-                  <Pressable
-                    style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
-                    onPress={() =>
-                      moveTemplateModal && handleMoveTemplate(moveTemplateModal, undefined)
-                    }
-                  >
-                    <Ionicons name="folder-open-outline" size={18} color={colors.textMuted} />
-                    <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
-                      No folder
-                    </Text>
-                  </Pressable>
+                  {/* Like the folder rows, the template's current place isn't offered. */}
+                  {moveTemplateModal?.folderId ? (
+                    <Pressable
+                      style={[styles.moveFolderRow, { borderBottomColor: colors.border }]}
+                      onPress={() => handleMoveTemplate(moveTemplateModal, undefined)}
+                    >
+                      <Ionicons name="folder-open-outline" size={18} color={colors.textMuted} />
+                      <Text style={[styles.moveFolderRowText, { color: colors.text }]}>
+                        No folder
+                      </Text>
+                    </Pressable>
+                  ) : null}
                   {folders
                     .filter((f) => f.id !== moveTemplateModal?.folderId)
                     .map((folder) => (
@@ -1729,6 +1734,7 @@ const styles = StyleSheet.create({
   },
   moveFolderRowText: { fontSize: typography.button.fontSize },
   moveModalCreateFolderBlock: { marginBottom: 12 },
+  modalBtnDisabled: { opacity: 0.45 },
   moveModalCreateFolderActions: {
     flexDirection: 'row',
     gap: 12,

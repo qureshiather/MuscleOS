@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { type Href, router } from 'expo-router';
 import { act, fireEvent, screen } from 'expo-router/testing-library';
 import Body from 'react-native-body-highlighter';
 import type { WorkoutSession } from '@muscleos/types';
@@ -42,10 +42,13 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+/** Highlighted regions → intensity. Parts painted with the neutral fill carry a colour instead. */
 function bodyData() {
   const [front] = screen.UNSAFE_getAllByType(Body);
   return Object.fromEntries(
-    (front.props.data as { slug: string; intensity: number }[]).map((d) => [d.slug, d.intensity])
+    (front.props.data as { slug: string; intensity?: number }[])
+      .filter((d) => d.intensity != null)
+      .map((d) => [d.slug, d.intensity])
   );
 }
 
@@ -97,7 +100,7 @@ test('re-focusing drops muscles whose window has passed, without recomputing', a
   const load = jest.spyOn(useRecoveryStore.getState(), 'load');
 
   // Leave, jump past the 36 h triceps window, come back.
-  act(() => router.push('/other'));
+  act(() => router.push('/other' as Href)); // a test-only route, absent from the generated typed routes
   await screen.findByText('route:other');
   setNow(NOW.getTime() + 36 * HOUR);
   act(() => router.back());

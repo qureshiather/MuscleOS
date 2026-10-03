@@ -13,6 +13,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
 import {
   WORKOUT_NOTIFICATION_TITLES,
+  restAlertAction,
   trayNotificationContent,
   workoutNotificationCopy,
 } from '@/utils/workoutNotificationCopy';
@@ -97,7 +98,9 @@ async function showWorkoutNotification(title: string, body: string) {
           channelId: WORKOUT_CHANNEL_ID,
           sticky: true,
         }
-      : {}),
+      : // Passive: straight into Notification Center. At the default level iOS shows a banner
+        // every time the app is backgrounded and on every update.
+        { interruptionLevel: 'passive' as const }),
   };
   await Notifications.scheduleNotificationAsync({
     content,
@@ -265,12 +268,10 @@ export function useWorkoutNotification() {
 
     async function syncRestCompleteSchedule(appState: AppStateStatus) {
       const resting = restEndTime != null && restEndTime > Date.now();
-      if (!resting) {
-        await cancelRestCompleteNotification();
-        return;
-      }
       // Foreground: in-app timer + sounds. Background: OS fires the alert.
-      if (appState === 'active') {
+      const action = restAlertAction(resting, appState === 'active');
+      if (action === 'keep') return;
+      if (action === 'cancel') {
         await cancelRestCompleteNotification();
         return;
       }

@@ -60,7 +60,7 @@ describe('Exercises tab list', () => {
     ]);
     expect(screen.getAllByText('Custom')).toHaveLength(1);
     expect(screen.getByText('Lats · Biceps')).toBeTruthy();
-    expect(screen.getByText('Cable · Cable')).toBeTruthy();
+    expect(screen.getByText('Cable')).toBeTruthy();
     // Customs with no equipment show only the type.
     expect(screen.getAllByText('Free Weight').length).toBeGreaterThan(0);
   });
