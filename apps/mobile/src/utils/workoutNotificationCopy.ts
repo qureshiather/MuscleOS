@@ -1,5 +1,6 @@
 import type { WorkoutSession } from '@muscleos/types';
 import type { RestAfter } from '@/store/activeWorkoutLogic';
+import { formatClock } from '@/utils/formatClock';
 
 /**
  * Copy for the ongoing-workout notification (docs/features/workout-logging.md#notifications).
@@ -59,4 +60,39 @@ export function workoutNotificationCopy(
   const next = findIncompleteFrom(0, session.exercises.length);
   if (next) return forExercise(nameOf(next.exerciseId), false);
   return done;
+}
+
+/** Notification titles (both delivery paths). */
+export const WORKOUT_NOTIFICATION_TITLES = {
+  /** expo-notifications ongoing tray entry. */
+  tray: 'MuscleOS — Workout',
+  /** Native Android live notification while a countdown runs. */
+  resting: 'Resting',
+  /** Native Android live notification between rests. */
+  idle: 'Workout in progress',
+  /** The rest-over alert. */
+  restOver: 'Rest over',
+} as const;
+
+/**
+ * The expo-notifications tray entry (iOS, and Android builds without the native module).
+ * While a rest runs the body leads with it: an absolute clock time (`Rest until 10:42 AM • …`)
+ * when the entry can't tick — always on iOS, and on Android once backgrounded — or a live
+ * `Rest m:ss • …` countdown on Android in the foreground. Otherwise the idle body.
+ */
+export function trayNotificationContent(
+  copy: WorkoutNotificationCopy,
+  restEndTime: number | null,
+  preferAbsoluteRestTime: boolean,
+  now: number,
+  formatClockTime: (epochMs: number) => string
+): { title: string; body: string } {
+  const title = WORKOUT_NOTIFICATION_TITLES.tray;
+  if (restEndTime != null && restEndTime > now) {
+    const lead = preferAbsoluteRestTime
+      ? `Rest until ${formatClockTime(restEndTime)}`
+      : `Rest ${formatClock(Math.ceil((restEndTime - now) / 1000))}`;
+    return { title, body: `${lead} • ${copy.restBody}` };
+  }
+  return { title, body: copy.idleBody };
 }

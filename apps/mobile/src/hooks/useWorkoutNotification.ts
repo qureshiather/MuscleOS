@@ -11,7 +11,11 @@ import { useActiveWorkoutStore, type RestAfter } from '@/store/activeWorkoutStor
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
-import { workoutNotificationCopy } from '@/utils/workoutNotificationCopy';
+import {
+  WORKOUT_NOTIFICATION_TITLES,
+  trayNotificationContent,
+  workoutNotificationCopy,
+} from '@/utils/workoutNotificationCopy';
 import type { WorkoutSession } from '@muscleos/types';
 
 const WORKOUT_NOTIFICATION_ID = 'active-workout';
@@ -37,13 +41,6 @@ const useNativeLiveNotification = isWorkoutLiveNotificationAvailable;
  * the clock time rest ends instead — it never goes stale and costs one write.
  */
 const canTickTrayCountdown = Platform.OS === 'android';
-
-function formatRestCountdown(restEndTime: number): string {
-  const sec = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 function formatRestEndClock(restEndTime: number): string {
   return new Date(restEndTime).toLocaleTimeString(undefined, {
@@ -154,7 +151,7 @@ async function scheduleRestCompleteNotification(
   await cancelRestCompleteNotification();
 
   const content: Notifications.NotificationContentInput = {
-    title: 'Rest over',
+    title: WORKOUT_NOTIFICATION_TITLES.restOver,
     body: alertBody,
     data: { screen: 'active-workout', type: 'rest-complete' },
     sound: playSound ? REST_END_SOUND : false,
@@ -215,12 +212,12 @@ export function useWorkoutNotification() {
         if (!granted || disposed) return;
         if (resting) void maybePromptForExactAlarms();
         await showWorkoutLiveNotification({
-          restTitle: 'Resting',
+          restTitle: WORKOUT_NOTIFICATION_TITLES.resting,
           restBody: copy.restBody,
-          idleTitle: 'Workout in progress',
+          idleTitle: WORKOUT_NOTIFICATION_TITLES.idle,
           idleBody: copy.idleBody,
           restEndTime: resting ? restEndTime : null,
-          alertTitle: 'Rest over',
+          alertTitle: WORKOUT_NOTIFICATION_TITLES.restOver,
           alertBody: copy.alertBody,
           // In the foreground the in-app sound handles it, so skip the OS alert.
           alertEnabled: appState !== 'active',
@@ -245,20 +242,13 @@ export function useWorkoutNotification() {
     }
 
     function buildNotification(preferAbsoluteRestTime: boolean) {
-      const title = 'MuscleOS — Workout';
-      if (restEndTime != null && restEndTime > Date.now()) {
-        if (preferAbsoluteRestTime) {
-          return {
-            title,
-            body: `Rest until ${formatRestEndClock(restEndTime)} • ${copy.restBody}`,
-          };
-        }
-        return {
-          title,
-          body: `Rest ${formatRestCountdown(restEndTime)} • ${copy.restBody}`,
-        };
-      }
-      return { title, body: copy.idleBody };
+      return trayNotificationContent(
+        copy,
+        restEndTime,
+        preferAbsoluteRestTime,
+        Date.now(),
+        formatRestEndClock
+      );
     }
 
     function clearRefreshInterval() {

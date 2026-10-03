@@ -21,8 +21,9 @@ import {
 } from '@/sync';
 import {
   DEFAULT_REST_SECONDS,
-  REST_MAX_SECONDS,
+  adjustRunningRest,
   buildAddedSet,
+  canCompleteSet,
   storedRestSeconds,
   buildReplacedExercise,
   bumpRestKeysForInsertedSet,
@@ -34,6 +35,11 @@ import {
   dropRestKeysForRemovedSet,
   normalizeHydratedState,
   oldToNewForRemove,
+  prefillSession,
+  resolveRestEnd,
+  restDurationAfterComplete,
+  restTakenSeconds,
+  sessionHasExercise,
   oldToNewForReorder,
   remapRestAfter,
   remapRestDurations,
@@ -41,10 +47,14 @@ import {
   stripPrefillFlags,
   type PreviousSnapshot,
   type RestAfter,
+  type RestEndResolution,
 } from '@/store/activeWorkoutLogic';
 
 export { DEFAULT_REST_SECONDS } from '@/store/activeWorkoutLogic';
-export type { PreviousSnapshot, RestAfter } from '@/store/activeWorkoutLogic';
+export type { PreviousSnapshot, RestAfter, RestEndResolution } from '@/store/activeWorkoutLogic';
+
+/** What a Done tap did: completed the set, un-completed it, or nothing (no reps yet). */
+export type SetToggleResult = 'completed' | 'uncompleted' | null;
 
 export interface ActiveWorkoutState {
   session: WorkoutSession | null;
@@ -58,19 +68,33 @@ export interface ActiveWorkoutState {
   restDurationsBetweenSets: Record<string, number>;
   /** Epoch ms of the last change to the session; drives the stale-workout auto-close. */
   lastActivityAt: number | null;
-  startWorkout: (templateId: string, plan: readonly TemplateExercise[]) => void;
+  /**
+   * Starts a session (no-op while one exists), then loads the per-exercise "previous" snapshots
+   * and prefills empty working sets once. Resolves when the prefill has been applied.
+   */
+  startWorkout: (templateId: string, plan: readonly TemplateExercise[]) => Promise<void>;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   /** Applies to all rests for this exercise (after each set, including the last). */
   setExerciseRestBetweenSets: (exerciseIndex: number, seconds: number) => void;
   setExerciseWarmUpRest: (exerciseIndex: number, seconds: number) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
+  /**
+   * The set row's Done control. An incomplete set with reps > 0 is completed and its rest
+   * starts (see `restDurationAfterComplete`); a completed set is un-completed, cancelling a
+   * countdown running for it. Returns what happened so the screen can play the sound.
+   */
+  toggleSetComplete: (exerciseIndex: number, setIndex: number) => SetToggleResult;
   addSet: (exerciseIndex: number) => void;
   /** Inserts a warm-up set at the start of the exercise. */
   addWarmUpSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
+  /** Appends an exercise; a no-op when it's already in the workout. */
   addExercise: (exerciseId: string, previous?: PreviousSnapshot) => void;
-  /** Swap the exercise at index; sets reset and prefill from the new exercise's previous snapshot. */
+  /**
+   * Swap the exercise at index; sets reset and prefill from the new exercise's previous snapshot.
+   * A no-op when the new exercise is already in the workout (including the same slot).
+   */
   replaceExercise: (
     exerciseIndex: number,
     newExerciseId: string,
@@ -94,6 +118,11 @@ export interface ActiveWorkoutState {
   clearRestTimer: () => void;
   /** Record rest duration when timer completes or is skipped; merge into restDurationsBetweenSets */
   recordRestDuration: (exIdx: number, setIdx: number, seconds: number) => void;
+  /**
+   * Once the countdown has reached zero: record its full duration against the set it followed and
+   * clear the timer. Returns null (and changes nothing) while it is still running.
+   */
+  endRestIfDue: (now?: number) => RestEndResolution | null;
 }
 
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
@@ -105,12 +134,17 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   restDurationsBetweenSets: {},
   lastActivityAt: null,
 
-  startWorkout: (templateId, plan) => {
+  startWorkout: async (templateId, plan) => {
     if (get().session) return; // Only one workout at a time
-    set({
-      session: createEmptySession(templateId, plan),
-      lastActivityAt: Date.now(),
-    });
+    const session = createEmptySession(templateId, plan);
+    set({ session, lastActivityAt: Date.now() });
+    // Prefill exactly once, here — not on every screen mount, which refilled sets the user had
+    // cleared. Applied to the live session so anything typed meanwhile is kept.
+    const previous = await getExercisePrevious();
+    const current = get().session;
+    if (!current || current.id !== session.id) return;
+    const prefilled = prefillSession(current, previous);
+    if (prefilled !== current) set({ session: prefilled });
   },
 
   setSetRecord: (exerciseIndex, setIndex, record) => {
@@ -173,6 +207,25 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     sets[setIndex] = { ...sets[setIndex], completed: false };
     exercises[exerciseIndex] = { ...ex, sets };
     set({ session: { ...session, exercises } });
+  },
+
+  toggleSetComplete: (exerciseIndex, setIndex) => {
+    const { session, restAfter } = get();
+    const ex = session?.exercises[exerciseIndex];
+    const target = ex?.sets[setIndex];
+    if (!ex || !target) return null;
+    if (target.completed) {
+      get().uncompleteSet(exerciseIndex, setIndex);
+      if (restAfter?.exIdx === exerciseIndex && restAfter.setIdx === setIndex) {
+        get().clearRestTimer();
+      }
+      return 'uncompleted';
+    }
+    if (!canCompleteSet(target)) return null;
+    get().completeSet(exerciseIndex, setIndex);
+    const restSeconds = restDurationAfterComplete(target, ex);
+    if (restSeconds != null) get().startRest(exerciseIndex, setIndex, restSeconds);
+    return 'completed';
   },
 
   addSet: (exerciseIndex) => {
@@ -247,7 +300,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
 
   addExercise: (exerciseId, previous) => {
     const { session } = get();
-    if (!session) return;
+    if (!session || sessionHasExercise(session, exerciseId)) return;
     const newEx: SessionExercise = {
       exerciseId,
       sets: createPrefillingSets(previous),
@@ -265,7 +318,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     if (!session) return;
     const exercises = [...session.exercises];
     const ex = exercises[exerciseIndex];
-    if (!ex || ex.exerciseId === newExerciseId) return;
+    if (!ex || sessionHasExercise(session, newExerciseId)) return;
     exercises[exerciseIndex] = buildReplacedExercise(ex, newExerciseId, previous);
     const clearRest = restAfter?.exIdx === exerciseIndex;
     set({
@@ -386,10 +439,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   skipRest: () => {
     const { restAfter, restTotalSeconds, restEndTime } = get();
     if (restAfter !== null && restTotalSeconds > 0 && restEndTime !== null) {
-      const taken = Math.max(
-        0,
-        restTotalSeconds - Math.ceil((restEndTime - Date.now()) / 1000)
-      );
+      const taken = restTakenSeconds(restTotalSeconds, restEndTime, Date.now());
       set((s) => ({
         restDurationsBetweenSets: {
           ...s.restDurationsBetweenSets,
@@ -402,22 +452,16 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
 
   add30SecondsRest: () => {
     const { restEndTime, restTotalSeconds } = get();
-    if (restEndTime === null || restTotalSeconds >= REST_MAX_SECONDS) return;
-    const added = Math.min(30, REST_MAX_SECONDS - restTotalSeconds);
-    set({
-      restTotalSeconds: restTotalSeconds + added,
-      restEndTime: restEndTime + added * 1000,
-    });
+    if (restEndTime === null) return;
+    const next = adjustRunningRest({ endTime: restEndTime, total: restTotalSeconds }, 1, Date.now());
+    set({ restTotalSeconds: next.total, restEndTime: next.endTime });
   },
 
   subtract30SecondsRest: () => {
     const { restEndTime, restTotalSeconds } = get();
     if (restEndTime === null) return;
-    const newTotal = Math.max(30, restTotalSeconds - 30);
-    set({
-      restTotalSeconds: newTotal,
-      restEndTime: Math.max(Date.now() + 1000, restEndTime - 30 * 1000),
-    });
+    const next = adjustRunningRest({ endTime: restEndTime, total: restTotalSeconds }, -1, Date.now());
+    set({ restTotalSeconds: next.total, restEndTime: next.endTime });
   },
 
   resetRest: (totalSeconds = DEFAULT_REST_SECONDS) => {
@@ -438,6 +482,15 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
         [`${exIdx}-${setIdx}`]: seconds,
       },
     }));
+  },
+
+  endRestIfDue: (now = Date.now()) => {
+    const { restEndTime, restAfter, restTotalSeconds } = get();
+    const ended = resolveRestEnd({ restEndTime, restAfter, total: restTotalSeconds }, now);
+    if (!ended) return null;
+    if (ended.record) get().recordRestDuration(ended.record.exIdx, ended.record.setIdx, ended.record.seconds);
+    get().clearRestTimer();
+    return ended;
   },
 }));
 

@@ -11,6 +11,9 @@
  * This module is the single source of truth for that matrix so it can be unit-tested against
  * the spec; the screen renders from it rather than re-deriving the branches inline.
  */
+import type { SetRecord, WorkoutSession } from '@muscleos/types';
+import { formatClockMs } from '@/utils/formatClock';
+import { kgToDisplay, type WeightUnit } from '@/utils/weightUnits';
 
 /** Where the finished workout was started from, combined with whether its template was edited. */
 export type FinishFlowVariant = 'empty' | 'builtin-changed' | 'custom-changed' | 'unchanged';
@@ -121,4 +124,85 @@ export function finishSaveOptions(input: FinishFlowInput): FinishOption[] {
         discard,
       ];
   }
+}
+
+/** Number of completed sets across the whole session. */
+export function completedSetCount(session: Pick<WorkoutSession, 'exercises'>): number {
+  return session.exercises.reduce((n, ex) => n + ex.sets.filter((s) => s.completed).length, 0);
+}
+
+/**
+ * The fact line on the **Cancel workout?** dialog: elapsed time and completed-set count
+ * (`"12:05 · 3 sets"`), or undefined — no line — while nothing is completed.
+ */
+export function cancelDialogMeta(
+  session: Pick<WorkoutSession, 'exercises'>,
+  elapsedMs: number
+): string | undefined {
+  const n = completedSetCount(session);
+  if (n === 0) return undefined;
+  return `${formatClockMs(elapsedMs)} · ${n} set${n === 1 ? '' : 's'}`;
+}
+
+export interface FinishSummaryExercise {
+  name: string;
+  /** Completed set count (always > 0 — exercises with none are left out). */
+  completed: number;
+  sets: SetRecord[];
+}
+
+export interface FinishSummary {
+  /** Template name; "Empty workout" for an ad-hoc session; "Workout" when the template is gone. */
+  name: string;
+  durationMs: number;
+  /** Only exercises with at least one completed set, in session order. */
+  exercises: FinishSummaryExercise[];
+  /** Completed sets across those exercises (the Good-work "Sets" stat). */
+  totalSets: number;
+}
+
+/**
+ * The summary shown in the finish modal and on the "Good work" screen. Incomplete sets — and
+ * exercises with nothing completed — are left out, though they are still saved with the session.
+ */
+export function buildFinishSummary(
+  session: Pick<WorkoutSession, 'templateId' | 'exercises'>,
+  templateName: string | undefined,
+  nameOf: (exerciseId: string) => string,
+  durationMs: number
+): FinishSummary {
+  const exercises = session.exercises
+    .map((se) => {
+      const sets = se.sets.filter((s) => s.completed);
+      return { name: nameOf(se.exerciseId), completed: sets.length, sets };
+    })
+    .filter((ex) => ex.completed > 0);
+  return {
+    name: templateName ?? (session.templateId === '_empty' ? 'Empty workout' : 'Workout'),
+    durationMs,
+    exercises,
+    totalSets: exercises.reduce((n, ex) => n + ex.completed, 0),
+  };
+}
+
+/**
+ * One completed set in a summary line: `"60 kg × 5 reps"` (unit only when `withUnit`), just the
+ * weight or reps when the other is missing, or `—`. A zero weight is treated as missing.
+ */
+export function formatSummarySet(
+  set: Pick<SetRecord, 'weightKg' | 'reps'>,
+  unit: WeightUnit,
+  withUnit: boolean
+): string {
+  const w =
+    set.weightKg != null && set.weightKg > 0
+      ? `${kgToDisplay(set.weightKg, unit)}${withUnit ? ` ${unit}` : ''}`
+      : '';
+  const r = set.reps != null ? `${set.reps} reps` : '';
+  return w && r ? `${w} × ${r}` : w || r || '—';
+}
+
+/** Whether any of these sets has a weight or reps worth listing. */
+export function hasSetDetail(sets: readonly Pick<SetRecord, 'weightKg' | 'reps'>[]): boolean {
+  return sets.some((s) => s.weightKg != null || s.reps != null);
 }

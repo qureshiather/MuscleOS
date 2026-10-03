@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import type { WorkoutSession } from '@muscleos/types';
 import {
+  buildFinishSummary,
+  cancelDialogMeta,
+  completedSetCount,
+  formatSummarySet,
+  hasSetDetail,
   finishFlowVariant,
   finishSaveOptions,
   templateListChanged,
@@ -121,5 +127,80 @@ describe('finishSaveOptions', () => {
       expect(saveValues?.requiresPro).toBe(false);
       expect(ids(opts)).toContain('discard');
     }
+  });
+});
+
+const session = (exercises: WorkoutSession['exercises'], templateId = 'ppl-push') => ({
+  templateId,
+  exercises,
+});
+
+describe('cancelDialogMeta', () => {
+  it('has no fact line while nothing is completed', () => {
+    expect(cancelDialogMeta(session([{ exerciseId: 'a', sets: [{ completed: false, reps: 5 }] }]), 60_000))
+      .toBeUndefined();
+  });
+
+  it('shows elapsed m:ss and the completed-set count (singular / plural)', () => {
+    const one = session([{ exerciseId: 'a', sets: [{ completed: true }, { completed: false }] }]);
+    expect(cancelDialogMeta(one, 12 * 60_000 + 5_000)).toBe('12:05 · 1 set');
+    const three = session([
+      { exerciseId: 'a', sets: [{ completed: true }, { completed: true }] },
+      { exerciseId: 'b', sets: [{ completed: true, isWarmUp: true }] },
+    ]);
+    expect(completedSetCount(three)).toBe(3);
+    expect(cancelDialogMeta(three, 65_000)).toBe('1:05 · 3 sets');
+  });
+});
+
+describe('buildFinishSummary', () => {
+  const nameOf = (id: string) => ({ a: 'Bench Press', b: 'Row' })[id] ?? id;
+
+  it('lists only exercises with a completed set, and only their completed sets', () => {
+    const s = session([
+      {
+        exerciseId: 'a',
+        sets: [
+          { completed: true, weightKg: 60, reps: 5 },
+          { completed: false, weightKg: 60, reps: 5 },
+        ],
+      },
+      { exerciseId: 'b', sets: [{ completed: false }] },
+      { exerciseId: 'c', sets: [{ completed: true, reps: 10 }, { completed: true, reps: 8 }] },
+    ]);
+    const summary = buildFinishSummary(s, 'Push', nameOf, 1000);
+    expect(summary.name).toBe('Push');
+    expect(summary.durationMs).toBe(1000);
+    expect(summary.exercises.map((e) => [e.name, e.completed])).toEqual([
+      ['Bench Press', 1],
+      ['c', 2],
+    ]);
+    expect(summary.exercises[0].sets).toEqual([{ completed: true, weightKg: 60, reps: 5 }]);
+    expect(summary.totalSets).toBe(3);
+  });
+
+  it('names an ad-hoc session "Empty workout" and a missing template "Workout"', () => {
+    expect(buildFinishSummary(session([], '_empty'), undefined, nameOf, 0).name).toBe('Empty workout');
+    expect(buildFinishSummary(session([], 'tpl_gone'), undefined, nameOf, 0).name).toBe('Workout');
+  });
+});
+
+describe('formatSummarySet', () => {
+  it('formats weight × reps, with the unit only when asked', () => {
+    expect(formatSummarySet({ weightKg: 60, reps: 5 }, 'kg', true)).toBe('60 kg × 5 reps');
+    expect(formatSummarySet({ weightKg: 60, reps: 5 }, 'kg', false)).toBe('60 × 5 reps');
+    expect(formatSummarySet({ weightKg: 100, reps: 5 }, 'lb', true)).toBe('220.5 lb × 5 reps');
+  });
+
+  it('falls back to whichever value exists, or —; zero weight counts as none', () => {
+    expect(formatSummarySet({ reps: 12 }, 'kg', true)).toBe('12 reps');
+    expect(formatSummarySet({ weightKg: 40 }, 'kg', true)).toBe('40 kg');
+    expect(formatSummarySet({ weightKg: 0 }, 'kg', true)).toBe('—');
+    expect(formatSummarySet({}, 'kg', true)).toBe('—');
+  });
+
+  it('hasSetDetail is false when no set has weight or reps', () => {
+    expect(hasSetDetail([{}, {}])).toBe(false);
+    expect(hasSetDetail([{}, { reps: 1 }])).toBe(true);
   });
 });
