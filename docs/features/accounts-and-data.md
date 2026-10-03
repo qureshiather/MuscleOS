@@ -326,16 +326,25 @@ never drop an entry.
   schedule a push **2 s** after the last one (`PUSH_DEBOUNCE_MS`). If the `upsert_sync_records`
   RPC is missing (projects without that migration, `PGRST202`), it silently falls back to a plain
   table upsert without the server-side clock check.
-- **Pull** (`pullNow`): rows with `updated_at` newer than `lastPulledAt` (all rows the first time),
-  from `sync_records` and `user_exercises`; then the watermark moves to now. A missing
-  `user_exercises` table (`PGRST205`) is treated as no rows.
+- **Pull** (`pullNow`): rows from `sync_records` and `user_exercises` whose **`server_updated_at`**
+  is past the pull watermark (all rows the first time). `server_updated_at` is stamped by the
+  database on every write that lands (trigger, `clock_timestamp()`), so the watermark is on the
+  server's clock: a session finished offline and uploaded later, an import, a linked guest's
+  history, or a device whose clock is wrong can't hide a row. The watermark is the newest stamp
+  applied (`pullCursor` in sync meta, `src/sync/pullWatermark.ts`). Each pull starts **10 s**
+  (`PULL_OVERLAP_MS`) before it to catch writes that committed late; rows already applied in that
+  window (same key and stamp) are skipped, so the overlap never re-applies or reloads stores.
+  `lastPulledAt` is device time and only feeds the status line. A meta without a cursor (older
+  installs) does one full pull. If the database doesn't have `server_updated_at` yet (migration
+  `20261003010000` not applied, `42703`), the pull falls back to a full pull by `updated_at` and
+  leaves the cursor empty. A missing `user_exercises` table (`PGRST205`) is treated as no rows.
 - **Sync** (`syncNow`): pull, then push, then record `lastSyncedAt`. Overlapping calls share one
   run. It never throws: a failure is stored as `lastError` in `useSyncStore` (cleared when the next
   sync starts), which the Account sync row and Data → Sync now read.
 - **After a workout** (`syncAfterWorkout`): push immediately; on failure, retry via the scheduler.
 
-Updated-at is assigned by the client, so a pull can miss a row written by another device whose
-clock is behind this device's watermark.
+`updated_at` is still the writer's clock and still decides last-write-wins on the server and in
+the merge; only the pull watermark uses `server_updated_at`.
 
 A `recovery` entity type exists but is **explicitly excluded from push and never applied from
 remote** — after a merge, recovery is recomputed locally from the merged sessions. This avoids
@@ -409,7 +418,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_health` | Macro targets, metabolism | ○ |
 | `muscleos_subscription` | Cached tier | ○ |
 | `muscleos_catalog_exercises`, `muscleos_catalog_watermark`, `muscleos_catalog_seed_applied_at` | Catalog cache | ○ |
-| `muscleos_sync_outbox`, `muscleos_sync_meta` | Sync transport (meta: owning `userId`, `lastPulledAt` watermark, last push/sync times, `pendingLocalUpload`) | ○ |
+| `muscleos_sync_outbox`, `muscleos_sync_meta` | Sync transport (meta: owning `userId`, server-clock `pullCursor`, last pull/push/sync times, `pendingLocalUpload`) | ○ |
 | `muscleos_dev_pro_override` | Dev testing (`__DEV__` builds only; cleared in release) | ○ |
 | `muscleos_exact_alarm_prompt_shown` | Android prompt-once flag | ○ |
 | `muscleos_apple_authorization_code` | Short-lived Apple auth code for Sign in with Apple revoke | ○ |
@@ -586,11 +595,14 @@ Covered:
   enqueue during a merge survives; `snapshotItems` (account-link upload: clocks, empty maps skipped)
 - `src/sync/outbox.test.ts` — one entry per entity (replace by key), serialized mutations under
   concurrent enqueues, removing only the pushed entries, keeping entries re-queued since a read
+- `src/sync/pullWatermark.test.ts` — overlap start, watermark only moves forward and keeps the
+  server's stamp, overlap-window memory, skipping applied rows, missing-column detection
 - `src/sync/syncEngine.test.ts` (in-memory Supabase, `src/test/mocks/fakeSupabase.ts`) — sync
   enabled only for a linked user; `notify*` no-ops for guests and queues for linked users; the 2 s
   push debounce; push partitions (recovery dropped, customs to `user_exercises`), tombstones, the
-  missing-RPC fallback, failure keeps the outbox, an enqueue during a push survives; pull watermark
-  and the missing `user_exercises` table; `syncNow` pulls before pushing, records `lastSyncedAt`,
+  missing-RPC fallback, failure keeps the outbox, an enqueue during a push survives; the server-clock
+  pull watermark (late uploads, device clock skew, overlap re-reads skipped, late commits inside the
+  overlap, pre-MUS-91 metas, missing-column fallback) and the missing `user_exercises` table; `syncNow` pulls before pushing, records `lastSyncedAt`,
   sets `lastError` without throwing, shares overlapping runs; `syncAfterWorkout`; changing accounts
   (old outbox dropped and never pushed, owner adopted for old metas, sign-out reset); signing into
   an existing account with guest data (two-way merge, remote snapshots win, brand-new account gets

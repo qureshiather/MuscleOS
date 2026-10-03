@@ -15,6 +15,14 @@ import {
   pullUserExercises,
   pushUserExercises,
 } from './userExercises';
+import {
+  advancePullCursor,
+  EMPTY_PULL_CURSOR,
+  isMissingServerClock,
+  pullSince,
+  unseenRows,
+  type PulledRow,
+} from './pullWatermark';
 import type { OutboxEntry, RemoteSyncRecord } from './types';
 
 /** Local mutations are batched into one push this long after the last one. */
@@ -154,14 +162,34 @@ export async function pushNow(): Promise<void> {
 
 type PullResult = { changed: boolean; remoteKeys: Set<string> };
 
+/** `since` is a server-clock bound (`server_updated_at`); null pulls everything. */
+async function selectSyncRecords(since: string | null) {
+  let query = supabase.from('sync_records').select('*');
+  if (since) query = query.gt('server_updated_at', since);
+  const result = await query.order('server_updated_at', { ascending: true });
+  if (result.error && isMissingServerClock(result.error)) {
+    // The MUS-91 migration isn't applied yet: fall back to a full pull, which can't miss rows.
+    return supabase.from('sync_records').select('*').order('updated_at', { ascending: true });
+  }
+  return result;
+}
+
+const syncRecordPulled = (r: RemoteSyncRecord): PulledRow => ({
+  key: outboxEntryKey(r.entity_type, r.entity_id),
+  serverUpdatedAt: r.server_updated_at ?? '',
+});
+const userExercisePulled = (r: { id: string; server_updated_at?: string }): PulledRow => ({
+  key: outboxEntryKey('custom_exercise', r.id),
+  serverUpdatedAt: r.server_updated_at ?? '',
+});
+
 async function pullRemote(options: { full?: boolean } = {}): Promise<PullResult> {
   const meta = await getSyncMeta();
-  const since = options.full ? null : meta.lastPulledAt;
-  let query = supabase.from('sync_records').select('*');
-  if (since) query = query.gt('updated_at', since);
+  const cursor = options.full ? EMPTY_PULL_CURSOR : (meta.pullCursor ?? EMPTY_PULL_CURSOR);
+  const since = pullSince(cursor);
 
-  const [{ data, error }, userRows] = await Promise.all([
-    query.order('updated_at', { ascending: true }),
+  const [{ data, error }, allUserRows] = await Promise.all([
+    selectSyncRecords(since),
     pullUserExercises(since),
   ]);
 
@@ -170,12 +198,21 @@ async function pullRemote(options: { full?: boolean } = {}): Promise<PullResult>
     throw new Error(error.message);
   }
 
-  const records = (data ?? []) as RemoteSyncRecord[];
+  const allRecords = (data ?? []) as RemoteSyncRecord[];
+  // The overlap window re-reads rows already applied; skip those.
+  const records = unseenRows(allRecords, cursor, syncRecordPulled);
+  const userRows = unseenRows(allUserRows, cursor, userExercisePulled);
   const appliedRecords = records.length ? await applyRemoteRecords(records) : false;
   const appliedUsers = await applyRemoteUserExercises(userRows);
   const changed = appliedRecords || appliedUsers;
   if (changed) await reloadSyncedStores();
-  await setSyncMeta({ lastPulledAt: new Date().toISOString() });
+  const stamped = [...records.map(syncRecordPulled), ...userRows.map(userExercisePulled)].filter(
+    (r) => r.serverUpdatedAt !== ''
+  );
+  await setSyncMeta({
+    lastPulledAt: new Date().toISOString(),
+    pullCursor: advancePullCursor(cursor, stamped),
+  });
 
   const remoteKeys = new Set<string>([
     ...records.map((r) => outboxEntryKey(r.entity_type, r.entity_id)),

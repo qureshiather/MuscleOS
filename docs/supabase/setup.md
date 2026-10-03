@@ -14,6 +14,11 @@ merge. Reads are always local-first (AsyncStorage); sync runs in the background.
 | `catalog_exercises` | Everyone (anon + authenticated read) | You upsert in SQL. Apps pull `updated_at > watermark`. |
 | `user_exercises` | That account only | App create/edit/delete. Local-first, then `upsert_user_exercises`. |
 
+`sync_records` and `user_exercises` carry `server_updated_at`, stamped by a trigger on every write
+(`20261003010000_sync_server_updated_at.sql`). Apps pull by it, not by the writer's `updated_at`,
+so late uploads and wrong device clocks can't hide rows. **Apply this migration before shipping an
+app build that includes MUS-91**; until it's applied, those builds fall back to full pulls.
+
 The app ships a bundled `CATALOG_SEED` so first launch and airplane mode already have the library. The first paint does not wait on the network. A background pull merges any rows newer than the seed watermark.
 
 Do **not** put catalog rows in `sync_records`. Custom exercises used to live there as JSONB; they migrate into `user_exercises` and new writes go to that table.
