@@ -21,7 +21,6 @@ import { fontScaleCap, useBottomSpace, useModalMaxHeight } from '@/theme/layout'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
-import type { WorkoutTemplate } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { formatMuscleLabels } from '@muscleos/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,9 +34,9 @@ import type { ThemeColors } from '@/theme/palette';
 import {
   DEFAULT_SETS_PER_EXERCISE,
   resolveTemplateExercises,
-  serializeTemplateExercises,
   type ResolvedTemplateExercise,
 } from '@/utils/templateExercises';
+import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
 
 export default function CreateTemplateScreen() {
   const isPro = useRequirePro('custom_templates');
@@ -52,6 +51,7 @@ export default function CreateTemplateScreen() {
   const loadTemplates = useTemplatesStore((s) => s.load);
   const userTemplates = useTemplatesStore((s) => s.userTemplates);
   const folders = useTemplatesStore((s) => s.folders);
+  const templatesLoading = useTemplatesStore((s) => s.isLoading);
   const savingRef = useRef(false);
 
   const isEditMode = Boolean(editTemplateId?.trim());
@@ -135,33 +135,26 @@ export default function CreateTemplateScreen() {
 
   async function handleSave() {
     if (savingRef.current) return;
-    const missingName = !name.trim();
-    const missingExercises = selectedIds.length === 0;
-    if (missingName || missingExercises) {
+    if (!validateTemplateDraft(name, selected).valid) {
       setShowErrors(true);
       return;
     }
+    const save = buildTemplateSave({
+      existing: existingTemplate,
+      isEditMode,
+      name,
+      plan: selected,
+      folderId,
+      now: Date.now(),
+      rand: Math.random().toString(36).slice(2, 9),
+    });
+    if (save.kind === 'not-found') return;
     setShowErrors(false);
     savingRef.current = true;
     setSaving(true);
     try {
-      const payload = serializeTemplateExercises(selected);
-      if (isEditMode && existingTemplate) {
-        await updateTemplate(existingTemplate.id, {
-          name: name.trim(),
-          ...payload,
-          ...(folderId !== undefined && { folderId }),
-        });
-      } else {
-        const template: WorkoutTemplate = {
-          id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-          name: name.trim(),
-          isBuiltIn: false,
-          ...payload,
-          ...(folderId && { folderId }),
-        };
-        await addTemplate(template);
-      }
+      if (save.kind === 'update') await updateTemplate(save.id, save.patch);
+      else await addTemplate(save.template);
       router.back();
     } catch {
       savingRef.current = false;
@@ -175,8 +168,25 @@ export default function CreateTemplateScreen() {
   );
 
   const canReorder = selectedIds.length > 1;
+  const errors = validateTemplateDraft(name, selected);
+  /** Edit link for an id that isn't one of your custom templates (unknown, deleted, or built-in). */
+  const notFound = isEditMode && !templatesLoading && existingTemplate == null;
 
   if (!isPro) return null;
+
+  if (notFound) {
+    return (
+      <Screen kind="chrome">
+        <ScreenHeader title="Edit template" onBack={() => router.back()} backIcon="close" />
+        <View style={styles.form}>
+          <Text style={[typography.bodyMedium, { color: colors.text }]}>Template not found</Text>
+          <Text style={[typography.body, { color: colors.textMuted, marginTop: spacing.sm }]}>
+            It may have been deleted. Built-in templates can't be edited.
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -203,7 +213,7 @@ export default function CreateTemplateScreen() {
                 {
                   backgroundColor: colors.surface,
                   color: colors.text,
-                  borderColor: showErrors && !name.trim() ? colors.danger : colors.border,
+                  borderColor: showErrors && errors.name ? colors.danger : colors.border,
                 },
               ]}
               placeholder="e.g. Push A"
@@ -214,9 +224,9 @@ export default function CreateTemplateScreen() {
                 if (showErrors) setShowErrors(false);
               }}
             />
-            {showErrors && !name.trim() ? (
+            {showErrors && errors.name ? (
               <Text style={[typography.caption, styles.errorText, { color: colors.danger }]}>
-                Name is required
+                {errors.name}
               </Text>
             ) : null}
 
@@ -286,9 +296,9 @@ export default function CreateTemplateScreen() {
         }
         ListFooterComponent={
           <View>
-            {showErrors && selectedIds.length === 0 ? (
+            {showErrors && errors.exercises ? (
               <Text style={[typography.caption, styles.errorText, { color: colors.danger }]}>
-                Add at least one exercise
+                {errors.exercises}
               </Text>
             ) : null}
 

@@ -15,7 +15,7 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { formatMuscleLabels } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
-import { formatWeight } from '@/utils/weightUnits';
+import { formatPrevious, formatRestDuration } from '@/utils/workoutPreview';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -141,7 +141,7 @@ export default function WorkoutPreviewScreen() {
         </Text>
         {exerciseIds.map((exerciseId, index) => {
           const exercise = getExercise(exerciseId);
-          const prev = previousMap[exerciseId];
+          const previousLine = formatPrevious(previousMap[exerciseId], weightUnit);
           const muscleNames =
             exercise ? formatMuscleLabels(exercise.muscles) : '—';
           return (
@@ -160,10 +160,9 @@ export default function WorkoutPreviewScreen() {
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
                     {formatTemplateSetLabel(plan[index]?.sets ?? 3, plan[index]?.warmUpSets ?? 0)}
                   </Text>
-                  {prev ? (
+                  {previousLine ? (
                     <Text style={[typography.caption, styles.previous, { color: colors.primary }]}>
-                      Previous: {formatWeight(prev.weightKg, weightUnit)}
-                      {prev.reps != null ? ` × ${prev.reps}` : ''}
+                      {previousLine}
                     </Text>
                   ) : null}
                   <View
@@ -192,12 +191,6 @@ export default function WorkoutPreviewScreen() {
       </ScreenFooter>
     </Screen>
   );
-}
-
-function formatRestDuration(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({

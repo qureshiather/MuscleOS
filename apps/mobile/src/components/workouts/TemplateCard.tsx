@@ -33,6 +33,7 @@ export function TemplateCard({
           ? `${template.name}, ${exerciseCount} exercises, requires Pro`
           : `${template.name}, ${exerciseCount} exercises`
       }
+      testID={`template-card-${template.id}`}
       style={({ pressed }) => [
         styles.card,
         { backgroundColor: colors.surfaceElevated },
