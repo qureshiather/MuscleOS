@@ -5,7 +5,7 @@ import type {
   ExerciseTrackingType,
   MuscleId,
 } from '@muscleos/types';
-import { EXERCISE_CATEGORIES } from '@muscleos/types';
+import { EXERCISE_CATEGORIES, MUSCLE_GROUPS } from '@muscleos/types';
 
 const EQUIPMENT: Equipment[] = [
   'barbell',
@@ -44,7 +44,11 @@ export function normalizeExercise(raw: unknown, fallbackId = 'unknown'): Exercis
   const equipment = asStringArray(row.equipment).filter((e): e is Equipment =>
     EQUIPMENT.includes(e as Equipment)
   );
-  const muscles = asStringArray(row.muscles) as MuscleId[];
+  // Unknown muscle ids are dropped like unknown equipment; ['chest'] is only the fallback when
+  // nothing valid is left, so a row always has at least one muscle.
+  const muscles = asStringArray(row.muscles).filter((m): m is MuscleId =>
+    Object.prototype.hasOwnProperty.call(MUSCLE_GROUPS, m)
+  );
   const category = isCategory(row.category) ? row.category : inferCategory(equipment);
   const aliases = asStringArray(row.aliases);
   const trackingRaw = row.trackingType ?? row.tracking_type;

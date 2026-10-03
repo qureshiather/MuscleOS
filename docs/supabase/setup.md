@@ -20,19 +20,21 @@ Do **not** put catalog rows in `sync_records`. Custom exercises used to live the
 
 **Content change** (new exercise, category fix, instruction copy): `UPDATE`/`INSERT` with `updated_at = now()`. Never delete a catalog id — set `is_published = false`. Seed scripts upsert by id and never write `user_exercises`.
 
-**Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` / `exercise_tracking_type` by adding values; old apps that see an unknown category treat it as `free_weight`.
+**Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` / `exercise_tracking_type` by adding values; old apps that see an unknown category infer one from the row's equipment (cable → machine → bodyweight → free weight).
 
-Regenerate the bundled seed and SQL together:
+Regenerate the bundled seed after editing `apps/mobile/src/data/exercises.ts`:
 
 ```bash
 node apps/mobile/scripts/generate-exercise-catalog.mjs
 ```
 
-The seed SQL leaves `instructions` null and never overwrites it. Instruction copy is written in-house in `apps/mobile/src/data/exercises.ts`; to ship a change, add a new migration with the generator (it updates only rows whose text differs and bumps their `updated_at` so clients pull them):
+It writes only `apps/mobile/src/data/catalogSeed.ts`, **instructions included**, so a fresh install has every row's copy without a delta pull. Bump `SEED_UPDATED_AT` in the script when the seed content changes so existing installs re-apply it. The generator never rewrites an applied migration (the original `20260830020000_catalog_exercises_seed.sql` is historical); server rows change only through new migrations. Instruction copy has a generator mode for that (it updates only rows whose text differs and bumps their `updated_at` so clients pull them; it refuses to overwrite an existing file):
 
 ```bash
 node apps/mobile/scripts/generate-exercise-catalog.mjs --instructions-migration=<timestamp>_catalog_exercise_instructions
 ```
+
+Other field changes (names, muscles, equipment, category, publish state) are hand-written migrations with `updated_at = now()`, mirroring the edit in `exercises.ts`.
 
 ### Merge policy
 

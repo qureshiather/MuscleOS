@@ -8,10 +8,12 @@ import {
 } from '@/storage/localStorage';
 import { CATALOG_SEED, CATALOG_SEED_UPDATED_AT } from '@/data/catalogSeed';
 import { notifyCustomExerciseUpsert, notifyCustomExerciseDelete } from '@/sync';
-import { applyCatalogSeed, mergeCatalogById } from '@/sync/catalogMerge';
+import { mergeCatalogById, reconcileCatalogCache } from '@/sync/catalogMerge';
 import { fetchCatalogDelta } from '@/sync/catalogPull';
 import { nextCustomExerciseId, resolveExerciseById } from '@/utils/exerciseIds';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
+import { libraryExercises } from '@/utils/exerciseLibraryFilter';
+import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 
 export interface ExercisesStoreState {
   catalogExercises: Exercise[];
@@ -37,21 +39,8 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
   load: async () => {
     set({ isLoading: true });
     const [customExercises, cache] = await Promise.all([getCustomExercises(), getCatalogCache()]);
-
-    let catalog = cache.exercises;
-    let watermark = cache.watermark ?? CATALOG_SEED_UPDATED_AT;
-    const seedNeedsApply =
-      !cache.seedAppliedAt || cache.seedAppliedAt < CATALOG_SEED_UPDATED_AT || catalog.length === 0;
-
-    if (seedNeedsApply) {
-      catalog = applyCatalogSeed(CATALOG_SEED, catalog);
-      if (CATALOG_SEED_UPDATED_AT > watermark) watermark = CATALOG_SEED_UPDATED_AT;
-      await setCatalogCache({
-        exercises: catalog,
-        watermark,
-        seedAppliedAt: CATALOG_SEED_UPDATED_AT,
-      });
-    }
+    const { catalog, write } = reconcileCatalogCache(cache, CATALOG_SEED, CATALOG_SEED_UPDATED_AT);
+    if (write) await setCatalogCache(write);
 
     set({ catalogExercises: catalog, customExercises, isLoading: false });
     void get().refreshCatalog();
@@ -79,10 +68,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
 
   getExercise: (id) => resolveExerciseById(id, get().catalogExercises, get().customExercises),
 
-  getAllExercises: () => {
-    const published = get().catalogExercises.filter((e) => e.isPublished !== false);
-    return [...published, ...get().customExercises];
-  },
+  getAllExercises: () => libraryExercises(get().catalogExercises, get().customExercises),
 
   addExercise: async (exercise) => {
     const { customExercises } = get();
@@ -112,5 +98,6 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
     await setCustomExercises(next);
     set({ customExercises: next });
     notifyCustomExerciseDelete(id);
+    await useExerciseNotesStore.getState().removeNote(id);
   },
 }));

@@ -112,7 +112,8 @@ export default function RootLayout() {
   useEffect(() => {
     void hydrateActiveWorkout();
     void loadTemplates();
-  }, [loadTemplates]);
+    void loadCustomExercises();
+  }, [loadTemplates, loadCustomExercises]);
 
   // Paint the last known tier immediately. load() waits on auth (and its network refresh), and
   // until then a Pro user would see Basic UI.
@@ -126,7 +127,6 @@ export default function RootLayout() {
         const userId = await initAuth();
         await loadSubscription(userId);
         loadSettings();
-        loadCustomExercises();
         loadExerciseNotes();
         void useSyncStore.getState().loadStatus();
         void syncNow();
@@ -137,7 +137,7 @@ export default function RootLayout() {
         }
       }
     })();
-  }, [initAuth, loadSubscription, loadSettings, loadCustomExercises, loadExerciseNotes]);
+  }, [initAuth, loadSubscription, loadSettings, loadExerciseNotes]);
 
   useEffect(() => {
     if (isExpoGo) return;
