@@ -72,28 +72,15 @@ export default function TermsPage() {
       </section>
 
       <section>
-        <h2>7. Subscriptions and Payments</h2>
+        <h2>7. Price</h2>
         <p className="mb-3">
-          MuscleOS offers an optional <strong>Pro</strong> upgrade. Basic features stay free. Pro is sold as:
-        </p>
-        <ul className="mb-3">
-          <li>Monthly auto-renewing subscription — $2.99 USD</li>
-          <li>Annual auto-renewing subscription — $19.99 USD</li>
-        </ul>
-        <p className="mb-3">
-          Prices are USD list prices. The App Store and Google Play may show a localized equivalent. Payment is
-          charged to your Apple ID or Google Play account at confirmation of purchase. Auto-renewing
-          subscriptions renew unless you cancel at least 24 hours before the end of the current period. Your
-          account is charged for renewal within 24 hours prior to the end of that period.
-        </p>
-        <p className="mb-3">
-          You can manage or cancel a subscription in your App Store or Google Play account settings, or from
-          the Subscription screen in the app. Deleting the app does not cancel a subscription. Refunds are
-          handled by Apple or Google under their store policies.
+          MuscleOS is free. Every feature in the app is available without payment, and the app has no
+          subscriptions or in-app purchases.
         </p>
         <p>
-          Purchases require a linked MuscleOS account so Pro can restore on other devices. We use RevenueCat
-          to verify entitlements with Apple and Google. We do not store your full payment card details.
+          We may later offer optional paid services, such as coaching from a personal trainer or from a
+          MuscleOS AI coach. Those would be offered separately, with their prices and terms shown before you
+          pay, and we would update these Terms first. The features in the app today will stay free.
         </p>
       </section>
 
@@ -101,13 +88,12 @@ export default function TermsPage() {
         <h2>8. Accounts and deletion</h2>
         <p className="mb-3">
           An account is optional. You can use MuscleOS as a guest with data stored only on the device. Linking
-          Apple, Google, or email enables backup, sync, and Pro restore. Cloud data is stored per email —
+          Apple, Google, or email enables backup and sync. Cloud data is stored per email —
           those sign-in methods with the same address are the same account.
         </p>
         <p>
           You can delete a linked account in the app: Profile → Account → Delete account. That removes the account and
-          the synced copy from our systems and wipes this device. It does <strong>not</strong> cancel an App
-          Store or Google Play subscription — cancel that in your Apple or Google account settings.
+          the synced copy from our systems and wipes this device.
         </p>
       </section>
 

@@ -11,7 +11,6 @@ import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
-import { useRequirePro } from '@/hooks/useProGate';
 import { localDayKey, monthGrid, sessionsOnDay, WEEKDAY_LABELS, workoutDaysSet } from '@/utils/calendar';
 import { formatSessionDuration } from '@/utils/sessionStats';
 import { templateDisplayName } from '@/utils/historyCards';
@@ -26,7 +25,6 @@ function formatDayLabel(dayKey: string): string {
 }
 
 export default function HistoryMonthlyScreen() {
-  const isPro = useRequirePro('monthly_calendar');
   const { colors } = useTheme();
   const router = useRouter();
   const gutter = useScreenGutter();
@@ -73,7 +71,6 @@ export default function HistoryMonthlyScreen() {
     return day == null ? '' : localDayKey(new Date(year, month, day));
   }
 
-  if (!isPro) return null;
 
   return (
     <Screen>

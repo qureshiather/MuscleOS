@@ -10,7 +10,7 @@ jest.mock('@/sync', () => ({
   syncAfterWorkout: jest.fn(async () => undefined),
 }));
 
-beforeEach(() => resetWorkoutState({ pro: true }));
+beforeEach(() => resetWorkoutState());
 
 async function openPicker() {
   const r = renderWorkout(startUrl('_empty', []));
@@ -32,7 +32,7 @@ async function openPickerWith(exerciseIds: string[]) {
 
 const search = (q: string) => fireEvent.changeText(screen.getByTestId('picker-search'), q);
 
-test('Pro sees "Add Exercise"; an empty search offers no Create row and no "No matching" text', async () => {
+test('an empty search offers no Create row and no "No matching" text', async () => {
   await openPickerWith([]);
   expect(screen.queryByTestId('picker-create-exercise')).toBeNull();
   expect(screen.queryByText('No matching exercises')).toBeNull();

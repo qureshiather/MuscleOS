@@ -32,16 +32,9 @@ import {
 import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import {
-  midWorkoutEditDecision,
-  startFromParamsDecision,
-  subscriptionPaywallPath,
-} from '@/subscription/features';
-import { startPlanFromParams } from '@/subscription/startPlan';
+import { startFromParamsDecision, startPlanFromParams } from '@/utils/workoutStart';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useProGate, useRedirectWhenReady } from '@/hooks/useProGate';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
@@ -100,16 +93,7 @@ const COL_INPUT_MIN_WIDTH = 60;
 const TABLE_H_PAD = 10;
 const TABLE_COL_GAP = 8;
 
-function alertCannotEditBuiltIn() {
-  Alert.alert(
-    'Built-in workout',
-    'You can’t edit a built-in workout. Upgrade to Pro to customize it and save it as a new template.'
-  );
-}
-
 function ExerciseMenuContent({
-  isBuiltInWorkout,
-  isPro,
   colors,
   onAddWarmUp,
   onReplace,
@@ -118,8 +102,6 @@ function ExerciseMenuContent({
   onRemove,
   replaceTestID,
 }: {
-  isBuiltInWorkout: boolean;
-  isPro: boolean;
   colors: { text: string; textSecondary: string; textMuted: string; danger: string; border: string };
   onAddWarmUp: () => void;
   onReplace: () => void;
@@ -128,9 +110,8 @@ function ExerciseMenuContent({
   onRemove: () => void;
   replaceTestID?: string;
 }) {
-  const replaceColor = isPro ? colors.text : colors.textSecondary;
-  const removeLocked = isBuiltInWorkout && !isPro;
-  const removeColor = removeLocked ? colors.textMuted : colors.danger;
+  const replaceColor = colors.text;
+  const removeColor = colors.danger;
   return (
     <>
       <Pressable
@@ -144,13 +125,12 @@ function ExerciseMenuContent({
         style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
         onPress={onReplace}
         testID={replaceTestID}
-        accessibilityLabel={isPro ? 'Replace exercise' : 'Replace exercise, Pro'}
+        accessibilityLabel="Replace exercise"
       >
         <Ionicons name="swap-horizontal-outline" size={18} color={replaceColor} />
         <Text style={[styles.exerciseDropdownItemText, styles.exerciseDropdownItemTextGrow, { color: replaceColor }]}>
           Replace exercise
         </Text>
-        {!isPro ? <Ionicons name="lock-closed" size={14} color={colors.textMuted} /> : null}
       </Pressable>
       <Pressable
         style={[styles.exerciseDropdownItem, styles.exerciseDropdownItemBorder, { borderBottomColor: colors.border }]}
@@ -171,7 +151,6 @@ function ExerciseMenuContent({
         <Text style={[styles.exerciseDropdownItemText, styles.exerciseDropdownItemTextGrow, { color: removeColor }]}>
           Remove exercise
         </Text>
-        {removeLocked ? <Ionicons name="lock-closed" size={14} color={colors.textMuted} /> : null}
       </Pressable>
     </>
   );
@@ -558,7 +537,6 @@ export default function ActiveWorkoutScreen() {
   const add30SecondsRest = useActiveWorkoutStore((s) => s.add30SecondsRest);
   const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
   const endRestIfDue = useActiveWorkoutStore((s) => s.endRestIfDue);
-  const { isPro, gatePro } = useProGate();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
@@ -568,7 +546,6 @@ export default function ActiveWorkoutScreen() {
   const setExerciseNote = useExerciseNotesStore((s) => s.setNote);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const templatesLoaded = useTemplatesStore((s) => !s.isLoading);
-  const subscriptionLoaded = useSubscriptionStore((s) => !s.isLoading);
   const paramsTemplate = useTemplatesStore((s) =>
     params.templateId ? s.allTemplates().find((t) => t.id === params.templateId) : undefined
   );
@@ -694,7 +671,7 @@ export default function ActiveWorkoutScreen() {
    */
   const createExerciseFromSearch = () => {
     const name = addExerciseSearch.trim();
-    if (!name || !gatePro('custom_exercises')) return;
+    if (!name) return;
     const picker = exercisePicker;
     closeExercisePicker();
     router.push({
@@ -732,30 +709,20 @@ export default function ActiveWorkoutScreen() {
     setExerciseMenuExIdx(exIdx);
   };
 
-  // Last line of defence: notifications and deep links reach this screen directly, so a lapsed
-  // subscription must not be able to start Pro-only work here either. Waits for the persisted
-  // workout, templates and tier to load; an already-running session is untouched.
+  // Notifications and deep links reach this screen directly. Wait for the persisted workout and
+  // templates to load before starting; an already-running session is untouched.
   const startDecision =
     startedFromParamsRef.current || leavingWorkoutRef.current
       ? 'wait'
       : startFromParamsDecision({
           hasSession: session != null || !hydrated,
           templatesLoaded,
-          subscriptionLoaded,
-          isPro,
           templateId: params.templateId ?? '',
-          template: paramsTemplate,
         });
-  useRedirectWhenReady(
-    startDecision !== 'wait' && startDecision !== 'start'
-      ? (subscriptionPaywallPath(startDecision) as Href)
-      : null
-  );
   useEffect(() => {
     if (startDecision !== 'start' || !params.templateId || startedFromParamsRef.current) return;
     startedFromParamsRef.current = true;
     const plan = startPlanFromParams({
-      isPro,
       template: paramsTemplate,
       params: {
         exerciseIds: params.exerciseIds,
@@ -773,7 +740,6 @@ export default function ActiveWorkoutScreen() {
     params.warmUpSets,
     params.defaultSets,
     startWorkout,
-    isPro,
     paramsTemplate,
   ]);
 
@@ -893,8 +859,6 @@ export default function ActiveWorkoutScreen() {
     if (!session) return;
     const template = allTemplates().find((t) => t.id === session.templateId);
     const overwrite = updateCustomTemplate === true && template != null && !template.isBuiltIn;
-    // Gate before leaving: a Basic tap must not mark the workout as leaving.
-    if (overwrite && !gateSaveAsTemplate()) return;
     setShowFinishSummary(false);
     setShowSaveAsTemplateModal(false);
     leavingWorkoutRef.current = true;
@@ -946,7 +910,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   async function handleSaveAsTemplate() {
-    if (!session || !gateSaveAsTemplate() || savingAsTemplateRef.current) return;
+    if (!session || savingAsTemplateRef.current) return;
     savingAsTemplateRef.current = true;
     setSavingAsTemplate(true);
     try {
@@ -965,20 +929,7 @@ export default function ActiveWorkoutScreen() {
     }
   }
 
-  /**
-   * The save-as-template gate for the finish modal. On Basic it closes the modal before opening
-   * the paywall: the paywall is pushed onto the stack, and a native modal left open would cover it.
-   * The workout keeps running, so Finish is one tap away after the paywall.
-   */
-  function gateSaveAsTemplate(): boolean {
-    if (isPro) return true;
-    closeFinishFlow();
-    gatePro('save_as_template');
-    return false;
-  }
-
   function openSaveAsTemplateModal() {
-    if (!gateSaveAsTemplate()) return;
     const dateLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     const template = session
       ? allTemplates().find((t) => t.id === session.templateId)
@@ -1117,14 +1068,6 @@ export default function ActiveWorkoutScreen() {
   }
 
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
-  /** Mid-workout add / replace / remove gate: built-in alert or paywall on Basic. */
-  const allowMidWorkoutEdit = (action: 'add' | 'replace' | 'remove'): boolean => {
-    const decision = midWorkoutEditDecision({ action, isBuiltIn: isBuiltInWorkout, isPro });
-    if (decision === 'allow') return true;
-    if (decision === 'builtin-alert') alertCannotEditBuiltIn();
-    else gatePro(decision);
-    return false;
-  };
   const isNoTemplateWorkout = session.templateId === '_empty';
   const templateListChanged =
     currentTemplate != null &&
@@ -1315,21 +1258,17 @@ export default function ActiveWorkoutScreen() {
             <Pressable
               style={[
                 styles.addExerciseBtn,
-                isPro
-                  ? {
-                      backgroundColor: colors.primarySurface,
-                      borderColor: colors.primaryBorder,
-                    }
-                  : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                {
+                  backgroundColor: colors.primarySurface,
+                  borderColor: colors.primaryBorder,
+                },
               ]}
               testID="add-exercise"
-              onPress={() => {
-                if (allowMidWorkoutEdit('add')) setExercisePicker({ mode: 'add' });
-              }}
+              onPress={() => setExercisePicker({ mode: 'add' })}
             >
-              <Ionicons name="add-circle-outline" size={22} color={isPro ? colors.primary : colors.textSecondary} />
-              <Text style={[styles.addExerciseBtnText, { color: isPro ? colors.primary : colors.textSecondary }]}>
-                {isPro ? 'Add Exercise' : 'Pro: Add Exercise'}
+              <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+              <Text style={[styles.addExerciseBtnText, { color: colors.primary }]}>
+                Add Exercise
               </Text>
             </Pressable>
 
@@ -1848,8 +1787,6 @@ export default function ActiveWorkoutScreen() {
           collapsable={false}
         >
           <ExerciseMenuContent
-            isBuiltInWorkout={isBuiltInWorkout}
-            isPro={isPro}
             colors={colors}
             onAddWarmUp={() => {}}
             onReplace={() => {}}
@@ -1887,8 +1824,6 @@ export default function ActiveWorkoutScreen() {
                 onStartShouldSetResponder={() => true}
               >
                 <ExerciseMenuContent
-                  isBuiltInWorkout={isBuiltInWorkout}
-                  isPro={isPro}
                   colors={colors}
                   onAddWarmUp={() => {
                     addWarmUpSet(exIdx);
@@ -1896,7 +1831,7 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onReplace={() => {
                     closeExerciseMenu();
-                    if (allowMidWorkoutEdit('replace')) setExercisePicker({ mode: 'replace', exIdx });
+                    setExercisePicker({ mode: 'replace', exIdx });
                   }}
                   onEditRest={() => {
                     const ex = session.exercises[exIdx];
@@ -1916,7 +1851,6 @@ export default function ActiveWorkoutScreen() {
                   }}
                   onRemove={() => {
                     closeExerciseMenu();
-                    if (!allowMidWorkoutEdit('remove')) return;
                     setRemoveExerciseTarget({
                       exIdx,
                       name: exercise?.name ?? se.exerciseId,
@@ -2300,13 +2234,12 @@ export default function ActiveWorkoutScreen() {
                       ? () => void handleFinish(true)
                       : () => handleFinish(false);
                 const isPrimary = idx === 0;
-                const locked = !isPro && option.requiresPro;
                 return (
                   <Pressable
                     key={option.id}
                     testID={`finish-option-${option.id}`}
                     accessibilityRole="button"
-                    accessibilityLabel={locked ? `${option.label}, Pro` : option.label}
+                    accessibilityLabel={option.label}
                     style={
                       isPrimary
                         ? [styles.summarySaveBtn, { backgroundColor: colors.primary }]
@@ -2314,13 +2247,6 @@ export default function ActiveWorkoutScreen() {
                     }
                     onPress={onPress}
                   >
-                    {locked ? (
-                      <Ionicons
-                        name="lock-closed"
-                        size={15}
-                        color={isPrimary ? colors.primaryOn : colors.textMuted}
-                      />
-                    ) : null}
                     <Text
                       style={
                         isPrimary

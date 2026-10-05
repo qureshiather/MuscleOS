@@ -26,7 +26,6 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
-import { useRequirePro } from '@/hooks/useProGate';
 import { buildCustomExerciseDraft, resolveExerciseEditTarget } from '@/utils/customExerciseForm';
 
 const EQUIPMENT_OPTIONS: Equipment[] = [
@@ -44,7 +43,6 @@ const EQUIPMENT_OPTIONS: Equipment[] = [
 const MUSCLE_IDS = Object.keys(MUSCLE_GROUPS) as MuscleId[];
 
 export default function CreateExerciseScreen() {
-  const isPro = useRequirePro('custom_exercises');
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -114,7 +112,6 @@ export default function CreateExerciseScreen() {
 
   const canSave = draft.ok;
 
-  if (!isPro) return null;
 
   return (
     <Screen>

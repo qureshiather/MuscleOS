@@ -28,15 +28,11 @@ import {
   ARCHIVED_SECTION,
   HIDDEN_BUILT_IN_SECTION,
   HIDDEN_CUSTOM_SECTION,
-  customSectionVisible,
   decideTemplateStart,
   defaultFolderExpanded,
   lastDoneByTemplate as computeLastDoneByTemplate,
-  showLapsedNotice,
-  startableTemplates as computeStartableTemplates,
   suggestHomeTemplates,
 } from '@/utils/workoutsHome';
-import { useProGate } from '@/hooks/useProGate';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
@@ -56,7 +52,6 @@ import {
 } from '@/components/workouts/WorkoutHomeSections';
 import { TemplateCard } from '@/components/workouts/TemplateCard';
 import { computeHomeStats, homeHeadline } from '@/utils/homeStats';
-import { requiresProToStart, type ProFeature } from '@/subscription/features';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { fontScaleCap, useBottomSpace, useDeviceMetrics, useModalMaxHeight } from '@/theme/layout';
@@ -104,7 +99,6 @@ export default function WorkoutsScreen() {
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
   const figureGender = useSettingsStore((s) => (s.profile?.sex === 'female' ? 'female' : 'male'));
   const getExercise = useExercisesStore((s) => s.getExercise);
-  const { isPro, gatePro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
 
@@ -178,7 +172,6 @@ export default function WorkoutsScreen() {
     [userTemplates, folders, hiddenBuiltInIds, hiddenBuiltInFolderIds, isTemplateHidden]
   );
   const customCounts = {
-    isPro,
     visibleCustom: groups.custom.visibleCount,
     hiddenCustom: groups.custom.hidden.length,
   };
@@ -189,15 +182,6 @@ export default function WorkoutsScreen() {
     const now = new Date();
     return homeHeadline(computeHomeStats(sessions, now), now);
   }, [sessions]);
-
-  /**
-   * Basic accounts keep their custom templates but cannot start one, so they are
-   * left out of the recommendation surfaces and only appear (locked) under Custom.
-   */
-  const startableTemplates = useMemo(
-    () => computeStartableTemplates(templates, isPro),
-    [userTemplates, isPro]
-  );
 
   const templateMuscles = useCallback(
     (template: WorkoutTemplate): MuscleId[] => {
@@ -236,7 +220,6 @@ export default function WorkoutsScreen() {
     const nowMs = Date.now();
     return suggestHomeTemplates({
       templates,
-      isPro,
       isHidden: isTemplateHidden,
       recoveringMuscleIds: new Set(activeRecovery().map((r) => r.muscleId)),
       recentlyWorkedMuscleIds: recentlyWorkedMuscleIds(sessions, nowMs, getExercise),
@@ -245,7 +228,6 @@ export default function WorkoutsScreen() {
       nowMs,
     });
   }, [
-    isPro,
     recoveryItems,
     sessions,
     lastDoneByTemplate,
@@ -262,14 +244,13 @@ export default function WorkoutsScreen() {
   const recentWorkouts = useMemo(() => {
     return pickRecentTemplates({
       completedSessions: completedSessions(),
-      startableTemplates,
+      startableTemplates: templates,
       suggestedIds: new Set(suggestedWorkouts.map((s) => s.template.id)),
       isHidden: isTemplateHidden,
     });
   }, [
     suggestedWorkouts,
     sessions,
-    startableTemplates,
     hiddenBuiltInIds,
     hiddenBuiltInFolderIds,
     userTemplates,
@@ -278,7 +259,6 @@ export default function WorkoutsScreen() {
   ]);
 
   function handleCreateFolder() {
-    if (!gatePro('custom_templates')) return;
     const name = newFolderName.trim();
     if (!name) return;
     addFolder({ id: 'folder_' + Date.now(), name });
@@ -339,7 +319,6 @@ export default function WorkoutsScreen() {
   }
 
   function handleCreateFolderAndMove() {
-    if (!gatePro('custom_templates')) return;
     const name = moveModalNewFolderName.trim();
     if (!name || !moveTemplateModal) return;
     const id = 'folder_' + Date.now();
@@ -382,15 +361,13 @@ export default function WorkoutsScreen() {
     ? templateMenuActions(templateMenuTarget, {
         isHidden: templateMenuWasHidden,
         hiddenFolderIds: hiddenBuiltInFolderIds,
-        isPro,
       })
     : [];
 
-  function handleTemplateMenuAction(key: TemplateMenuActionKey, gate: ProFeature | null) {
+  function handleTemplateMenuAction(key: TemplateMenuActionKey) {
     const target = templateMenuTarget;
     closeTemplateMenu();
     if (!target) return;
-    if (gate && !gatePro(gate)) return;
     switch (key) {
       case 'rename':
         setEditingTemplateName(target);
@@ -423,7 +400,6 @@ export default function WorkoutsScreen() {
         lastDone={getLastDone(template)}
         onPress={handleStartTemplate}
         onMenu={showMenu ? openTemplateMenu : undefined}
-        locked={!isPro && requiresProToStart(template)}
       />
     );
   }
@@ -455,14 +431,9 @@ export default function WorkoutsScreen() {
 
   function startFrom(start: PendingStart) {
     const decision = decideTemplateStart({
-      isPro,
       template: start.kind === 'empty' ? 'empty' : start.template,
       hasActiveSession: activeSession != null,
     });
-    if (decision.startsWith('paywall:')) {
-      gatePro(decision.slice('paywall:'.length) as ProFeature);
-      return;
-    }
     if (decision === 'resume-prompt' && promptResumeIfActive(start)) return;
     navigateToStart(start);
   }
@@ -760,11 +731,11 @@ export default function WorkoutsScreen() {
             style={({ pressed }) => [
               styles.startEmptyCard,
               {
-                backgroundColor: isPro ? colors.primary : colors.surfaceElevated,
-                borderColor: isPro ? colors.primary : colors.border,
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
                 opacity: pressed ? 0.92 : 1,
               },
-              !isDark && isPro && {
+              !isDark && {
                 ...Platform.select({
                   ios: {
                     shadowColor: colors.primary,
@@ -782,13 +753,13 @@ export default function WorkoutsScreen() {
               <View
                 style={[
                   styles.startEmptyIconWrap,
-                  { backgroundColor: isPro ? colors.primaryOnSurface : colors.background },
+                  { backgroundColor: colors.primaryOnSurface },
                 ]}
               >
                 <Ionicons
                   name="add-circle-outline"
                   size={28}
-                  color={isPro ? colors.primaryOn : colors.primary}
+                  color={colors.primaryOn}
                 />
               </View>
                 <View style={styles.startEmptyTextWrap}>
@@ -796,28 +767,25 @@ export default function WorkoutsScreen() {
                   <Text
                     style={[
                       styles.startEmptyCardTitle,
-                      { color: isPro ? colors.primaryOn : colors.text },
+                      { color: colors.primaryOn },
                     ]}
                   >
                     Empty workout
                   </Text>
-                  {!isPro && (
-                    <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
-                  )}
                 </View>
                 <Text
                   style={[
                     styles.startEmptyCardSubtitle,
-                    { color: isPro ? colors.primaryOnMuted : colors.textMuted },
+                    { color: colors.primaryOnMuted },
                   ]}
                 >
-                  {isPro ? 'Add exercises as you go' : 'Included with Pro'}
+                  Add exercises as you go
                 </Text>
               </View>
               <Ionicons
                 name="chevron-forward"
                 size={22}
-                color={isPro ? colors.primaryOnMuted : colors.textMuted}
+                color={colors.primaryOnMuted}
               />
             </View>
           </Pressable>
@@ -851,15 +819,12 @@ export default function WorkoutsScreen() {
 
           <View style={styles.templatesSectionRow}>
             <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>All templates</Text>
-            {/* Shown on Basic too: tapping opens the custom_templates paywall. */}
             <View style={styles.templatesSectionActions}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="New folder"
                   style={[styles.addBtn, { borderColor: colors.border }]}
-                  onPress={() => {
-                    if (gatePro('custom_templates')) setShowFolderModal(true);
-                  }}
+                  onPress={() => setShowFolderModal(true)}
                 >
                   <Ionicons name="folder-open-outline" size={16} color={colors.textSecondary} />
                 </Pressable>
@@ -867,9 +832,7 @@ export default function WorkoutsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="New template"
                   style={[styles.addBtn, { borderColor: colors.border }]}
-                  onPress={() => {
-                    if (gatePro('custom_templates')) router.push('/create-template');
-                  }}
+                  onPress={() => router.push('/create-template')}
                 >
                   <Ionicons name="add" size={18} color={colors.primary} />
                   <Text style={[styles.addBtnText, { color: colors.primary }]}>New</Text>
@@ -885,7 +848,7 @@ export default function WorkoutsScreen() {
             </View>
           ) : (
             <>
-              {customSectionVisible(customCounts) ? (
+              {/* Custom always shows: empty, it offers Create template. */}
                 <View style={sectionStyle}>
                   <Pressable
                     accessibilityRole="button"
@@ -907,33 +870,6 @@ export default function WorkoutsScreen() {
                   </Pressable>
                   {customExpanded && (
                     <View style={styles.sectionContent}>
-                      {showLapsedNotice(customCounts) ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel="Your templates are saved. Resubscribe to Pro to run them."
-                          onPress={() => gatePro('custom_templates')}
-                          style={({ pressed }) => [
-                            styles.lapsedNotice,
-                            {
-                              backgroundColor: colors.primarySurface,
-                              borderColor: colors.primaryBorder,
-                            },
-                            pressed && styles.pressedRow,
-                          ]}
-                        >
-                          <Ionicons name="lock-closed" size={14} color={colors.primary} />
-                          <Text
-                            style={[
-                              typography.caption,
-                              styles.lapsedNoticeText,
-                              { color: colors.text },
-                            ]}
-                          >
-                            Your templates are saved. Resubscribe to Pro to run them.
-                          </Text>
-                          <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-                        </Pressable>
-                      ) : null}
                       {groups.custom.uncategorized.map((template) => renderTemplateCard(template, true))}
                       {groups.custom.pinnedFolders.map((g) => renderFolderSection(g))}
                       {groups.custom.normalFolders.map((g) => renderFolderSection(g))}
@@ -1037,7 +973,6 @@ export default function WorkoutsScreen() {
                     </View>
                   )}
                 </View>
-              ) : null}
 
               <View style={sectionStyle}>
                 <Pressable
@@ -1304,7 +1239,7 @@ export default function WorkoutsScreen() {
                     borderBottomWidth: i === templateMenuItems.length - 1 ? 0 : 1,
                   },
                 ]}
-                onPress={() => handleTemplateMenuAction(action.key, action.gate)}
+                onPress={() => handleTemplateMenuAction(action.key)}
                 testID={`template-menu-${action.key}`}
               >
                 <Ionicons
@@ -1599,17 +1534,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: typography.button.fontSize, fontWeight: '600', flex: 1 },
   sectionContent: { paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0, gap: 6 },
   folderStar: { marginRight: 2 },
-  lapsedNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    marginBottom: spacing.md,
-  },
-  lapsedNoticeText: { flex: 1, minWidth: 0 },
   dimmedGroup: { opacity: 0.7 },
   pressedRow: { opacity: 0.7 },
   templatesSectionRow: {

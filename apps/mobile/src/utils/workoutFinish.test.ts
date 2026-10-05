@@ -14,8 +14,6 @@ import {
 } from './workoutFinish';
 
 const ids = (opts: { id: FinishActionId }[]) => opts.map((o) => o.id);
-const proIds = (opts: { id: FinishActionId; requiresPro: boolean }[]) =>
-  opts.filter((o) => o.requiresPro).map((o) => o.id);
 
 describe('templateListChanged', () => {
   it('is false when the session matches the template exactly', () => {
@@ -86,10 +84,9 @@ describe('finishFlowVariant', () => {
 });
 
 describe('finishSaveOptions', () => {
-  it('empty workout: save as template (Pro), save values only, discard', () => {
+  it('empty workout: save as template, save values only, discard', () => {
     const opts = finishSaveOptions({ isEmpty: true, isBuiltIn: false, listChanged: false });
     expect(ids(opts)).toEqual(['save_as_template', 'save_values', 'discard']);
-    expect(proIds(opts)).toEqual(['save_as_template']);
   });
 
   it('finishing an unchanged built-in offers only save values and discard — never overwrite', () => {
@@ -100,21 +97,19 @@ describe('finishSaveOptions', () => {
     expect(ids(opts)).not.toContain('save_as_template');
   });
 
-  it('a changed built-in cannot be overwritten — only forked into a new custom template (Pro)', () => {
+  it('a changed built-in cannot be overwritten — only forked into a new custom template', () => {
     const opts = finishSaveOptions({ isEmpty: false, isBuiltIn: true, listChanged: true });
     expect(ids(opts)).toEqual(['save_as_template', 'save_values', 'discard']);
     expect(ids(opts)).not.toContain('overwrite');
     expect(opts.find((o) => o.id === 'save_as_template')?.label).toBe('Save as new template');
-    expect(proIds(opts)).toEqual(['save_as_template']);
   });
 
-  it('a changed custom template can be overwritten or saved as new — both Pro', () => {
+  it('a changed custom template can be overwritten or saved as new', () => {
     const opts = finishSaveOptions({ isEmpty: false, isBuiltIn: false, listChanged: true });
     expect(ids(opts)).toEqual(['save_values', 'overwrite', 'save_as_template', 'discard']);
-    expect(proIds(opts).sort()).toEqual(['overwrite', 'save_as_template']);
   });
 
-  it('always offers a non-Pro way to keep the values and a discard', () => {
+  it('always offers a way to keep the values and a discard', () => {
     for (const input of [
       { isEmpty: true, isBuiltIn: false, listChanged: false },
       { isEmpty: false, isBuiltIn: true, listChanged: false },
@@ -123,8 +118,7 @@ describe('finishSaveOptions', () => {
       { isEmpty: false, isBuiltIn: false, listChanged: false },
     ]) {
       const opts = finishSaveOptions(input);
-      const saveValues = opts.find((o) => o.id === 'save_values');
-      expect(saveValues?.requiresPro).toBe(false);
+      expect(ids(opts)).toContain('save_values');
       expect(ids(opts)).toContain('discard');
     }
   });

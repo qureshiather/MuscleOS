@@ -187,10 +187,6 @@ export function DeleteAccountClient() {
           The account and its synced copy are gone. If MuscleOS is still installed, the workouts on that
           phone stay there until you clear them or uninstall the app.
         </p>
-        <p className="mt-2">
-          This does not cancel an App Store or Google Play subscription. Cancel it in your Apple or Google
-          account settings.
-        </p>
       </div>
     );
   }

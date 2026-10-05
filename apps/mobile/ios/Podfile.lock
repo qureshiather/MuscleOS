@@ -124,8 +124,6 @@ PODS:
   - PromisesObjC (2.4.1)
   - PromisesSwift (2.4.1):
     - PromisesObjC (= 2.4.1)
-  - PurchasesHybridCommon (17.41.1):
-    - RevenueCat (= 5.59.2)
   - RCTDeprecation (0.81.5)
   - RCTRequired (0.81.5)
   - RCTTypeSafety (0.81.5):
@@ -1825,7 +1823,6 @@ PODS:
     - ReactNativeDependencies
   - ReactNativeDependencies (0.81.5)
   - RecaptchaInterop (101.0.0)
-  - RevenueCat (5.59.2)
   - RNCAsyncStorage (2.2.0):
     - hermes-engine
     - RCTRequired
@@ -1893,9 +1890,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNPurchases (9.10.5):
-    - PurchasesHybridCommon (= 17.41.1)
-    - React-Core
   - RNReanimated (4.1.7):
     - hermes-engine
     - RCTRequired
@@ -2226,7 +2220,6 @@ DEPENDENCIES:
   - "RNCAsyncStorage (from `../../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0_@types_epvr6wryoua45drs32ffpgw5pm/node_modules/@react-native-async-storage/async-storage`)"
   - "RNGestureHandler (from `../../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1._qfu2gvtn33ekt724cx62ejy4sm/node_modules/react-native-gesture-handler`)"
   - "RNGoogleSignin (from `../../../node_modules/.pnpm/@react-native-google-signin+google-signin@16.1.5_expo@54.0.37_react-native@0.81.5_@babel+core_ztky2ldpmkcfuwd5pmcd7xs3le/node_modules/@react-native-google-signin/google-signin`)"
-  - "RNPurchases (from `../../../node_modules/.pnpm/react-native-purchases@9.10.5_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-purchases`)"
   - "RNReanimated (from `../../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.8_md4me5zg53vn5b5fflsybudmly/node_modules/react-native-reanimated`)"
   - "RNScreens (from `../../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens`)"
   - "RNSVG (from `../../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg`)"
@@ -2243,9 +2236,7 @@ SPEC REPOS:
     - GTMSessionFetcher
     - PromisesObjC
     - PromisesSwift
-    - PurchasesHybridCommon
     - RecaptchaInterop
-    - RevenueCat
 
 EXTERNAL SOURCES:
   EXApplication:
@@ -2427,8 +2418,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1._qfu2gvtn33ekt724cx62ejy4sm/node_modules/react-native-gesture-handler"
   RNGoogleSignin:
     :path: "../../../node_modules/.pnpm/@react-native-google-signin+google-signin@16.1.5_expo@54.0.37_react-native@0.81.5_@babel+core_ztky2ldpmkcfuwd5pmcd7xs3le/node_modules/@react-native-google-signin/google-signin"
-  RNPurchases:
-    :path: "../../../node_modules/.pnpm/react-native-purchases@9.10.5_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-purchases"
   RNReanimated:
     :path: "../../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.8_md4me5zg53vn5b5fflsybudmly/node_modules/react-native-reanimated"
   RNScreens:
@@ -2470,7 +2459,6 @@ SPEC CHECKSUMS:
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
-  PurchasesHybridCommon: 8eb130ab98f8dab600dea932a2599dee79304bb5
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
   RCTTypeSafety: 16a4144ca3f959583ab019b57d5633df10b5e97c
@@ -2537,11 +2525,9 @@ SPEC CHECKSUMS:
   ReactCommon: 08810150b1206cc44aecf5f6ae19af32f29151a8
   ReactNativeDependencies: 71ce9c28beb282aa720ea7b46980fff9669f428a
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
-  RevenueCat: f352b3661288080bd8bf30bbb96e331940e73c88
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNGestureHandler: 2914750df066d89bf9d8f48a10ad5f0051108ac3
   RNGoogleSignin: e4f3dcc95eb13ac4dcc76ee3160699829ab78b72
-  RNPurchases: 4bd4166900648355289ec7cc174d75d4d4bb99e2
   RNReanimated: 3ae3f279a1d92584ff48f224d695af9214c4e4db
   RNScreens: d8d6f1792f6e7ac12b0190d33d8d390efc0c1845
   RNSVG: 31d6639663c249b7d5abc9728dde2041eb2a3c34

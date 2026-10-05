@@ -14,7 +14,7 @@ jest.mock('@/sync', () => ({
   syncAfterWorkout: jest.fn(async () => undefined),
 }));
 
-beforeEach(() => resetWorkoutState({ pro: true }));
+beforeEach(() => resetWorkoutState());
 
 async function startInProgress() {
   await act(async () => {

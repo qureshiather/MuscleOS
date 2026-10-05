@@ -1,5 +1,5 @@
 /**
- * Auth bootstrap and sign-out, with Supabase / RevenueCat / sync passed in so the rules are unit
+ * Auth bootstrap and sign-out, with Supabase / sync passed in so the rules are unit
  * tested without a network. `authStore` wires the real dependencies.
  */
 import { startFreshAnonymousGuest, type AnonymousGuestDeps } from '@/auth/deleteAccount';
@@ -44,7 +44,7 @@ export type SignOutDeps<U extends { id: string }> = AnonymousGuestDeps<U> & {
 };
 
 /**
- * Sign out: leave the account, start a new anonymous guest, re-point RevenueCat at it, and reset
+ * Sign out: leave the account, start a new anonymous guest, and reset
  * the sync transport so nothing queued for the old account reaches whichever account is next.
  * Local workout data stays on the device.
  */

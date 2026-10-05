@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import PersonalRecordsScreen from '../../../../app/personal-records';
 import ExerciseProgressionScreen from '../../../../app/exercise-progression';
 import { useSettingsStore } from '@/store/settingsStore';
-import { resetAppState, routeStub, setPro } from '../render';
+import { resetAppState, routeStub } from '../render';
 import { ex, finishedSession, renderAt, resetHistoryStores, restoreNow, seedSessions } from './helpers';
 
 /**
@@ -16,7 +16,6 @@ const routes = {
   'personal-records': PersonalRecordsScreen,
   'exercise-progression': ExerciseProgressionScreen,
   biodata: routeStub('biodata'),
-  subscription: routeStub('subscription'),
 };
 
 // Squat best 100×5 → 116.7 kg; bench best 80×1 → 80; pull-up 20×5 → 23.3.
@@ -34,20 +33,12 @@ beforeEach(async () => {
 afterEach(restoreNow);
 
 describe('Personal records', () => {
-  test('Basic is redirected to the paywall', async () => {
-    const { getSearchParams } = renderAt(NOW, routes, '/personal-records');
-    await screen.findByText('route:subscription');
-    expect(getSearchParams()).toEqual({ feature: 'personal_records' });
-  });
-
   test('empty state', async () => {
-    setPro(true);
     renderAt(NOW, routes, '/personal-records');
     expect(await screen.findByText('No records yet')).toBeTruthy();
   });
 
   test('lists exercises by best e1RM with 1-decimal e1RM and best set', async () => {
-    setPro(true);
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/personal-records');
     await screen.findByText('116.7 kg');
@@ -57,7 +48,6 @@ describe('Personal records', () => {
   });
 
   test('progress bars: up to the 10 latest sets, only with 2+ sets', async () => {
-    setPro(true);
     const many = Array.from({ length: 12 }, (_, i) =>
       finishedSession(`s${i}`, at(1 + i), [ex('squat', [5, 60 + i])], 'ppl-legs')
     );
@@ -70,7 +60,6 @@ describe('Personal records', () => {
   });
 
   test('search filters by exercise name and reports no matches', async () => {
-    setPro(true);
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/personal-records');
     await screen.findByText('116.7 kg');
@@ -82,7 +71,6 @@ describe('Personal records', () => {
   });
 
   test('without bodyweight and sex: Biodata hint, no strength chip', async () => {
-    setPro(true);
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/personal-records');
     expect(await screen.findByText('Add weight & gender in Biodata for strength level comparison')).toBeTruthy();
@@ -92,7 +80,6 @@ describe('Personal records', () => {
   });
 
   test('with a profile: strength chip with next-level target, never on pull-ups', async () => {
-    setPro(true);
     useSettingsStore.setState({ profile: { weightKg: 80, sex: 'male' } });
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/personal-records');
@@ -106,7 +93,6 @@ describe('Personal records', () => {
   });
 
   test('tapping a card opens its progression', async () => {
-    setPro(true);
     await seedSessions(SESSIONS);
     const { getPathname, getSearchParams } = renderAt(NOW, routes, '/personal-records');
     fireEvent.press(await screen.findByText('116.7 kg'));
@@ -117,14 +103,7 @@ describe('Personal records', () => {
 });
 
 describe('Exercise progression', () => {
-  test('Basic is redirected to the paywall', async () => {
-    const { getSearchParams } = renderAt(NOW, routes, '/exercise-progression?exerciseId=squat');
-    await screen.findByText('route:subscription');
-    expect(getSearchParams()).toEqual({ feature: 'exercise_progression' });
-  });
-
   test('one bar per qualifying set oldest→newest; sets listed newest first with ~e1RM', async () => {
-    setPro(true);
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/exercise-progression?exerciseId=squat');
     expect(await screen.findByText('Progression & 1RM history')).toBeTruthy();
@@ -147,7 +126,6 @@ describe('Exercise progression', () => {
   });
 
   test('strength level card with the profile; none without it or for pull-ups', async () => {
-    setPro(true);
     useSettingsStore.setState({ profile: { weightKg: 80, sex: 'male' } });
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/exercise-progression?exerciseId=squat');
@@ -156,7 +134,6 @@ describe('Exercise progression', () => {
   });
 
   test('no strength card for pull-ups', async () => {
-    setPro(true);
     useSettingsStore.setState({ profile: { weightKg: 80, sex: 'male' } });
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/exercise-progression?exerciseId=pull-up');
@@ -165,7 +142,6 @@ describe('Exercise progression', () => {
   });
 
   test('an alias id resolves to the canonical exercise and merges its sets', async () => {
-    setPro(true);
     await seedSessions([
       finishedSession('new', at(15), [ex('shrug', [10, 110])], 'ppl-pull'),
       finishedSession('old', at(9), [ex('barbell-shrug', [10, 100])], 'ppl-pull'),
@@ -176,7 +152,6 @@ describe('Exercise progression', () => {
   });
 
   test('unknown exercise shows the empty message', async () => {
-    setPro(true);
     renderAt(NOW, routes, '/exercise-progression?exerciseId=nope');
     expect(await screen.findByText('No progression data for this exercise.')).toBeTruthy();
   });

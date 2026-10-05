@@ -10,12 +10,12 @@ import { friendlyAuthError } from '@/auth/authErrors';
 import { ThemeProvider, useTheme, brandColors } from '@/theme/ThemeContext';
 import { useAppFonts } from '@/theme/useAppFonts';
 import { useAuthStore } from '@/store/authStore';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { hydrateActiveWorkout } from '@/store/activeWorkoutStore';
+import { removeLegacyStorageKeys } from '@/storage/localStorage';
 import { syncNow } from '@/sync';
 import { useSyncStore } from '@/store/syncStore';
 import { emailLinkDestination, parseEmailCallback } from '@/auth/emailCallback';
@@ -96,7 +96,6 @@ export default function RootLayout() {
   const { loaded: fontsLoaded } = useAppFonts();
   const [mountNotifications, setMountNotifications] = useState(false);
   const initAuth = useAuthStore((s) => s.init);
-  const loadSubscription = useSubscriptionStore((s) => s.load);
   const loadSettings = useSettingsStore((s) => s.load);
   const loadCustomExercises = useExercisesStore((s) => s.load);
   const refreshCatalog = useExercisesStore((s) => s.refreshCatalog);
@@ -108,22 +107,16 @@ export default function RootLayout() {
   // session drifted from its template — resuming from the notification skips the tab
   // that used to be the only thing loading them.
   useEffect(() => {
+    void removeLegacyStorageKeys();
     void hydrateActiveWorkout();
     void loadTemplates();
     void loadCustomExercises();
   }, [loadTemplates, loadCustomExercises]);
 
-  // Paint the last known tier immediately. load() waits on auth (and its network refresh), and
-  // until then a Pro user would see Basic UI.
-  useEffect(() => {
-    void useSubscriptionStore.getState().hydrate();
-  }, []);
-
   useEffect(() => {
     (async () => {
       try {
-        const userId = await initAuth();
-        await loadSubscription(userId);
+        await initAuth();
         loadSettings();
         loadExerciseNotes();
         void useSyncStore.getState().loadStatus();
@@ -135,7 +128,7 @@ export default function RootLayout() {
         }
       }
     })();
-  }, [initAuth, loadSubscription, loadSettings, loadExerciseNotes]);
+  }, [initAuth, loadSettings, loadExerciseNotes]);
 
   useEffect(() => {
     if (isExpoGo) return;
@@ -146,14 +139,12 @@ export default function RootLayout() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
-        const userId = useAuthStore.getState().user?.id;
-        void loadSubscription(userId);
         void refreshCatalog();
         void syncNow();
       }
     });
     return () => sub.remove();
-  }, [loadSubscription, refreshCatalog]);
+  }, [refreshCatalog]);
 
   if (!fontsLoaded) {
     return (

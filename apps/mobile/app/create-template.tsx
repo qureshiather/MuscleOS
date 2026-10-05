@@ -28,7 +28,6 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { useProGate, useRequirePro } from '@/hooks/useProGate';
 import { searchExercises } from '@/utils/exerciseSearch';
 import type { ThemeColors } from '@/theme/palette';
 import {
@@ -39,8 +38,6 @@ import {
 import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
 
 export default function CreateTemplateScreen() {
-  const isPro = useRequirePro('custom_templates');
-  const { gatePro } = useProGate();
   const { colors } = useTheme();
   const bottomSpace = useBottomSpace(spacing.xl);
   const sheetMaxHeight = useModalMaxHeight();
@@ -173,7 +170,6 @@ export default function CreateTemplateScreen() {
   /** Edit link for an id that isn't one of your custom templates (unknown, deleted, or built-in). */
   const notFound = isEditMode && !templatesLoading && existingTemplate == null;
 
-  if (!isPro) return null;
 
   if (notFound) {
     return (
@@ -500,7 +496,6 @@ export default function CreateTemplateScreen() {
                   <Pressable
                     style={[styles.pickerRow, { borderBottomColor: colors.border }]}
                     onPress={() => {
-                      if (!gatePro('custom_exercises')) return;
                       closePicker();
                       router.push({
                         pathname: '/create-exercise',

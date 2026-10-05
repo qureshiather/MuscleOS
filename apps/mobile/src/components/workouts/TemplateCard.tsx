@@ -10,8 +10,6 @@ type TemplateCardProps = {
   lastDone?: string | null;
   onPress: (template: WorkoutTemplate) => void;
   onMenu?: (template: WorkoutTemplate) => void;
-  /** Custom template on a Basic account: visible, but starting it requires Pro. */
-  locked?: boolean;
 };
 
 export function TemplateCard({
@@ -19,7 +17,6 @@ export function TemplateCard({
   lastDone,
   onPress,
   onMenu,
-  locked,
 }: TemplateCardProps) {
   const { colors, isDark } = useTheme();
   const description = template.description?.trim();
@@ -28,11 +25,7 @@ export function TemplateCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={
-        locked
-          ? `${template.name}, ${exerciseCount} exercises, requires Pro`
-          : `${template.name}, ${exerciseCount} exercises`
-      }
+      accessibilityLabel={`${template.name}, ${exerciseCount} exercises`}
       testID={`template-card-${template.id}`}
       style={({ pressed }) => [
         styles.card,
@@ -53,7 +46,6 @@ export function TemplateCard({
         >
           {template.name}
         </Text>
-        {locked ? <Ionicons name="lock-closed" size={13} color={colors.textMuted} /> : null}
         {onMenu ? (
           <Pressable
             accessibilityRole="button"

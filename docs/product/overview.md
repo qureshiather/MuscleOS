@@ -41,9 +41,10 @@ rather than a fake percentage, because the underlying model is a fixed per-muscl
 a physiological simulation. Strength standards are only shown for exercises that have real
 reference data.
 
-**Free tier is a real gym log.** Built-in programs, unlimited logging, rest timers, recovery,
-history, and export are free. Pro sells customization and analytics, not the core loop. See
-[subscriptions.md](../features/subscriptions.md).
+**Free, all of it.** Every feature — custom templates and exercises, analytics, everything — is
+free for everyone, with or without an account. There's no paywall and nothing to buy. MuscleOS will
+make money from Coaching (personal trainers and an AI coach), which isn't built yet. See
+[pricing.md](../features/pricing.md).
 
 **Built-in content is immutable; your content is yours.** See below.
 
@@ -58,7 +59,6 @@ understand about the app's data model.
 | Who can see it | Everyone | Only you |
 | Can you edit it? | **No** | **Yes** |
 | Can you delete it? | No — you can **hide** it | Yes |
-| Can you use it on Basic? | Yes | Templates: **no**, Pro required to run. Exercises: yes once created (creating needs Pro) |
 | Identified by | `isBuiltIn: true` (templates); catalog id (exercises) | `tpl_*` / `custom_*` ids |
 
 Built-in content is immutable because it is shipped code, shared by every user, and referenced
@@ -88,22 +88,21 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 
 ### Pushed screens
 
-| Screen | Route | Purpose | Tier | Spec |
-|--------|-------|---------|------|------|
-| Workout preview | `/workout-preview` | Review a template's exercises and last-session numbers before starting | — | [templates.md](../features/templates.md#workout-preview) |
-| Active workout | `/active-workout` | The set-logging screen and rest timer | — | [workout-logging.md](../features/workout-logging.md) |
-| Create / edit template | `/create-template` | Name a template and choose and order its exercises | **Pro** | [templates.md](../features/templates.md#creating-and-editing) |
-| Create / edit exercise | `/create-exercise` | Define a custom exercise | **Pro** | [exercise-library.md](../features/exercise-library.md#custom-exercises) |
-| Personal records | `/personal-records` | Best estimated 1RM per exercise, with strength level | **Pro** | [history-analytics.md](../features/history-analytics.md#personal-records) |
-| Exercise progression | `/exercise-progression` | Estimated-1RM chart over time for one exercise | **Pro** | [history-analytics.md](../features/history-analytics.md#exercise-progression) |
-| Monthly calendar | `/history-monthly` | Month grid of training days | **Pro** | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
-| Subscription | `/subscription` | Paywall, plan selection, restore purchases | — | [subscriptions.md](../features/subscriptions.md) |
-| Account | `/account` | Sign-in, sync, subscription, data, deletion, legal | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
-| Settings | `/settings` | Appearance, units, sounds | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
-| Biodata | `/biodata` | Height, weight, age, gender | — | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
-| Data | `/data` | Sync, export, import, clear this device | — | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
-| Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
-| Email link landing | `/auth-callback` | Spinner while an email confirm/recovery link is completed, then routes on | — | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
+| Screen | Route | Purpose | Spec |
+|--------|-------|---------|------|
+| Workout preview | `/workout-preview` | Review a template's exercises and last-session numbers before starting | [templates.md](../features/templates.md#workout-preview) |
+| Active workout | `/active-workout` | The set-logging screen and rest timer | [workout-logging.md](../features/workout-logging.md) |
+| Create / edit template | `/create-template` | Name a template and choose and order its exercises | [templates.md](../features/templates.md#creating-and-editing) |
+| Create / edit exercise | `/create-exercise` | Define a custom exercise | [exercise-library.md](../features/exercise-library.md#custom-exercises) |
+| Personal records | `/personal-records` | Best estimated 1RM per exercise, with strength level | [history-analytics.md](../features/history-analytics.md#personal-records) |
+| Exercise progression | `/exercise-progression` | Estimated-1RM chart over time for one exercise | [history-analytics.md](../features/history-analytics.md#exercise-progression) |
+| Monthly calendar | `/history-monthly` | Month grid of training days | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
+| Account | `/account` | Sign-in, sync, data, deletion, legal | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
+| Settings | `/settings` | Appearance, units, sounds | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Biodata | `/biodata` | Height, weight, age, gender | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
+| Data | `/data` | Sync, export, import, clear this device | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
+| Email link landing | `/auth-callback` | Spinner while an email confirm/recovery link is completed, then routes on | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 
 `/` and `/templates` are redirect-only routes to the Workouts tab.
 
@@ -155,7 +154,7 @@ Listed so they don't get re-proposed as bugs or half-specified in future work.
 
 | Not built | Note |
 |-----------|------|
-| Plate calculator | Not implemented. Previously listed in monetization docs in error. |
+| Plate calculator | Not implemented. |
 | Session detail screen | History cards show full detail inline; there is no drill-down route. |
 | Live PR detection during a workout | PRs are computed on read on the PR screen, not surfaced mid-session. |
 | HealthKit / Google Fit | No integration. `healthStore` holds macro/BMR helpers with no UI. |

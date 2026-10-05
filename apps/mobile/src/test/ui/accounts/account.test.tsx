@@ -25,7 +25,6 @@ const routes = {
   account: AccountScreen,
   auth: routeStub('auth'),
   data: routeStub('data'),
-  subscription: routeStub('subscription'),
   'auth-new-password': routeStub('auth-new-password'),
 };
 
@@ -40,11 +39,14 @@ describe('guest', () => {
   test('explains why to sign in and links to /auth; no sync, sign-out or delete', async () => {
     signInAsGuest();
     renderApp(routes, '/account');
-    expect(await screen.findByText('Sign in to back up your data and restore Pro on any device.')).toBeTruthy();
+    expect(await screen.findByText('Sign in to back up your workouts and use them on any device.')).toBeTruthy();
     expect(screen.queryByText('Sign out')).toBeNull();
     expect(screen.queryByTestId('delete-account')).toBeNull();
     expect(screen.queryByTestId('change-password')).toBeNull();
     expect(screen.getByText('Export, import, clear this device')).toBeTruthy();
+    // MuscleOS is free: there is no Subscription row or plan anywhere on Account.
+    expect(screen.queryByText('Subscription')).toBeNull();
+    expect(screen.queryByText(/\bPro\b/)).toBeNull();
     fireEvent.press(screen.getByText('Sign in'));
     expect(await screen.findByText('route:auth')).toBeTruthy();
   });
@@ -137,14 +139,14 @@ describe('sign out', () => {
     fireEvent.press(await screen.findByText('Sign out'));
     expect(
       screen.getByText(
-        'You will stay on this device as a guest. Your subscription stays on your account and can be restored on another device.'
+        'You will stay on this device as a guest. Your workouts stay on this device and in your account.'
       )
     ).toBeTruthy();
     expect(signOut).not.toHaveBeenCalled();
     const buttons = screen.getAllByText('Sign out');
     fireEvent.press(buttons[buttons.length - 1]);
     await waitFor(() => expect(signOut).toHaveBeenCalled());
-    expect(await screen.findByText('Sign in to back up your data and restore Pro on any device.')).toBeTruthy();
+    expect(await screen.findByText('Sign in to back up your workouts and use them on any device.')).toBeTruthy();
   });
 });
 
@@ -158,7 +160,7 @@ describe('delete account', () => {
     renderApp(routes, '/account');
     fireEvent.press(await screen.findByTestId('delete-account'));
     expect(screen.getByText(/Apple, Google, and password sign-in with the same address are the same account/)).toBeTruthy();
-    expect(screen.getByText(/cancel it in store settings/)).toBeTruthy();
+    expect(screen.queryByText(/subscription/i)).toBeNull();
     fireEvent.press(screen.getByTestId('delete-account-continue'));
     expect(screen.getByText('This cannot be undone.')).toBeTruthy();
     expect(deleteAccount).not.toHaveBeenCalled();

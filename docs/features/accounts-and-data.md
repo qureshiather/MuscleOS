@@ -29,7 +29,7 @@ custom (`TabBarWithResumePill`) so it can host the resume-workout pill. It is si
 (`computeTabBarLayout`): icon and label sit centred between equal top and bottom padding, and a larger
 system bottom inset (home indicator, Android nav bar) replaces the bottom padding rather than adding to it.
 
-**Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/biodata`, `/data`, `/subscription`, `/create-template`,
+**Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/biodata`, `/data`, `/create-template`,
 `/create-exercise`, `/workout-preview`, `/active-workout`, `/history-monthly`,
 `/exercise-progression`, `/personal-records`. `/templates` is a legacy redirect to the tabs.
 
@@ -52,18 +52,17 @@ Then, in `_layout.tsx`:
    every foreground.
 2. `loadTemplates()` — needed to name that session
 3. `loadCustomExercises()` — customs, seed, and cache; kicks off a background catalog refresh
-4. `subscriptionStore.hydrate()` — paints the cached tier before auth answers
+4. `removeLegacyStorageKeys()` — drops keys from the removed Pro subscription (see
+   [pricing.md](pricing.md#upgrading-from-a-build-that-had-pro))
 
-**Main init:** auth and subscription load sequentially; the remaining loads are then started
-without awaiting one another.
+**Main init:** auth loads first; the remaining loads are then started without awaiting one another.
 
 5. `initAuth()` — existing Supabase session, or anonymous sign-in (`resolveLaunchUser`,
    `src/auth/authSession.ts`). Each call gives up after **10 s** (`AUTH_INIT_TIMEOUT_MS`); a timeout
    or error leaves the app an unauthenticated, device-only guest for this launch
-6. `loadSubscription(userId)` — RevenueCat plus the cached tier
-7. Start `loadSettings()` — units, theme, biodata, sounds
-8. Start `loadExerciseNotes()`
-9. Start `loadStatus()` and `syncNow()` — cloud sync if an account is linked
+6. Start `loadSettings()` — units, theme, biodata, sounds
+7. Start `loadExerciseNotes()`
+8. Start `loadStatus()` and `syncNow()` — cloud sync if an account is linked
 
 **Email links** (`EmailAuthLinks`): the initial URL and every later `url` event are checked once
 each; confirm/recovery links are completed and routed (see [Authentication](#authentication)).
@@ -71,7 +70,7 @@ each; confirm/recovery links are completed and routed (see [Authentication](#aut
 **Notifications** load last, skipped in Expo Go, after an 800 ms delay that works around an Android
 native module registry timing issue.
 
-**On foreground:** refresh the subscription, refresh the exercise catalog, and sync.
+**On foreground:** refresh the exercise catalog, and sync.
 
 Recovery is deliberately **not** loaded at boot — the tabs that need it load it on focus.
 `healthStore.load()` is never called at all.
@@ -112,14 +111,13 @@ the method picker only say why to sign in. Privacy and Terms state the rule in f
 
 **On an in-place link**, `onAccountLinked()` uploads a full snapshot of local data and then syncs.
 **On signing into an existing account** (new device, or email password), the app `syncNow()`; see
-[Changing accounts](#changing-accounts). Any signed-in user also gets `revenueCatLogIn(user.id)` so
-the entitlement follows the identity.
+[Changing accounts](#changing-accounts).
 
 **Sign out** (`signOutToGuest`, `src/auth/authSession.ts`) signs out of Google and Supabase,
-immediately creates a **new anonymous session**, re-points RevenueCat at it, and resets the sync
+immediately creates a **new anonymous session** and resets the sync
 transport (outbox emptied, sync meta handed to the new guest). The Account screen asks with a themed
-`ConfirmDialog` first. **Local workout data is not cleared** — you keep your history on the device,
-and the subscription stays attached to the account you signed out of. Changes not yet pushed are
+`ConfirmDialog` first. **Local workout data is not cleared** — you keep your history on the device.
+Changes not yet pushed are
 still in local storage; signing into an account again uploads them as local data.
 
 ### Changing accounts
@@ -150,8 +148,7 @@ are the same account. It calls the `delete-account` Edge Function, which revokes
 a Sign in with Apple token when present and hard-deletes the Supabase user (`sync_records` and
 `user_exercises` cascade). Then this device is wiped — `clearAllData` plus the in-progress workout
 and sync transport — a **new anonymous session** starts, same as first launch, and every store is
-reloaded from the empty device. An App Store or Google Play subscription is **not** cancelled; the
-confirm copy says to cancel it in store settings. A failure says “Could not delete account” with
+reloaded from the empty device. A failure says “Could not delete account” with
 plain copy (`friendlyDeleteAccountError`): network, timeout and rate-limit messages as elsewhere, an
 expired session asks you to sign out and back in, and anything else is “Couldn't delete your
 account. Try again in a moment.” Raw function or Supabase text is never shown; the “deploy the
@@ -196,11 +193,11 @@ time), then from the Metro-inlined `process.env` value.
 
 The tab is three headed cards, in order: **Account**, **Settings**, then **Biodata**. Each card is one row that pushes a screen.
 
-**Account** on this tab shows the linked identity without opening `/account`: the provider icon, **Apple ID**, **Google**, or **Email** (resolved from Supabase identities), the display name when set, and the email. A chevron still opens `/account`. Guests see **Sign in or create an account** and “Back up your data and restore Pro on any device.”
+**Account** on this tab shows the linked identity without opening `/account`: the provider icon, **Apple ID**, **Google**, or **Email** (resolved from Supabase identities), the display name when set, and the email. A chevron still opens `/account`. Guests see **Sign in or create an account** and “Back up your workouts and use them on any device.”
 
-`/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. The sync row (`syncStatusLabel`) reads “Syncing…”, “Sync failed — tap to retry” (in the danger colour) when the last sync failed, “Last synced 5 min ago” after a success, or “Not synced yet — tap to sync”; tapping it runs `syncNow()`. Guests see “Sign in to back up your data and restore Pro on any device.” and a Sign in CTA. The method picker says linking an account backs up your data and restores Pro on any device. Sign out does not wipe local workouts.
+`/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. The sync row (`syncStatusLabel`) reads “Syncing…”, “Sync failed — tap to retry” (in the danger colour) when the last sync failed, “Last synced 5 min ago” after a success, or “Not synced yet — tap to sync”; tapping it runs `syncNow()`. Guests see “Sign in to back up your workouts and use them on any device.” and a Sign in CTA. The method picker says linking an account backs up your workouts so you can use them on any device. An account unlocks nothing else — every feature is free ([pricing.md](pricing.md)). Sign out does not wipe local workouts.
 
-Rows on the Account screen: Subscription, Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only), Privacy Policy, Terms of Service. Legal lives only here — Settings does not repeat it.
+Rows on the Account screen: Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only), Privacy Policy, Terms of Service. Legal lives only here — Settings does not repeat it.
 
 **Reaching an account from another platform.** Apple sign-in is iOS-only, and Apple's **Hide My Email** gives the account an `@privaterelay.appleid.com` address that nothing else shares, so Google or email sign-in on Android would create a second account. Apps can't turn Hide My Email off, so **Link Google** on Account calls `linkIdentity` on the signed-in user, which attaches Google whatever the account's email is. It never switches accounts: if that Google login or its email already belongs to another MuscleOS account, a dialog says to choose another Google account. When the email is a relay address and Google isn't linked yet, the identity block says to link Google before signing in on Android. Apple accounts can't add a password.
 
@@ -258,7 +255,7 @@ data, Clear all data.
   settings and biodata included — is untouched and comes back on the next full pull. It **keeps
   the auth session** and the keys in `CLEAR_ALL_DATA_KEPT_KEYS`: the active workout, sync outbox,
   sync meta, exact-alarm prompt flag, and Apple authorization code. Afterwards every store
-  (sessions, exercises, notes, templates, recovery, settings, subscription) is reloaded so no
+  (sessions, exercises, notes, templates, recovery, settings) is reloaded so no
   screen shows cleared data; the in-progress workout is kept as-is.
 
 Privacy and Terms open `https://muscleos.app/privacy` and `https://muscleos.app/terms` from
@@ -387,12 +384,10 @@ Worth being precise about, because users will assume an account means everything
 |------|-------------|
 | Recovery state | `muscleos_recovery` — derived; recomputed after merge |
 | Health / macros | `muscleos_health` — never synced |
-| Subscription cache | `muscleos_subscription` — RevenueCat is the truth |
 | In-progress workout | `muscleos_active_workout` — device session state |
 | Hidden built-in template / folder ids | `muscleos_hidden_builtin_*` — **UI preference lost on a new device** |
 | Catalog cache and watermark | `muscleos_catalog_*` — re-pulled |
 | Sync outbox and meta | `muscleos_sync_outbox`, `muscleos_sync_meta` |
-| Dev Pro override | `muscleos_dev_pro_override` |
 | Exact-alarm prompt flag | `muscleos_exact_alarm_prompt_shown` |
 | Apple authorization code | `muscleos_apple_authorization_code` — used only to revoke Sign in with Apple on delete |
 
@@ -417,7 +412,6 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_recovery` | Derived recovery cache | ○ |
 | `muscleos_active_workout` | In-progress session + rest state + `lastActivityAt` | ○ |
 | `muscleos_health` | Macro targets, metabolism | ○ |
-| `muscleos_subscription` | Cached tier | ○ |
 | `muscleos_catalog_exercises`, `muscleos_catalog_watermark`, `muscleos_catalog_seed_applied_at` | Catalog cache | ○ |
 | `muscleos_sync_outbox`, `muscleos_sync_meta` | Sync transport (meta: owning `userId`, server-clock `pullCursor`, last pull/push/sync times, `pendingLocalUpload`) | ○ |
 | `muscleos_dev_pro_override` | Dev testing (`__DEV__` builds only; cleared in release) | ○ |
@@ -437,7 +431,7 @@ on read:
 | Unset unit keys → resolved values written back | `settingsNeedPersist()` in `settingsStore.load` |
 | Sync meta without an owner → adopted by the next signed-in sync | `syncOwnerAction()` |
 | Remote `app_settings` missing `themePreference` | `normalizeAppSettings()` |
-| Any persisted subscription tier other than `'pro'` → `'basic'` | `getSubscription()` in `localStorage.ts` |
+| `muscleos_subscription` and `muscleos_dev_pro_override` (removed Pro tier) → deleted on launch | `removeLegacyStorageKeys()` in `localStorage.ts` |
 
 Export carries an explicit `version: 1`.
 
@@ -477,11 +471,11 @@ Derived: `primarySurface`, `primaryBorder`, `successSurface`, `tableHeader`, `ro
 
 ## Export
 
-Profile → Account → Data → **Export my data**. Basic tier. Writes pretty-printed JSON to the cache as
+Profile → Account → Data → **Export my data**. Writes pretty-printed JSON to the cache as
 `muscleos-export-YYYY-MM-DD.json` and opens the share sheet (`expo-sharing`,
 `application/json`).
 
-**Included:** `version: 1`, `exportedAt`, account profile (if linked), subscription, templates,
+**Included:** `version: 1`, `exportedAt`, account profile (if linked), templates,
 template folders, the stored finished-session list, recovery, exercise notes, custom exercises,
 and health.
 
@@ -493,7 +487,7 @@ ids, the exercise-previous map, the active in-progress workout, and the catalog 
 
 ## Import
 
-Profile → Account → Data → **Import data**. Basic tier. Opens the document picker for a JSON file
+Profile → Account → Data → **Import data**. Opens the document picker for a JSON file
 made by Export, then:
 
 1. **Parse** (`parseExportFile`, `src/storage/importPlan.ts`). Anything that isn't JSON with
@@ -513,9 +507,8 @@ made by Export, then:
    picker shows nothing; “Imported — Added …” confirms success, and a read or write failure says
    “Import failed”.
 
-Not imported: subscription, profile, recovery (recomputed), health, settings and biodata (not
-exported). Custom templates import on Basic but still need Pro to start
-([`requiresProToStart`](subscriptions.md#gate-map)), the same as after a downgrade.
+Not imported: profile, recovery (recomputed), health, settings and biodata (not exported), and the
+`subscription` field older exports carry. Imported custom templates are ready to run.
 
 ## Build and release
 
@@ -536,7 +529,6 @@ Base image: Node 20.18.0, pnpm 9.14.2, Expo SDK 54.
 | Env var | Needed for |
 |---------|-----------|
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | **Required** — accounts and sync |
-| `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `_ANDROID` | In-app purchases |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google sign-in |
 
 Injected via `app.config.js` into `Constants.expoConfig.extra`.
@@ -548,7 +540,7 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 | Local-first; an account is optional | Everything works offline |
 | Anonymous session on first launch | No signup wall |
 | Sign-out keeps local data | You don't lose history by signing out |
-| Delete account wipes this device | Stronger than sign-out; you continue as a guest, on Basic. Store billing is separate |
+| Delete account wipes this device | Stronger than sign-out; you continue as a guest |
 | Local wins on sync conflict when dirty | The device you're holding is the one you just used |
 | Recovery is never synced | Derived from sessions; recomputed after merge |
 | kg and cm canonical in storage | Units are a display concern only |
@@ -565,7 +557,6 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 - HealthKit / Google Fit, and any UI for `healthStore`
 - Haptics setting
 - A rest-timer default in Settings
-- Server-side subscription mirror (see [subscriptions.md](subscriptions.md#not-implemented))
 
 ## Tests
 
@@ -580,7 +571,7 @@ Covered:
   and drops `notNatty`, unknown keys, and malformed values, for both a stored profile and a synced
   `app_settings` payload
 - `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
-  sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest re-points RevenueCat.
+  sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest starts.
 - `src/auth/authErrors.test.ts` — known Supabase errors map to plain copy; unknown backend or provider
   messages never leak (no "supabase", never the raw text) in any flow
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
@@ -610,13 +601,13 @@ Covered:
   snapshots, retry after a failed first sync); `onAccountLinked` full snapshot; `useSyncStore`
 - `src/sync/syncStatus.test.ts` — Account sync-row copy and the Sync now result alert
 - `src/auth/authSession.test.ts` — launch: existing session reused, anonymous sign-in, unconfigured,
-  10 s timeouts and failures; sign-out order (Google, Supabase, new guest, RevenueCat, sync reset)
+  10 s timeouts and failures; sign-out order (Google, Supabase, new guest, sync reset)
 - `src/auth/authCopy.test.ts` — `emailLinkDestination`, Delete account error copy (no raw text,
   dev-only deploy hint), Google client id lookup order
 - `src/storage/localStorage.settings.test.ts` — settings defaults, unit fallbacks and
   independence, persistence round-trip, theme listeners; migrations (legacy units, write-back,
-  `normalizeAppSettings`, subscription tier coercion, template `days[]` and `defaultSets`);
-  `clearAllData` removed vs kept keys; export payload contents and omissions
+  `normalizeAppSettings`, template `days[]` and `defaultSets`); legacy subscription keys removed;
+  `clearAllData` removed vs kept keys; export payload contents and omissions (never `subscription`)
 - `src/storage/importCopy.test.ts`, `importData.test.ts` — import dialog copy,
   `importOutboxEntries`, and `applyImport` writes, previous/recovery rebuild, and outbox (guest vs
   linked)

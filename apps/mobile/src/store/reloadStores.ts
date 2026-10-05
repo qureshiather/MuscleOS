@@ -4,7 +4,6 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 
 /**
  * Re-read the stores that mirror synced data, after something rewrote storage underneath the UI.
@@ -23,10 +22,10 @@ export async function reloadDataStores(): Promise<void> {
 }
 
 /**
- * Every store that mirrors AsyncStorage, plus the subscription tier — after Clear all data or
- * Delete account. The in-progress workout is not cleared by either reset path's store reload: Clear
- * all data keeps it, and Delete account discards it in the auth store.
+ * Every store that mirrors AsyncStorage — after Clear all data or Delete account. The in-progress
+ * workout is not cleared by either reset path's store reload: Clear all data keeps it, and Delete
+ * account discards it in the auth store.
  */
-export async function reloadAllStores(userId: string | null): Promise<void> {
-  await Promise.all([reloadDataStores(), useSubscriptionStore.getState().load(userId)]);
+export async function reloadAllStores(): Promise<void> {
+  await reloadDataStores();
 }

@@ -21,7 +21,6 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
-import { useProGate } from '@/hooks/useProGate';
 import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatMuscleLabels } from '@muscleos/types';
 import type { Exercise, ExerciseCategory } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
@@ -40,7 +39,6 @@ const DETAIL_HEADER_HEIGHT = 64;
 export default function ExercisesScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { isPro, gatePro } = useProGate();
   const sheetMaxHeight = useModalMaxHeight();
   const sheetBottomPad = useBottomSpace(spacing.xl);
   const detailScrollMaxHeight = Math.max(160, sheetMaxHeight - sheetBottomPad - DETAIL_HEADER_HEIGHT);
@@ -86,14 +84,12 @@ export default function ExercisesScreen() {
             </Text>
           </View>
           <Pressable
-            onPress={() => {
-              if (gatePro('custom_exercises')) router.push('/create-exercise');
-            }}
+            onPress={() => router.push('/create-exercise')}
             style={({ pressed }) => [
               styles.addButton,
               {
-                backgroundColor: isPro ? colors.primarySurface : colors.surface,
-                borderColor: isPro ? colors.primaryBorder : colors.border,
+                backgroundColor: colors.primarySurface,
+                borderColor: colors.primaryBorder,
               },
               pressed && { opacity: 0.85 },
             ]}
@@ -101,7 +97,7 @@ export default function ExercisesScreen() {
             accessibilityRole="button"
             accessibilityLabel="Create exercise"
           >
-            <Ionicons name="add" size={22} color={isPro ? colors.primary : colors.textSecondary} />
+            <Ionicons name="add" size={22} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -283,17 +279,15 @@ export default function ExercisesScreen() {
           search.trim() ? (
             <Pressable
               style={[styles.emptyCreate, { borderColor: colors.border, backgroundColor: colors.surface }]}
-              onPress={() => {
-                if (gatePro('custom_exercises')) {
-                  router.push({ pathname: '/create-exercise', params: { name: search.trim() } });
-                }
-              }}
+              onPress={() =>
+                router.push({ pathname: '/create-exercise', params: { name: search.trim() } })
+              }
             >
               <Text style={[styles.emptyCreateTitle, { color: colors.text }]}>
                 Create “{search.trim()}”
               </Text>
               <Text style={[styles.emptyCreateHint, { color: colors.textMuted }]}>
-                {isPro ? 'Add it as a custom exercise on your account.' : 'Pro · save your own exercises.'}
+                Save it as your own exercise.
               </Text>
             </Pressable>
           ) : (
@@ -397,9 +391,7 @@ export default function ExercisesScreen() {
                           const id = selected.id;
                           void setNote(id, noteDraft);
                           setSelected(null);
-                          if (gatePro('custom_exercises')) {
-                            router.push({ pathname: '/create-exercise', params: { id } });
-                          }
+                          router.push({ pathname: '/create-exercise', params: { id } });
                         }}
                       >
                         <Text style={[styles.modalClose, { color: colors.primary }]}>Edit</Text>

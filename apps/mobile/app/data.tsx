@@ -127,7 +127,7 @@ export default function DataScreen() {
               // Device only: nothing is pushed, so the account's cloud copy is untouched. The theme
               // provider re-reads storage (Auto) on its own.
               await clearAllData();
-              await reloadAllStores(useAuthStore.getState().user?.id ?? null);
+              await reloadAllStores();
               Alert.alert('Done', 'All data has been cleared.');
             } catch (e) {
               if (__DEV__) console.warn('[data] clear failed', e);

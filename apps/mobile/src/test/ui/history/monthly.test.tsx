@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import HistoryMonthlyScreen from '../../../../app/history-monthly';
-import { resetAppState, routeStub, setPro } from '../render';
+import { resetAppState, routeStub } from '../render';
 import { ex, finishedSession, renderAt, resetHistoryStores, restoreNow, seedSessions } from './helpers';
 
 /** docs/features/history-analytics.md#monthly-calendar */
@@ -8,7 +8,7 @@ import { ex, finishedSession, renderAt, resetHistoryStores, restoreNow, seedSess
 // Wednesday 16 Sep 2026, 12:00 local.
 const NOW = new Date(2026, 8, 16, 12);
 
-const routes = { 'history-monthly': HistoryMonthlyScreen, subscription: routeStub('subscription') };
+const routes = { 'history-monthly': HistoryMonthlyScreen };
 
 beforeEach(async () => {
   await resetAppState();
@@ -17,15 +17,7 @@ beforeEach(async () => {
 
 afterEach(restoreNow);
 
-test('Basic is redirected to the paywall', async () => {
-  const { getPathname, getSearchParams } = renderAt(NOW, routes, '/history-monthly');
-  await screen.findByText('route:subscription');
-  expect(getPathname()).toBe('/subscription');
-  expect(getSearchParams()).toEqual({ feature: 'monthly_calendar' });
-});
-
 test('Monday-first grid for the current month with workout days marked', async () => {
-  setPro(true);
   await seedSessions([
     finishedSession('a', new Date(2026, 8, 7, 23, 50), [ex('bench-press', [5, 60])]),
     finishedSession('b', new Date(2026, 8, 15, 9), [ex('squat', [5, 100])], 'ppl-legs'),
@@ -52,7 +44,6 @@ test('Monday-first grid for the current month with workout days marked', async (
 });
 
 test('tapping a day toggles a detail card with template name and duration only', async () => {
-  setPro(true);
   await seedSessions([
     finishedSession('a', new Date(2026, 8, 15, 9), [ex('squat', [5, 100])], 'ppl-legs', 45),
     finishedSession('b', new Date(2026, 8, 15, 18), [ex('plank', [1])], '_empty', 0.5),
@@ -76,7 +67,6 @@ test('tapping a day toggles a detail card with template name and duration only',
 });
 
 test('month navigation is unbounded and clears the selection', async () => {
-  setPro(true);
   renderAt(NOW, routes, '/history-monthly');
   await screen.findByText('September 2026');
   fireEvent.press(screen.getByTestId('calendar-day-2026-09-16'));

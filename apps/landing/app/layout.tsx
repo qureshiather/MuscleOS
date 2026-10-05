@@ -26,7 +26,7 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: 'MuscleOS — Workout Tracker',
   description:
-    'Track sets, reps, weight, workout history, and muscle recovery. Basic is free.',
+    'Track sets, reps, weight, workout history, and muscle recovery. Free, with no paywall.',
   openGraph: {
     title: 'MuscleOS',
     description: 'Track your workouts and muscle recovery.',

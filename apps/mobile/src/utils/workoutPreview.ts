@@ -27,7 +27,7 @@ export function formatPrevious(
 export type PreviewEntryState = 'missing' | 'active-session' | 'ready';
 
 /**
- * Entry guards other than the Pro gate: no template id or no exercises → "Missing workout
+ * Entry guards: no template id or no exercises → "Missing workout
  * details"; a workout already in progress → redirect to `/active-workout`.
  */
 export function previewEntryState(args: {

@@ -37,9 +37,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>A guest identifier.</strong> On first launch the app signs you in as an anonymous guest with
-            Supabase. This creates a random user ID with no name or email attached. It is used to check
-            subscription status and, if you later sign in with Apple or Google, to keep the workouts you already
-            logged. Guest workouts are not uploaded.
+            Supabase. This creates a random user ID with no name or email attached. If you later sign in
+            with Apple or Google, it is used to keep the workouts you already logged. Guest workouts are not uploaded.
           </li>
           <li>
             <strong>Account information, if you link an account.</strong> Email address (or Apple Hide My Email
@@ -69,7 +68,7 @@ export default function PrivacyPage() {
         <h2>3. How We Use Your Information</h2>
         <p>
           We use this information to run the MuscleOS app: to save and restore your training log, to sync a
-          linked account across devices, to unlock Pro on that account, and to respond when you contact us.
+          linked account across devices, and to respond when you contact us.
           We do not use your workout history for advertising or sell it to third parties.
         </p>
       </section>
@@ -83,14 +82,10 @@ export default function PrivacyPage() {
             exercise catalog.
           </li>
           <li>
-            <strong>RevenueCat</strong> — subscription status so Pro restores on devices signed into the same
-            account. We send your MuscleOS user ID (the guest ID until you sign in), never your card number.
+            <strong>Apple</strong> — Sign in with Apple (iOS).
           </li>
           <li>
-            <strong>Apple</strong> — Sign in with Apple (iOS) and App Store billing if you subscribe.
-          </li>
-          <li>
-            <strong>Google</strong> — Sign in with Google and Google Play billing if you subscribe.
+            <strong>Google</strong> — Sign in with Google.
           </li>
         </ul>
         <p>
@@ -131,10 +126,6 @@ export default function PrivacyPage() {
             <Link href="/delete-account">muscleos.app/delete-account</Link>.
           </li>
         </ul>
-        <p>
-          Deleting your MuscleOS account does not cancel an App Store or Google Play subscription. Cancel that in
-          your Apple or Google account settings.
-        </p>
       </section>
 
       <section>

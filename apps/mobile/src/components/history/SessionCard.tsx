@@ -24,7 +24,7 @@ type SessionCardProps = {
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
-  /** Exercises that set a new best e1RM in this session. Omitted for Basic. */
+  /** Exercises that set a new best e1RM in this session. */
   prExerciseIds?: ReadonlySet<string>;
   /** Whole-percent volume change vs the previous session of the same template. */
   volumeDelta?: number;

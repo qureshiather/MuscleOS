@@ -6,10 +6,8 @@ import { Screen, ScreenFooter } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import { useProGate, useRedirectWhenReady } from '@/hooks/useProGate';
-import { startFromParamsDecision, subscriptionPaywallPath } from '@/subscription/features';
-import { startPlanFromParams } from '@/subscription/startPlan';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useRedirectWhenReady } from '@/hooks/useRedirectWhenReady';
+import { startPlanFromParams } from '@/utils/workoutStart';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
@@ -28,7 +26,6 @@ import { fontScaleCap } from '@/theme/layout';
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { isPro } = useProGate();
   const activeSession = useActiveWorkoutStore((s) => s.session);
   const params = useLocalSearchParams<{
     templateId?: string;
@@ -42,11 +39,7 @@ export default function WorkoutPreviewScreen() {
 
   const templateId = params.templateId ?? '';
   const template = useTemplatesStore((s) => s.allTemplates().find((t) => t.id === templateId));
-  const templatesLoaded = useTemplatesStore((s) => !s.isLoading);
-  const subscriptionLoaded = useSubscriptionStore((s) => !s.isLoading);
-  // Basic previews (and starts) a built-in exactly as defined — URL exercises are ignored.
   const plan = startPlanFromParams({
-    isPro,
     template,
     params: {
       exerciseIds: params.exerciseIds,
@@ -75,24 +68,6 @@ export default function WorkoutPreviewScreen() {
     hasActiveSession: activeSession != null,
   });
   useRedirectWhenReady(entry === 'active-session' ? '/active-workout' : null);
-
-  /**
-   * Same rule as the start-from-params path in /active-workout, so a deep link to the preview
-   * can't reach a Pro-only start: on Basic, custom templates and unknown ids go to the paywall.
-   */
-  const startDecision = startFromParamsDecision({
-    hasSession: activeSession != null,
-    templatesLoaded,
-    subscriptionLoaded,
-    isPro,
-    templateId,
-    template,
-  });
-  useRedirectWhenReady(
-    startDecision !== 'wait' && startDecision !== 'start'
-      ? (subscriptionPaywallPath(startDecision) as Href)
-      : null
-  );
 
   function handleStart() {
     if (activeSession) return;

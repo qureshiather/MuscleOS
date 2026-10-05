@@ -10,9 +10,9 @@ its effect everywhere, and why there is no cache to invalidate.
 | | |
 |--|--|
 | History | `apps/mobile/app/(tabs)/history.tsx` |
-| Monthly calendar | `apps/mobile/app/history-monthly.tsx` (**Pro**) |
-| Personal records | `apps/mobile/app/personal-records.tsx` (**Pro**) |
-| Progression | `apps/mobile/app/exercise-progression.tsx` (**Pro**) |
+| Monthly calendar | `apps/mobile/app/history-monthly.tsx` |
+| Personal records | `apps/mobile/app/personal-records.tsx` |
+| Progression | `apps/mobile/app/exercise-progression.tsx` |
 | 1RM & PRs | `apps/mobile/src/utils/oneRepMax.ts` |
 | Strength standards | `apps/mobile/src/data/strengthStandards.ts` |
 | Home stats | `apps/mobile/src/utils/homeStats.ts` |
@@ -50,10 +50,10 @@ Collapsed, a card shows:
 | Template name | Resolved from `templateId`; `Empty workout` for ad-hoc sessions (`_empty`); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
 | Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero; a session under one minute has no duration (never `0m`) |
 | Volume change | `↑4%` (success colour) or `↓3%` (danger colour) against the **previous completed session of the same template** (`buildVolumeDeltas()`), rounded to a whole percent. Hidden at 0%, for the first session of a template, when either volume is zero, and for empty workouts (`_empty`) |
-| Summary line | `6 exercises · 18 sets`, counting only exercises with a completed set and only completed sets, plus `· 2 PRs` when there are PRs (Pro only) |
+| Summary line | `6 exercises · 18 sets`, counting only exercises with a completed set and only completed sets, plus `· 2 PRs` when there are PRs |
 
 Expanded, it adds one row per exercise with at least one completed set: the exercise name, a
-**PR** badge when that exercise set a PR in this session (Pro only), and its completed sets as one
+**PR** badge when that exercise set a PR in this session, and its completed sets as one
 line (`formatSetGroups`):
 
 | Sets | Line |
@@ -76,8 +76,7 @@ estimated 1RM there is **strictly greater** than its best in every earlier compl
 uses the same qualifying sets as [Personal records](#personal-records) (completed, weight > 0,
 reps ≥ 1). The first session to log an exercise sets a baseline, not a PR. Exercises are compared
 by **canonical id**: a session logged under a legacy catalog alias competes with the current
-exercise. PR badges and counts are
-part of the `personal_records` Pro feature and are hidden on Basic.
+exercise.
 
 **There is no session detail screen.** All detail is inline on the card.
 
@@ -87,7 +86,7 @@ workout and it will show up here with duration, volume, and sets."*
 **Pull to refresh** reloads sessions, including from the empty state; with a linked account it
 runs a cloud sync first.
 
-The header has two Pro shortcuts: a trophy to Personal Records and a calendar to the monthly view.
+The header has two shortcuts: a trophy to Personal Records and a calendar to the monthly view.
 
 ### Deleting a session
 
@@ -106,7 +105,7 @@ PRs need no explicit step because they're derived on read.
 
 ## Monthly calendar
 
-**Pro** (`monthly_calendar`). A 7-column month grid, weeks starting **Monday** like the History
+A 7-column month grid, weeks starting **Monday** like the History
 week groups: `M T W T F S S` headers, blanks before the 1st and after the last day so every row
 is full (`monthGrid()`). It opens on the current month.
 
@@ -120,7 +119,7 @@ Empty selection shows "No workouts this day". Changing month clears the selectio
 
 ## Personal records
 
-**Pro** (`personal_records`). Per exercise, across **all** completed sessions with no time window.
+Per exercise, across **all** completed sessions with no time window.
 
 A set qualifies when the session is completed, the set is completed, `weightKg > 0`, and
 `reps >= 1`.
@@ -203,7 +202,7 @@ no strength card.
 
 ## Exercise progression
 
-**Pro** (`exercise_progression`). Plots **estimated 1RM per qualifying set** over time, oldest to
+Plots **estimated 1RM per qualifying set** over time, oldest to
 newest, as custom `View` bars (no chart library). Bar height is the ratio to the best e1RM.
 
 **One bar per qualifying set, not per session** — several sets on one day give several adjacent
@@ -274,22 +273,11 @@ the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 
 ## Export
 
-Reached from **Profile → Account → Data → Export my data** (not from these screens). Basic tier. Writes
+Reached from **Profile → Account → Data → Export my data** (not from these screens). Writes
 pretty-printed JSON named `muscleos-export-YYYY-MM-DD.json`, dated by the device's **local**
 calendar day (`exportFilename()`), and hands it to the share sheet.
 
 Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export).
-
-## Pro gates
-
-| Screen / action | Gate key |
-|-----------------|----------|
-| Personal records (trophy button, screen) | `personal_records` |
-| PR badges and PR counts on history cards | `personal_records` (hidden, not paywalled) |
-| Monthly calendar (calendar button, screen) | `monthly_calendar` |
-| Exercise progression (PR card tap, screen) | `exercise_progression` |
-
-Basic keeps the history list, inline session detail, delete, pull-to-refresh, and JSON export.
 
 ## Assumptions
 
@@ -334,15 +322,15 @@ Vitest (`apps/mobile/src/…`):
 Jest UI (`apps/mobile/src/test/ui/history/`):
 
 - `history.test.tsx` — week headers and summaries, card names (incl. Empty workout), date, stats
-  line and volume change, newest expanded + toggling, PR badges/counts on Pro and hidden on Basic,
-  alias PRs, Pro-gated header shortcuts (paywall on Basic, navigation on Pro), delete flow (cancel,
+  line and volume change, newest expanded + toggling, PR badges/counts,
+  alias PRs, header shortcuts to Personal Records and the calendar, delete flow (cancel,
   confirm, storage, recovery, sync), empty-state copy, pull to refresh from empty (guest reload,
   linked sync first), pounds
-- `monthly.test.tsx` — paywall on Basic, Monday-first grid, local-date day marking, day detail
+- `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
-- `records.test.tsx` — PR paywall, empty state, e1RM order with 1-dp values, 10-bar window and the
+- `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the
   2-set condition, search and no-match copy, Biodata hint, strength chips (none for pull-up), card
-  → progression; progression paywall, per-set bars oldest→newest, sets list, strength card, alias
+  → progression; progression per-set bars oldest→newest, sets list, strength card, alias
   id, unknown id
 
 Not covered:

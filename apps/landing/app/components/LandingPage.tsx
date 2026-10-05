@@ -62,7 +62,7 @@ const PROBLEMS = [
   },
   {
     pain: 'Use your own workouts',
-    fix: 'Create templates for your usual training days with Pro.',
+    fix: 'Create templates for your usual training days, or start empty and add as you go.',
   },
   {
     pain: 'Check muscle recovery',
@@ -92,7 +92,7 @@ const FEATURES = [
     points: [
       'Search by name, muscle, or equipment',
       'Muscle map on each exercise',
-      'Custom exercises on Pro',
+      'Add your own exercises',
     ],
     src: '/screens/exercises.png',
     alt: 'MuscleOS exercise library',
@@ -105,7 +105,7 @@ const FEATURES = [
     points: [
       'Front and back diagram',
       'Updates when you finish a workout',
-      'Included on Basic',
+      'Suggests what’s ready to train',
     ],
     src: '/screens/recovery.png',
     alt: 'MuscleOS Recovery screen',
@@ -114,31 +114,31 @@ const FEATURES = [
     id: 'history',
     label: 'History',
     title: 'Review past workouts',
-    body: 'Each saved workout shows its duration, volume, exercises, and sets. Pro adds personal records, progression charts, and a monthly calendar.',
+    body: 'Each saved workout shows its duration, volume, exercises, and sets, with personal records, progression charts, and a monthly calendar.',
     points: [
       'Every session with its sets',
       'JSON export anytime',
-      'PRs, charts, and calendar on Pro',
+      'PRs, progression charts, and a calendar',
     ],
     src: '/screens/history.png',
     alt: 'MuscleOS History screen',
   },
 ] as const;
 
-const BASIC_POINTS = [
+const INCLUDED_POINTS = [
   'Built-in PPL, Upper/Lower & Strong Lifts',
-  'Full set logging & rest timers',
-  'Exercise library',
+  'Custom workout templates & folders',
+  'Empty workouts & mid-session edits',
+  'Set logging & rest timers',
+  'Exercise library & custom exercises',
   'Recovery map',
-  'History & JSON export',
+  'History, PRs, charts & calendar',
+  'Backup, sync & JSON export',
 ] as const;
 
-const PRO_POINTS = [
-  'Custom workout templates & folders',
-  'Custom exercises',
-  'Empty workouts & mid-session edits',
-  'Save a finished workout as a template',
-  'PRs, charts, and monthly calendar',
+const COACHING_POINTS = [
+  'Personal trainers send you programs to run in MuscleOS',
+  'The MuscleOS AI coach builds a program around your goals',
 ] as const;
 
 export function LandingPage() {
@@ -164,7 +164,7 @@ export function LandingPage() {
               <div className="mt-6 sm:mt-8">
                 <StoreButtons />
               </div>
-              <p className="mt-3 text-sm text-ink-muted sm:mt-4">Basic is free. Pro starts at $2.99/month.</p>
+              <p className="mt-3 text-sm text-ink-muted sm:mt-4">Free. Every feature, no paywall, no ads.</p>
             </div>
 
             <div className="flex justify-center lg:justify-end">
@@ -268,25 +268,25 @@ export function LandingPage() {
                 Pricing
               </p>
               <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-                Choose Basic or Pro.
+                Free. All of it.
               </h2>
               <p className="mt-4 text-lg text-ink-secondary">
-                Basic includes workout logging, built-in programs, Recovery, and History. Pro adds
-                custom workouts and progress tools.
+                Every feature in MuscleOS is free, forever. No paywall, no trial, no ads, and no account
+                needed.
               </p>
             </div>
 
             <div className="mx-auto mt-12 grid max-w-4xl items-stretch gap-5 sm:mt-14 sm:grid-cols-2 sm:gap-6">
-              <div className="flex h-full flex-col rounded-2xl border border-border bg-surface p-6 sm:p-8">
-                <p className="font-display text-xl font-semibold text-ink">Basic</p>
+              <div className="relative flex h-full flex-col rounded-2xl border-2 border-primary bg-primary/[0.06] p-6 sm:p-8">
+                <p className="font-display text-xl font-semibold text-ink">MuscleOS</p>
                 <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
-                <p className="mt-2 text-sm text-ink-muted">No time limit</p>
-                <p className="mt-5 text-sm font-medium text-ink">Includes:</p>
+                <p className="mt-2 text-sm text-ink-muted">Forever</p>
+                <p className="mt-5 text-sm font-medium text-ink">Everything included:</p>
                 <ul className="mt-4 space-y-2.5 text-sm text-ink-secondary">
-                  {BASIC_POINTS.map((point) => (
+                  {INCLUDED_POINTS.map((point) => (
                     <li key={point} className="flex gap-2">
                       <span
-                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted"
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
                         aria-hidden
                       />
                       {point}
@@ -295,21 +295,20 @@ export function LandingPage() {
                 </ul>
               </div>
 
-              <div className="relative flex h-full flex-col rounded-2xl border-2 border-primary bg-primary/[0.06] p-6 sm:p-8">
-                <p className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
-                  Recommended
+              <div className="relative flex h-full flex-col rounded-2xl border border-border bg-surface p-6 sm:p-8">
+                <p className="absolute -top-3 left-6 rounded-full bg-ink px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-surface">
+                  Coming later
                 </p>
-                <p className="font-display text-xl font-semibold text-ink">Pro</p>
-                <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
-                  $19.99<span className="text-lg font-medium text-ink-muted">/yr</span>
+                <p className="font-display text-xl font-semibold text-ink">Coaching</p>
+                <p className="mt-2 text-sm text-ink-secondary">
+                  When you want a plan built for you. Optional, and nothing in the free app is held back
+                  for it.
                 </p>
-                <p className="mt-2 text-sm text-ink-muted">or $2.99/month</p>
-                <p className="mt-5 text-sm font-medium text-ink">Everything in Basic, plus:</p>
-                <ul className="mt-4 space-y-2.5 text-sm text-ink-secondary">
-                  {PRO_POINTS.map((point) => (
+                <ul className="mt-5 space-y-2.5 text-sm text-ink-secondary">
+                  {COACHING_POINTS.map((point) => (
                     <li key={point} className="flex gap-2">
                       <span
-                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted"
                         aria-hidden
                       />
                       {point}

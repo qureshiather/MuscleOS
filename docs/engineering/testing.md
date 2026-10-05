@@ -49,7 +49,7 @@ state.
 
 - `src/test/ui/setup.ts` (`setupFilesAfterEnv`) — global stand-ins for native modules the renderer
   can't load: AsyncStorage (official mock), Reanimated, gesture handler, safe-area context,
-  RevenueCat, expo-notifications, expo-audio — and the [console guard](#conventions).
+  expo-notifications, expo-audio — and the [console guard](#conventions).
 - `jest.config.js` resolves two packages the way Metro does: `react-native-draggable-flatlist` from
   its TS source (the prebuilt build triggers React's "outdated JSX transform" warning) and
   `punycode` to the npm package expo's URL polyfill depends on (not Node's deprecated core module).
@@ -60,8 +60,8 @@ state.
     layout's side effects. Pass a deep-link URL to test cold-start entry.
   - `routeStub(name)` stands in for routes a test navigates to but doesn't render; assert
     navigation with `getPathname()` / `getSearchParams()`.
-  - `setPro(bool)` sets the tier; `resetAppState()` clears storage, sets Basic, and marks templates
-    loaded (start gates wait on templates and the tier).
+  - `resetAppState()` clears storage and marks templates loaded (starting from route params waits
+    on templates).
 - Area helpers in `src/test/ui/<area>/helpers.tsx` seed stores for that area.
 - `renderRouter` switches Jest to fake timers set to the real clock. Time-dependent screen tests
   pin the clock after mounting — see `renderAt()` in `src/test/ui/history/helpers.tsx` and
@@ -124,7 +124,7 @@ state.
 | `src/utils/exerciseSearch.test.ts`, `exerciseSearchScoring.test.ts` | Normalization, aliases, typo tolerance, every score tier and bonus |
 | `src/utils/exerciseNormalize.test.ts`, `exerciseTitleCase.test.ts`, `exerciseIds.test.ts` | Category inference, invalid equipment/muscle stripping, title case, custom ids, aliases |
 | `src/utils/exerciseLibraryFilter.test.ts`, `customExerciseForm.test.ts` | Tab filters and summary, create-form validation, edit target |
-| `src/test/ui/exercises/*.test.tsx` (Jest) | Exercises tab, filters, empty states, gates, create/edit exercise |
+| `src/test/ui/exercises/*.test.tsx` (Jest) | Exercises tab, filters, empty states, create/edit exercise |
 
 ### History & analytics — [history-analytics.md](../features/history-analytics.md)
 
@@ -141,16 +141,13 @@ state.
 | `src/storage/exportData.test.ts` | Local-date export filename |
 | `src/test/ui/history/*.test.tsx` (Jest) | History list/delete/refresh, monthly calendar, PRs, progression |
 
-### Subscriptions — [subscriptions.md](../features/subscriptions.md)
+### Pricing — [pricing.md](../features/pricing.md)
 
 | File | Covers |
 |------|--------|
-| `src/subscription/features.test.ts` | `requiresProToStart`, `startFromParamsDecision`, `shouldRedirectToPaywall`, `midWorkoutEditDecision`, paywall params, labels, list parity |
-| `src/subscription/startPlan.test.ts` | Basic built-in plan from the template; Pro URL plan |
-| `src/subscription/state.test.ts` | Expiry, legacy `free`, guest paint, `resolveSubscriptionState` branches |
-| `src/subscription/paywall.test.ts`, `pricing.test.ts`, `plan.test.ts` | Price labels, savings, current-plan lines, purchase button, plans |
-| `src/store/subscriptionStore.test.ts`, `src/utils/revenueCat.test.ts` | Hydrate, load paths, guest refusal, purchase/restore, restore fallback |
-| `src/test/ui/subscriptions/*.test.tsx` (Jest) | Every gate-map row, deep-link starts, `useRequirePro` screens, paywall |
+| `src/utils/workoutStart.test.ts` | `startFromParamsDecision` waits; `startPlanFromParams` URL plan and template fallback |
+| `src/test/ui/workout/deepLinks.test.tsx` (Jest) | Deep-link starts for built-in, custom, empty and ad-hoc workouts; built-in mid-workout Add; preview entry |
+| `src/storage/localStorage.settings.test.ts` | Legacy subscription keys removed on launch; export never carries `subscription` |
 
 ### Accounts & data — [accounts-and-data.md](../features/accounts-and-data.md)
 
@@ -171,7 +168,7 @@ Things the current setup can't reach; each spec's **Tests** section has the deta
 
 - The active workout's exercise ⋯ menu positions itself with `measureInWindow`, which never calls
   back under the test renderer. Its actions are unit-tested and store-tested.
-- Native integrations: Apple/Google sign-in SDKs, real store purchase sheets, sound playback,
+- Native integrations: Apple/Google sign-in SDKs, sound playback,
   notification scheduling, drag-to-reorder and swipe physics.
 - The root layout's boot sequence runs only in the app; its pieces are tested individually.
 
@@ -210,9 +207,7 @@ spec, fix the spec too.
 Per [docs/README.md](../README.md#keeping-docs-in-sync), a feature change updates its spec in the
 same change. For tests:
 
-1. Unit-test any new pure logic, and UI-test any new screen or gate.
-2. If the feature adds a Pro gate, add it to the
-   [gate map](../features/subscriptions.md#gate-map) and a UI test in `src/test/ui/subscriptions/`.
-3. Update the [status table](../features/README.md#spec-and-test-status) and this doc.
-4. If something genuinely can't be tested with this setup, say so in the spec's **Tests** section
+1. Unit-test any new pure logic, and UI-test any new screen.
+2. Update the [status table](../features/README.md#spec-and-test-status) and this doc.
+3. If something genuinely can't be tested with this setup, say so in the spec's **Tests** section
    and under Known gaps above.

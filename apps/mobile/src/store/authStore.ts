@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import type { AuthChangeEvent, User } from '@supabase/supabase-js';
 import type { UserProfile } from '@muscleos/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { revenueCatLogOut, revenueCatLogIn } from '@/utils/revenueCat';
 import { withTimeout } from '@/lib/withTimeout';
 import { getAppleAuthorizationCode } from '@/auth/appleAuthCode';
 import { linkedAuthProvider } from '@/auth/accountProvider';
@@ -47,13 +46,6 @@ export function applyAuthUser(u: User, _event: AuthChangeEvent, wasAnonymous: bo
     void import('@/sync').then((m) => m.onAccountLinked());
   } else if (sideEffect === 'sync') {
     void import('@/sync').then((m) => m.syncNow());
-  }
-
-  if (isNowLinked && u.id) {
-    // Guests are always Basic, so re-read the entitlement once the account is linked.
-    void revenueCatLogIn(u.id)
-      .then(() => import('@/store/subscriptionStore'))
-      .then((m) => m.useSubscriptionStore.getState().load(u.id));
   }
 }
 
@@ -111,12 +103,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         signOutSupabase: () => supabase.auth.signOut(),
         signInAnonymously: async () => {
           const { data } = await supabase.auth.signInAnonymously();
-          // Guest from here on, before RevenueCat and sync are re-pointed.
+          // Guest from here on, before sync is re-pointed.
           set({ user: data.user ?? null, isAnonymous: true, profile: null });
           return { user: data.user ?? null };
         },
-        revenueCatLogOut,
-        revenueCatLogIn,
         resetSyncTransport: async (userId) => {
           const { resetSyncTransport } = await import('@/sync');
           await resetSyncTransport(userId);
@@ -160,8 +150,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const { data } = await supabase.auth.signInAnonymously();
         return { user: data.user ? { id: data.user.id } : null };
       },
-      revenueCatLogOut,
-      revenueCatLogIn,
     });
     const {
       data: { user: nextUser },

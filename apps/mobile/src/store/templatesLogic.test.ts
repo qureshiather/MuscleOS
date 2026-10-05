@@ -130,55 +130,40 @@ describe('templateMenuActions', () => {
   const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
 
   it('built-ins only offer Hide (no rename / move / edit / delete)', () => {
-    const actions = templateMenuActions(push, { isHidden: false, hiddenFolderIds: [], isPro: true });
-    expect(actions).toEqual([{ key: 'hide', label: 'Hide', gate: null, locked: false }]);
+    const actions = templateMenuActions(push, { isHidden: false, hiddenFolderIds: [] });
+    expect(actions).toEqual([{ key: 'hide', label: 'Hide' }]);
   });
 
   it('an individually hidden built-in offers Unhide', () => {
-    const actions = templateMenuActions(push, { isHidden: true, hiddenFolderIds: [], isPro: false });
-    expect(actions).toEqual([{ key: 'unhide', label: 'Unhide', gate: null, locked: false }]);
+    const actions = templateMenuActions(push, { isHidden: true, hiddenFolderIds: [] });
+    expect(actions).toEqual([{ key: 'unhide', label: 'Unhide' }]);
   });
 
   it('a built-in hidden by its folder offers Unhide folder instead of a no-op Unhide', () => {
     const actions = templateMenuActions(push, {
       isHidden: true,
       hiddenFolderIds: ['builtin_ppl'],
-      isPro: false,
     });
     expect(actions).toEqual([
-      { key: 'unhide-folder', label: 'Unhide folder', gate: null, locked: false },
+      { key: 'unhide-folder', label: 'Unhide folder' },
     ]);
   });
 
-  it('customs offer Rename, Move, Edit (custom_templates), Hide, Delete (ungated) in order', () => {
-    const actions = templateMenuActions(custom(), { isHidden: false, hiddenFolderIds: [], isPro: true });
+  it('customs offer Rename, Move, Edit, Hide, Delete in order', () => {
+    const actions = templateMenuActions(custom(), { isHidden: false, hiddenFolderIds: [] });
     expect(keys(actions)).toEqual(['rename', 'move', 'edit', 'hide', 'delete']);
     expect(actions.map((a) => a.label)).toEqual(['Rename', 'Move', 'Edit', 'Hide', 'Delete']);
-    expect(actions.map((a) => a.gate)).toEqual([
-      'custom_templates',
-      'custom_templates',
-      'custom_templates',
-      null,
-      null,
-    ]);
-    expect(actions.every((a) => !a.locked)).toBe(true);
   });
 
-  it('on Basic only the gated custom actions are locked', () => {
-    const actions = templateMenuActions(custom({ hidden: true }), {
-      isHidden: true,
-      hiddenFolderIds: [],
-      isPro: false,
-    });
+  it('a hidden custom offers Unhide in place of Hide', () => {
+    const actions = templateMenuActions(custom({ hidden: true }), { isHidden: true, hiddenFolderIds: [] });
     expect(keys(actions)).toEqual(['rename', 'move', 'edit', 'unhide', 'delete']);
-    expect(actions.map((a) => a.locked)).toEqual([true, true, true, false, false]);
   });
 
   it('a hidden custom never gets Unhide folder, even if its folder id is in the built-in list', () => {
     const actions = templateMenuActions(custom({ folderId: 'builtin_ppl', hidden: true }), {
       isHidden: true,
       hiddenFolderIds: ['builtin_ppl'],
-      isPro: true,
     });
     expect(keys(actions)).toContain('unhide');
   });

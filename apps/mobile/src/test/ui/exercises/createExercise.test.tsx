@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import { router } from 'expo-router';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
-import { resetAppState, setPro } from '../render';
+import { resetAppState } from '../render';
 import { exercise, renderExercises, seedExercises } from './helpers';
 
 jest.mock('@/sync', () => ({
@@ -42,21 +42,9 @@ function savedCustoms() {
 }
 
 describe('create-exercise gate', () => {
-  it('redirects Basic users who reach the route directly to the paywall', async () => {
-    // Mounting the gated route as the very first screen trips expo-router's "navigate before the
-    // root layout mounted" guard in the test renderer, so open it on top of the tab instead.
-    const { getPathname, getSearchParams } = await openForm({
-      pathname: '/create-exercise',
-      params: { id: 'custom_3' },
-    });
-    await waitFor(() => expect(getPathname()).toBe('/subscription'));
-    expect(getSearchParams()).toMatchObject({ feature: 'custom_exercises' });
-    expect(screen.queryByText('New exercise')).toBeNull();
-  });
 });
 
 describe('create-exercise form', () => {
-  beforeEach(() => setPro(true));
 
   it('does not save until name, Type and a muscle are set', async () => {
     await openForm('/create-exercise');
@@ -131,7 +119,6 @@ describe('create-exercise form', () => {
 });
 
 describe('created from the active-workout picker', () => {
-  beforeEach(() => setPro(true));
 
   async function fillAndSave() {
     fireEvent.changeText(await screen.findByPlaceholderText('e.g. Cable row'), 'Sled Push');

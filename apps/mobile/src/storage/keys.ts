@@ -10,7 +10,6 @@ export const STORAGE_KEYS = {
   activeWorkout: 'muscleos_active_workout',
   recovery: 'muscleos_recovery',
   health: 'muscleos_health',
-  subscription: 'muscleos_subscription',
   exercisePrevious: 'muscleos_exercise_previous',
   exerciseNotes: 'muscleos_exercise_notes',
   customExercises: 'muscleos_custom_exercises',
@@ -22,7 +21,6 @@ export const STORAGE_KEYS = {
   catalogExercises: 'muscleos_catalog_exercises',
   catalogWatermark: 'muscleos_catalog_watermark',
   catalogSeedAppliedAt: 'muscleos_catalog_seed_applied_at',
-  devProOverride: 'muscleos_dev_pro_override',
   syncOutbox: 'muscleos_sync_outbox',
   syncMeta: 'muscleos_sync_meta',
   /** Android only: whether we already asked for the "Alarms & reminders" access */
@@ -30,3 +28,9 @@ export const STORAGE_KEYS = {
   /** Short-lived Apple authorization code, kept so account deletion can revoke Sign in with Apple. */
   appleAuthorizationCode: 'muscleos_apple_authorization_code',
 } as const;
+
+/**
+ * Keys from the removed Basic/Pro subscription (MuscleOS is free; there are no purchases). Removed
+ * on launch by `removeLegacyStorageKeys()` so they don't linger on upgraded installs.
+ */
+export const LEGACY_STORAGE_KEYS = ['muscleos_subscription', 'muscleos_dev_pro_override'] as const;

@@ -5,7 +5,7 @@ import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import { type Href, router } from 'expo-router';
 import CreateTemplateScreen from '../../../../app/create-template';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { routeStub, setPro } from '../render';
+import { routeStub } from '../render';
 import {
   customTemplate,
   renderAtNow,
@@ -26,7 +26,6 @@ const routes = {
   index: routeStub('home'),
   'create-template': CreateTemplateScreen,
   'create-exercise': routeStub('create-exercise'),
-  subscription: routeStub('subscription'),
 };
 
 /** Opens the screen from a home stub so `router.back()` after saving has somewhere to go. */
@@ -45,7 +44,6 @@ async function addExercise(name: string) {
 
 beforeEach(async () => {
   await resetTemplatesTestState();
-  setPro(true);
 });
 
 afterEach(() => {
@@ -53,12 +51,6 @@ afterEach(() => {
 });
 
 describe('gate', () => {
-  it('Basic is redirected to the paywall (custom_templates) at the screen level', async () => {
-    setPro(false);
-    await open();
-    expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(searchParams()).toEqual({ feature: 'custom_templates' });
-  });
 });
 
 describe('create', () => {

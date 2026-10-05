@@ -17,7 +17,6 @@ load, not sets, not sleep — changes that number. This is a deliberate simplifi
 | Store | `apps/mobile/src/store/recoveryStore.ts` |
 | Diagram | `apps/mobile/src/components/MuscleDiagram.tsx` |
 | Explainer | `apps/mobile/src/components/RecoveryInfoModal.tsx` |
-| Tier | Basic — ungated |
 
 ## Muscle taxonomy
 

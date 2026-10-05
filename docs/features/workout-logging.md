@@ -55,7 +55,7 @@ writes it), rest-pause, tempo, or duration/distance-based work. Every set is wei
 | Entry point | Route params |
 |-------------|--------------|
 | Template (built-in or custom) | Home → preview → `/active-workout` with `templateId`, `exerciseIds`, optional parallel `sets` / `warmUpSets` (legacy `defaultSets` still accepted) |
-| Empty / ad-hoc workout (Pro) | Home → `/active-workout` with `templateId: '_empty'`, no exercises |
+| Empty / ad-hoc workout | Home → `/active-workout` with `templateId: '_empty'`, no exercises |
 | Resume | Tab-bar pill, notification tap, or the "Workout in progress" themed dialog — no params |
 | Deep link | `muscleos:///active-workout`, and notifications carrying `screen: 'active-workout'` |
 
@@ -65,10 +65,12 @@ rows, then `sets` (default 3) blank working rows. Strong Lifts slots ship with 5
 prefill (below) **once** — reopening or remounting the screen never prefills again, so a value
 you cleared stays cleared.
 
-**Pro gates are enforced here, not only on the home screen**, because `/active-workout` is
-reachable directly by deep link and notification tap: starting `_empty` needs `empty_workout`
-and starting a custom template needs `custom_templates`. The check applies only to *starting* —
-a session already in flight when a subscription lapses can still be finished.
+`/active-workout` is reachable directly by deep link and notification tap, so starting from route
+params goes through `startFromParamsDecision()` (`src/utils/workoutStart.ts`): it waits until the
+persisted workout has been read back and templates have loaded (so a custom template is never
+mistaken for an unknown id), and never replaces a workout already in progress. Any template, `_empty`
+or an unknown id (an ad-hoc list from the link) then starts. The plan is the one the link encodes,
+falling back to the template's own (`startPlanFromParams()`).
 
 **Only one workout at a time.** `startWorkout` no-ops if a session exists, and the home screen
 blocks a second start with a themed confirm dialog: "Workout in progress — Finish or cancel
@@ -322,24 +324,22 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 
 ## Mid-workout edits
 
-| Action | Tier | Behaviour |
-|--------|------|-----------|
-| **Reorder exercises** | Basic | Long-press an exercise title to enter drag mode |
-| **Edit rest for an exercise** | Basic | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. 0:00 means that kind does not start a timer |
-| **Exercise note** | Basic | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
-| **Add exercise** | Pro `add_exercise_mid_workout` | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists. An exercise already in the workout can't be added again |
-| **Replace exercise** | Pro `replace_exercise_mid_workout` | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement), and a countdown running for that slot is cancelled. The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. Replacing with an exercise already in the workout (including itself) does nothing |
-| **Remove exercise** | No direct gate | Blocked only for a Basic user editing a built-in workout; otherwise a themed confirm ("Remove {name} from this workout?") removes it and remaps recorded rest. **Cancel** (or tap the overlay) dismisses; **Remove** removes. |
+| Action | Behaviour |
+|--------|-----------|
+| **Reorder exercises** | Long-press an exercise title to enter drag mode |
+| **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. 0:00 means that kind does not start a timer |
+| **Exercise note** | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
+| **Add exercise** | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists. An exercise already in the workout can't be added again |
+| **Replace exercise** | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement), and a countdown running for that slot is cancelled. The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. Replacing with an exercise already in the workout (including itself) does nothing |
+| **Remove exercise** | A themed confirm ("Remove {name} from this workout?") removes it and remaps recorded rest. **Cancel** (or tap the overlay) dismisses; **Remove** removes. |
 
-On a **built-in** template, add/replace/remove are blocked for Basic users with the built-in
-alert rather than the paywall — the intended path is to edit the session and save it as a new
-template (Pro). On Basic the button reads **"Pro: Add Exercise"**.
+Every edit works on any workout, built-in ones included: it changes the session, never the
+built-in template. Saving the changed session as a new template is how a built-in is forked.
 
 The exercise picker (`pickerResults`) searches the full catalog plus your customs, **leaving out
 every exercise already in the workout** — in both Add and Replace mode — so a workout never holds
 the same exercise twice (the store's `addExercise` / `replaceExercise` refuse a duplicate too).
-Whenever the search box has text the picker also offers **Create "<query>"** (gated on
-`custom_exercises`), so a missing movement can be added even when the search has partial matches.
+Whenever the search box has text the picker also offers **Create "<query>"**, so a missing movement can be added even when the search has partial matches.
 When a search with text finds nothing, "No matching exercises" shows above the Create row; an
 empty search shows neither. It routes to `/create-exercise` pre-filled with
 the query; saving returns to the workout and drops the new exercise straight in — added to the end
@@ -353,15 +353,13 @@ working/warm-up row counts (incomplete rows still count):
 
 | Started from | Options |
 |--------------|---------|
-| Empty workout | Save as template (Pro) · Save values only · Discard workout |
-| Built-in, list or set structure changed | Save as new template (Pro) · Save values only · Discard workout |
-| Custom, list or set structure changed | Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard workout |
+| Empty workout | Save as template · Save values only · Discard workout |
+| Built-in, list or set structure changed | Save as new template · Save values only · Discard workout |
+| Custom, list or set structure changed | Save values only · Overwrite this template · Save as new template · Discard workout |
 | Unchanged (built-in or custom) | Save values · Discard workout |
 
 The first option is the filled primary button, other saves are outlined, and **Discard workout**
-is a muted text button. On Basic the Pro options carry a lock icon; tapping one closes the summary
-before opening the paywall (`save_as_template`) — a native modal left open would cover the pushed
-paywall — and the workout keeps running. A changed custom template also shows the hint "You changed the exercises
+is a muted text button. A changed custom template also shows the hint "You changed the exercises
 in this workout." A **Back** button under the options closes the modal and returns to the workout,
 as does tapping outside the card.
 
@@ -428,7 +426,6 @@ them, so there is no cached value to invalidate. See
 | Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Warm-ups still count as "completed" for recovery and volume |
 | "Previous" is one snapshot per exercise | Best weighted set within the most recent qualifying session, not an all-time best or set-by-set history |
 | Incomplete sets are stored, not discarded | They're excluded from every derived metric instead |
-| A lapsed subscription can't block finishing | Gates apply to starting only |
 | Exercise notes are per exercise, not per session | Intended for setup cues (seat height, pin position) |
 
 ## Tests
@@ -477,11 +474,13 @@ the real router.
 - `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and `pickerFooter`
 - `src/utils/formatClock.test.ts` — the shared `m:ss` formatter
 - `src/storage/localStorage.activeWorkout.test.ts` — persist/resume round-trip and guards
-- Deep-link Pro gate: `src/subscription/features.test.ts` (`startFromParamsDecision`)
+- `src/utils/workoutStart.test.ts` — `startFromParamsDecision` (waits for hydration, templates and a
+  template id; never replaces a running workout) and `startPlanFromParams` (URL plan, template
+  fallback, unknown / `_empty`)
 
 **Jest UI (`src/test/ui/workout/`):**
 
-- `logging.test.tsx` — starting a built-in from route params (Pro and Basic), prefill ghost values
+- `logging.test.tsx` — starting a built-in from route params, prefill ghost values
   and PREVIOUS, W1/1/2/3 numbering, number-pad entry (kg and lb, suggestion overwrite, ±,
   Next → reps), Done completing on the first tap from the pad and the row, un-complete, Done
   disabled without reps, current/upcoming/completed labels across exercises and the done card,
@@ -496,6 +495,10 @@ the real router.
   Discard)
 - `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with
   and without matches, "No matching exercises", routing to `/create-exercise`
+- `deepLinks.test.tsx` — starting from route params for a built-in (own plan, or the link's),
+  `_empty`, an unknown id, and a custom template once templates load; a running workout untouched;
+  Add Exercise on a built-in workout opening the picker with no alert; the preview for a custom
+  template, Start passing the plan on, and the in-progress redirect
 - `resume.test.tsx` — the resume pill (hidden / elapsed / opens the workout / X discards with no
   confirm) and the home screen's "Workout in progress" dialog (Resume, Cancel continues the
   blocked start, overlay keeps)

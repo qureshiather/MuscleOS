@@ -3,7 +3,6 @@ import type { WorkoutSession } from './session';
 import type { MuscleRecovery } from './recovery';
 import type { MacroTargets, MetabolismInfo } from './health';
 import type { UserProfile } from './auth';
-import type { SubscriptionState } from './subscription';
 import type { Exercise } from './exercise';
 
 /** Full export payload for "Export my data" */
@@ -11,7 +10,6 @@ export interface ExportData {
   version: number;
   exportedAt: string; // ISO
   profile?: UserProfile;
-  subscription?: SubscriptionState;
   templates: WorkoutTemplate[];
   templateFolders?: TemplateFolder[];
   sessions: WorkoutSession[];

@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
-import { resetAppState, setPro } from '../render';
+import { resetAppState } from '../render';
 import { exercise, renderExercises, seedExercises } from './helpers';
 
 jest.mock('@/sync', () => ({
@@ -144,20 +144,10 @@ describe('empty states', () => {
     expect(screen.getByText('0 exercises')).toBeTruthy();
   });
 
-  it('on Basic, the Create "<query>" row explains Pro and opens the paywall', async () => {
-    const { getPathname, getSearchParams } = renderExercises();
-    fireEvent.changeText(await screen.findByPlaceholderText(SEARCH), '  Zercher Carry ');
-    expect(await screen.findByText('Pro · save your own exercises.')).toBeTruthy();
-    fireEvent.press(screen.getByText('Create “Zercher Carry”'));
-    await waitFor(() => expect(getPathname()).toBe('/subscription'));
-    expect(getSearchParams()).toMatchObject({ feature: 'custom_exercises' });
-  });
-
-  it('on Pro, the Create "<query>" row opens the create form prefilled with the query', async () => {
-    setPro(true);
+  it('the Create "<query>" row opens the create form prefilled with the query', async () => {
     const { getPathname } = renderExercises();
     fireEvent.changeText(await screen.findByPlaceholderText(SEARCH), 'Zercher Carry');
-    expect(await screen.findByText('Add it as a custom exercise on your account.')).toBeTruthy();
+    expect(await screen.findByText('Save it as your own exercise.')).toBeTruthy();
     fireEvent.press(screen.getByText('Create “Zercher Carry”'));
     await waitFor(() => expect(getPathname()).toBe('/create-exercise'));
     expect(await screen.findByDisplayValue('Zercher Carry')).toBeTruthy();
@@ -166,15 +156,7 @@ describe('empty states', () => {
 });
 
 describe('header + button', () => {
-  it('opens the paywall on Basic', async () => {
-    const { getPathname, getSearchParams } = renderExercises();
-    fireEvent.press(await screen.findByLabelText('Create exercise'));
-    await waitFor(() => expect(getPathname()).toBe('/subscription'));
-    expect(getSearchParams()).toMatchObject({ feature: 'custom_exercises' });
-  });
-
-  it('opens the create form on Pro', async () => {
-    setPro(true);
+  it('opens the create form', async () => {
     const { getPathname } = renderExercises();
     fireEvent.press(await screen.findByLabelText('Create exercise'));
     await waitFor(() => expect(getPathname()).toBe('/create-exercise'));
@@ -230,16 +212,7 @@ describe('detail sheet', () => {
     await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({}));
   });
 
-  it('Edit on a custom is gated on Basic', async () => {
-    const { getPathname, getSearchParams } = renderExercises();
-    fireEvent.press(await screen.findByText('Landmine Press'));
-    fireEvent.press(await screen.findByText('Edit'));
-    await waitFor(() => expect(getPathname()).toBe('/subscription'));
-    expect(getSearchParams()).toMatchObject({ feature: 'custom_exercises' });
-  });
-
-  it('Edit on a custom opens the prefilled edit form on Pro', async () => {
-    setPro(true);
+  it('Edit on a custom opens the prefilled edit form', async () => {
     const { getPathname, getSearchParams } = renderExercises();
     fireEvent.press(await screen.findByText('Landmine Press'));
     fireEvent.press(await screen.findByText('Edit'));
@@ -249,7 +222,7 @@ describe('detail sheet', () => {
     expect(screen.getByDisplayValue('Landmine Press')).toBeTruthy();
   });
 
-  it('Delete is ungated on Basic and removes the custom after confirmation', async () => {
+  it('Delete removes the custom after confirmation', async () => {
     const alert = jest.spyOn(Alert, 'alert');
     renderExercises();
     fireEvent.press(await screen.findByText('Landmine Press'));

@@ -14,23 +14,6 @@ require('react-native-gesture-handler/jestSetup');
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
-jest.mock('react-native-purchases', () => ({
-  __esModule: true,
-  default: {
-    configure: jest.fn(),
-    setLogLevel: jest.fn(),
-    getCustomerInfo: jest.fn(async () => ({ entitlements: { active: {} } })),
-    getOfferings: jest.fn(async () => ({ current: null })),
-    purchasePackage: jest.fn(),
-    restorePurchases: jest.fn(async () => ({ entitlements: { active: {} } })),
-    logIn: jest.fn(async () => ({ customerInfo: { entitlements: { active: {} } } })),
-    logOut: jest.fn(),
-    addCustomerInfoUpdateListener: jest.fn(),
-    removeCustomerInfoUpdateListener: jest.fn(),
-  },
-  LOG_LEVEL: { DEBUG: 'DEBUG', ERROR: 'ERROR', WARN: 'WARN' },
-}));
-
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   getPermissionsAsync: jest.fn(async () => ({ status: 'denied' })),
