@@ -51,7 +51,7 @@ afterEach(() => alertSpy.mockRestore());
 describe('/auth method picker', () => {
   test('says why to sign in; Google and Email; no Apple off iOS-native', async () => {
     renderApp(routes, '/auth');
-    expect(await screen.findByText('Link an account to back up your data and restore Pro on any device.')).toBeTruthy();
+    expect(await screen.findByText('Link an account to back up your workouts and use them on any device.')).toBeTruthy();
     expect(screen.getByText('Continue with Google')).toBeTruthy();
     fireEvent.press(screen.getByText('Continue with Email'));
     expect(await screen.findByText('If you already used Apple or Google with this email, this is the same account.')).toBeTruthy();

@@ -48,10 +48,6 @@ export default function DeleteAccountPage() {
         <h2>What isn’t deleted</h2>
         <ul>
           <li>
-            <strong>Your subscription.</strong> Deleting the account doesn’t cancel App Store or Google Play
-            billing. Cancel it in your Apple or Google account settings.
-          </li>
-          <li>
             <strong>Data on your phone.</strong> Deleting from the web doesn’t reach into the app. Clear it
             with Profile → Account → Data → Clear all data, or uninstall MuscleOS.
           </li>

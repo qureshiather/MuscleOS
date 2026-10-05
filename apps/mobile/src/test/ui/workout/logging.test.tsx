@@ -34,11 +34,7 @@ const key = (k: string) => press(`keypad-key-${k}`);
 const setsOf = (exIdx: number) => session()!.exercises[exIdx].sets;
 
 describe('starting', () => {
-  test.each([
-    ['Pro', true],
-    ['Basic', false],
-  ])('%s starts the built-in Push from route params with the template plan', async (_, pro) => {
-    await resetWorkoutState({ pro });
+  test('starts the built-in Push from route params with the template plan', async () => {
     await startPush();
     expect(session()?.templateId).toBe('ppl-push');
     expect(session()?.exercises.map((e) => e.exerciseId)).toEqual(PUSH.exerciseIds);

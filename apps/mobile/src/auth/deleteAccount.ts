@@ -17,8 +17,6 @@ export type AnonymousGuestUser = { id: string };
 
 export type AnonymousGuestDeps<U extends AnonymousGuestUser = AnonymousGuestUser> = {
   signInAnonymously: () => Promise<{ user: U | null }>;
-  revenueCatLogOut: () => Promise<void>;
-  revenueCatLogIn: (userId: string) => Promise<void>;
 };
 
 /** Wipe this device after the cloud account is gone. Auth session keys are cleared by signOut. */
@@ -30,14 +28,10 @@ export async function wipeDeviceAfterAccountDeletion(): Promise<void> {
   ]);
 }
 
-/** Start a new guest session and re-point RevenueCat at it. */
+/** Start a new guest session. */
 export async function startFreshAnonymousGuest<U extends AnonymousGuestUser>(
   deps: AnonymousGuestDeps<U>
 ): Promise<U | null> {
   const { user } = await deps.signInAnonymously();
-  if (user?.id) {
-    await deps.revenueCatLogOut();
-    await deps.revenueCatLogIn(user.id);
-  }
   return user;
 }

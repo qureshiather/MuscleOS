@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AsyncStorage, { __resetAsyncStorage } from '@/test/mocks/asyncStorage';
-import { STORAGE_KEYS } from './keys';
+import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from './keys';
 import {
   APP_SETTINGS_KEYS,
   CLEAR_ALL_DATA_KEPT_KEYS,
@@ -9,12 +9,12 @@ import {
   clearAllData,
   defaultAppSettings,
   getAppSettings,
-  getSubscription,
   getTemplates,
   legacyUnitMigration,
   normalizeAppSettings,
   onThemeStorageChanged,
   parseStoredAppSettings,
+  removeLegacyStorageKeys,
   setAppSettings,
   settingsNeedPersist,
   type StoredAppSettingsValues,
@@ -125,13 +125,15 @@ describe('migrations', () => {
     expect(normalizeAppSettings(null)).toEqual(defaultAppSettings());
   });
 
-  it('any persisted subscription tier other than pro reads as basic', async () => {
-    await AsyncStorage.setItem(STORAGE_KEYS.subscription, JSON.stringify({ tier: 'premium', plan: 'annual' }));
-    expect((await getSubscription())?.tier).toBe('basic');
-    await AsyncStorage.setItem(STORAGE_KEYS.subscription, JSON.stringify({ tier: 'pro' }));
-    expect((await getSubscription())?.tier).toBe('pro');
-    await AsyncStorage.setItem(STORAGE_KEYS.subscription, 'nope');
-    expect(await getSubscription()).toBeNull();
+  it('removes the old subscription keys left by earlier builds, leaving everything else', async () => {
+    expect(LEGACY_STORAGE_KEYS).toEqual(['muscleos_subscription', 'muscleos_dev_pro_override']);
+    await AsyncStorage.setItem('muscleos_subscription', JSON.stringify({ tier: 'pro' }));
+    await AsyncStorage.setItem('muscleos_dev_pro_override', 'true');
+    await AsyncStorage.setItem(STORAGE_KEYS.sessions, '[]');
+    await removeLegacyStorageKeys();
+    expect(await AsyncStorage.getItem('muscleos_subscription')).toBeNull();
+    expect(await AsyncStorage.getItem('muscleos_dev_pro_override')).toBeNull();
+    expect(await AsyncStorage.getItem(STORAGE_KEYS.sessions)).toBe('[]');
   });
 
   it('templates with days[] flatten to exerciseIds and are written back', async () => {
@@ -197,7 +199,7 @@ describe('clearAllData (D15)', () => {
 });
 
 describe('buildExportData', () => {
-  it('includes version 1, account profile, subscription, workouts, templates, recovery, notes, customs, health', async () => {
+  it('includes version 1, account profile, workouts, templates, recovery, notes, customs, health', async () => {
     await AsyncStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify([{ id: 's1', exercises: [] }]));
     await AsyncStorage.setItem(STORAGE_KEYS.templates, JSON.stringify([{ id: 't1', name: 'T', exerciseIds: [] }]));
     await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify([{ id: 'f1', name: 'F' }]));
@@ -205,12 +207,13 @@ describe('buildExportData', () => {
     await AsyncStorage.setItem(STORAGE_KEYS.exerciseNotes, JSON.stringify({ squat: 'Low bar' }));
     await AsyncStorage.setItem(STORAGE_KEYS.customExercises, JSON.stringify([{ id: 'c1', name: 'Mine' }]));
     await AsyncStorage.setItem(STORAGE_KEYS.health, JSON.stringify({ macroTargets: { caloriesKcal: 2000 } }));
-    await AsyncStorage.setItem(STORAGE_KEYS.subscription, JSON.stringify({ tier: 'pro' }));
+    await AsyncStorage.setItem('muscleos_subscription', JSON.stringify({ tier: 'pro' }));
     const data = await buildExportData({ id: 'u1', accountId: 'u1', email: 'a@b.c' } as never);
     expect(data.version).toBe(1);
     expect(typeof data.exportedAt).toBe('string');
     expect(data.profile).toMatchObject({ email: 'a@b.c' });
-    expect(data.subscription?.tier).toBe('pro');
+    // There are no purchases: an old subscription key is never exported.
+    expect('subscription' in data).toBe(false);
     expect(data.sessions.map((s) => s.id)).toEqual(['s1']);
     expect(data.templates.map((t) => t.id)).toEqual(['t1']);
     expect(data.templateFolders?.map((f) => f.id)).toEqual(['f1']);
@@ -228,7 +231,7 @@ describe('buildExportData', () => {
     await AsyncStorage.setItem(STORAGE_KEYS.catalogExercises, JSON.stringify([{ id: 'x' }]));
     const data = (await buildExportData()) as unknown as Record<string, unknown>;
     expect(Object.keys(data).sort()).toEqual(
-      ['exportedAt', 'profile', 'recovery', 'sessions', 'subscription', 'templates', 'version', 'templateFolders', 'exerciseNotes', 'customExercises', 'health'].sort()
+      ['exportedAt', 'profile', 'recovery', 'sessions', 'templates', 'version', 'templateFolders', 'exerciseNotes', 'customExercises', 'health'].sort()
     );
     expect(data.profile).toBeUndefined();
     expect(data.templateFolders).toBeUndefined();

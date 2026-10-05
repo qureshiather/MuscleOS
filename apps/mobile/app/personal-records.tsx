@@ -28,7 +28,6 @@ import {
 } from '@/utils/personalRecords';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Card } from '@/components/ui/Card';
-import { useRequirePro } from '@/hooks/useProGate';
 
 function ProgressBars({
   bars,
@@ -133,7 +132,6 @@ function PRCard({
 }
 
 export default function PersonalRecordsScreen() {
-  const isPro = useRequirePro('personal_records');
   const { colors } = useTheme();
   const router = useRouter();
   const scrollPaddingBottom = useBottomSpace(spacing.xl);
@@ -158,7 +156,6 @@ export default function PersonalRecordsScreen() {
   const nameOf = (id: string) => getExercise(id)?.name ?? id;
   const prs = filterPRsByName(allPRs, search, nameOf);
 
-  if (!isPro) return null;
 
   return (
     <Screen>

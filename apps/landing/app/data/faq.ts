@@ -2,7 +2,7 @@ import { SUPPORT_EMAIL } from './contact';
 
 /**
  * Every answer here describes shipped app behaviour and must match the specs in `docs/features/`
- * (workout-logging, templates, recovery, exercise-library, history-analytics, subscriptions,
+ * (workout-logging, templates, recovery, exercise-library, history-analytics, pricing,
  * accounts-and-data). Update this file in the same change as any behaviour it describes.
  */
 export type FaqItem = {
@@ -24,30 +24,38 @@ export type FaqItem = {
 
 export const FAQ_ITEMS: FaqItem[] = [
   {
+    id: 'free',
+    question: 'Is MuscleOS really free?',
+    defaultOpen: true,
+    paragraphs: [
+      'Yes. Every feature is free, forever: custom templates and exercises, empty workouts, personal records, progression charts, the calendar, backup and sync. There’s no paywall, no trial, no ads, and nothing to buy in the app.',
+    ],
+    answerText:
+      'Yes. Every feature in MuscleOS is free, forever, with no paywall, trial, ads, or in-app purchases.',
+  },
+  {
+    id: 'coaching',
+    question: 'What is Coaching?',
+    paragraphs: [
+      'Coaching is coming later and will be how MuscleOS makes money. Personal trainers will be able to send you programs to run in MuscleOS, and the MuscleOS AI coach will build a program around your goals and adjust it as you train.',
+      'It’s optional. Nothing in the free app is held back for it.',
+    ],
+    answerText:
+      'Coaching is a future, optional paid offering: personal trainers sending you programs to run in MuscleOS, and an AI coach that builds and adjusts a program for your goals. The app itself stays free.',
+  },
+  {
     id: 'how-to-workout',
     question: 'How do I start a workout?',
-    defaultOpen: true,
-    paragraphs: ['Open the Workouts tab, then follow the steps for your plan:'],
-    instructionGroups: [
-      {
-        title: 'Basic',
-        steps: [
-          'Tap a Suggested or Recent workout, or open Built-in and pick a template from Push Pull Legs, Upper/Lower, or Strong Lifts 5×5.',
-          'Check the exercises and what you lifted last time, then tap Start workout.',
-        ],
-      },
-      {
-        title: 'Pro',
-        steps: [
-          'Tap a built-in or custom template and start it from the preview.',
-          'Or tap Empty workout to start with no exercises and add them as you go.',
-        ],
-      },
+    paragraphs: ['Open the Workouts tab, then:'],
+    steps: [
+      'Tap a Suggested or Recent workout, one of your own templates, or open Built-in and pick from Push Pull Legs, Upper/Lower, or Strong Lifts 5×5.',
+      'Check the exercises and what you lifted last time, then tap Start workout.',
+      'Or tap Empty workout to start with no exercises and add them as you go.',
     ],
     aside:
       'Only one workout runs at a time. If you leave it, tap Resume workout above the tabs to get back to it.',
     answerText:
-      'Open the Workouts tab and tap a Suggested or Recent workout, or open Built-in and pick a template (Push Pull Legs, Upper/Lower, or Strong Lifts 5×5). Check the preview and tap Start workout. Pro can also run custom templates or start an empty workout. Only one workout runs at a time.',
+      'Open the Workouts tab and tap a Suggested or Recent workout, or open Built-in and pick a template (Push Pull Legs, Upper/Lower, or Strong Lifts 5×5). Check the preview and tap Start workout. You can also run your own templates or start an empty workout. Only one workout runs at a time.',
   },
   {
     id: 'log-sets',
@@ -76,29 +84,29 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'edit-exercises',
     question: 'Can I change the exercises during a workout?',
-    paragraphs: ['Yes. What you can change depends on your plan:'],
+    paragraphs: ['Yes, on any workout, built-in ones included:'],
     bullets: [
-      'Reorder: press and hold an exercise name, then drag it. Included with Basic.',
-      'Add: tap Add Exercise at the bottom of the workout. Requires Pro.',
-      'Replace: tap the three dots beside an exercise and choose Replace exercise. Requires Pro.',
+      'Reorder: press and hold an exercise name, then drag it.',
+      'Add: tap Add Exercise at the bottom of the workout.',
+      'Replace: tap the three dots beside an exercise and choose Replace exercise.',
       'Remove: tap the three dots and choose Remove exercise.',
       'Note: tap the three dots and choose Edit note to save a setup cue, like seat height. It shows every time you do that exercise.',
     ],
     aside:
-      'Built-in workouts can’t be edited on Basic. With Pro you can change the session and save it as a new template when you finish.',
+      'Changing a built-in workout changes that session only. To keep your version, save it as a new template when you finish.',
     answerText:
-      'Press and hold an exercise name to reorder (Basic). Add Exercise and Replace exercise require Pro. Remove and Edit note are in the three-dot menu. On Basic, built-in workouts can’t be edited; Pro can save the changed session as a new template.',
+      'Yes, on any workout. Press and hold an exercise name to reorder, tap Add Exercise to add one, and use the three-dot menu to replace, remove, or add a note. Save a changed built-in workout as a new template to keep it.',
   },
   {
     id: 'finish-cancel',
     question: 'How do I finish or cancel a workout?',
     paragraphs: [
       'Tap Finish in the top-right once you’ve completed at least one set. Review the summary and tap Save values. Sets you didn’t complete are kept in the session but don’t count toward recovery or your stats.',
-      'If you changed the exercises or number of sets, Pro can also save the workout as a new template, or overwrite the custom template you started from.',
+      'If you changed the exercises or number of sets, you can also save the workout as a new template, or overwrite the custom template you started from.',
       'To cancel, scroll to the bottom and tap Cancel workout, then Discard workout. The X on the Resume workout bar also discards the workout, without asking.',
     ],
     answerText:
-      'Tap Finish after completing at least one set, review the summary, and save. Pro can save a changed workout as a new template or overwrite its custom template. To cancel, tap Cancel workout at the bottom and confirm.',
+      'Tap Finish after completing at least one set, review the summary, and save. A changed workout can also be saved as a new template or overwrite its custom template. To cancel, tap Cancel workout at the bottom and confirm.',
   },
   {
     id: 'forgot-to-finish',
@@ -117,10 +125,8 @@ export const FAQ_ITEMS: FaqItem[] = [
       'On the Workouts tab, tap New. Name the template, add exercises, and set how many working and warm-up sets each one starts with.',
       'You can also finish a workout and save it as a new template. The folder button next to New creates a folder to group templates.',
     ],
-    aside:
-      'Custom templates require Pro to create and to run. If Pro ends, your templates are kept and locked until you resubscribe.',
     answerText:
-      'Tap New on the Workouts tab, name the template, add exercises, and set working and warm-up sets for each. You can also save a finished workout as a template. Custom templates require Pro to create and run.',
+      'Tap New on the Workouts tab, name the template, add exercises, and set working and warm-up sets for each. You can also save a finished workout as a template.',
   },
   {
     id: 'recovery',
@@ -134,19 +140,19 @@ export const FAQ_ITEMS: FaqItem[] = [
       '72 hours: chest, traps, lats, rhomboids, lower back, quads, hamstrings, glutes.',
     ],
     aside:
-      'On the body map, red is just trained, amber is still recovering, and green is ready. Weight, reps, and sets don’t change the timer. The Workouts tab suggests templates that use muscles that are ready. Recovery is included with Basic.',
+      'On the body map, red is just trained, amber is still recovering, and green is ready. Weight, reps, and sets don’t change the timer. The Workouts tab suggests templates that use muscles that are ready.',
     answerText:
-      'Finishing a workout starts a recovery timer for each muscle you trained: 36 hours for smaller muscles like arms and abs, 48 hours for delts, calves, and adductors, and 72 hours for chest, back, and legs. Recovery is included with Basic.',
+      'Finishing a workout starts a recovery timer for each muscle you trained: 36 hours for smaller muscles like arms and abs, 48 hours for delts, calves, and adductors, and 72 hours for chest, back, and legs.',
   },
   {
     id: 'history',
     question: 'Where can I see past workouts?',
     paragraphs: [
       'Open the History tab. Workouts are grouped by week. Each one shows its date, duration, total volume, and how the volume compares with the last time you did that workout; tap it to see every completed set. Tap the trash icon to delete one; recovery and your previous values update to match.',
-      'With Pro, workouts where you set a personal record are marked PR. The trophy button opens personal records (estimated one-rep max for each exercise, with progression charts) and the calendar button opens a monthly view.',
+      'Workouts where you set a personal record are marked PR. The trophy button opens personal records (estimated one-rep max for each exercise, with progression charts) and the calendar button opens a monthly view.',
     ],
     answerText:
-      'Open the History tab to see your workouts grouped by week, with each one’s date, duration, volume, and change from last time. Tap a workout to see its sets, or the trash icon to delete it. Pro adds PR badges, personal records, progression charts, and a monthly calendar.',
+      'Open the History tab to see your workouts grouped by week, with each one’s date, duration, volume, and change from last time. Tap a workout to see its sets, or the trash icon to delete it. The trophy button shows personal records and progression charts, and the calendar button a monthly view.',
   },
   {
     id: 'exercises',
@@ -154,9 +160,9 @@ export const FAQ_ITEMS: FaqItem[] = [
     paragraphs: [
       'Open the Exercises tab. Search by name, muscle, or equipment, or open Filters to narrow by type and muscle. Tap an exercise to see the muscles it works, its instructions, and your own notes.',
     ],
-    aside: 'Creating your own exercises requires Pro.',
+    aside: 'Can’t find one? Tap + to add your own exercise.',
     answerText:
-      'Open the Exercises tab and search by name, muscle, or equipment, or filter by type and muscle. Tap an exercise to see its muscle map, instructions, and your notes. Custom exercises require Pro.',
+      'Open the Exercises tab and search by name, muscle, or equipment, or filter by type and muscle. Tap an exercise to see its muscle map, instructions, and your notes. Tap + to add your own exercise.',
   },
   {
     id: 'hide-templates',
@@ -182,19 +188,20 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'Do I need an account?',
     paragraphs: [
       'No. Everything works on your phone without signing in, including offline.',
-      'Sign in with Apple, Google, or email to back up your workouts, use them on another device, and buy Pro. Apple, Google, and email sign-ins with the same address are the same account.',
+      'Sign in with Apple, Google, or email to back up your workouts and use them on another device. Apple, Google, and email sign-ins with the same address are the same account.',
     ],
     answerText:
-      'No. MuscleOS works without an account, including offline. Sign in with Apple, Google, or email to back up and sync your workouts and to buy Pro.',
+      'No. MuscleOS works without an account, including offline. Sign in with Apple, Google, or email to back up and sync your workouts.',
   },
   {
-    id: 'restore-pro',
-    question: 'How do I get Pro on a new phone?',
+    id: 'new-phone',
+    question: 'How do I move my workouts to a new phone?',
     paragraphs: [
-      'Sign in with the same account you used to buy Pro. Pro restores automatically. If it doesn’t, open Profile → Account → Subscription and tap Restore purchases.',
+      'Sign in on the new phone with the same Apple, Google, or email account. Your workouts, templates, custom exercises, notes, and settings sync down automatically.',
+      'Without an account, use Profile → Account → Data → Export my data on the old phone, then Import data on the new one.',
     ],
     answerText:
-      'Sign in with the account you bought Pro on. It restores automatically, or tap Restore purchases on the Subscription screen.',
+      'Sign in with the same account on the new phone and everything syncs down. Without an account, export your data on the old phone and import it on the new one.',
   },
   {
     id: 'data',
@@ -206,10 +213,8 @@ export const FAQ_ITEMS: FaqItem[] = [
       'Clear this phone: Data → Clear all data.',
       'Delete your account: Delete account removes it and your backup, then clears this phone.',
     ],
-    aside:
-      'Deleting your account doesn’t cancel a subscription. Cancel it in your App Store or Google Play settings.',
     answerText:
-      'Go to Profile → Account. Data → Export my data saves a JSON file, and Data → Import data adds one back. Data → Clear all data clears this phone. Delete account removes your account and backup. Cancel subscriptions in App Store or Google Play settings.',
+      'Go to Profile → Account. Data → Export my data saves a JSON file, and Data → Import data adds one back. Data → Clear all data clears this phone. Delete account removes your account and backup.',
   },
   {
     id: 'support',

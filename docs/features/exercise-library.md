@@ -139,7 +139,7 @@ Other field changes are hand-written migrations that mirror the edit in `exercis
 
 ### Reconciliation and sync
 
-The store loads at app start **independently of auth and RevenueCat** (alongside templates), so
+The store loads at app start **independently of auth** (alongside templates), so
 custom exercises and the catalog are ready before sign-in finishes. It reads custom exercises and
 the catalog cache in parallel, reconciles the cache with the bundled seed
 (`reconcileCatalogCache()`), and sets state **without waiting on the network**. A catalog refresh
@@ -180,7 +180,7 @@ exercises don't orphan session data. No alias may equal a real catalog id.
 
 ## Custom exercises
 
-**Pro** (`custom_exercises`), gated at the screen level so deep links can't bypass it.
+Anyone can create, edit and delete their own exercises.
 
 | Field | Required | Notes |
 |-------|:--------:|-------|
@@ -231,8 +231,7 @@ users keep customs on-device only.
 
 ### Deleting a custom exercise
 
-Deleting is **not gated**: a Basic user (for example after a Pro downgrade) can still remove
-their customs. Delete asks for confirmation (*"Past workouts keep the name if you logged it."* — Cancel /
+Delete asks for confirmation (*"Past workouts keep the name if you logged it."* — Cancel /
 Delete), removes the exercise, queues the soft delete, and also deletes that exercise's note.
 
 Sessions store only `exerciseId`, never a name snapshot, so the deleted definition is **retired**
@@ -282,7 +281,7 @@ Query tokens also stem `abductor(s)` ↔ `abduction` and `adductor(s)` ↔ `addu
 ## Exercises tab
 
 Header shows `<count> movements · tap for muscle map` (published catalog plus customs) and a
-**+** button (Pro) to create one; on Basic it opens the paywall.
+**+** button to create one.
 
 **Filters** are in a collapsible panel (collapsed by default); when collapsed it summarises as
 `<Type> · <Muscle>` (`All · All` with no filter). Tapping an active chip clears that filter.
@@ -305,9 +304,8 @@ the word, and the category alone when a custom has no equipment. The detail shee
 the same line.
 
 **Empty states:** with a search query and no results, a **Create "<query>"** row offers to save
-it as a custom ("Add it as a custom exercise on your account." on Pro, "Pro · save your own
-exercises." on Basic); tapping it opens the paywall on Basic or the create form with the name
-prefilled on Pro. With no query, the list reads "No exercises match these filters."
+it as a custom ("Save it as your own exercise."); tapping it opens the create form with the name
+prefilled. With no query, the list reads "No exercises match these filters."
 
 **Detail sheet** (tap a row): name, body diagram, muscle labels, type and equipment, Edit/Delete
 for customs, instructions when present, and **Your notes** — a free-text field ("Seat height,
@@ -325,17 +323,6 @@ the add and replace flows in the active workout. All use the same `searchExercis
 catalog plus customs, and all exclude already-selected exercises.
 
 There is **no recently-used or most-used ordering** in any picker.
-
-## Pro gates
-
-| Action | Gate key |
-|--------|----------|
-| Create or edit a custom exercise (screen, + button, create-from-search) | `custom_exercises` |
-| Add an exercise mid-workout | `add_exercise_mid_workout` |
-| Replace an exercise mid-workout | `replace_exercise_mid_workout` |
-
-Browsing, searching, filtering, viewing instructions, writing notes, and deleting a custom
-exercise are all **Basic**.
 
 ## Assumptions
 
@@ -401,11 +388,11 @@ Covered (Jest UI, `src/test/ui/exercises/`):
 
 - `exercisesTab.test.tsx` — header count, list order, Custom badge and meta lines, count line
   (plural/singular), search, Type and Muscle chips (AND with the query, tapping an active chip
-  clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" (Basic →
-  paywall `custom_exercises`, Pro → prefilled form), + button gate, detail sheet content, notes
-  (save on Close / end-editing / backdrop, trim, delete on empty), Edit gated on Basic and
-  prefilled on Pro, Delete ungated with confirm and cancel, list updates after a delete
-- `createExercise.test.tsx` — Basic redirect to the paywall, validation, save → `custom_<n>` and
+  clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" opening the
+  prefilled form, + button, detail sheet content, notes (save on Close / end-editing / backdrop,
+  trim, delete on empty), Edit opening the prefilled form, Delete with confirm and cancel, list
+  updates after a delete
+- `createExercise.test.tsx` — validation, save → `custom_<n>` and
   back, a catalog id opens an empty create form (no clone), editing in place and clearing
   instructions, auto-add / swap when created from the active-workout picker
 
@@ -413,5 +400,3 @@ Not covered:
 
 - The template-builder and active-workout exercise pickers (covered with their screens' specs)
 - The generator script itself (its output is checked through `catalogSeed.ts`)
-- Mounting `/create-exercise` as the very first route on Basic: the test renderer rejects a
-  redirect before the root layout mounts, so the gate is tested with the form opened over a tab

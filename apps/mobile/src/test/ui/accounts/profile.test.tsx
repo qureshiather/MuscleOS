@@ -22,7 +22,7 @@ test('guest: sign-in prompt in the Account card', async () => {
   signInAsGuest();
   renderApp(routes, '/profile');
   expect(await screen.findByText('Sign in or create an account')).toBeTruthy();
-  expect(screen.getByText('Back up your data and restore Pro on any device.')).toBeTruthy();
+  expect(screen.getByText('Back up your workouts and use them on any device.')).toBeTruthy();
 });
 
 test('linked: provider, display name and email without opening Account', async () => {

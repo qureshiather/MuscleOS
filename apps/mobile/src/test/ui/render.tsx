@@ -9,7 +9,6 @@ import { renderRouter } from 'expo-router/testing-library';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from '@/theme/ThemeContext';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 
 function TestRootLayout() {
@@ -22,7 +21,7 @@ function TestRootLayout() {
   );
 }
 
-/** Stand-in for any route a test navigates to but doesn't render (e.g. the paywall). */
+/** Stand-in for any route a test navigates to but doesn't render. */
 export function routeStub(name: string): ComponentType {
   return function RouteStub() {
     const { Text } = require('react-native');
@@ -37,19 +36,11 @@ export function renderApp(routes: Routes, initialUrl = '/') {
   return renderRouter({ _layout: TestRootLayout, ...routes }, { initialUrl });
 }
 
-export function setPro(isPro: boolean): void {
-  useSubscriptionStore.setState({
-    state: isPro ? { tier: 'pro', plan: 'annual' } : { tier: 'basic' },
-    isLoading: false,
-  });
-}
-
 /**
- * Clean storage, Basic tier, and templates marked loaded — the state the app is in once boot has
- * finished. Start gates wait on both loading flags, so tests about loading set them back explicitly.
+ * Clean storage and templates marked loaded — the state the app is in once boot has finished. The
+ * start-from-params path waits on the templates flag, so tests about loading set it back explicitly.
  */
 export async function resetAppState(): Promise<void> {
   await AsyncStorage.clear();
-  setPro(false);
   useTemplatesStore.setState({ isLoading: false });
 }

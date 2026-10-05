@@ -19,7 +19,6 @@ import {
   type StrengthSummary,
   strengthSummary,
 } from '@/utils/personalRecords';
-import { useRequirePro } from '@/hooks/useProGate';
 
 const CHART_HEIGHT = 180;
 
@@ -110,7 +109,6 @@ function StrengthStandardBar({
 }
 
 export default function ExerciseProgressionScreen() {
-  const isPro = useRequirePro('exercise_progression');
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ exerciseId?: string }>();
@@ -138,7 +136,6 @@ export default function ExerciseProgressionScreen() {
   const exerciseName = getExercise(exerciseId)?.name ?? exerciseId;
   const strength = pr ? strengthSummary(pr.exerciseId, pr.bestEstimated1RM, profile) : null;
 
-  if (!isPro) return null;
 
   if (!exerciseId || !pr) {
     return (

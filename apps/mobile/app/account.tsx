@@ -8,7 +8,6 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { reloadAllStores } from '@/store/reloadStores';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -19,7 +18,7 @@ import { useSyncStore } from '@/store/syncStore';
 import { syncNow } from '@/sync';
 import { syncStatusLabel } from '@/sync/syncStatus';
 import { friendlyDeleteAccountError } from '@/auth/edgeFunctionError';
-import { LEGAL_URLS } from '@/subscription/legal';
+import { LEGAL_URLS } from '@/utils/legalUrls';
 import {
   authProviderLabel,
   hasIdentity,
@@ -43,8 +42,6 @@ export default function AccountScreen() {
   const authProfile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
-  const loadSubscription = useSubscriptionStore((s) => s.load);
-  const isPro = useSubscriptionStore((s) => s.isPro());
   const isSyncing = useSyncStore((s) => s.isSyncing);
   const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
   const lastSyncError = useSyncStore((s) => s.lastError);
@@ -75,7 +72,6 @@ export default function AccountScreen() {
   async function confirmSignOut() {
     setSignOutVisible(false);
     await signOut();
-    loadSubscription();
   }
 
   function handleDeleteAccount() {
@@ -89,7 +85,7 @@ export default function AccountScreen() {
     try {
       await deleteAccount();
       // The wipe resets the theme to Auto through storage; reload every store from the empty device.
-      await reloadAllStores(useAuthStore.getState().user?.id ?? null);
+      await reloadAllStores();
       setDeletePhase('done');
     } catch (e) {
       if (__DEV__) console.warn('[account] delete failed', e);
@@ -191,7 +187,7 @@ export default function AccountScreen() {
           ) : (
             <>
               <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
-                Sign in to back up your data and restore Pro on any device.
+                Sign in to back up your workouts and use them on any device.
               </Text>
               <PrimaryButton label="Sign in" onPress={() => router.push('/auth')} />
             </>
@@ -199,12 +195,6 @@ export default function AccountScreen() {
         </Card>
 
         <Card style={styles.section}>
-          <ListRow
-            inset
-            title="Subscription"
-            hint={isPro ? 'Pro' : 'Basic · upgrade for custom training'}
-            onPress={() => router.push('/subscription')}
-          />
           <ListRow
             inset
             title="Data"
@@ -271,7 +261,7 @@ export default function AccountScreen() {
         message={
           deletePhase === 'confirm'
             ? 'This cannot be undone.'
-            : 'This deletes your MuscleOS account and cloud backup for this email. Apple, Google, and password sign-in with the same address are the same account — all of it goes. This device is wiped and you continue as a guest. An active Pro subscription is billed by Apple or Google until you cancel it in store settings. Deleting the app or this account does not cancel it.'
+            : 'This deletes your MuscleOS account and cloud backup for this email. Apple, Google, and password sign-in with the same address are the same account — all of it goes. This device is wiped and you continue as a guest.'
         }
         cancelLabel="Cancel"
         confirmLabel={deletePhase === 'confirm' ? 'Delete' : 'Continue'}
@@ -290,7 +280,7 @@ export default function AccountScreen() {
       <ConfirmDialog
         visible={signOutVisible}
         title="Sign out"
-        message="You will stay on this device as a guest. Your subscription stays on your account and can be restored on another device."
+        message="You will stay on this device as a guest. Your workouts stay on this device and in your account."
         cancelLabel="Cancel"
         confirmLabel="Sign out"
         destructive

@@ -4,7 +4,7 @@ import { getSessions } from '@/storage/localStorage';
 import { useAuthStore } from '@/store/authStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { resetAppState, routeStub, setPro } from '../render';
+import { resetAppState, routeStub } from '../render';
 import { ex, finishedSession, renderAt, resetHistoryStores, restoreNow, seedSessions } from './helpers';
 
 /** docs/features/history-analytics.md#history-list */
@@ -33,7 +33,6 @@ const routes = {
   '(tabs)/history': HistoryScreen,
   'personal-records': routeStub('personal-records'),
   'history-monthly': routeStub('history-monthly'),
-  subscription: routeStub('subscription'),
 };
 
 async function renderHistory() {
@@ -91,23 +90,14 @@ test('the newest card starts expanded; tapping toggles any card', async () => {
   await waitFor(() => expect(screen.queryByText('3 × 8 @ 70 kg')).toBeNull());
 });
 
-test('PR badges and counts show on Pro', async () => {
-  setPro(true);
+test('PR badges and counts show on session cards', async () => {
   await seedSessions(SESSIONS);
   await renderHistory();
   expect(await screen.findByText('1 exercise · 3 sets · 1 PR')).toBeTruthy();
   expect(screen.getByText('PR')).toBeTruthy();
 });
 
-test('PR badges and counts are hidden on Basic', async () => {
-  await seedSessions(SESSIONS);
-  await renderHistory();
-  await screen.findByText('3 × 8 @ 70 kg');
-  expect(screen.queryByText(/PR/)).toBeNull();
-});
-
 test('an alias-logged lift still counts toward PRs against its canonical exercise', async () => {
-  setPro(true);
   await seedSessions([
     finishedSession('new', at(9, 15), [ex('shrug', [10, 110])], 'ppl-pull'),
     finishedSession('old', at(9, 9), [ex('barbell-shrug', [10, 100])], 'ppl-pull'),
@@ -116,19 +106,7 @@ test('an alias-logged lift still counts toward PRs against its canonical exercis
   expect(await screen.findByText('1 exercise · 1 set · 1 PR')).toBeTruthy();
 });
 
-test.each([
-  ['Personal records', 'personal_records'],
-  ['Monthly calendar', 'monthly_calendar'],
-])('on Basic the %s shortcut opens the paywall', async (label, feature) => {
-  const { getPathname, getSearchParams } = await renderHistory();
-  fireEvent.press(screen.getByLabelText(label));
-  await screen.findByText('route:subscription');
-  expect(getPathname()).toBe('/subscription');
-  expect(getSearchParams()).toEqual({ feature });
-});
-
-test('header shortcuts open Personal Records and the calendar on Pro', async () => {
-  setPro(true);
+test('header shortcuts open Personal Records and the calendar', async () => {
   const { getPathname } = await renderHistory();
   fireEvent.press(screen.getByLabelText('Monthly calendar'));
   await screen.findByText('route:history-monthly');

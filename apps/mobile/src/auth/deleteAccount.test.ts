@@ -52,41 +52,15 @@ describe('account deletion local reset', () => {
     expect(await getAppleAuthorizationCode()).toBeNull();
   });
 
-  it('starts a fresh anonymous guest and re-points RevenueCat at that id', async () => {
-    const calls: string[] = [];
+  it('starts a fresh anonymous guest', async () => {
     const user = await startFreshAnonymousGuest({
-      signInAnonymously: async () => {
-        calls.push('anon');
-        return { user: { id: 'anon_new' } };
-      },
-      revenueCatLogOut: async () => {
-        calls.push('rc-out');
-      },
-      revenueCatLogIn: async (userId) => {
-        calls.push(`rc-in:${userId}`);
-      },
+      signInAnonymously: async () => ({ user: { id: 'anon_new' } }),
     });
-
     expect(user).toEqual({ id: 'anon_new' });
-    expect(calls).toEqual(['anon', 'rc-out', 'rc-in:anon_new']);
   });
 
-  it('skips RevenueCat when anonymous sign-in returns no user', async () => {
-    const calls: string[] = [];
-    const user = await startFreshAnonymousGuest({
-      signInAnonymously: async () => {
-        calls.push('anon');
-        return { user: null };
-      },
-      revenueCatLogOut: async () => {
-        calls.push('rc-out');
-      },
-      revenueCatLogIn: async (userId) => {
-        calls.push(`rc-in:${userId}`);
-      },
-    });
-
+  it('returns null when anonymous sign-in returns no user', async () => {
+    const user = await startFreshAnonymousGuest({ signInAnonymously: async () => ({ user: null }) });
     expect(user).toBeNull();
-    expect(calls).toEqual(['anon']);
   });
 });

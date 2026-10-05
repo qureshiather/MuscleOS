@@ -1,7 +1,7 @@
 # Feature Specs
 
 One doc per feature area. Each documents the data model, exact behavioural rules, product
-assumptions, and tier gating for that area.
+and assumptions for that area.
 
 New to the codebase? Read [product/overview.md](../product/overview.md) first.
 
@@ -14,33 +14,14 @@ New to the codebase? Read [product/overview.md](../product/overview.md) first.
 | [recovery.md](recovery.md) | Muscle taxonomy, recovery timings, body diagram, Recovery tab | `src/utils/recovery.ts`, `packages/types/src/recovery.ts`, `src/components/MuscleDiagram.tsx` |
 | [exercise-library.md](exercise-library.md) | Catalog and its sync, custom exercises, search, filters, exercise notes | `app/(tabs)/exercises.tsx`, `src/store/exercisesStore.ts`, `src/utils/exerciseSearch.ts` |
 | [history-analytics.md](history-analytics.md) | History list, monthly calendar, PRs, 1RM, strength standards, progression charts, home stats | `app/(tabs)/history.tsx`, `src/utils/oneRepMax.ts`, `src/data/strengthStandards.ts` |
-| [subscriptions.md](subscriptions.md) | Basic/Pro tiers, complete gate map, paywall UX, downgrade behaviour | `src/subscription/features.ts`, `src/hooks/useProGate.ts` |
+| [pricing.md](pricing.md) | Free forever — no tiers, paywall or purchases; Coaching as the future paid offering | `src/storage/keys.ts` (`LEGACY_STORAGE_KEYS`) |
 | [accounts-and-data.md](accounts-and-data.md) | Navigation, app boot, auth, profile, settings, storage keys, cloud sync, export | `app/_layout.tsx`, `src/store/authStore.ts`, `src/sync/`, `src/storage/` |
 
-## Tier matrix
+## Pricing
 
-Full detail, including where each gate is enforced: [subscriptions.md](subscriptions.md).
-
-| Capability | Basic | Pro |
-|------------|:-----:|:---:|
-| 9 built-in templates (PPL, Upper/Lower, Strong Lifts 5×5) | ● | ● |
-| Set logging, warm-up sets, rest timers, sounds | ● | ● |
-| Exercise catalog browse, search, notes | ● | ● |
-| Recovery map | ● | ● |
-| History list, session delete, JSON export and import | ● | ● |
-| Resume an in-progress workout | ● | ● |
-| Reorder exercises and edit rest mid-workout | ● | ● |
-| Rename, pin, archive, delete existing folders | ● | ● |
-| Hide built-in templates and folders | ● | ● |
-| Run a **custom** template | ○ | ● |
-| Create / edit custom templates; create folders | ○ | ● |
-| Create custom exercises | ○ | ● |
-| Empty / ad-hoc workout | ○ | ● |
-| Add, replace or remove an exercise mid-workout | ○ | ● |
-| Save a finished workout as a template | ○ | ● |
-| Personal records and 1RM | ○ | ● |
-| Exercise progression charts | ○ | ● |
-| Monthly training calendar | ○ | ● |
+Everything is free for everyone, with or without an account — custom templates and exercises,
+empty workouts, mid-workout edits, save as template, PRs, progression charts and the monthly
+calendar included. See [pricing.md](pricing.md).
 
 ## Spec and test status
 
@@ -53,5 +34,5 @@ Current test coverage detail: [engineering/testing.md](../engineering/testing.md
 | Recovery | Complete | ✓ every rule — all 18 muscles, expiry, store load/cache, recompute triggers | ✓ Recovery tab states, list, explainer, diagram modes |
 | Exercise library | Complete | ✓ every rule — catalog counts, seed reconcile/watermark, search tiers, filters, normalization, custom CRUD + sync, notes | ✓ Exercises tab, create/edit exercise |
 | History & analytics | Complete | ✓ every rule — calendar grid, PR card model, e1RM display, aliases, session card summary, export filename | ✓ History list/delete/refresh, monthly calendar, PRs, progression |
-| Subscriptions | Complete | ✓ every rule — start decision, redirect wait, mid-workout gates, state resolution, paywall labels, store, RevenueCat wrapper | ✓ Every gate-map row, deep-link starts, `useRequirePro` screens, paywall |
+| Pricing | Complete | ✓ start-from-params decision and plan, legacy subscription keys removed, export without subscription | ✓ Deep-link starts for every template kind, built-in mid-workout edits, no lock or Pro copy on Workouts / Account |
 | Accounts & data | Complete | ✓ every rule — outbox, push/pull engine, account switch, guest upload, auth session, settings/migrations, import/export, clear data | ✓ Profile, Account, Data, Biodata, Settings, auth screens, `/auth-callback`. Not covered: native Apple/Google sign-in SDKs |

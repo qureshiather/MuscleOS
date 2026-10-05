@@ -1,12 +1,12 @@
 /**
- * Workout preview — docs/features/templates.md#workout-preview. The Pro guard itself is covered
- * with the subscription gates; this file covers what the preview shows and where Start goes.
+ * Workout preview — docs/features/templates.md#workout-preview: what the preview shows and where
+ * Start goes. Deep-link entry is covered in workout/deepLinks.test.tsx.
  */
 import { act, fireEvent, screen } from 'expo-router/testing-library';
 import { router } from 'expo-router';
 import WorkoutPreviewScreen from '../../../../app/workout-preview';
 import { useSettingsStore } from '@/store/settingsStore';
-import { routeStub, setPro } from '../render';
+import { routeStub } from '../render';
 import {
   pathname,
   renderAtNow,
@@ -27,7 +27,6 @@ const routes = {
   index: routeStub('home'),
   'workout-preview': WorkoutPreviewScreen,
   'active-workout': routeStub('active-workout'),
-  subscription: routeStub('subscription'),
 };
 
 const SL_A = '/workout-preview?templateId=sl-a&exerciseIds=squat,bench-press,barbell-row&sets=5,5,5';
@@ -42,8 +41,7 @@ afterEach(() => {
 });
 
 it('no exercises to show → "Missing workout details"', async () => {
-  // Pro, an id that resolves to no template, and no URL exercises: nothing to preview.
-  setPro(true);
+  // An id that resolves to no template, and no URL exercises: nothing to preview.
   renderAtNow(routes, '/workout-preview?templateId=not-a-template');
   expect(await screen.findByText('Missing workout details')).toBeTruthy();
   expect(screen.queryByText('Start workout')).toBeNull();
@@ -126,7 +124,6 @@ it('Start workout replaces the route with /active-workout and the same plan', as
 });
 
 it('the header Start button does the same', async () => {
-  setPro(true);
   renderAtNow(
     routes,
     '/workout-preview?templateId=tpl_x&exerciseIds=squat,bench-press&warmUpSets=1,0'

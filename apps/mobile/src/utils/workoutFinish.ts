@@ -5,7 +5,7 @@
  * session was started from (empty / built-in / custom) and whether the template was
  * changed during the workout — exercise list *or* per-exercise working/warm-up set counts.
  * Built-in templates are immutable, so the only way to keep a modified built-in is to save
- * it as a *new* custom template (Pro). See docs/features/workout-logging.md#finish-flow and
+ * it as a *new* custom template. See docs/features/workout-logging.md#finish-flow and
  * docs/features/templates.md#built-in-vs-custom.
  *
  * This module is the single source of truth for that matrix so it can be unit-tested against
@@ -35,8 +35,6 @@ export type FinishActionId = 'save_as_template' | 'overwrite' | 'save_values' | 
 export interface FinishOption {
   id: FinishActionId;
   label: string;
-  /** Requires an active Pro subscription; tapping on Basic opens the paywall. */
-  requiresPro: boolean;
 }
 
 export type TemplatePlanSlot = {
@@ -88,39 +86,39 @@ export function finishFlowVariant({ isEmpty, isBuiltIn, listChanged }: FinishFlo
 /**
  * The ordered save options shown in the finish summary for a given variant.
  *
- * - **empty**: Save as template (Pro) · Save values only · Discard
- * - **builtin-changed**: Save as new template (Pro) · Save values only · Discard
- * - **custom-changed**: Save values only · Overwrite this template (Pro) · Save as new template (Pro) · Discard
+ * - **empty**: Save as template · Save values only · Discard
+ * - **builtin-changed**: Save as new template · Save values only · Discard
+ * - **custom-changed**: Save values only · Overwrite this template · Save as new template · Discard
  * - **unchanged**: Save values · Discard
  *
  * A built-in template can never be overwritten — its only "changed" option is to fork it into a
  * new custom template.
  */
 export function finishSaveOptions(input: FinishFlowInput): FinishOption[] {
-  const discard: FinishOption = { id: 'discard', label: 'Discard workout', requiresPro: false };
+  const discard: FinishOption = { id: 'discard', label: 'Discard workout' };
   switch (finishFlowVariant(input)) {
     case 'empty':
       return [
-        { id: 'save_as_template', label: 'Save as template', requiresPro: true },
-        { id: 'save_values', label: 'Save values only', requiresPro: false },
+        { id: 'save_as_template', label: 'Save as template' },
+        { id: 'save_values', label: 'Save values only' },
         discard,
       ];
     case 'builtin-changed':
       return [
-        { id: 'save_as_template', label: 'Save as new template', requiresPro: true },
-        { id: 'save_values', label: 'Save values only', requiresPro: false },
+        { id: 'save_as_template', label: 'Save as new template' },
+        { id: 'save_values', label: 'Save values only' },
         discard,
       ];
     case 'custom-changed':
       return [
-        { id: 'save_values', label: 'Save values only', requiresPro: false },
-        { id: 'overwrite', label: 'Overwrite this template', requiresPro: true },
-        { id: 'save_as_template', label: 'Save as new template', requiresPro: true },
+        { id: 'save_values', label: 'Save values only' },
+        { id: 'overwrite', label: 'Overwrite this template' },
+        { id: 'save_as_template', label: 'Save as new template' },
         discard,
       ];
     default:
       return [
-        { id: 'save_values', label: 'Save values', requiresPro: false },
+        { id: 'save_values', label: 'Save values' },
         discard,
       ];
   }

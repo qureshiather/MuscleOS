@@ -40,7 +40,7 @@ EXPO_UNSTABLE_MCP_SERVER=1 npx expo start
 
 | App | File | Docs |
 |-----|------|------|
-| Mobile | `apps/mobile/.env` | [Supabase setup](docs/supabase/setup.md), [RevenueCat setup](docs/monetization/revenuecat-setup.md) |
+| Mobile | `apps/mobile/.env` | [Supabase setup](docs/supabase/setup.md) |
 | Supabase CLI | `supabase/.env` | [Supabase setup](docs/supabase/setup.md) |
 
 Copy from each directory's `.env.example` where present.
@@ -54,10 +54,9 @@ the app does — not scattered READMEs in app directories. Start at
 | Area | Path |
 |------|------|
 | **What the app is** — principles, screen map, assumptions | [`docs/product/overview.md`](docs/product/overview.md) |
-| **Feature specs** — index and Basic/Pro tier matrix | [`docs/features/README.md`](docs/features/README.md) |
+| **Feature specs** — index and test status | [`docs/features/README.md`](docs/features/README.md) |
 | Test coverage and gaps | [`docs/engineering/testing.md`](docs/engineering/testing.md) |
-| Subscriptions — tiers and gates | [`docs/features/subscriptions.md`](docs/features/subscriptions.md) |
-| Monetization — pricing, RevenueCat, launch | [`docs/monetization/`](docs/monetization/) |
+| Pricing — free forever; Coaching later | [`docs/features/pricing.md`](docs/features/pricing.md) |
 | EAS builds | [`docs/mobile/eas-build.md`](docs/mobile/eas-build.md) |
 | Supabase / sync | [`docs/supabase/setup.md`](docs/supabase/setup.md) |
 

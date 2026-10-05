@@ -5,12 +5,9 @@ import {
   HIDDEN_BUILT_IN_SECTION,
   HIDDEN_CUSTOM_SECTION,
   SUGGESTED_TEMPLATES_LIMIT,
-  customSectionVisible,
   decideTemplateStart,
   defaultFolderExpanded,
   lastDoneByTemplate,
-  showLapsedNotice,
-  startableTemplates,
   suggestHomeTemplates,
 } from './workoutsHome';
 
@@ -32,32 +29,6 @@ describe('defaultFolderExpanded', () => {
   });
 });
 
-describe('customSectionVisible / showLapsedNotice', () => {
-  it('Pro always sees the Custom section, with no lapsed notice', () => {
-    const counts = { isPro: true, visibleCustom: 0, hiddenCustom: 0 };
-    expect(customSectionVisible(counts)).toBe(true);
-    expect(showLapsedNotice({ ...counts, visibleCustom: 3 })).toBe(false);
-  });
-
-  it('Basic with no custom templates sees neither', () => {
-    const counts = { isPro: false, visibleCustom: 0, hiddenCustom: 0 };
-    expect(customSectionVisible(counts)).toBe(false);
-    expect(showLapsedNotice(counts)).toBe(false);
-  });
-
-  it('Basic with visible custom templates sees both', () => {
-    const counts = { isPro: false, visibleCustom: 1, hiddenCustom: 0 };
-    expect(customSectionVisible(counts)).toBe(true);
-    expect(showLapsedNotice(counts)).toBe(true);
-  });
-
-  it('hidden custom templates alone count (lapsed Pro with everything hidden)', () => {
-    const counts = { isPro: false, visibleCustom: 0, hiddenCustom: 2 };
-    expect(customSectionVisible(counts)).toBe(true);
-    expect(showLapsedNotice(counts)).toBe(true);
-  });
-});
-
 describe('lastDoneByTemplate', () => {
   it('keeps the latest completedAt per template and ignores unfinished sessions', () => {
     const map = lastDoneByTemplate([
@@ -72,14 +43,6 @@ describe('lastDoneByTemplate', () => {
 
   it('is empty for no sessions', () => {
     expect(lastDoneByTemplate([])).toEqual({});
-  });
-});
-
-describe('startableTemplates', () => {
-  const all = [tpl('built'), tpl('mine', { isBuiltIn: false })];
-  it('Pro can start everything; Basic only built-ins', () => {
-    expect(startableTemplates(all, true).map((t) => t.id)).toEqual(['built', 'mine']);
-    expect(startableTemplates(all, false).map((t) => t.id)).toEqual(['built']);
   });
 });
 
@@ -98,10 +61,9 @@ describe('suggestHomeTemplates', () => {
     tpl('mine', { isBuiltIn: false }),
     tpl('hidden'),
   ];
-  const run = (isPro: boolean) =>
+  const run = () =>
     suggestHomeTemplates({
       templates,
-      isPro,
       isHidden: (t) => t.id === 'hidden',
       recoveringMuscleIds: new Set(),
       recentlyWorkedMuscleIds: new Set(),
@@ -112,28 +74,24 @@ describe('suggestHomeTemplates', () => {
 
   it('caps at 2', () => {
     expect(SUGGESTED_TEMPLATES_LIMIT).toBe(2);
-    expect(run(true)).toHaveLength(2);
+    expect(run()).toHaveLength(2);
   });
 
   it('never suggests a hidden template', () => {
-    expect(run(true)).not.toContain('hidden');
-    expect(run(false)).not.toContain('hidden');
+    expect(run()).not.toContain('hidden');
+    expect(run()).not.toContain('hidden');
   });
 
-  it('never suggests a custom template to Basic', () => {
-    // All templates tie on score, so the name tie-break makes "mine" eligible for Pro…
-    const proAll = suggestHomeTemplates({
+  it('suggests custom templates like any other — everyone can run them', () => {
+    const only = suggestHomeTemplates({
       templates: [tpl('mine', { isBuiltIn: false })],
-      isPro: true,
       isHidden: () => false,
       recoveringMuscleIds: new Set(),
       recentlyWorkedMuscleIds: new Set(),
       lastDoneByTemplate: {},
       getTemplateMuscles: (t) => muscles[t.id] ?? [],
     });
-    expect(proAll.map((s) => s.template.id)).toEqual(['mine']);
-    // …but Basic can't start it, so it's filtered out.
-    expect(run(false)).not.toContain('mine');
+    expect(only.map((s) => s.template.id)).toEqual(['mine']);
   });
 });
 
@@ -141,42 +99,15 @@ describe('decideTemplateStart', () => {
   const builtIn = { isBuiltIn: true };
   const custom = { isBuiltIn: false };
 
-  it('Basic + custom template → paywall (custom_templates), even with a session in progress', () => {
-    expect(decideTemplateStart({ isPro: false, template: custom, hasActiveSession: false })).toBe(
-      'paywall:custom_templates'
-    );
-    expect(decideTemplateStart({ isPro: false, template: custom, hasActiveSession: true })).toBe(
-      'paywall:custom_templates'
-    );
-  });
-
-  it('Basic + empty workout → paywall (empty_workout)', () => {
-    expect(decideTemplateStart({ isPro: false, template: 'empty', hasActiveSession: false })).toBe(
-      'paywall:empty_workout'
-    );
-  });
-
   it('a session in progress → the resume prompt', () => {
-    expect(decideTemplateStart({ isPro: false, template: builtIn, hasActiveSession: true })).toBe(
-      'resume-prompt'
-    );
-    expect(decideTemplateStart({ isPro: true, template: custom, hasActiveSession: true })).toBe(
-      'resume-prompt'
-    );
-    expect(decideTemplateStart({ isPro: true, template: 'empty', hasActiveSession: true })).toBe(
-      'resume-prompt'
-    );
+    for (const template of [builtIn, custom, 'empty' as const]) {
+      expect(decideTemplateStart({ template, hasActiveSession: true })).toBe('resume-prompt');
+    }
   });
 
-  it('templates open the preview; the empty workout skips it', () => {
-    expect(decideTemplateStart({ isPro: false, template: builtIn, hasActiveSession: false })).toBe(
-      'preview'
-    );
-    expect(decideTemplateStart({ isPro: true, template: custom, hasActiveSession: false })).toBe(
-      'preview'
-    );
-    expect(decideTemplateStart({ isPro: true, template: 'empty', hasActiveSession: false })).toBe(
-      'active-workout'
-    );
+  it('built-in and custom templates open the preview; the empty workout skips it', () => {
+    expect(decideTemplateStart({ template: builtIn, hasActiveSession: false })).toBe('preview');
+    expect(decideTemplateStart({ template: custom, hasActiveSession: false })).toBe('preview');
+    expect(decideTemplateStart({ template: 'empty', hasActiveSession: false })).toBe('active-workout');
   });
 });

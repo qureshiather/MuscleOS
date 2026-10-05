@@ -6,13 +6,12 @@ import type {
   MuscleRecovery,
   MacroTargets,
   MetabolismInfo,
-  SubscriptionState,
   ExportData,
   UserProfile,
   Exercise,
 } from '@muscleos/types';
 import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
-import { STORAGE_KEYS } from './keys';
+import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
 
@@ -486,19 +485,6 @@ export async function setRetiredCustomExercises(exercises: Exercise[]): Promise<
   await AsyncStorage.setItem(STORAGE_KEYS.retiredCustomExercises, JSON.stringify(exercises));
 }
 
-export async function getDevProOverride(): Promise<boolean> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEYS.devProOverride);
-  return raw === 'true';
-}
-
-export async function setDevProOverride(value: boolean): Promise<void> {
-  if (value) {
-    await AsyncStorage.setItem(STORAGE_KEYS.devProOverride, 'true');
-  } else {
-    await AsyncStorage.removeItem(STORAGE_KEYS.devProOverride);
-  }
-}
-
 export async function getRecovery(): Promise<MuscleRecovery[]> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.recovery);
   if (!raw) return [];
@@ -534,23 +520,6 @@ export async function setHealth(health: HealthData): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.health, JSON.stringify(health));
 }
 
-export async function getSubscription(): Promise<SubscriptionState | null> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEYS.subscription);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Omit<SubscriptionState, 'tier'> & { tier?: string };
-    const tier: SubscriptionState['tier'] =
-      parsed.tier === 'pro' ? 'pro' : 'basic';
-    return { ...parsed, tier };
-  } catch {
-    return null;
-  }
-}
-
-export async function setSubscription(state: SubscriptionState): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.subscription, JSON.stringify(state));
-}
-
 /**
  * Keys Clear all data removes. Deliberately not here: the Supabase auth session (you stay signed
  * in), the in-progress workout, the sync outbox and meta, the exact-alarm prompt flag, and the
@@ -564,7 +533,6 @@ export const CLEAR_ALL_DATA_KEYS = [
   STORAGE_KEYS.sessions,
   STORAGE_KEYS.recovery,
   STORAGE_KEYS.health,
-  STORAGE_KEYS.subscription,
   STORAGE_KEYS.exercisePrevious,
   STORAGE_KEYS.exerciseNotes,
   STORAGE_KEYS.customExercises,
@@ -572,7 +540,6 @@ export const CLEAR_ALL_DATA_KEYS = [
   STORAGE_KEYS.catalogExercises,
   STORAGE_KEYS.catalogWatermark,
   STORAGE_KEYS.catalogSeedAppliedAt,
-  STORAGE_KEYS.devProOverride,
   APP_SETTINGS_KEYS.unitSystem,
   APP_SETTINGS_KEYS.profile,
   APP_SETTINGS_KEYS.weightUnitLegacy,
@@ -592,6 +559,11 @@ export const CLEAR_ALL_DATA_KEPT_KEYS = [
   STORAGE_KEYS.appleAuthorizationCode,
 ] as const;
 
+/** Drop keys left by older builds (see `LEGACY_STORAGE_KEYS`). Safe to run on every launch. */
+export async function removeLegacyStorageKeys(): Promise<void> {
+  await Promise.all(LEGACY_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)));
+}
+
 /**
  * Device-only reset: removes CLEAR_ALL_DATA_KEYS and nothing is pushed to the cloud. Supabase auth
  * uses separate AsyncStorage keys and is not cleared here.
@@ -608,7 +580,6 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     sessions,
     recovery,
     health,
-    subscription,
     exerciseNotes,
     customExercises,
   ] = await Promise.all([
@@ -617,7 +588,6 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     getSessions(),
     getRecovery(),
     getHealth(),
-    getSubscription(),
     getExerciseNotes(),
     getCustomExercises(),
   ]);
@@ -625,7 +595,6 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     version: 1,
     exportedAt: new Date().toISOString(),
     profile: profile ?? undefined,
-    subscription: subscription ?? undefined,
     templates,
     templateFolders: templateFolders.length ? templateFolders : undefined,
     sessions,

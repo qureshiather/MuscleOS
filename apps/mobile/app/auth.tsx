@@ -40,7 +40,7 @@ export default function AuthScreen() {
         <View style={styles.header}>
           <Text style={[typography.sectionTitle, styles.headerText, { color: colors.text }]}>Sign in</Text>
           <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-            Link an account to back up your data and restore Pro on any device.
+            Link an account to back up your workouts and use them on any device.
           </Text>
         </View>
         {Platform.OS === 'ios' && (

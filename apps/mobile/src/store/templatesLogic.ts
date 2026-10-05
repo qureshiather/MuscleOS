@@ -1,6 +1,5 @@
 import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
 import { BUILT_IN_FOLDERS, BUILT_IN_TEMPLATES, isBuiltInHidden } from '@/data/builtInTemplates';
-import type { ProFeature } from '@/subscription/features';
 
 /**
  * Pure reducers for the templates store (docs/features/templates.md). Built-in templates are
@@ -89,45 +88,36 @@ export type TemplateMenuActionKey =
 export type TemplateMenuAction = {
   key: TemplateMenuActionKey;
   label: string;
-  /** Pro feature the action requires, or null when every tier can use it. */
-  gate: ProFeature | null;
-  /** True when `gate` is set and the user isn't Pro — tapping opens the paywall instead. */
-  locked: boolean;
 };
 
 /**
  * The template card's context menu (docs/features/templates.md#context-menus). Built-ins only get
- * Hide / Unhide; customs get Rename, Move, Edit (Pro), Hide / Unhide, and Delete.
+ * Hide / Unhide; customs get Rename, Move, Edit, Hide / Unhide, and Delete.
  *
  * A built-in hidden because its **whole folder** is hidden can't be unhidden on its own (the
  * folder would keep hiding it), so its menu offers **Unhide folder** instead.
  */
 export function templateMenuActions(
   template: Pick<WorkoutTemplate, 'isBuiltIn' | 'folderId'>,
-  opts: { isHidden: boolean; hiddenFolderIds: readonly string[]; isPro: boolean }
+  opts: { isHidden: boolean; hiddenFolderIds: readonly string[] }
 ): TemplateMenuAction[] {
-  const item = (key: TemplateMenuActionKey, label: string, gate: ProFeature | null) => ({
-    key,
-    label,
-    gate,
-    locked: gate != null && !opts.isPro,
-  });
+  const item = (key: TemplateMenuActionKey, label: string): TemplateMenuAction => ({ key, label });
   const hiddenByFolder =
     template.isBuiltIn === true &&
     template.folderId != null &&
     opts.hiddenFolderIds.includes(template.folderId);
   const visibility = !opts.isHidden
-    ? item('hide', 'Hide', null)
+    ? item('hide', 'Hide')
     : hiddenByFolder
-      ? item('unhide-folder', 'Unhide folder', null)
-      : item('unhide', 'Unhide', null);
+      ? item('unhide-folder', 'Unhide folder')
+      : item('unhide', 'Unhide');
   if (template.isBuiltIn) return [visibility];
   return [
-    item('rename', 'Rename', 'custom_templates'),
-    item('move', 'Move', 'custom_templates'),
-    item('edit', 'Edit', 'custom_templates'),
+    item('rename', 'Rename'),
+    item('move', 'Move'),
+    item('edit', 'Edit'),
     visibility,
-    item('delete', 'Delete', null),
+    item('delete', 'Delete'),
   ];
 }
 

@@ -14,17 +14,17 @@ This document helps AI agents and future prompts work effectively with the Muscl
 |------------|-----|
 | [`docs/README.md`](docs/README.md) | Doc index and the rules for keeping specs in sync |
 | [`docs/product/overview.md`](docs/product/overview.md) | What the app is, design principles, screen map, cross-cutting assumptions |
-| [`docs/features/README.md`](docs/features/README.md) | Feature index, Basic/Pro tier matrix, spec + test status |
+| [`docs/features/README.md`](docs/features/README.md) | Feature index, spec + test status |
 | [`docs/engineering/testing.md`](docs/engineering/testing.md) | Current test coverage and infrastructure |
 
-**Feature specs:** [templates](docs/features/templates.md) · [workout-logging](docs/features/workout-logging.md) · [recovery](docs/features/recovery.md) · [exercise-library](docs/features/exercise-library.md) · [history-analytics](docs/features/history-analytics.md) · [subscriptions](docs/features/subscriptions.md) · [accounts-and-data](docs/features/accounts-and-data.md)
+**Feature specs:** [templates](docs/features/templates.md) · [workout-logging](docs/features/workout-logging.md) · [recovery](docs/features/recovery.md) · [exercise-library](docs/features/exercise-library.md) · [history-analytics](docs/features/history-analytics.md) · [pricing](docs/features/pricing.md) · [accounts-and-data](docs/features/accounts-and-data.md)
 
 ### Keep the spec matching the feature set
 
 Docs rot silently, so treat them as part of the change rather than follow-up work.
 
-1. **Update the feature's spec in the same change** whenever you alter a user-visible behaviour or copy, a default/constant/threshold/formula, a domain type in `packages/types`, a tier or Pro gate, or a storage key or its sync status.
-2. **New Pro gate → add it to the [gate map](docs/features/subscriptions.md#gate-map).** It's meant to be exhaustive; an unlisted gate is how customers find holes in the paywall.
+1. **Update the feature's spec in the same change** whenever you alter a user-visible behaviour or copy, a default/constant/threshold/formula, a domain type in `packages/types`, or a storage key or its sync status.
+2. **Don't add paywalls or tiers.** MuscleOS is free; every feature is for everyone ([pricing](docs/features/pricing.md)). Paid work belongs to the future Coaching offering, which gets its own spec.
 3. **New feature → add it to the [feature index](docs/features/README.md#index)** and record its test status.
 4. **Edit, don't append.** These are specs describing the current app, not a changelog. Git history is the changelog.
 5. **If code and spec disagree, that's a bug.** Fix it rather than working around it, and say which one you treated as correct.
@@ -113,11 +113,10 @@ apps/mobile/
 │   ├── auth/               # Sign-in, account linking, delete account, auth copy
 │   ├── components/         # Reusable UI (MuscleDiagram, etc.)
 │   ├── data/               # Static data (exercises, builtInTemplates)
-│   ├── hooks/              # useProGate, useWorkoutNotification
+│   ├── hooks/              # useRedirectWhenReady, useWorkoutNotification
 │   ├── lib/                # Supabase client
 │   ├── storage/            # AsyncStorage wrappers + keys, import/export
 │   ├── store/              # Zustand stores (authStore, templatesStore, etc.) + *Logic.ts rules
-│   ├── subscription/       # Tiers, gate decisions, paywall helpers, pricing
 │   ├── sync/               # Outbox, push/pull engine, merge
 │   ├── test/               # Test harnesses: mocks/ (Vitest), ui/ (Jest render helpers + screen tests)
 │   ├── theme/              # ThemeProvider, useTheme, colors
@@ -134,7 +133,7 @@ apps/mobile/
 
 - Stores live in `src/store/`.
 - Pattern: `create<State>((set, get) => ({ ... }))` with async actions that call storage and then `set()`.
-- Load app-wide data in root layout `useEffect` where needed (e.g. `loadSubscription`, `loadSettings`).
+- Load app-wide data in root layout `useEffect` where needed (e.g. `loadSettings`, `loadExerciseNotes`).
 
 ### 5. Storage
 
@@ -167,19 +166,11 @@ apps/mobile/
 - Inline styles via `StyleSheet.create` or plain objects; theme colors from `useTheme()`.
 - `SafeAreaView` / `useSafeAreaInsets` for safe areas.
 
-### 10. Subscriptions & monetization
+### 10. Pricing
 
-- **Specs:** [`docs/features/subscriptions.md`](docs/features/subscriptions.md) — tiers, the exhaustive gate map, paywall UX, downgrade behaviour. Billing plumbing in [`docs/monetization/`](docs/monetization/).
-- **Tiers:** `basic` (free) and `pro`. UI labels: Basic / Pro.
-- **Pricing (USD):** $2.99/mo · $19.99/yr — see `apps/mobile/src/subscription/pricing.ts`.
-- **Billing:** RevenueCat SDK (`src/utils/revenueCat.ts`). Entitlement: **`MuscleOS Pro`**. Products: `muscleos_pro_monthly`, `muscleos_pro_annual`.
-- **Identity:** Supabase `user.id` is RevenueCat `appUserID`. Purchases require a linked (non-anonymous) account.
-- **State:** `subscriptionStore` + `SubscriptionState` in `@muscleos/types`. Use `useProGate()` / `useRequirePro()` from `src/hooks/useProGate.ts` for feature gates.
-- **Feature list:** `src/subscription/features.ts` — single source for paywall copy and gate keys.
-- **Pro gates:** custom templates/exercises, empty workout, add/replace exercise mid-workout, save-as-template, PRs, progression charts, monthly calendar. Custom templates require Pro to **run**, not just to create — enforce via `requiresProToStart()` at *every* workout entry point, including deep links.
-- **Basic includes:** built-in templates, workout logging, recovery, history list, exercise library, export.
+- **MuscleOS is free forever.** Every feature is available to everyone, with or without an account. No tiers, no paywall, no in-app purchases, no billing SDK. Spec: [`docs/features/pricing.md`](docs/features/pricing.md).
+- **Coaching** (personal trainers + the MuscleOS AI coach) is the future paid offering. It isn't built; track it in Linear (project **Coaching**).
 - **Exercise catalog:** `catalog_exercises` in Supabase + bundled `CATALOG_SEED`. User customs are `user_exercises` (account-private). See [`docs/supabase/setup.md`](docs/supabase/setup.md).
-- **Setup:** See [`docs/monetization/revenuecat-setup.md`](docs/monetization/revenuecat-setup.md) for store + RevenueCat dashboard steps.
 
 ---
 
@@ -202,7 +193,7 @@ Non-obvious invariants the specs cover in detail. Check the relevant spec before
 - **Built-in templates and catalog exercises are immutable** — hide or unpublish, never delete, so historical sessions keep resolving.
 - **Recovery is never synced** — it's derived, and is recomputed locally after a sync merge.
 - **Incomplete sets are persisted** with the session but excluded from every derived metric.
-- **Every new workout entry point needs a Pro gate** — `/active-workout` is reachable by deep link and notification tap.
+- **Every new workout entry point must wait for hydration** — `/active-workout` is reachable by deep link and notification tap; start through `startFromParamsDecision()` so a running workout is never replaced and custom templates aren't mistaken for unknown ids.
 
 ---
 

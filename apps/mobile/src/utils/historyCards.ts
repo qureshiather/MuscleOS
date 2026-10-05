@@ -41,7 +41,7 @@ export type SessionCardSummary = {
   prCount: number;
   /** `6 exercises · 18 sets` */
   countsLine: string;
-  /** `2 PRs`, or null when there are none (always null on Basic, which passes no PR ids). */
+  /** `2 PRs`, or null when there are none. */
   prLabel: string | null;
   /** `59m · 5,518 kg`; either part dropped when missing or zero. Empty when both are. */
   statsLine: string;

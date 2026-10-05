@@ -1,13 +1,13 @@
 /**
  * Helpers for active-workout screen tests. The workout screen is mounted through the real router
- * at `/active-workout?...` with the stores reset between tests; the tabs and paywall are stubs.
+ * at `/active-workout?...` with the stores reset between tests; the tabs are a stub.
  */
 import { act } from '@testing-library/react-native';
 import ActiveWorkoutScreen from '../../../../app/active-workout';
 import { BUILT_IN_TEMPLATES } from '@/data/builtInTemplates';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { renderApp, resetAppState, routeStub, setPro } from '../render';
+import { renderApp, resetAppState, routeStub } from '../render';
 
 export const PUSH = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
 
@@ -23,16 +23,14 @@ export function renderWorkout(url: string = PUSH_URL) {
     {
       'active-workout': ActiveWorkoutScreen,
       '(tabs)/index': routeStub('tabs'),
-      subscription: routeStub('paywall'),
       'create-exercise': routeStub('create-exercise'),
     },
     url
   );
 }
 
-export async function resetWorkoutState({ pro = true }: { pro?: boolean } = {}): Promise<void> {
+export async function resetWorkoutState(): Promise<void> {
   await resetAppState();
-  setPro(pro);
   useActiveWorkoutStore.setState({
     session: null,
     hydrated: true,

@@ -67,20 +67,16 @@ The core distinction, and the reason for most of the behaviour on this screen. S
 | Source | `BUILT_IN_TEMPLATES` constant, compiled in | AsyncStorage `muscleos_templates` |
 | Ids | Fixed and stable (`ppl-push`, `sl-a`) | `tpl_<timestamp>_<random>` |
 | `isBuiltIn` | `true` | `false` |
-| Rename / edit / move / delete | **Not possible** — no UI path exists | Yes (Pro) |
+| Rename / edit / move / delete | **Not possible** — no UI path exists | Yes |
 | Hide | Yes — id added to a local hidden list (local-only, not synced) | Yes — `hidden: true` on the record (synced with it) |
-| Runnable on Basic | Yes | **No** — Pro required to *start*, not just to create |
 | Cloud sync | N/A (shipped code) | Yes, when an account is linked — the whole record, including `hidden` and `folderId` |
 
 `allTemplates()` returns `[...BUILT_IN_TEMPLATES, ...userTemplates]` — built-ins always first.
 
 **Attempting to edit a built-in.** There is no rename/edit/move/delete in the built-in context
-menu at all, and `/create-template?templateId=<built-in id>` shows **Template not found**. The
-only path that has to say no is mid-workout editing on **Basic**: adding, replacing, or removing an
-exercise in a built-in workout alerts (Pro users can change the session freely):
-
-> **Built-in workout** — You can't edit a built-in workout. Upgrade to Pro to customize it and
-> save it as a new template.
+menu at all, and `/create-template?templateId=<built-in id>` shows **Template not found**. A
+built-in *workout* can still be changed freely while it runs (add, replace, remove, reorder
+exercises) — that changes the session, never the template.
 
 That is the intended escape hatch: run the built-in, change the session as you go, then save the
 result as a **new** custom template. There is no "duplicate template" action; saving from a
@@ -112,20 +108,19 @@ Renders top to bottom:
 **1. Header.** Title "Workouts" and a one-line status headline (see
 [Home headline](#home-headline)) — not a stats ticker.
 
-**2. Empty workout hero.** Starts a session with no exercises, adding them as you go. Pro (subtitle
-"Add exercises as you go"); on Basic the subtitle reads "Included with Pro" with a lock icon and
-tapping opens the paywall. Skips the preview screen and goes straight to `/active-workout` with
+**2. Empty workout hero.** Starts a session with no exercises, adding them as you go (subtitle
+"Add exercises as you go"). Skips the preview screen and goes straight to `/active-workout` with
 `templateId: '_empty'`. If a session is already in progress, the themed "Workout in progress"
 dialog is shown instead (see [workout-logging](workout-logging.md#starting)).
 
 **3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid, chosen by
-[recommendTemplates](#suggested-templates) over the visible templates your tier can start
+[recommendTemplates](#suggested-templates) over the visible templates, built-in and custom
 (`suggestHomeTemplates()` in `src/utils/workoutsHome.ts`). Each is a
 [muscle art card](#muscle-art-cards) with the name and exercise count.
 
 **4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
-most recent first, deduplicated by template and **excluding anything already in Suggested**, hidden
-templates, and templates your tier can't start (`pickRecentTemplates()` in
+most recent first, deduplicated by template and **excluding anything already in Suggested** and
+hidden templates (`pickRecentTemplates()` in
 `src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
 relative completion time.
 
@@ -151,20 +146,16 @@ the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
   (`cropToRegions()`). With no resolvable muscles it falls back to a front shoulders-to-waist crop.
 - **Figure:** the same male or female figure as the Recovery tab, from the profile's sex.
 
-**5. "All templates" header.** Pro users also get a new-folder button and a **New** button.
+**5. "All templates" header.** A new-folder button and a **New** button.
 
-**6. Custom section** (collapsible, **expanded** by default). Visible if you're Pro or own any
-custom template, hidden ones included (`customSectionVisible()`). Contents in order
+**6. Custom section** (collapsible, **expanded** by default, always shown). Contents in order
 (`groupHomeTemplates()` in `src/store/templatesLogic.ts`): uncategorized templates → favourite
 (pinned) folders → normal folders → an **Archived** group (archived folders, pinned or not) → a
 **Hidden** group (every hidden custom template, in a folder or not). An empty folder still shows,
 with "No templates in this folder."
 
-- **Empty state** (Pro with no custom templates): "No templates yet." and a **Create template**
-  link to `/create-template`.
-- **Lapsed Pro** (Basic with any custom template, hidden ones included — `showLapsedNotice()`):
-  a banner reading "Your templates are saved. Resubscribe to Pro to run them." that opens the
-  paywall (`custom_templates`). The templates stay listed, locked.
+- **Empty state** (no custom templates): "No templates yet." and a **Create template** link to
+  `/create-template`.
 
 **7. Built-in section** (collapsible, **collapsed** by default). On first expand, all built-in
 subfolders open. Contents: folders with at least one visible template, then a nested **Hidden**
@@ -178,16 +169,13 @@ default to expanded; the Archived and both Hidden groups default to collapsed
 ### Template cards
 
 Each card shows the name, optional description, `Last done: <relative>` when a completed session
-exists for it (the most recent one — `lastDoneByTemplate()`), and `<N> exercises`. A lock icon
-appears when the template requires Pro to start.
+exists for it (the most recent one — `lastDoneByTemplate()`), and `<N> exercises`.
 
 Tapping a card opens **`/workout-preview`**, not the workout directly, passing the template id and
 its set plan. If a session is already in progress, the same "Workout in progress" dialog as the
-empty-workout hero is shown instead. Tapping a **locked** card (Basic + custom) goes straight to
-the paywall (`custom_templates`), not the preview. The routing decision is `decideTemplateStart()`
-in `src/utils/workoutsHome.ts`: Basic + `requiresProToStart` → paywall `custom_templates`; Basic +
-empty workout → paywall `empty_workout`; then an in-progress session → the dialog; otherwise
-preview (templates) or `/active-workout` (empty).
+empty-workout hero is shown instead. The routing decision is `decideTemplateStart()` in
+`src/utils/workoutsHome.ts`: an in-progress session → the dialog; otherwise preview (built-in and
+custom templates alike) or `/active-workout` (empty).
 
 The "Workout in progress" dialog — "Finish or cancel your current workout before starting
 another." — offers **Resume workout** (go to `/active-workout`) and **Cancel workout** (discard the
@@ -197,15 +185,15 @@ in-progress session, then continue to what was tapped).
 
 Items come from `templateMenuActions()` in `src/store/templatesLogic.ts`.
 
-| Action | Built-in | Custom | Gate |
-|--------|:--------:|:------:|------|
-| Rename | — | ● | `custom_templates` |
-| Move | — | ● | `custom_templates` |
-| Edit | — | ● | `custom_templates` |
-| Hide / Unhide | ● | ● | none |
-| Delete | — | ● (themed confirm) | none |
+| Action | Built-in | Custom |
+|--------|:--------:|:------:|
+| Rename | — | ● |
+| Move | — | ● |
+| Edit | — | ● |
+| Hide / Unhide | ● | ● |
+| Delete | — | ● (themed confirm) |
 
-On Basic, the gated items stay in the menu and open the paywall. A built-in that is hidden
+A built-in that is hidden
 because its **whole folder** is hidden shows **Unhide folder** instead of Unhide — it unhides the
 folder (unhiding the single template would leave it hidden by the folder).
 
@@ -236,8 +224,7 @@ in it, hidden ones included.
 
 ## Creating and editing
 
-`/create-template`, **Pro-gated at the screen level** (`useRequirePro('custom_templates')`) so
-deep links can't bypass it. Handles both create (title **New template**, button **Save
+`/create-template` handles both create (title **New template**, button **Save
 template**) and edit (`?templateId=`; title **Edit template**, button **Save changes**; **Saving…**
 while saving, and a second tap can't save twice).
 
@@ -296,8 +283,9 @@ unknown, and the line is **omitted** when there is no previous), and a rest badg
 > templates don't store rest. Per-exercise rest is set during the workout.
 
 Guards on entry: missing template id or exercises → "Missing workout details"; an in-progress
-session → redirect to `/active-workout`; a custom template without Pro → redirect to the paywall
-(`previewEntryState()` covers the first two).
+session → redirect to `/active-workout` (`previewEntryState()`). The previewed plan is the one the
+link encodes, falling back to the template's own (`startPlanFromParams()` in
+`src/utils/workoutStart.ts`).
 
 **Start workout** (footer) and **Start** (header) both replace the route with `/active-workout`,
 passing the template id and the same set plan.
@@ -306,8 +294,8 @@ passing the template id and the same set plan.
 
 `recommendTemplates()` picks up to 2 templates for the home screen. Inputs: currently recovering
 muscles, muscles worked in the last **7 days** (`recentlyWorkedMuscleIds()` — like recovery, only
-exercises with a completed set count), the visible templates, when each template was last done, and (Basic
-only) a filter to startable templates so Basic users are never suggested something they can't run.
+exercises with a completed set count), the visible templates (built-in and custom), and when each
+template was last done.
 
 Constants:
 
@@ -352,19 +340,6 @@ Copy, in priority order:
 | Last session 2–6 days ago | `Last one was N days ago.` |
 | Otherwise (incl. ≥7-day gap) | `Pick a template or start from scratch` |
 
-## Pro gates
-
-| Action | Gate key |
-|--------|----------|
-| Empty workout | `empty_workout` |
-| Start a custom template | `custom_templates` |
-| Create / rename / move / edit a custom template; create a folder | `custom_templates` |
-| Save a finished workout as a template | `save_as_template` |
-
-`requiresProToStart(template)` is `template.isBuiltIn !== true` — the single predicate,
-enforced at every entry point into a workout. See
-[subscriptions.md](subscriptions.md#gate-map).
-
 ## Assumptions
 
 | Assumption | Note |
@@ -372,7 +347,7 @@ enforced at every entry point into a workout. See
 | A template is an ordered exercise list **plus set structure** | Working sets default to 3, warm-ups to 0; no target weight, reps, rest, or supersets |
 | Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot |
 | Built-in templates are **immutable**; hide, don't delete | Keeps ids stable for historical sessions |
-| Custom templates require Pro to **run**, not only to create | Lapsed subscribers keep the data, visible but locked |
+| Every template is free to create and run | No tiers; see [pricing.md](pricing.md) |
 | Templates are single-day | No program/week/phase structure |
 | No search or manual sort on the home template list | Ordering is folder structure + storage insertion order |
 | Built-in hidden state is local-only | Hidden built-in ids/folders aren't synced; a custom template's `hidden` flag syncs with the record |
@@ -394,19 +369,18 @@ Covered:
   +3 novelty, +5 within 30 days, −20 within 2 days), the 50% cut-off boundary, unresolved templates
   skipped, name tie-break, the limit, and the −8-per-overlap diversification
 - `src/utils/recentTemplates.test.ts` — Recent: newest first, one per template, excludes
-  Suggested / hidden / unstartable, capped at 6
+  Suggested / hidden, capped at 6
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
   regions; focus regions drop single-exercise regions, keep chest on Push, count shared regions once per
   exercise, and fall back to all regions when none repeats
 - `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
-- `src/subscription/features.test.ts` — `requiresProToStart` for built-in vs custom; 9 built-ins
 - `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
   de-dupes; built-in hides by id **or** folder while a custom hides only via its own flag;
   deleting a folder keeps every template inside it, clearing only their `folderId`;
   `folderDeletePlan` counts and deletes hidden templates, with the 0 / 1 / N prompt copy;
-  `templateMenuActions` items, order, gates, and Basic locking, including **Unhide folder** for a
+  `templateMenuActions` items and order, Unhide for hidden customs, and **Unhide folder** for a
   built-in hidden by its folder; `groupHomeTemplates` ordering (uncategorized → pinned → normal →
   archived → hidden), all-hidden folders left out, empty folders kept, hidden built-in folders vs
   loose hidden built-ins
@@ -415,25 +389,22 @@ Covered:
   persistence, `folderId` cleared by an `undefined` patch, built-in hide (template and folder)
   local-only with no sync, custom hide synced on the record, folder CRUD, and folder delete
   re-syncing only the affected templates; delete-with-templates removing hidden ones too
-- `src/utils/workoutsHome.test.ts` — `defaultFolderExpanded`, `customSectionVisible` /
-  `showLapsedNotice` (hidden customs count), `lastDoneByTemplate`, `startableTemplates`,
-  `suggestHomeTemplates` (cap 2, no hidden, no customs on Basic), and every `decideTemplateStart`
-  branch
+- `src/utils/workoutsHome.test.ts` — `defaultFolderExpanded`, `lastDoneByTemplate`,
+  `suggestHomeTemplates` (cap 2, no hidden, customs suggested like built-ins), and every
+  `decideTemplateStart` branch
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
   payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
 - `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting and the 2:00 default, Previous in
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`
 - `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2, Recent newest
-  first without Suggested picks, no customs in either on Basic, Built-in collapsed with every
-  subfolder opened on first expand, Custom visibility / empty state / ordering / default-closed
-  Archived and Hidden, card Last done and count, lapsed notice (including all-hidden), locked
-  card → paywall, built-in → preview params, empty workout → `/active-workout?templateId=_empty`
-  or paywall, "Workout in progress" Resume / Cancel, every context-menu action (hide/unhide,
-  Unhide folder, rename, move incl. Create & move and No folder, edit, delete confirm, Basic
-  paywall), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
+  first without Suggested picks, customs in Suggested / Recent, Built-in collapsed with every
+  subfolder opened on first expand, Custom empty state / ordering / default-closed Archived and
+  Hidden, card Last done and count, custom cards unlocked and opening the preview, no Pro or
+  upgrade copy, built-in → preview params, empty workout → `/active-workout?templateId=_empty`,
+  "Workout in progress" Resume / Cancel, every context-menu action (hide/unhide, Unhide folder,
+  rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
   `/templates` redirect
-- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — Basic redirected to the paywall, form
-  copy, validation messages, add at 3 / 0 with the picker hiding added exercises, Create
+- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
   folder and plan, edit prefill and save, None clearing the folder, Template not found for unknown
   and built-in ids, double-tap saving once
@@ -446,4 +417,3 @@ Not covered:
 - Drag-to-reorder gestures on create-template (the drag library is mocked in Jest; the resulting
   order is just the list `serializeTemplateExercises` stores)
 - Muscle art rendering (the crop and colour rules are covered as pure functions)
-- The mid-workout **Built-in workout** alert (lives in `active-workout.tsx`, see workout-logging)

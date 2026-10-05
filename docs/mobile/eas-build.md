@@ -31,7 +31,7 @@ eas whoami
 
 ## One-time: environment variables
 
-Local `apps/mobile/.env` is **gitignored** and is **not** uploaded to EAS. Set the same values on the Expo **preview** environment or auth / Supabase / purchases will fail in the installed app.
+Local `apps/mobile/.env` is **gitignored** and is **not** uploaded to EAS. Set the same values on the Expo **preview** environment or auth and Supabase will fail in the installed app.
 
 ### Required
 
@@ -39,13 +39,6 @@ Local `apps/mobile/.env` is **gitignored** and is **not** uploaded to EAS. Set t
 |----------|--------|
 | `EXPO_PUBLIC_SUPABASE_URL` | From Supabase project settings |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Anon/public key |
-
-### Recommended for IAP testing
-
-| Variable | Notes |
-|----------|--------|
-| `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | Android public key (`goog_…`), **not** the Test Store key |
-| `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` | iOS public key (`appl_…`), **not** the Test Store key |
 
 ### Set via dashboard
 
@@ -58,8 +51,6 @@ cd apps/mobile
 
 eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "YOUR_SUPABASE_URL" --visibility plain-text
 eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_ANON_KEY" --visibility secret
-eas env:create --environment preview --name EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID --value "goog_YOUR_KEY" --visibility secret
-eas env:create --environment preview --name EXPO_PUBLIC_REVENUECAT_API_KEY_IOS --value "appl_YOUR_KEY" --visibility secret
 ```
 
 Pull EAS preview env into a local file (optional):
@@ -248,7 +239,7 @@ eas build --platform ios --profile production
 eas submit --platform ios --latest
 ```
 
-Set the same env vars on the Expo **production** environment (Supabase + `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS`). Production builds do not use the `preview` env.
+Set the same env vars on the Expo **production** environment (Supabase). Production builds do not use the `preview` env.
 
 **2. Add testers in App Store Connect**
 
@@ -284,15 +275,14 @@ iOS `buildNumber` and Android `versionCode` are remote and auto-increment. On th
 build and the submission can each sit in Expo's queue for a while.
 
 To QA a store-like build on a simulator or emulator without EAS, build the Release variant
-locally. It embeds the JS bundle, has no Grant Pro, and doesn't need Metro:
+locally. It embeds the JS bundle and doesn't need Metro:
 
 ```bash
 npx expo run:ios --configuration Release --device <simulator-udid> --no-bundler
 npx expo run:android --variant release --device <avd-name> --no-bundler
 ```
 
-These read `apps/mobile/.env`, so it needs the platform RevenueCat key
-(`EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` / `_ANDROID`).
+These read `apps/mobile/.env` (Supabase).
 
 ## Rebuild after code or env changes
 
@@ -305,40 +295,6 @@ eas build --platform ios --profile preview
 ```
 
 Install the new binary over the old one (same package / bundle id). iOS ad hoc: include every current tester device in that build.
-
----
-
-## RevenueCat: “prepare for release / use production key”
-
-Preview builds are **release**-signed. RevenueCat shows that warning when a **Test Store** API key is used in a release build.
-
-**Fix:** use the real store public keys in the EAS **preview** environment, then rebuild.
-
-| Platform | Env var | Prefix |
-|----------|---------|--------|
-| Android | `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` | `goog_…` |
-| iOS | `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` | `appl_…` |
-
-Purchases stay sandbox if the device account is a store tester (Google license tester, or Apple Sandbox / TestFlight).
-
-Details: [RevenueCat setup](../monetization/revenuecat-setup.md).
-
----
-
-## Testing in-app purchases (no real charges)
-
-### Android
-
-1. **Google Play Console** — create/select the app with package **`app.muscleos`**.
-2. **License testers** — **Setup** → **License testing** (or **Testing** → **License testers**). Add the Gmail used on the test phone.
-3. **Optional: Internal testing track** — upload an AAB from `eas build --platform android --profile production`, add the same Gmail as a tester. You can still install the EAS preview APK; same package + license tester → sandbox purchases.
-4. Install a preview APK that uses the Android RevenueCat key and test purchases on device.
-
-### iOS
-
-1. **App Store Connect** — app with bundle id **`com.muscle-os.app`**, products created (see [RevenueCat setup](../monetization/revenuecat-setup.md)).
-2. **Sandbox testers** — Users and Access → Sandbox → add a tester Apple ID. Sign out of the real App Store on the device (or use Settings → Developer → Sandbox Apple Account on recent iOS) and use that account when the purchase sheet appears.
-3. **TestFlight** builds use sandbox IAP automatically for testers.
 
 ---
 

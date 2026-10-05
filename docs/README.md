@@ -8,12 +8,12 @@ docs disagree, one of them is a bug — see [Keeping docs in sync](#keeping-docs
 | Doc | What it covers |
 |-----|----------------|
 | [product/overview.md](product/overview.md) | What the app is, who it's for, design principles, screen map, cross-cutting assumptions |
-| [features/README.md](features/README.md) | Feature index, Basic/Pro tier summary, spec status |
+| [features/README.md](features/README.md) | Feature index, spec status |
 
 ## Feature specs
 
 One doc per feature area. Each states the data model, the exact behavioural rules,
-the product assumptions baked in, and its tier gating.
+and the product assumptions baked in.
 
 | Doc | Feature area |
 |-----|--------------|
@@ -22,7 +22,7 @@ the product assumptions baked in, and its tier gating.
 | [features/recovery.md](features/recovery.md) | Muscle recovery model, timings, body diagram |
 | [features/exercise-library.md](features/exercise-library.md) | Exercise catalog, custom exercises, search, notes |
 | [features/history-analytics.md](features/history-analytics.md) | History, monthly calendar, PRs, 1RM, strength standards, progression |
-| [features/subscriptions.md](features/subscriptions.md) | Basic/Pro tiers, every Pro gate, paywall UX, downgrade behaviour |
+| [features/pricing.md](features/pricing.md) | Free forever: no tiers or purchases; Coaching as the future paid offering |
 | [features/accounts-and-data.md](features/accounts-and-data.md) | Auth, profile, settings, storage, cloud sync, export |
 
 ## Engineering
@@ -33,17 +33,6 @@ the product assumptions baked in, and its tier gating.
 | [supabase/setup.md](supabase/setup.md) | Supabase schema, exercise catalog, sync tables, local setup |
 | [operations/live-services.md](operations/live-services.md) | Day-to-day management of Supabase, Resend, Google, and Apple |
 | [mobile/eas-build.md](mobile/eas-build.md) | EAS build profiles, env vars, store submission |
-
-## Commercial / billing
-
-Product-facing tier rules live in [features/subscriptions.md](features/subscriptions.md).
-These docs cover the money and the plumbing behind it.
-
-| Doc | What it covers |
-|-----|----------------|
-| [monetization/pricing.md](monetization/pricing.md) | Plans, USD list prices, store product IDs |
-| [monetization/technical.md](monetization/technical.md) | RevenueCat + Supabase integration, subscription store |
-| [monetization/revenuecat-setup.md](monetization/revenuecat-setup.md) | Dashboard and store console runbook |
 
 ---
 
@@ -68,9 +57,8 @@ and ignores sleep and nutrition). These are the things most likely to be revisit
 the things a new contributor is most likely to get wrong.
 
 **One authoritative owner per fact.** Other docs may summarize a rule for navigation or
-onboarding, but must link to its owner rather than redefine it. Tier gating lives in
-[features/subscriptions.md](features/subscriptions.md); pricing lives in
-[monetization/pricing.md](monetization/pricing.md).
+onboarding, but must link to its owner rather than redefine it. Pricing lives in
+[features/pricing.md](features/pricing.md).
 
 ---
 
@@ -84,16 +72,15 @@ docs when you change any of:
 - A user-visible behaviour, screen, or piece of copy that a spec describes
 - A default, constant, threshold, or formula (rest duration, recovery hours, 1RM formula, …)
 - A domain type in `packages/types`
-- Which tier a feature belongs to, or where a Pro gate is enforced
 - A storage key, or whether data is local-only vs cloud-synced
 
 **When you add a feature,** add it to the relevant feature spec (or add a new one), add a
 row to the index in [features/README.md](features/README.md), and record its test status in
 [engineering/testing.md](engineering/testing.md).
 
-**When you add a Pro gate,** add it to the gate map in
-[features/subscriptions.md](features/subscriptions.md). The map is meant to be exhaustive —
-a gate that isn't listed is how customers find holes in the paywall.
+**Don't add a paywall.** Every feature is free for everyone
+([features/pricing.md](features/pricing.md)). Paid features belong to Coaching, which gets its own
+spec when it's built.
 
 **Prefer editing over appending.** These are specs, not a changelog. Rewrite the affected
 section so it reads as a current description of the app. Git history is the changelog.

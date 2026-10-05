@@ -74,7 +74,7 @@ export default function ProfileScreen() {
                     Sign in or create an account
                   </Text>
                   <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                    Back up your data and restore Pro on any device.
+                    Back up your workouts and use them on any device.
                   </Text>
                 </>
               )}

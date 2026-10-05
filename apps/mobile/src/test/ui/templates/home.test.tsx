@@ -9,7 +9,7 @@ import TemplatesRedirect from '../../../../app/templates';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
-import { routeStub, setPro } from '../render';
+import { routeStub } from '../render';
 import {
   DAY,
   NOW,
@@ -41,7 +41,6 @@ const routes = {
   '(tabs)/index': HomeScreen,
   'workout-preview': routeStub('workout-preview'),
   'active-workout': routeStub('active-workout'),
-  subscription: routeStub('subscription'),
   'create-template': routeStub('create-template'),
 };
 
@@ -74,7 +73,6 @@ afterEach(() => {
 
 describe('sections', () => {
   it('renders the header, Suggested (max 2), Recent (without Suggested picks), and both template sections', async () => {
-    setPro(true);
     await seed({
       sessions: [
         completedSession('ppl-push', NOW - 9 * DAY),
@@ -118,17 +116,6 @@ describe('sections', () => {
     expect(screen.queryByText('Recent')).toBeNull();
   });
 
-  it('Basic never sees custom templates in Suggested or Recent', async () => {
-    await seed({
-      templates: [customTemplate({ id: 'tpl_mine', name: 'Mine' })],
-      sessions: [completedSession('tpl_mine', NOW - 3 * DAY)],
-    });
-    renderHome();
-    await ready();
-    expect(screen.queryByTestId('suggested-card-tpl_mine')).toBeNull();
-    expect(screen.queryByTestId('recent-card-tpl_mine')).toBeNull();
-  });
-
   it('Built-in starts collapsed; the first expand opens every subfolder', async () => {
     renderHome();
     await ready();
@@ -142,16 +129,7 @@ describe('sections', () => {
     expect(screen.getByTestId('template-card-sl-b')).toBeTruthy();
   });
 
-  it('Custom is hidden on Basic with no customs, and shows the empty state on Pro', async () => {
-    renderHome();
-    await ready();
-    expect(screen.queryByLabelText('Custom')).toBeNull();
-    // Basic still sees New / New folder; they open the paywall (covered in subscriptions/homeGates).
-    expect(screen.getByLabelText('New template')).toBeTruthy();
-  });
-
-  it('Pro with no customs sees the Custom empty state, expanded by default', async () => {
-    setPro(true);
+  it('with no customs, Custom shows its empty state, expanded by default', async () => {
     renderHome();
     await ready();
     expect(expanded('Custom')).toBe(true);
@@ -161,7 +139,6 @@ describe('sections', () => {
   });
 
   it('orders custom content: uncategorized → pinned → normal folders → Archived → Hidden; groups start closed', async () => {
-    setPro(true);
     await seed({
       folders: [
         { id: 'f_normal', name: 'Normal folder' },
@@ -215,7 +192,6 @@ describe('sections', () => {
   });
 
   it('a template card shows name, description, Last done, and exercise count', async () => {
-    setPro(true);
     await seed({
       templates: [
         customTemplate({ id: 'tpl_x', name: 'Arms', description: 'Pump day', exerciseIds: ['barbell-curl', 'tricep-pushdown', 'hammer-curl'] }),
@@ -249,40 +225,10 @@ describe('sections', () => {
   });
 
   it('shows no Last done line for a template never completed', async () => {
-    setPro(true);
     await seed({ templates: [customTemplate({ id: 'tpl_new', name: 'Fresh' })] });
     renderHome();
     await ready();
     expect(within(screen.getByTestId('template-card-tpl_new')).queryByText(/Last done/)).toBeNull();
-  });
-});
-
-describe('lapsed Pro', () => {
-  const notice = 'Your templates are saved. Resubscribe to Pro to run them.';
-
-  it('Basic with custom templates sees them locked plus the notice, which opens the paywall', async () => {
-    await seed({ templates: [customTemplate({ id: 'tpl_l', name: 'Locked one' })] });
-    renderHome();
-    await ready();
-    expect(screen.getByLabelText('Locked one, 2 exercises, requires Pro')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText(notice));
-    expect(await screen.findByText('route:subscription')).toBeTruthy();
-  });
-
-  it('the notice and Custom section also show when every custom template is hidden', async () => {
-    await seed({ templates: [customTemplate({ id: 'tpl_h', name: 'Tucked', hidden: true })] });
-    renderHome();
-    await ready();
-    expect(screen.getByLabelText('Custom')).toBeTruthy();
-    expect(screen.getByLabelText(notice)).toBeTruthy();
-  });
-
-  it('Pro never sees the notice', async () => {
-    setPro(true);
-    await seed({ templates: [customTemplate({ id: 'tpl_l', name: 'Mine' })] });
-    renderHome();
-    await ready();
-    expect(screen.queryByLabelText(notice)).toBeNull();
   });
 });
 
@@ -301,17 +247,7 @@ describe('starting', () => {
     });
   });
 
-  it('a locked custom card on Basic goes straight to the paywall, not the preview', async () => {
-    await seed({ templates: [customTemplate({ id: 'tpl_l', name: 'Locked one' })] });
-    renderHome();
-    await ready();
-    fireEvent.press(screen.getByTestId('template-card-tpl_l'));
-    expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(searchParams()).toEqual({ feature: 'custom_templates' });
-  });
-
-  it('Empty workout on Pro skips the preview → /active-workout?templateId=_empty', async () => {
-    setPro(true);
+  it('Empty workout skips the preview → /active-workout?templateId=_empty', async () => {
     renderHome();
     await ready();
     expect(screen.getByText('Add exercises as you go')).toBeTruthy();
@@ -320,13 +256,32 @@ describe('starting', () => {
     expect(searchParams()).toEqual({ templateId: '_empty', exerciseIds: '' });
   });
 
-  it('Empty workout on Basic reads "Included with Pro" and opens the paywall', async () => {
+  it('a custom template card has no lock and opens the preview like a built-in', async () => {
+    await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
-    expect(screen.getByText('Included with Pro')).toBeTruthy();
-    fireEvent.press(screen.getByText('Empty workout'));
-    expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(searchParams()).toEqual({ feature: 'empty_workout' });
+    expect(screen.getByTestId('template-card-tpl_c').props.accessibilityLabel).toBe('Chest day, 2 exercises');
+    fireEvent.press(screen.getByTestId('template-card-tpl_c'));
+    expect(await screen.findByText('route:workout-preview')).toBeTruthy();
+    expect(searchParams()).toMatchObject({ templateId: 'tpl_c' });
+  });
+
+  it('Suggested and Recent include custom templates', async () => {
+    await seed({
+      templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })],
+      sessions: [completedSession('tpl_c', NOW - 3 * DAY)],
+    });
+    renderHome();
+    await ready();
+    expect(screen.getAllByLabelText(/^Chest day, /).length).toBeGreaterThan(1);
+  });
+
+  it('nothing on the Workouts tab mentions Pro, locks or upgrading', async () => {
+    await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
+    renderHome();
+    await ready();
+    expect(screen.queryByText(/\bPro\b/)).toBeNull();
+    expect(screen.queryByText(/Resubscribe|Upgrade|Included with/)).toBeNull();
   });
 
   it('with a session in progress, a card shows "Workout in progress"; Resume goes to the workout', async () => {
@@ -357,7 +312,6 @@ describe('starting', () => {
   });
 
   it('the empty-workout hero shows the same dialog when a session is in progress', async () => {
-    setPro(true);
     startActiveSession();
     renderHome();
     await ready();
@@ -415,7 +369,6 @@ describe('context menus', () => {
   });
 
   it('a custom menu has Rename, Move, Edit, Hide, Delete', async () => {
-    setPro(true);
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
@@ -426,7 +379,6 @@ describe('context menus', () => {
   });
 
   it('Rename saves the trimmed name', async () => {
-    setPro(true);
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
@@ -439,7 +391,6 @@ describe('context menus', () => {
   });
 
   it('Edit opens create-template in edit mode', async () => {
-    setPro(true);
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
@@ -449,22 +400,7 @@ describe('context menus', () => {
     expect(searchParams()).toEqual({ templateId: 'tpl_c' });
   });
 
-  it('gated custom actions on Basic open the paywall; Hide and Delete still work', async () => {
-    await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
-    renderHome();
-    await ready();
-    openMenu('Chest day');
-    fireEvent.press(screen.getByTestId('template-menu-hide'));
-    await waitFor(async () => expect((await storedTemplates())[0].hidden).toBe(true));
-    fireEvent.press(screen.getByLabelText('Hidden'));
-    openMenu('Chest day');
-    fireEvent.press(screen.getByTestId('template-menu-rename'));
-    expect(await screen.findByText('route:subscription')).toBeTruthy();
-    expect(searchParams()).toEqual({ feature: 'custom_templates' });
-  });
-
   it('Move lists No folder, other folders, and New folder… → Create & move', async () => {
-    setPro(true);
     await seed({
       folders: [
         { id: 'f_a', name: 'Folder A' },
@@ -492,7 +428,6 @@ describe('context menus', () => {
   });
 
   it('Move → No folder clears the folder', async () => {
-    setPro(true);
     await seed({
       folders: [{ id: 'f_a', name: 'Folder A' }],
       templates: [customTemplate({ id: 'tpl_c', name: 'Chest day', folderId: 'f_a' })],
@@ -506,7 +441,6 @@ describe('context menus', () => {
   });
 
   it('Move does not offer No folder for a template that has none', async () => {
-    setPro(true);
     await seed({
       folders: [{ id: 'f_a', name: 'Folder A' }],
       templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })],
@@ -521,7 +455,6 @@ describe('context menus', () => {
   });
 
   it('Delete asks a themed confirm; Cancel keeps, Delete removes', async () => {
-    setPro(true);
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
@@ -559,7 +492,6 @@ describe('folders', () => {
   }
 
   it('custom folder menu: Rename, Pin to top, Archive, Delete', async () => {
-    setPro(true);
     await seed(folderSeed);
     renderHome();
     await ready();
@@ -575,7 +507,6 @@ describe('folders', () => {
   });
 
   it('delete prompt counts hidden templates; Remove from folder keeps them', async () => {
-    setPro(true);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await seed(folderSeed);
     renderHome();
@@ -596,7 +527,6 @@ describe('folders', () => {
   });
 
   it('Delete folder and templates also deletes hidden templates in it', async () => {
-    setPro(true);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await seed(folderSeed);
     renderHome();
@@ -609,7 +539,6 @@ describe('folders', () => {
   });
 
   it('an empty folder gets a plain Delete confirm', async () => {
-    setPro(true);
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await seed({ folders: [{ id: 'f_e', name: 'Empty' }] });
     renderHome();
@@ -624,7 +553,6 @@ describe('folders', () => {
   });
 
   it('Rename folder saves the trimmed name', async () => {
-    setPro(true);
     await seed(folderSeed);
     renderHome();
     await ready();

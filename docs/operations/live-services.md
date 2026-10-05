@@ -1,6 +1,6 @@
 # Live services
 
-How to operate the accounts that are already wired. This is not a setup guide. First-time wiring lives in [supabase/setup.md](../supabase/setup.md), [mobile/eas-build.md](../mobile/eas-build.md), and [monetization/revenuecat-setup.md](../monetization/revenuecat-setup.md).
+How to operate the accounts that are already wired. This is not a setup guide. First-time wiring lives in [supabase/setup.md](../supabase/setup.md), and [mobile/eas-build.md](../mobile/eas-build.md).
 
 Do not put API keys, SMTP passwords, or OAuth client secrets in this file or in git.
 
@@ -13,8 +13,8 @@ Do not put API keys, SMTP passwords, or OAuth client secrets in this file or in 
 | Google Cloud | Google sign-in clients | APIs & Services → Credentials, same project as the Web client |
 | Apple Developer | Sign in with Apple, push entitlement, signing | [developer.apple.com](https://developer.apple.com/account) → Identifiers → `com.muscle-os.app` |
 | Expo | Build env vars (`EXPO_PUBLIC_*`), Android upload keystore, iOS signing | Expo → MuscleOS → Environment variables / Credentials |
-| App Store Connect | iOS listing, subscriptions, TestFlight, App Review | App id `6810909876` (`ascAppId` in `apps/mobile/eas.json`) |
-| Google Play Console | Android listing, subscriptions, testing tracks, Play App Signing | App `app.muscleos` |
+| App Store Connect | iOS listing, TestFlight, App Review | App id `6810909876` (`ascAppId` in `apps/mobile/eas.json`) |
+| Google Play Console | Android listing, testing tracks, Play App Signing | App `app.muscleos` |
 | Website | `https://muscleos.app`, including `/auth/confirm` | The landing app in `apps/landing` |
 
 Public ids:
@@ -41,7 +41,7 @@ Authentication → URL configuration:
 - Site URL: `https://muscleos.app`
 - Redirect allow list: `https://muscleos.app/**`, `muscleos://**`, `https://muscleos.app/auth/confirm`
 
-One Supabase user per email. Apple, Google, and a password on that address are the same account. Deleting the user removes all three. The store subscription is not cancelled.
+One Supabase user per email. Apple, Google, and a password on that address are the same account. Deleting the user removes all three.
 
 Authentication → Users is the place to look up or delete an account by hand. If signup shows “Error sending confirmation email”, the user row is rolled back and will not be there. Fix mail, then have them sign up again.
 
@@ -158,17 +158,15 @@ Play, and an application id can never change once published. The Kotlin namespac
   which EAS stores (Expo → Credentials → Android → `app.muscleos`). EAS only creates or rotates it
   through the interactive `npx eas-cli credentials -p android`, which has to run in a real terminal.
 - **The first AAB had to be uploaded by hand** in Play Console. `eas submit -p android` needs the
-  Google service account (the same one RevenueCat uses) with release permissions.
+  Google service account with release permissions (not set up yet; upload AABs by hand).
 - **Production access:** this is a personal developer account, so Play requires a closed test with at
   least 12 opted-in testers for 14 consecutive days before **Apply for production access** unlocks.
   Testers are managed on the closed track's **Testers** tab and join through its opt-in link.
-- **Store review accounts:** Apple and Google each have their own demo account. Apple's stays on
-  **Basic** so the reviewer can test the purchase flow. Google's has a complimentary lifetime Pro
-  grant, because Play's App access form asks for full access to paid features. Credentials live in
-  each console's review form, not in git.
+- **Store review accounts:** Apple and Google each have their own demo account. Every feature is
+  free, so they need no special access. Credentials live in each console's review form, not in git.
 
-## Builds and purchases
+## Builds
 
-Preview and production env vars, and how to ship a binary, are in [mobile/eas-build.md](../mobile/eas-build.md). Product ids, the **MuscleOS Pro** entitlement, and the RevenueCat dashboard are in [monetization/revenuecat-setup.md](../monetization/revenuecat-setup.md).
+Preview and production env vars, and how to ship a binary, are in [mobile/eas-build.md](../mobile/eas-build.md). The app has no in-app purchases ([pricing](../features/pricing.md)).
 
 After changing a public `EXPO_PUBLIC_*` value, rebuild. A reload does not pick up a new client id or API key.

@@ -16,7 +16,6 @@ import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useSessionsStore } from '@/store/sessionsStore';
-import { useProGate } from '@/hooks/useProGate';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { SessionCard } from '@/components/history/SessionCard';
@@ -38,7 +37,6 @@ import { useSettingsStore } from '@/store/settingsStore';
 export default function HistoryScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { gatePro, isPro } = useProGate();
   const { load: loadSessions, sessions, completedSessions, deleteSession } = useSessionsStore();
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const getExercise = useExercisesStore((s) => s.getExercise);
@@ -113,9 +111,7 @@ export default function HistoryScreen() {
           </View>
           <View style={styles.headerButtons}>
             <Pressable
-              onPress={() => {
-                if (gatePro('personal_records')) router.push('/personal-records');
-              }}
+              onPress={() => router.push('/personal-records')}
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: colors.surface, borderColor: colors.border },
@@ -128,9 +124,7 @@ export default function HistoryScreen() {
               <Ionicons name="trophy-outline" size={22} color={colors.primary} />
             </Pressable>
             <Pressable
-              onPress={() => {
-                if (gatePro('monthly_calendar')) router.push('/history-monthly');
-              }}
+              onPress={() => router.push('/history-monthly')}
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: colors.surface, borderColor: colors.border },
@@ -187,7 +181,7 @@ export default function HistoryScreen() {
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
                     onDelete={() => setDeleteTarget(s)}
-                    prExerciseIds={isPro ? sessionPRs.get(s.id) : undefined}
+                    prExerciseIds={sessionPRs.get(s.id)}
                     volumeDelta={volumeDeltas.get(s.id)}
                     getExerciseName={(id) => getExercise(id)?.name ?? id}
                     weightUnit={weightUnit}
