@@ -444,7 +444,10 @@ Export carries an explicit `version: 1`.
 | `SCHEDULE_EXACT_ALARM` | Android 13+ | Prompted once on first rest timer | On-time rest alerts; otherwise up to a minute late |
 
 `RECORD_AUDIO` is **explicitly removed** from the Android manifest — the app plays audio but never
-records. iOS declares the time-sensitive notification entitlement so rest alerts break through
+records. `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (added by `expo-audio` for its
+lock-screen media controls service) are removed too: sounds are short in-app cues with background
+playback off, so that service never starts, and keeping the permissions would require a Play
+foreground-service declaration. iOS declares the time-sensitive notification entitlement so rest alerts break through
 Focus modes.
 
 Channels: `workout_fallback_v1` (low importance, ongoing) and `rest_complete_fallback_v1` (high
