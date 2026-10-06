@@ -176,6 +176,21 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * The opaque color of `hex` at `alpha` painted over `base` (both hex). Use instead of `withAlpha`
+ * for fills that tile edge to edge: translucent neighbours double up or leave a gap wherever
+ * their edges round to different pixels, which shows as a seam.
+ */
+export function blendOver(hex: string, alpha: number, base: string): string {
+  const fg = hexToRgb(hex);
+  const bg = hexToRgb(base);
+  const a = Math.min(1, Math.max(0, alpha));
+  return `#${fg
+    .map((c, i) => Math.round(c * a + bg[i] * (1 - a)).toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()}`;
+}
+
 export type ThemeColors = PaletteBase & {
   primarySurface: string;
   primaryBorder: string;

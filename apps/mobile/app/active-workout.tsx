@@ -20,7 +20,7 @@ import {
 import { GestureHandlerRootView, Swipeable, type FlatList as GestureFlatList } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
-import { withAlpha } from '@/theme/palette';
+import { blendOver, withAlpha } from '@/theme/palette';
 import { fontFamily, typography } from '@/theme/typography';
 import {
   fontScaleCap,
@@ -37,6 +37,7 @@ import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorko
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay } from '@/utils/weightUnits';
 import { getExercisePrevious } from '@/storage/localStorage';
@@ -426,7 +427,7 @@ function RestBetweenBar({
       style={({ pressed }) => [
         styles.restBar,
         { minHeight, opacity: pressed ? 0.7 : 1 },
-        completedTint && { backgroundColor: completedTint.background },
+        completedTint && [styles.restBarJoined, { backgroundColor: completedTint.background }],
       ]}
     >
       {completedTint ? (
@@ -628,6 +629,8 @@ export default function ActiveWorkoutScreen() {
   const menuAnchorRefs = useRef<Record<number, View | null>>({});
   const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
   const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
+  /** Exercise whose info sheet (how-to, muscles, notes) is open from its card title. */
+  const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [removeSetTarget, setRemoveSetTarget] = useState<{ exIdx: number; setIdx: number } | null>(
@@ -1094,6 +1097,7 @@ export default function ActiveWorkoutScreen() {
     exercisePicker !== null ||
     restTimersExIdx !== null ||
     noteEditExIdx !== null ||
+    infoExerciseId !== null ||
     showFinishSummary ||
     showRestPicker ||
     showRestControls ||
@@ -1338,6 +1342,13 @@ export default function ActiveWorkoutScreen() {
                 <View style={styles.exerciseCardHeader}>
                   <Pressable
                     style={styles.exerciseTitlePressable}
+                    onPress={() => {
+                      if (exercise) setInfoExerciseId(exercise.id);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={exercise?.name ?? se.exerciseId}
+                    accessibilityHint="Opens exercise info. Long-press to reorder exercises"
+                    testID={`exercise-title-${exIdx}`}
                     onLongPress={() => {
                       if (session.exercises.length < 2) return;
                       setExerciseMenuExIdx(null);
@@ -1444,8 +1455,10 @@ export default function ActiveWorkoutScreen() {
                 const prevLabel = previousLabel(previousMap[se.exerciseId], weightUnit);
                 const rowName = `${exIdx}-${setIdx}`;
 
-                const completedRowTint = withAlpha(colors.success, isDark ? 0.22 : 0.16);
-                const currentRowTint = withAlpha(colors.primary, isDark ? 0.22 : 0.16);
+                // Opaque: rows and the rest bars between them tile edge to edge, and translucent
+                // tints seam where those edges round to different pixels (MUS-106).
+                const completedRowTint = blendOver(colors.success, isDark ? 0.22 : 0.16, colors.surface);
+                const currentRowTint = blendOver(colors.primary, isDark ? 0.22 : 0.16, colors.surface);
                 const statusAccent = set.completed
                   ? colors.success
                   : isCurrentSet
@@ -1691,6 +1704,11 @@ export default function ActiveWorkoutScreen() {
           onHeight={setKeypadHeight}
         />
       ) : null}
+
+      <ExerciseDetailSheet
+        exercise={infoExerciseId ? (getExercise(infoExerciseId) ?? null) : null}
+        onClose={() => setInfoExerciseId(null)}
+      />
 
       <ConfirmDialog
         visible={showCancelConfirm}
@@ -2788,6 +2806,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
     position: 'relative',
+  },
+  /** Bleeds a pixel into the rows either side so rounding can't open a gap in the green column. */
+  restBarJoined: {
+    marginVertical: -1,
+    paddingVertical: 1,
   },
   restBarTrack: {
     position: 'absolute',
