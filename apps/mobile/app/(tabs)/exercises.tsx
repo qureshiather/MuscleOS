@@ -6,24 +6,21 @@ import {
   FlatList,
   TextInput,
   Pressable,
-  Modal,
   ScrollView,
   LayoutAnimation,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
-import { Screen, SheetFrame } from '@/components/layout';
-import { fontScaleCap, useBottomSpace, useModalMaxHeight } from '@/theme/layout';
+import { Screen } from '@/components/layout';
+import { fontScaleCap } from '@/theme/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
-import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatMuscleLabels } from '@muscleos/types';
 import type { Exercise, ExerciseCategory } from '@muscleos/types';
-import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import {
   LARGE_MUSCLE_GROUPS,
   filterLibraryExercises,
@@ -33,27 +30,17 @@ import {
 } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
 
-/** Approximate detail-sheet header (title + Close + padding + hairline). */
-const DETAIL_HEADER_HEIGHT = 64;
-
 export default function ExercisesScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const sheetMaxHeight = useModalMaxHeight();
-  const sheetBottomPad = useBottomSpace(spacing.xl);
-  const detailScrollMaxHeight = Math.max(160, sheetMaxHeight - sheetBottomPad - DETAIL_HEADER_HEIGHT);
   // Subscribe to the arrays (not the getAllExercises function) so deletes and catalog refreshes
   // re-render the list.
   const catalogExercises = useExercisesStore((s) => s.catalogExercises);
   const customExercises = useExercisesStore((s) => s.customExercises);
-  const removeExercise = useExercisesStore((s) => s.removeExercise);
-  const notes = useExerciseNotesStore((s) => s.notes);
-  const setNote = useExerciseNotesStore((s) => s.setNote);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<ExerciseCategory | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const allExercises = useMemo(
@@ -305,7 +292,6 @@ export default function ExercisesScreen() {
               },
             ]}
             onPress={() => {
-              setNoteDraft(notes[item.id] ?? '');
               setSelected(item);
             }}
           >
@@ -328,133 +314,7 @@ export default function ExercisesScreen() {
           </Pressable>
         )}
       />
-      <Modal
-        visible={selected !== null}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          if (selected) void setNote(selected.id, noteDraft);
-          setSelected(null);
-        }}
-      >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          {/* Sibling backdrop — nesting ScrollView in Pressable breaks pans on Android (MUS-31). */}
-          <Pressable
-            style={StyleSheet.absoluteFillObject}
-            onPress={() => {
-              if (selected) void setNote(selected.id, noteDraft);
-              setSelected(null);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss exercise details"
-          />
-          <SheetFrame style={styles.sheet}>
-            {selected ? (
-              <>
-                <View
-                  style={[
-                    styles.modalHeader,
-                    { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
-                  ]}
-                >
-                  <Text style={[styles.modalTitle, { color: colors.text }]}>{selected.name}</Text>
-                  <Pressable
-                    onPress={() => {
-                      void setNote(selected.id, noteDraft);
-                      setSelected(null);
-                    }}
-                    hitSlop={8}
-                  >
-                    <Text style={[styles.modalClose, { color: colors.primary }]}>Close</Text>
-                  </Pressable>
-                </View>
-                <ScrollView
-                  style={[styles.modalScroll, { maxHeight: detailScrollMaxHeight }]}
-                  contentContainerStyle={styles.modalBody}
-                  keyboardShouldPersistTaps="handled"
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator
-                >
-                  <MuscleDiagram muscleIds={selected.muscles} size={0.9} />
-                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Muscles</Text>
-                  <Text style={[styles.bodyText, { color: colors.text }]}>
-                    {formatMuscleLabels(selected.muscles)}
-                  </Text>
-                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Type</Text>
-                  <Text style={[styles.bodyText, { color: colors.text }]}>
-                    {exerciseTypeLine(selected)}
-                  </Text>
-                  {isCustomExerciseId(selected.id) ? (
-                    <View style={styles.customActions}>
-                      <Pressable
-                        onPress={() => {
-                          const id = selected.id;
-                          void setNote(id, noteDraft);
-                          setSelected(null);
-                          router.push({ pathname: '/create-exercise', params: { id } });
-                        }}
-                      >
-                        <Text style={[styles.modalClose, { color: colors.primary }]}>Edit</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => {
-                          Alert.alert(
-                            'Delete exercise',
-                            `Remove ${selected.name} from your account? Past workouts keep the name if you logged it.`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Delete',
-                                style: 'destructive',
-                                onPress: () => {
-                                  const id = selected.id;
-                                  void removeExercise(id);
-                                  setSelected(null);
-                                },
-                              },
-                            ]
-                          );
-                        }}
-                      >
-                        <Text style={[styles.modalClose, { color: colors.danger }]}>Delete</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                  {selected.instructions ? (
-                    <>
-                      <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Instructions</Text>
-                      <Text style={[styles.bodyText, { color: colors.text }]}>
-                        {selected.instructions}
-                      </Text>
-                    </>
-                  ) : null}
-                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Your notes</Text>
-                  <Text style={[styles.noteHint, { color: colors.textMuted }]}>
-                    Seat height, lever settings, and other personal adjustments. Synced to your account.
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.noteInput,
-                      {
-                        backgroundColor: colors.background,
-                        color: colors.text,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                    placeholder="e.g. seat 4 · lever underneath on 3"
-                    placeholderTextColor={colors.textMuted}
-                    value={noteDraft}
-                    onChangeText={setNoteDraft}
-                    onEndEditing={() => void setNote(selected.id, noteDraft)}
-                    multiline
-                    textAlignVertical="top"
-                  />
-                </ScrollView>
-              </>
-            ) : null}
-          </SheetFrame>
-        </View>
-      </Modal>
+      <ExerciseDetailSheet exercise={selected} onClose={() => setSelected(null)} canManage />
     </Screen>
   );
 }
@@ -536,37 +396,6 @@ const styles = StyleSheet.create({
   customBadge: { paddingHorizontal: spacing.sm - 2, paddingVertical: 2, borderRadius: radius.sm - 2 },
   customBadgeText: { ...typography.caption, fontFamily: typography.label.fontFamily },
   cardMeta: { ...typography.caption, marginTop: spacing.xs },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    flexShrink: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg + 4,
-  },
-  modalTitle: { ...typography.sectionTitle, flex: 1 },
-  modalClose: { ...typography.label },
-  modalScroll: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  modalBody: { padding: spacing.lg + 4, paddingTop: spacing.md },
-  sectionLabel: { ...typography.caption, fontFamily: typography.label.fontFamily, marginTop: spacing.lg, marginBottom: spacing.xs },
-  bodyText: { ...typography.body },
-  noteHint: { ...typography.caption, marginBottom: spacing.sm },
-  noteInput: {
-    ...typography.body,
-    minHeight: 88,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
   emptyCreate: {
     marginTop: spacing.lg,
     padding: spacing.lg,
@@ -575,9 +404,4 @@ const styles = StyleSheet.create({
   },
   emptyCreateTitle: { ...typography.bodyMedium },
   emptyCreateHint: { ...typography.caption, marginTop: spacing.sm },
-  customActions: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-    marginTop: spacing.lg,
-  },
 });

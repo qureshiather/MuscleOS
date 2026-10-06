@@ -11,6 +11,7 @@ export {
   brandColors,
   buildThemeColors,
   withAlpha,
+  blendOver,
   darkThemeColors,
   lightThemeColors,
   type ColorMode,

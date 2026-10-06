@@ -457,7 +457,9 @@ Behaviour detail: [workout-logging.md](workout-logging.md#notifications).
 
 Modes `auto` / `dark` / `light`, default `auto`. Palette hex values live in **one place**:
 `paletteConfig` in `src/theme/palette.ts`. `buildThemeColors(mode)` derives the translucent and
-tinted tokens from those base values.
+tinted tokens from those base values. `withAlpha(hex, a)` makes a translucent rgba; `blendOver(hex,
+a, base)` makes the opaque equivalent over a known background, for fills that tile edge to edge
+(translucent neighbours seam where their edges round to different pixels).
 
 **Screens must use `useTheme().colors`** — no hardcoded hex or rgba in components.
 

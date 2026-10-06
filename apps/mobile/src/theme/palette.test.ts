@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildThemeColors, darkThemeColors, lightThemeColors, paletteConfig } from './palette';
+import { blendOver, buildThemeColors, darkThemeColors, lightThemeColors, paletteConfig } from './palette';
 
 const ON_FILL_TOKENS = ['primaryOn', 'successOn', 'dangerOn'] as const;
 const DERIVED_ON_TOKENS = ['primaryOnMuted', 'primaryOnSurface'] as const;
@@ -46,5 +46,22 @@ describe('buildThemeColors', () => {
         expect(built).toHaveProperty(key);
       }
     }
+  });
+});
+
+describe('blendOver', () => {
+  it('returns the base at alpha 0 and the color at alpha 1', () => {
+    expect(blendOver('#3ED68C', 0, '#1C1F2A')).toBe('#1C1F2A');
+    expect(blendOver('#3ED68C', 1, '#1C1F2A')).toBe('#3ED68C');
+  });
+
+  it('mixes each channel and rounds to an opaque hex', () => {
+    expect(blendOver('#FFFFFF', 0.5, '#000000')).toBe('#808080');
+    expect(blendOver('#FF0000', 0.25, '#0000FF')).toBe('#4000BF');
+  });
+
+  it('accepts shorthand hex and clamps alpha', () => {
+    expect(blendOver('#fff', 2, '#000')).toBe('#FFFFFF');
+    expect(blendOver('#fff', -1, '#000')).toBe('#000000');
   });
 });

@@ -307,7 +307,7 @@ the same line.
 it as a custom ("Save it as your own exercise."); tapping it opens the create form with the name
 prefilled. With no query, the list reads "No exercises match these filters."
 
-**Detail sheet** (tap a row): name, body diagram, muscle labels, type and equipment, Edit/Delete
+**Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete): name, body diagram, muscle labels, type and equipment, Edit/Delete
 for customs, instructions when present, and **Your notes** — a free-text field ("Seat height,
 lever settings…") keyed by exercise id and synced to your account. Notes save on close, on overlay
 tap, and on end-editing. They are trimmed; saving an empty note deletes the entry. Every change

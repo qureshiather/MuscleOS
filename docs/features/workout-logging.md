@@ -128,7 +128,7 @@ Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the fu
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
 - Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including the first set of later exercises — is "upcoming": it renders muted with an outlined number; there is never more than one highlighted set at a time. The set number's accessibility label reads `Set <n>, current | upcoming | completed`.
-- Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint. A rest row between two completed sets carries the same tint and bar (no divider line), so a run of completed sets reads as one unbroken green column.
+- Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint. A rest row between two completed sets carries the same tint and bar (no divider line), so a run of completed sets reads as one unbroken green column. Row tints are opaque (the tint pre-blended over the card surface) and a joining rest row bleeds a pixel into its neighbours, so fractional row edges can't show a seam between them.
 - When every set in an exercise is completed, the card is marked done: a green border and a green check icon before the exercise name.
 - After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
 - A rest row sits on the divider after a set when that set's rest duration is greater than 0 (and after the last such set, above Add set). It shows that duration, or the countdown while a timer is running for that set. While counting down, the divider itself becomes the progress track: it thickens and fills with the primary colour edge to edge across the row as the rest elapses, gliding between the one-second ticks. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
@@ -326,6 +326,7 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 
 | Action | Behaviour |
 |--------|-----------|
+| **Exercise info** | Tap an exercise title to open the same detail sheet as the [Exercises tab](exercise-library.md) — diagram, muscles, type, instructions and **Your notes** — without Edit/Delete for customs. The number pad hides while it's open; the session is untouched |
 | **Reorder exercises** | Long-press an exercise title to enter drag mode |
 | **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. 0:00 means that kind does not start a timer |
 | **Exercise note** | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
@@ -486,7 +487,8 @@ the real router.
   disabled without reps, current/upcoming/completed labels across exercises and the done card,
   the header rest dialog (±30, Skip, recorded rest), the rest row opening the manual picker, a
   countdown ending, + ADD SET, add warm-up, long-press delete with the themed confirm, swipe
-  delete, and the 1-set minimum
+  delete, the 1-set minimum, and the exercise info sheet (instructions, pad hidden, no
+  Edit/Delete, note saved on Close)
 - `finish.test.tsx` — Finish disabled until a set is completed, the option matrix (unchanged
   built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
   custom-changed hint, Back, the save-as-template name step and its Back, summary contents,

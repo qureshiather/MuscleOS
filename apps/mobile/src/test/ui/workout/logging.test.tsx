@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import { setExercisePrevious } from '@/storage/localStorage';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
+import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import {
   PUSH,
   PUSH_URL,
@@ -17,6 +18,7 @@ jest.mock('@/sync', () => ({
   notifySessionUpsert: jest.fn(),
   notifySessionDelete: jest.fn(),
   notifyExercisePreviousSnapshot: jest.fn(),
+  notifyExerciseNotesSnapshot: jest.fn(),
   syncAfterWorkout: jest.fn(async () => undefined),
 }));
 
@@ -255,5 +257,28 @@ describe('adding and removing sets', () => {
     expect(screen.queryByTestId('set-swipe-delete-0-0')).toBeNull();
     fireEvent(screen.getByTestId('set-label-0-0'), 'longPress');
     expect(screen.queryByText('Delete this set from the exercise?')).toBeNull();
+  });
+});
+
+describe('exercise info', () => {
+  test('tapping an exercise title opens its info sheet with instructions; Close saves the note', async () => {
+    useExerciseNotesStore.setState({ notes: {}, isLoading: false });
+    await startPush(startUrl('ppl-push', ['bench-press']));
+    press('set-reps-0-0');
+    expect(screen.getByTestId('numeric-keypad')).toBeTruthy();
+
+    press('exercise-title-0');
+    expect(await screen.findByText(/^Lie on the bench with your eyes under the bar/)).toBeTruthy();
+    expect(screen.getByText('Muscles')).toBeTruthy();
+    // the sheet owns the bottom of the screen; custom Edit/Delete never show mid-workout
+    expect(screen.queryByTestId('numeric-keypad')).toBeNull();
+    expect(screen.queryByText('Delete')).toBeNull();
+
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. seat 4 · lever underneath on 3'), 'seat 4');
+    fireEvent.press(screen.getByText('Close'));
+    await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({ 'bench-press': 'seat 4' }));
+    expect(screen.queryByText(/^Lie on the bench with your eyes under the bar/)).toBeNull();
+    // the session is untouched
+    expect(session()?.exercises.map((e) => e.exerciseId)).toEqual(['bench-press']);
   });
 });
