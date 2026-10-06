@@ -2,12 +2,13 @@ import { fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BiodataScreen from '../../../../app/biodata';
 import SettingsScreen from '../../../../app/settings';
+import AcknowledgementsScreen from '../../../../app/acknowledgements';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getAppSettings } from '@/storage/localStorage';
 import { renderApp, resetAppState } from '../render';
-import { syncModuleMock } from './syncMock';
+import type { syncModuleMock } from './syncMock';
 
-/** docs/features/accounts-and-data.md#profile and #settings — Biodata and Settings screens. */
+/** docs/features/accounts-and-data.md#profile, #settings and #acknowledgements — Biodata, Settings and Acknowledgements screens. */
 
 jest.mock('@/sync', () => require('./syncMock').syncModuleMock());
 const sync = jest.requireMock('@/sync') as ReturnType<typeof syncModuleMock>;
@@ -116,5 +117,15 @@ describe('Settings', () => {
     fireEvent.press(await screen.findByText('Dark'));
     await waitFor(async () => expect(await AsyncStorage.getItem('muscleos_theme')).toBe('dark'));
     expect(sync.notifyAppSettingsSnapshot).toHaveBeenCalledWith(expect.objectContaining({ themePreference: 'dark' }));
+  });
+
+  test('About → Acknowledgements lists open-source notices and their licenses', async () => {
+    renderApp({ settings: SettingsScreen, acknowledgements: AcknowledgementsScreen }, '/settings');
+    fireEvent.press(await screen.findByTestId('settings-acknowledgements'));
+    expect(await screen.findByText('react-native-body-highlighter')).toBeTruthy();
+    expect(screen.getByText('Copyright (c) 2022 ELABBASSI Hicham')).toBeTruthy();
+    expect(screen.getByText('Libraries — MIT License')).toBeTruthy();
+    expect(screen.getByText('DM Sans')).toBeTruthy();
+    expect(screen.getByText('SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007')).toBeTruthy();
   });
 });
