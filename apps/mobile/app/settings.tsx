@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { ListRow } from '@/components/ui/ListRow';
 
 export default function SettingsScreen() {
   const { colors, themePreference, setTheme } = useTheme();
@@ -99,6 +100,18 @@ export default function SettingsScreen() {
               ios_backgroundColor={colors.border}
             />
           </View>
+        </Card>
+
+        <Card style={styles.section}>
+          <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>About</Text>
+          <ListRow
+            inset
+            last
+            title="Acknowledgements"
+            hint="Open-source licenses"
+            testID="settings-acknowledgements"
+            onPress={() => router.push('/acknowledgements')}
+          />
         </Card>
       </ScrollView>
     </Screen>

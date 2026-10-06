@@ -10,7 +10,7 @@ account is optional and adds backup plus multi-device sync; it is never required
 |--|--|
 | Root layout | `apps/mobile/app/_layout.tsx` |
 | Auth | `apps/mobile/src/store/authStore.ts`, `src/auth/`, `src/lib/supabase.ts`, `app/auth.tsx`, `app/auth-email.tsx`, `app/auth-new-password.tsx`, `app/auth-callback.tsx` |
-| Profile / settings | `app/(tabs)/profile.tsx`, `app/account.tsx`, `app/settings.tsx`, `app/biodata.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
+| Profile / settings | `app/(tabs)/profile.tsx`, `app/account.tsx`, `app/settings.tsx`, `app/acknowledgements.tsx`, `app/biodata.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
 | Storage | `apps/mobile/src/storage/keys.ts`, `src/storage/localStorage.ts` |
 | Sync | `apps/mobile/src/sync/` |
 | Theme | `apps/mobile/src/theme/` |
@@ -29,7 +29,7 @@ custom (`TabBarWithResumePill`) so it can host the resume-workout pill. It is si
 (`computeTabBarLayout`): icon and label sit centred between equal top and bottom padding, and a larger
 system bottom inset (home indicator, Android nav bar) replaces the bottom padding rather than adding to it.
 
-**Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/biodata`, `/data`, `/create-template`,
+**Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/acknowledgements`, `/biodata`, `/data`, `/create-template`,
 `/create-exercise`, `/workout-preview`, `/active-workout`, `/history-monthly`,
 `/exercise-progression`, `/personal-records`. `/templates` is a legacy redirect to the tabs.
 
@@ -242,7 +242,18 @@ is written and offered to sync immediately. Every settings write — units, soun
 theme picker — goes through one queue (`persistAndNotify` in `settingsStore`), so quick taps or a
 theme change at the same moment as a unit change never drop one.
 
-Settings is **Appearance**, **Units**, and **Sounds** only.
+Settings is **Appearance**, **Units**, **Sounds**, and an **About** card whose one row opens
+**Acknowledgements**.
+
+### Acknowledgements
+
+`/acknowledgements` (Settings → About) shows the open-source notices that the MIT License and SIL
+Open Font License require to ship with the app. It has two cards. **Libraries — MIT License** lists
+each runtime dependency with its copyright line, followed by the MIT text. **Fonts — SIL Open Font
+License 1.1** lists DM Sans and DM Mono, followed by the OFL text. The entries are in
+`src/data/acknowledgements.ts` and the license texts in `src/data/licenseTexts.ts`. Every package in
+`apps/mobile/package.json` `dependencies` must have an entry; workspace `@muscleos/*` packages are
+exempt (`missingAcknowledgements`). Adding a dependency without one fails the unit test.
 
 **Data** (`/data`, from Profile → Account): Sync now (linked accounts only), Export my data, Import
 data, Clear all data.
@@ -604,6 +615,8 @@ Covered:
   (old outbox dropped and never pushed, owner adopted for old metas, sign-out reset); signing into
   an existing account with guest data (two-way merge, remote snapshots win, brand-new account gets
   snapshots, retry after a failed first sync); `onAccountLinked` full snapshot; `useSyncStore`
+- `src/data/acknowledgements.test.ts` — every runtime dependency has a license notice, workspace
+  packages exempt, no duplicates
 - `src/sync/syncStatus.test.ts` — Account sync-row copy and the Sync now result alert
 - `src/auth/authSession.test.ts` — launch: existing session reused, anonymous sign-in, unconfigured,
   10 s timeouts and failures; sign-out order (Google, Supabase, new guest, sync reset)
@@ -627,7 +640,7 @@ Covered:
   Delete account two confirms and friendly failure), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata validation, units, save; Settings units,
-  sounds, theme), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
+  sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:

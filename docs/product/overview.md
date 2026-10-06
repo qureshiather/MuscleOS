@@ -99,6 +99,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Monthly calendar | `/history-monthly` | Month grid of training days | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
 | Account | `/account` | Sign-in, sync, data, deletion, legal | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Settings | `/settings` | Appearance, units, sounds | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Acknowledgements | `/acknowledgements` | Open-source license notices (from Settings → About) | [accounts-and-data.md](../features/accounts-and-data.md#acknowledgements) |
 | Biodata | `/biodata` | Height, weight, age, gender | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Data | `/data` | Sync, export, import, clear this device | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
