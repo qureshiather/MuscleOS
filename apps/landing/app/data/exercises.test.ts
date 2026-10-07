@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import demoIds from './exerciseDemos.json';
 import {
   DEMO_EXERCISES,
+  FEATURED_DEMOS,
   demoSources,
   EXERCISES,
   exercisePath,
@@ -33,9 +34,8 @@ describe('exercise catalog for the website', () => {
       dark: { video: '/exercise-demos/squat-dark.mp4', poster: '/exercise-demos/squat-dark.webp' },
       light: { video: '/exercise-demos/squat-light.mp4', poster: '/exercise-demos/squat-light.webp' },
     });
-    const without = EXERCISES.find((e) => !hasDemo(e.id));
-    expect(without).toBeDefined();
-    expect(demoSources(without?.id ?? '')).toBeUndefined();
+    expect(hasDemo('not-an-exercise')).toBe(false);
+    expect(demoSources('not-an-exercise')).toBeUndefined();
   });
 
   it('links each exercise at /exercises/<id>', () => {
@@ -82,5 +82,12 @@ describe('type line', () => {
     expect(label('plank')).toBe('Bodyweight');
     expect(label('leg-press')).toBe('Machine');
     expect(label('face-pull')).toBe('Cable · Band');
+  });
+});
+
+describe('featured demos', () => {
+  it('are staple lifts that all have a demo', () => {
+    expect(FEATURED_DEMOS.length).toBeGreaterThanOrEqual(12);
+    for (const e of FEATURED_DEMOS) expect(hasDemo(e.id)).toBe(true);
   });
 });

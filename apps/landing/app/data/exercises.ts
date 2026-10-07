@@ -28,6 +28,17 @@ export function hasDemo(id: string): boolean {
 /** Exercises with an animated demo, A–Z. */
 export const DEMO_EXERCISES = EXERCISES.filter((e) => hasDemo(e.id));
 
+/** The staple lifts shown as a grid at the top of the library (the rest are in the list). */
+const FEATURED_IDS = [
+  'squat', 'bench-press', 'deadlift', 'overhead-press', 'barbell-row', 'pull-up', 'romanian-deadlift',
+  'incline-bench', 'lat-pulldown', 'hip-thrust', 'leg-press', 'bulgarian-split', 'push-up', 'lunges',
+  'barbell-curl', 'tricep-pushdown', 'lateral-raise', 'plank', 'kettlebell-swing', 'power-clean',
+];
+
+export const FEATURED_DEMOS = FEATURED_IDS.map((id) => getExercise(id)).filter(
+  (e): e is CatalogExercise => e !== undefined && hasDemo(e.id),
+);
+
 export type DemoTheme = 'dark' | 'light';
 export type DemoSources = Record<DemoTheme, { video: string; poster: string }>;
 

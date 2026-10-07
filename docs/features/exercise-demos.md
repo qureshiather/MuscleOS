@@ -14,7 +14,8 @@ mobile app bundles no media and no list of which exercises have a demo.
 
 ## Website
 
-**`/exercises`** shows the animated demos first (a grid, A–Z), then **All exercises**: every
+**`/exercises`** shows **Staple lifts** first (a grid of demos for a fixed set of core lifts,
+`FEATURED_DEMOS`, with the count of animated exercises), then **All exercises**: every
 published catalog row A–Z with a search box. Search is case-insensitive and every word must match
 the name, muscle labels or equipment labels (`filterExercises`). Rows with a demo carry a
 **Demo** badge.
