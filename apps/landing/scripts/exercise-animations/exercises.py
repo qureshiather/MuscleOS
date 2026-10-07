@@ -9,7 +9,6 @@ shared, so improving any of them improves every exercise.
 """
 
 import math
-from dataclasses import dataclass, field
 
 from mathutils import Vector
 
@@ -17,6 +16,7 @@ import mannequin as M
 import scene as S
 from anim import X, lerp, sgn, smootherstep
 from equipment import place, qx, set_line
+from registry import SPECS, barbell, cam, dumbbells, nothing, spec  # noqa: F401
 from moves import (
     SIDES,
     STAND_Z,
@@ -33,44 +33,6 @@ from moves import (
     sit,
     stand,
 )
-
-
-@dataclass
-class Spec:
-    camera: dict
-    setup: callable
-    pose: callable = None
-    concentric: str = 'back'  # 'out': 0→1 is the lift. 'back': 1→0 is the lift.
-    timing: dict = field(default_factory=dict)
-    pulse_floor: float = 0.72
-
-
-SPECS = {}
-
-
-def spec(id_, **kw):
-    def deco(pose):
-        SPECS[id_] = Spec(pose=pose, **kw)
-        return pose
-
-    return deco
-
-
-def cam(target, azimuth, elevation=10, distance=3.8, lens=60):
-    """azimuth 0 looks at the figure's front; 90 is its left side."""
-    return dict(target=target, azimuth=azimuth, elevation=elevation, distance=distance, lens=lens)
-
-
-def nothing(ctx):
-    return {}
-
-
-def barbell(ctx, **kw):
-    return {'bar': ctx.eq.barbell(**kw)}
-
-
-def dumbbells(ctx):
-    return {'db': ctx.eq.dumbbells()}
 
 
 # ---------------------------------------------------------------------------------------------

@@ -262,3 +262,144 @@ class Equipment:
             self.frame('beam', (0.06, 0.4, 0.06), (0, 0.24, 0.04)),
         ])
         return {'yoke': yoke, 'step_edge': Vector((0, -0.1, 0.12))}
+
+    # -- more free weights ------------------------------------------------------------------
+
+    def kettlebell(self, name='kb'):
+        """Origin on the top bar of the handle, where the hand closes; the bell hangs below."""
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.06, minor_radius=0.011, location=(0, 0, -0.06), rotation=(R90, 0, 0))
+        handle = bpy.context.active_object
+        handle.name = name + '_handle'
+        self._finish(handle, self.m_metal)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.085, location=(0, 0, -0.19), segments=32, ring_count=16)
+        bell = bpy.context.active_object
+        bell.name = name + '_bell'
+        self._finish(bell, self.m_equip)
+        return self.group(name, [handle, bell])
+
+    def ez_bar(self, name='ez_bar'):
+        return self.barbell(name, plate_radius=0.17, plates=1, length=1.25)
+
+    def plate(self, name='plate', radius=0.225):
+        """A loose weight plate, faces along Y (held in front of the body)."""
+        return self.group(name, [self.cyl(name, radius, 0.05, (0, 0, 0), (R90, 0, 0), self.m_equip, 48)])
+
+    def medicine_ball(self, name='ball', radius=0.12):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, location=(0, 0, 0), segments=32, ring_count=16)
+        o = bpy.context.active_object
+        o.name = name
+        self._finish(o, self.m_pad)
+        return self.group(name, [o])
+
+    def trap_bar(self, name='trap_bar', handle_height=0.0):
+        """Hexagonal bar around the lifter; origin between the handles at handle height."""
+        parts = []
+        hx, hy = 0.29, 0.0
+        for s in (1, -1):
+            parts.append(self.cyl(name + '_handle', 0.016, 0.16, (s * hx, hy, handle_height), (R90, 0, 0), self.m_metal, 16))
+            parts.append(self.cyl(name + '_side', 0.016, 0.62, (s * 0.36, 0, 0), (R90, 0, 0), self.m_metal, 16))
+            parts.append(self.cyl(name + '_sleeve', 0.025, 0.38, (s * 0.6, 0, 0), (0, R90, 0), self.m_metal, 16))
+            for i in range(2):
+                parts.append(self.cyl(name + '_plate', 0.225 * (1 - 0.18 * i), 0.05, (s * (0.68 + 0.055 * i), 0, 0), (0, R90, 0), self.m_equip, 48))
+            for e in (1, -1):
+                parts.append(self.cyl(name + '_end', 0.016, 0.24, (s * 0.25, e * 0.31, 0), (0, R90, 0), self.m_metal, 16))
+        return self.group(name, parts)
+
+    # -- stations ---------------------------------------------------------------------------
+
+    def plyo_box(self, center=(0, 0), height=0.5, size=(0.5, 0.45), name='plyo_box'):
+        self.group(name, [self.pad(name, (size[0], size[1], height), (center[0], center[1], height / 2))])
+
+    def smith_machine(self, bar_y=0.0, name='smith'):
+        """Two guide rails either side; returns the bar handle (keyed by the exercise)."""
+        parts = []
+        for s in (1, -1):
+            parts.append(self.frame(name + '_rail', (0.07, 0.07, 2.2), (s * 0.62, bar_y, 1.1)))
+            parts.append(self.frame(name + '_base', (0.12, 0.9, 0.04), (s * 0.62, bar_y, 0.02)))
+        parts.append(self.frame(name + '_top', (1.34, 0.07, 0.07), (0, bar_y, 2.2)))
+        self.group(name, parts)
+        return self.barbell(name + '_bar', plates=1)
+
+    def rack_pins(self, height, name='pins', y=0.0):
+        """Safety pins either side at `height` (pin squats, pin presses, rack pulls)."""
+        parts = []
+        for s in (1, -1):
+            parts.append(self.frame(name + '_post', (0.07, 0.07, 1.9), (s * 0.6, y + 0.3, 0.95)))
+            parts.append(self.frame(name + '_post2', (0.07, 0.07, 1.9), (s * 0.6, y - 0.3, 0.95)))
+            parts.append(self.cyl(name + '_pin', 0.02, 0.7, (s * 0.6, y, height), (R90, 0, 0), self.m_metal, 16))
+        self.group(name, parts)
+
+    def dip_bars(self, height=1.25, width=0.27, name='dips'):
+        parts = []
+        for s in (1, -1):
+            parts.append(self.cyl(name + '_bar', 0.02, 0.6, (s * width, -0.05, height), (R90, 0, 0), self.m_metal, 16))
+            parts.append(self.frame(name + '_post', (0.05, 0.05, height), (s * width, 0.25, height / 2)))
+            parts.append(self.frame(name + '_post2', (0.05, 0.05, height), (s * width, -0.35, height / 2)))
+        self.group(name, parts)
+
+    def rings(self, height=2.3, width=0.25, hand_z=1.9, name='rings'):
+        """Gymnastic rings hanging from straps; returns ring handles (move them with the hands)."""
+        out = []
+        for s in (1, -1):
+            bpy.ops.mesh.primitive_torus_add(major_radius=0.09, minor_radius=0.014, location=(0, 0, 0), rotation=(0, R90, 0))
+            ring = bpy.context.active_object
+            ring.name = f'{name}_{s}'
+            self._finish(ring, self.m_pad)
+            out.append(self.group(f'{name}_ring{s}', [ring]))
+        out.append(self.line(name + '_strapL', accent=False, radius=0.008))
+        out.append(self.line(name + '_strapR', accent=False, radius=0.008))
+        return out
+
+    def preacher_bench(self, name='preacher'):
+        a = math.radians(-40)
+        self.group(name, [
+            self.pad(name + '_seat', (0.36, 0.34, 0.07), (0, 0.18, 0.62)),
+            self.pad(name + '_pad', (0.42, 0.06, 0.38), (0, -0.2, 1.05), (a, 0, 0)),
+            self.frame(name + '_post', (0.07, 0.07, 0.62), (0, 0.18, 0.31)),
+            self.frame(name + '_arm', (0.07, 0.07, 0.55), (0, -0.08, 0.75), (math.radians(-25), 0, 0)),
+            self.frame(name + '_base', (0.5, 0.8, 0.03), (0, 0.05, 0.015)),
+        ])
+
+    def captains_chair(self, name='captain'):
+        self.group(name, [
+            self.pad(name + '_back', (0.42, 0.07, 0.75), (0, 0.15, 1.35)),
+            self.pad(name + '_armL', (0.1, 0.45, 0.08), (0.27, -0.05, 1.42)),
+            self.pad(name + '_armR', (0.1, 0.45, 0.08), (-0.27, -0.05, 1.42)),
+            self.frame(name + '_postL', (0.06, 0.06, 1.4), (0.27, 0.15, 0.7)),
+            self.frame(name + '_postR', (0.06, 0.06, 1.4), (-0.27, 0.15, 0.7)),
+            self.frame(name + '_step', (0.65, 0.2, 0.04), (0, 0.05, 0.25)),
+            self.frame(name + '_base', (0.7, 0.8, 0.03), (0, 0.1, 0.015)),
+        ])
+
+    def back_extension_bench(self, name='hyper', angle=45):
+        """45° hyperextension bench; hip pad top at about hip height, ankle pad behind."""
+        a = math.radians(angle)
+        self.group(name, [
+            self.pad(name + '_hip', (0.4, 0.12, 0.3), (0, -0.12, 0.92), (a, 0, 0)),
+            self.pad(name + '_ankle', (0.4, 0.09, 0.09), (0, 0.42, 0.38)),
+            self.frame(name + '_rail', (0.08, 0.08, 1.1), (0, 0.15, 0.55), (a, 0, 0)),
+            self.frame(name + '_foot', (0.4, 0.3, 0.04), (0, 0.5, 0.22), (a, 0, 0)),
+            self.frame(name + '_base', (0.5, 1.0, 0.03), (0, 0.1, 0.015)),
+        ])
+
+    def landmine(self, anchor=(0, -1.3, 0.04), name='landmine'):
+        """Bar pivoting in a floor anchor; returns (anchor point, bar line). set_line the bar from
+        the anchor to the hands each frame."""
+        self.group(name, [self.frame(name + '_base', (0.3, 0.3, 0.06), (anchor[0], anchor[1], 0.03))])
+        return Vector(anchor), self.line(name + '_bar', radius=0.016)
+
+    def decline_bench(self, center=(0, 0.33), angle=15, name='decline'):
+        """Pad tilted head-down by `angle`; leg hooks at the high end."""
+        a = math.radians(-angle)
+        self.group(name, [
+            self.pad(name + '_pad', (0.28, 1.15, 0.07), (center[0], center[1], 0.48), (a, 0, 0)),
+            self.frame(name + '_leg1', (0.05, 0.05, 0.4), (center[0], center[1] + 0.4, 0.2)),
+            self.frame(name + '_leg2', (0.05, 0.05, 0.6), (center[0], center[1] - 0.4, 0.3)),
+            self.cyl(name + '_hook', 0.04, 0.34, (center[0], center[1] - 0.72, 0.55), (0, R90, 0), self.m_pad, 24),
+            self.frame(name + '_base', (0.4, 1.2, 0.03), (center[0], center[1], 0.015)),
+        ])
+
+
+def along(axis):
+    """Rotation taking +X (how bars and handles are modelled) onto `axis`."""
+    return Vector((1, 0, 0)).rotation_difference(Vector(axis).normalized())
