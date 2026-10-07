@@ -55,6 +55,7 @@ export function renderExercises(initialUrl = '/exercises') {
       '(tabs)/exercises': ExercisesScreen,
       'create-exercise': CreateExerciseScreen,
       'active-workout': routeStub('active-workout'),
+      'exercise-progression': routeStub('exercise-progression'),
     },
     initialUrl
   );

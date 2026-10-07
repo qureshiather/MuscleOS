@@ -1,6 +1,20 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, Modal, ScrollView, Alert } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  Modal,
+  ScrollView,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatMuscleLabels } from '@muscleos/types';
 import type { Exercise } from '@muscleos/types';
 import { useTheme } from '@/theme/ThemeContext';
@@ -10,6 +24,9 @@ import { typography } from '@/theme/typography';
 import { spacing, radius } from '@/theme/tokens';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
+import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
+import { exerciseHasHistory } from '@/utils/personalRecords';
+import { noteSaveState } from '@/utils/noteDraft';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { exerciseTypeLine } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
@@ -19,8 +36,9 @@ const DETAIL_HEADER_HEIGHT = 64;
 
 /**
  * Exercise detail sheet: diagram, muscles, type, instructions and the user's notes. Notes save on
- * Close, backdrop tap, back, and end-editing. `canManage` adds Edit/Delete for customs — off where
- * leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
+ * Save, Close, backdrop tap, back, and end-editing; the sheet rises with the keyboard so the note
+ * stays visible while typing. `canManage` adds Edit/Delete for customs and a link to the exercise's
+ * history — off where leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
  */
 export function ExerciseDetailSheet({
   exercise,
@@ -34,13 +52,37 @@ export function ExerciseDetailSheet({
   const { colors } = useTheme();
   const router = useRouter();
   const sheetMaxHeight = useModalMaxHeight();
+  const insets = useSafeAreaInsets();
   const sheetBottomPad = useBottomSpace(spacing.xl);
   const detailScrollMaxHeight = Math.max(160, sheetMaxHeight - sheetBottomPad - DETAIL_HEADER_HEIGHT);
   const removeExercise = useExercisesStore((s) => s.removeExercise);
   const setNote = useExerciseNotesStore((s) => s.setNote);
+  const savedNote = useExerciseNotesStore((s) => (exercise ? s.notes[exercise.id] : undefined));
+  const sessions = useSessionsStore((s) => s.sessions);
+  const getExercise = useExercisesStore((s) => s.getExercise);
   const [noteDraft, setNoteDraft] = useState('');
-
+  const [noteFocused, setNoteFocused] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const saveState = noteSaveState(noteDraft, savedNote);
   const exerciseId = exercise?.id;
+  const hasHistory = useMemo(
+    () =>
+      canManage &&
+      exerciseId != null &&
+      exerciseHasHistory(completedNewestFirst(sessions), exerciseId, (id) => getExercise(id)?.id ?? id),
+    [canManage, exerciseId, sessions, getExercise]
+  );
+
+  // The note sits at the bottom of the sheet: once the keyboard is up (and the sheet has risen
+  // above it), scroll so the field stays in view while typing.
+  useEffect(() => {
+    if (!noteFocused) return;
+    const sub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => {
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    });
+    return () => sub.remove();
+  }, [noteFocused]);
+
   useEffect(() => {
     if (exerciseId) setNoteDraft(useExerciseNotesStore.getState().notes[exerciseId] ?? '');
   }, [exerciseId]);
@@ -50,9 +92,30 @@ export function ExerciseDetailSheet({
     onClose();
   };
 
+  const saveNote = () => {
+    if (exercise) void setNote(exercise.id, noteDraft);
+    Keyboard.dismiss();
+  };
+
+  const openHistory = () => {
+    if (!exercise) return;
+    const id = exercise.id;
+    void setNote(id, noteDraft);
+    onClose();
+    router.push({ pathname: '/exercise-progression', params: { exerciseId: id } });
+  };
+
   return (
     <Modal visible={exercise !== null} animationType="slide" transparent onRequestClose={close}>
-      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+      {/* Top inset: lifted by the keyboard, the sheet shrinks (its body scrolls) rather than
+          rising under the status bar. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[
+          styles.modalOverlay,
+          { backgroundColor: colors.overlay, paddingTop: insets.top + spacing.sm },
+        ]}
+      >
         {/* Sibling backdrop — nesting ScrollView in Pressable breaks pans on Android (MUS-31). */}
         <Pressable
           style={StyleSheet.absoluteFillObject}
@@ -75,6 +138,7 @@ export function ExerciseDetailSheet({
                 </Pressable>
               </View>
               <ScrollView
+                ref={scrollRef}
                 style={[styles.modalScroll, { maxHeight: detailScrollMaxHeight }]}
                 contentContainerStyle={styles.modalBody}
                 keyboardShouldPersistTaps="handled"
@@ -88,6 +152,22 @@ export function ExerciseDetailSheet({
                 </Text>
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Type</Text>
                 <Text style={[styles.bodyText, { color: colors.text }]}>{exerciseTypeLine(exercise)}</Text>
+                {hasHistory ? (
+                  <Pressable
+                    onPress={openHistory}
+                    testID="exercise-detail-history"
+                    accessibilityRole="link"
+                    accessibilityLabel={`View ${exercise.name} history`}
+                    style={({ pressed }) => [
+                      styles.historyRow,
+                      { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    <Ionicons name="stats-chart-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.historyText, { color: colors.primary }]}>View history</Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
                 {canManage && isCustomExerciseId(exercise.id) ? (
                   <View style={styles.customActions}>
                     <Pressable
@@ -142,15 +222,36 @@ export function ExerciseDetailSheet({
                   placeholderTextColor={colors.textMuted}
                   value={noteDraft}
                   onChangeText={setNoteDraft}
+                  onFocus={() => setNoteFocused(true)}
+                  onBlur={() => setNoteFocused(false)}
                   onEndEditing={() => void setNote(exercise.id, noteDraft)}
                   multiline
                   textAlignVertical="top"
                 />
+                <View style={styles.noteActions}>
+                  {saveState === 'saved' ? (
+                    <Text style={[styles.noteSavedText, { color: colors.textMuted }]}>Saved</Text>
+                  ) : null}
+                  {saveState === 'unsaved' ? (
+                    <Pressable
+                      onPress={saveNote}
+                      testID="exercise-note-save"
+                      accessibilityRole="button"
+                      accessibilityLabel="Save note"
+                      style={({ pressed }) => [
+                        styles.noteSaveBtn,
+                        { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.noteSaveText, { color: colors.primaryOn }]}>Save</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </ScrollView>
             </>
           ) : null}
         </SheetFrame>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -192,6 +293,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
   },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.md,
+  },
+  historyText: { ...typography.label, flex: 1 },
+  noteActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    minHeight: 36,
+    marginTop: spacing.sm,
+  },
+  noteSavedText: { ...typography.caption },
+  noteSaveBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  noteSaveText: { ...typography.label },
   customActions: {
     flexDirection: 'row',
     gap: spacing.lg,

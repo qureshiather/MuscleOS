@@ -3,7 +3,8 @@ import {
   STRENGTH_LEVEL_LABELS,
   type StrengthLevel,
 } from '@/data/strengthStandards';
-import type { ExercisePR, SetWithDate } from '@/utils/oneRepMax';
+import type { WorkoutSession } from '@muscleos/types';
+import { buildExercisePRs, type ExercisePR, type SetWithDate } from '@/utils/oneRepMax';
 import { textMatchesQuery } from '@/utils/exerciseSearch';
 
 /** The biodata strength standards need (`UserAppProfile` fields). */
@@ -85,4 +86,18 @@ export function filterPRsByName(
   const q = query.trim();
   if (!q) return [...prs];
   return prs.filter((pr) => textMatchesQuery(nameOf(pr.exerciseId), q));
+}
+
+/**
+ * Whether an exercise has any history to show on its progression screen — at least one qualifying
+ * set in a completed session, counting sets logged under an alias of it. The exercise detail sheet
+ * only links to history when this holds, so the link never lands on the empty state.
+ */
+export function exerciseHasHistory(
+  completedSessions: WorkoutSession[],
+  exerciseId: string,
+  canonicalId: (exerciseId: string) => string = (id) => id
+): boolean {
+  const target = canonicalId(exerciseId);
+  return buildExercisePRs(completedSessions, canonicalId).some((pr) => pr.exerciseId === target);
 }

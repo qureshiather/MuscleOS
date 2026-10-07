@@ -202,7 +202,8 @@ no strength card.
 
 ## Exercise progression
 
-Plots **estimated 1RM per qualifying set** over time, oldest to
+Opened from a Personal Records card, or from **View history** in the
+[exercise detail sheet](exercise-library.md) (shown only when the exercise has history). Plots **estimated 1RM per qualifying set** over time, oldest to
 newest, as custom `View` bars (no chart library). Bar height is the ratio to the best e1RM.
 
 **One bar per qualifying set, not per session** — several sets on one day give several adjacent
@@ -302,7 +303,8 @@ Vitest (`apps/mobile/src/…`):
   (85×5 over 90×1), descending order, tie → newest, alias merge, history newest first
 - `utils/personalRecords.test.ts` — `progressionPoints` oldest-first with capped ratios;
   `prCardModel` last-10 bars oldest→newest, no bars under 2 sets, strength chip gated on
-  bodyweight + sex and standards (none for pull-up), elite has no next level; `filterPRsByName`
+  bodyweight + sex and standards (none for pull-up), elite has no next level; `filterPRsByName`;
+  `exerciseHasHistory` qualifying sets only, completed sessions only, aliases
 - `utils/calendar.test.ts` — Monday-first headers, leading/trailing blanks, month lengths incl.
   leap February, four-row month, local-midnight day keys, marked days, sessions on a day
 - `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, ignored sets, alias
