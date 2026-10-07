@@ -120,7 +120,8 @@ supabase/migrations/<new>.sql (hand-written)   other server-side field changes
 or imports it from a third party. Every row carries **original MuscleOS instruction copy**: a
 short, second-person cue sheet (setup → movement → key cue, 2–4 sentences, sentence case, no
 medical claims). Rows carry no media URLs and the app bundles no exercise images or video; exercises
-with an animated demo link to it on the website ([exercise-demos.md](exercise-demos.md)).
+link to their page on the website, which carries an animated demo where one exists
+([exercise-demos.md](exercise-demos.md)).
 
 `catalogSeed.ts` is **generated — do not hand-edit**. Regenerate with
 `node apps/mobile/scripts/generate-exercise-catalog.mjs` (or `pnpm generate:catalog` in
@@ -309,11 +310,11 @@ the same line.
 it as a custom ("Save it as your own exercise."); tapping it opens the create form with the name
 prefilled. With no query, the list reads "No exercises match these filters."
 
-**Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete and the history link): name, body diagram, a **Watch how it's done** row when the exercise has an [animated demo](exercise-demos.md#app-link), muscle labels, type and equipment, a **View history** row, Edit/Delete
+**Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete and the history link): name, body diagram, a **See how it's done** row for catalog exercises (their [website page](exercise-demos.md#app-link)), muscle labels, type and equipment, a **View history** row, Edit/Delete
 for customs, instructions when present, and **Your notes** — a free-text field ("Seat height,
 lever settings…") keyed by exercise id and synced to your account. Content below the title scrolls when it exceeds the sheet max height.
 
-- **Watch how it's done** opens `https://muscleos.app/exercises/<id>` in the in-app browser. It is shown in every context, mid-workout included, because the browser opens over the sheet.
+- **See how it's done** opens `https://muscleos.app/exercises/<id>` (an animated demo where one exists) in the in-app browser. It is shown in every context, mid-workout included, because the browser opens over the sheet.
 - **View history** opens the exercise's [progression screen](history-analytics.md#exercise-progression) (the same one Personal Records opens). It is shown only when the exercise has at least one qualifying set in a completed session (`exerciseHasHistory`, aliases included), so it never lands on the empty state. Following it saves the note and closes the sheet.
 - **Notes** save on **Save**, on close, on overlay tap, and on end-editing. They are trimmed; saving an empty note deletes the entry. Every change persists locally and, with cloud sync on, queues the whole notes map as one snapshot.
 - Under the field, **Save** appears while the draft differs from the stored note (`noteSaveState`; whitespace-only edits don't count); it saves and dismisses the keyboard, leaving the sheet open. With a stored note and no edits it reads **Saved**; with neither, nothing is shown.

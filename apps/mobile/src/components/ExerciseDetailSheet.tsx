@@ -31,7 +31,7 @@ import { noteSaveState } from '@/utils/noteDraft';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { exerciseTypeLine } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
-import { exerciseDemoUrl } from '@/utils/exerciseDemo';
+import { exercisePageUrl } from '@/utils/exerciseDemo';
 
 /** Approximate detail-sheet header (title + Close + padding + hairline). */
 const DETAIL_HEADER_HEIGHT = 64;
@@ -41,8 +41,8 @@ const DETAIL_HEADER_HEIGHT = 64;
  * Save, Close, backdrop tap, back, and end-editing; the sheet rises with the keyboard so the note
  * stays visible while typing. `canManage` adds Edit/Delete for customs and a link to the exercise's
  * history — off where leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
- * Exercises with an animated demo link to it on the website; that opens in the in-app browser over
- * the sheet, so it's offered everywhere, mid-workout included.
+ * Catalog exercises link to their page on the website (an animated demo where one exists); that
+ * opens in the in-app browser over the sheet, so it's offered everywhere, mid-workout included.
  */
 export function ExerciseDetailSheet({
   exercise,
@@ -69,7 +69,7 @@ export function ExerciseDetailSheet({
   const scrollRef = useRef<ScrollView>(null);
   const saveState = noteSaveState(noteDraft, savedNote);
   const exerciseId = exercise?.id;
-  const demoUrl = exerciseId ? exerciseDemoUrl(exerciseId) : undefined;
+  const pageUrl = exercise ? exercisePageUrl(exercise) : undefined;
   const hasHistory = useMemo(
     () =>
       canManage &&
@@ -151,20 +151,20 @@ export function ExerciseDetailSheet({
                 showsVerticalScrollIndicator
               >
                 <MuscleDiagram muscleIds={exercise.muscles} size={0.9} />
-                {demoUrl ? (
+                {pageUrl ? (
                   <Pressable
-                    onPress={() => void WebBrowser.openBrowserAsync(demoUrl)}
+                    onPress={() => void WebBrowser.openBrowserAsync(pageUrl)}
                     testID="exercise-detail-demo"
                     accessibilityRole="link"
-                    accessibilityLabel={`Watch how to do ${exercise.name}`}
-                    accessibilityHint="Opens the animated demo on muscleos.app"
+                    accessibilityLabel={`See how to do ${exercise.name}`}
+                    accessibilityHint="Opens the exercise's page on muscleos.app"
                     style={({ pressed }) => [
                       styles.historyRow,
                       { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
                     ]}
                   >
                     <Ionicons name="play-circle-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.historyText, { color: colors.primary }]}>Watch how it&apos;s done</Text>
+                    <Text style={[styles.historyText, { color: colors.primary }]}>See how it&apos;s done</Text>
                     <Ionicons name="open-outline" size={16} color={colors.textMuted} />
                   </Pressable>
                 ) : null}
