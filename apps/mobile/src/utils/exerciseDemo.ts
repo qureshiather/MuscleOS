@@ -1,11 +1,13 @@
-import { EXERCISE_DEMO_IDS } from '@/data/exerciseDemos';
+import type { Exercise } from '@muscleos/types';
 
-const DEMO_IDS = new Set(EXERCISE_DEMO_IDS);
+import { isCustomExerciseId } from '@/utils/exerciseIds';
 
 /**
- * The website page with an animated demo of this exercise, or undefined when it has none yet.
- * The clips live on muscleos.app only (never bundled in the app); the detail sheet links out.
+ * The exercise's page on muscleos.app: an animated demo where one exists, otherwise the same
+ * how-to with "Demo coming soon". Every published catalog exercise has a page, so the app needs no
+ * list of which demos exist. Customs and unpublished catalog rows have no page.
  */
-export function exerciseDemoUrl(exerciseId: string): string | undefined {
-  return DEMO_IDS.has(exerciseId) ? `https://muscleos.app/exercises/${exerciseId}` : undefined;
+export function exercisePageUrl(exercise: Pick<Exercise, 'id' | 'isPublished'>): string | undefined {
+  if (isCustomExerciseId(exercise.id) || exercise.isPublished === false) return undefined;
+  return `https://muscleos.app/exercises/${exercise.id}`;
 }
