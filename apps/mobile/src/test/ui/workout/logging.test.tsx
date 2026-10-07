@@ -230,15 +230,6 @@ describe('completing sets and the rest timer', () => {
     expect(screen.queryByTestId('header-rest-active')).toBeNull();
   });
 
-  test('no rest row after the last set once the exercise is finished', async () => {
-    await startWithReps();
-    expect(screen.getByTestId('rest-row-0-2')).toBeTruthy();
-    for (const i of [0, 1, 2]) press(`set-done-0-${i}`);
-    expect(screen.getByTestId('rest-row-0-2')).toBeTruthy(); // counting down
-    press('rest-row-0-2');
-    press('rest-skip');
-    expect(screen.queryByTestId('rest-row-0-2')).toBeNull();
-  });
 });
 
 describe('adding and removing sets', () => {

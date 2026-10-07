@@ -71,14 +71,11 @@ export interface SetRowView {
   restShownSeconds: number;
   /** `restShownSeconds` is the recorded rest actually taken, not the preset. */
   restIsRecorded: boolean;
-  /**
-   * A rest row sits after this set: its countdown is running, or it has a preset > 0 or a recorded
-   * rest — except after the last set of a finished exercise, where there's nothing left to rest for.
-   */
+  /** A rest row sits after this set: its countdown is running, or it has a preset > 0 or a recorded rest. */
   showRestAfter: boolean;
   /**
    * The rest row sits between two completed sets (and isn't counting down), so it carries their
-   * green tint and bar — a run of completed sets reads as one unbroken, compact column.
+   * green tint and bar — a run of completed sets reads as one unbroken column.
    */
   restJoinsCompleted: boolean;
 }
@@ -116,8 +113,6 @@ export function setRowView(
     rest.restSecondsLeft != null &&
     rest.restSecondsLeft > 0;
   const restIsRecorded = status === 'completed' && rest.recordedRestSeconds != null;
-  const trailsFinishedExercise =
-    setIdx === sets.length - 1 && sets.every((s) => s.completed);
   return {
     label: setLabel(sets, setIdx),
     isWarmUp,
@@ -126,8 +121,7 @@ export function setRowView(
     restActive,
     restShownSeconds: restIsRecorded ? (rest.recordedRestSeconds ?? 0) : restPresetSeconds,
     restIsRecorded,
-    showRestAfter:
-      restActive || (!trailsFinishedExercise && (restIsRecorded || restPresetSeconds > 0)),
+    showRestAfter: restActive || restIsRecorded || restPresetSeconds > 0,
     restJoinsCompleted: status === 'completed' && sets[setIdx + 1]?.completed === true && !restActive,
   };
 }

@@ -180,17 +180,16 @@ function SetIndexMark({
     border: string;
   };
 }) {
-  // Completed sets get an outlined mark: the filled Done check already carries the green, and a
-  // second filled disc per row made a run of logged sets read heavy (MUS-110).
+  const filled = completed || isCurrent;
   return (
     <View
       style={[
         styles.setIndexMark,
         isWarmUp && styles.setIndexMarkWarmUp,
         {
-          backgroundColor: isCurrent ? colors.primary : 'transparent',
-          borderColor: completed ? colors.success : isCurrent ? 'transparent' : colors.border,
-          borderWidth: completed ? 1.5 : isCurrent ? 0 : StyleSheet.hairlineWidth,
+          backgroundColor: completed ? colors.success : isCurrent ? colors.primary : 'transparent',
+          borderColor: filled ? 'transparent' : colors.border,
+          borderWidth: filled ? 0 : StyleSheet.hairlineWidth,
         },
       ]}
     >
@@ -200,7 +199,7 @@ function SetIndexMark({
           isWarmUp && styles.setLabelWarmUp,
           {
             color: completed
-              ? colors.success
+              ? colors.successOn
               : isCurrent
                 ? colors.primaryOn
                 : isWarmUp
@@ -395,8 +394,7 @@ function RestBetweenBar({
   completedTint?: { background: string; accent: string };
   onPress: () => void;
 }) {
-  // Between two completed sets the bar is compact, so a run of logged sets stays tight.
-  const minHeight = useTextScaledSize(active ? 34 : completedTint ? 20 : 28, fontScaleCap.chrome);
+  const minHeight = useTextScaledSize(active ? 34 : 28, fontScaleCap.chrome);
   const shownSeconds = active ? restSecondsLeft : seconds;
   const timeLabel = formatClock(shownSeconds);
   const progress =
@@ -479,11 +477,7 @@ function RestBetweenBar({
       >
         <Text
           style={[
-            active
-              ? styles.restBarActiveTime
-              : completedTint
-                ? styles.restBarCompactTime
-                : styles.restBarCollapsedTime,
+            active ? styles.restBarActiveTime : styles.restBarCollapsedTime,
             { color: active ? colors.primary : colors.textMuted },
           ]}
           maxFontSizeMultiplier={fontScaleCap.chrome}
@@ -492,7 +486,7 @@ function RestBetweenBar({
         </Text>
         {active ? null : (
           <Text
-            style={[completedTint ? styles.restBarCompactWord : styles.restBarWord, { color: colors.textMuted }]}
+            style={[styles.restBarWord, { color: colors.textMuted }]}
             maxFontSizeMultiplier={fontScaleCap.chrome}
           >
             rest
@@ -1517,9 +1511,9 @@ export default function ActiveWorkoutScreen() {
                         : colors.surface;
                 const mutedFill = colors.surfaceElevated;
 
-                // A completed set reads as a logged record, not a form: its values sit on the row
-                // tint with no well (still tappable to edit; focus shows the accent ring).
-                const cellFill = set.completed ? 'transparent' : mutedFill;
+                // Completed rows use a tinted bg — avoid colors.surface (white/"cleared")
+                // punch-outs that look like empty editable fields on the green row.
+                const cellFill = set.completed ? (isDark ? colors.surface : mutedFill) : mutedFill;
                 const kgBorderColor = isKgFocused ? colors.primary : 'transparent';
                 const repsBorderColor = isRepsFocused ? colors.primary : 'transparent';
 
@@ -2876,18 +2870,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
     fontVariant: ['tabular-nums'],
-  },
-  restBarCompactTime: {
-    fontFamily: typography.data.fontFamily,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  restBarCompactWord: {
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: '600',
   },
   restBarWord: {
     fontSize: 11,

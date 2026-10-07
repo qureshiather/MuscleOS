@@ -171,15 +171,6 @@ describe('setRowView', () => {
     expect(setRowView(exercises, 0, 0, { ...noRest, recordedRestSeconds: 60 }).showRestAfter).toBe(true);
   });
 
-  it('hides the rest row after the last set of a finished exercise unless it is counting down', () => {
-    const exercises: SessionExercise[] = [{ exerciseId: 'a', sets: [done(), done()] }];
-    expect(setRowView(exercises, 0, 1, { ...noRest, recordedRestSeconds: 120 }).showRestAfter).toBe(false);
-    const counting = { restAfter: { exIdx: 0, setIdx: 1 }, restSecondsLeft: 10 };
-    expect(setRowView(exercises, 0, 1, counting).showRestAfter).toBe(true);
-    // an unfinished exercise keeps the row after its last set, above Add set
-    const open: SessionExercise[] = [{ exerciseId: 'a', sets: [done(), todo()] }];
-    expect(setRowView(open, 0, 1, noRest).showRestAfter).toBe(true);
-  });
 });
 
 describe('headerRestState', () => {
