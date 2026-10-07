@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { filterExercises, muscleLine } from '../data/exerciseText';
 
-export type ExerciseListRow = Pick<Exercise, 'id' | 'name' | 'muscles' | 'equipment'> & { demo: boolean };
+export type ExerciseListRow = Pick<Exercise, 'id' | 'name' | 'muscles' | 'equipment'>;
 
 /** The full catalog A–Z with a search box (name, muscle or equipment). */
 export function ExerciseSearch({ rows }: { rows: ExerciseListRow[] }) {
@@ -41,11 +41,6 @@ export function ExerciseSearch({ rows }: { rows: ExerciseListRow[] }) {
                   <span className="block truncate font-medium text-ink">{e.name}</span>
                   <span className="block truncate text-sm text-ink-muted">{muscleLine(e)}</span>
                 </span>
-                {e.demo ? (
-                  <span className="font-mono-label shrink-0 rounded-full border border-ready px-2 py-0.5 text-[11px] uppercase tracking-wider text-ready">
-                    Demo
-                  </span>
-                ) : null}
               </Link>
             </li>
           ))}

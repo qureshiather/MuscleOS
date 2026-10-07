@@ -4,7 +4,7 @@ calf raises and tibialis work."""
 
 import math
 
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 import mannequin as M
 from anim import X, lerp, sgn, smootherstep
@@ -30,8 +30,10 @@ def bridge_pose(ctx, h, feet_x=0.13, feet_y=-0.3, frog=False, shoulders_on=(0, 0
     ctx.head(flex=20)
     for s in SIDES:
         if frog:
-            ctx.target('leg.' + s, (sgn(s) * 0.05, feet_y + 0.08, 0.06), qz(-sgn(s) * 70) @ qx(-60) @ ctx.body.rest_quat('foot.' + s))
-            ctx.pole_world('leg.' + s, (sgn(s) * 1, 0, 0.4))
+            # Soles pressed together near the midline, knees falling out wide.
+            soles_in = Quaternion((0, 1, 0), math.radians(sgn(s) * 80))
+            ctx.target('leg.' + s, (sgn(s) * 0.06, feet_y - 0.04, 0.07), soles_in @ ctx.body.rest_quat('foot.' + s))
+            ctx.pole_world('leg.' + s, (sgn(s) * 1, 0, 0.15))
         else:
             ctx.target('leg.' + s, (sgn(s) * feet_x, feet_y, 0.085))
             ctx.pole_world('leg.' + s, (sgn(s) * 0.2, -0.3, 1))
@@ -55,7 +57,8 @@ def bridge_spec(id_, one_leg=False, frog=False, weight=False):
                 ctx.grip(s, hips + Vector((sgn(s) * 0.12, 0, 0)), (-sgn(s), 0, 0))
             elbows(ctx, (0.6, 0.3, 0.6))
 
-    spec(id_, camera=cam((0, 0.1, 0.3), 70, 14, 3.4), setup=setup, concentric='out')(pose)
+    camera = cam((0, 0.1, 0.2), 0, 45, 3.4) if frog else cam((0, 0.1, 0.3), 70, 14, 3.4)
+    spec(id_, camera=camera, setup=setup, concentric='out')(pose)
 
 
 bridge_spec('glute-bridge')
@@ -147,13 +150,13 @@ def fire_hydrants(ctx, st, u):
     ctx.leg_fk('R', hip_flex=90, hip_abd=lerp(0, 55, t), knee=90, ankle=10, hip_rot=20 * t)
 
 
-@spec('clamshells', camera=cam((0, 0.0, 0.3), 0, 25, 3.2), setup=nothing, concentric='out')
+@spec('clamshells', camera=cam((0, 0.0, 0.2), 20, 55, 3.0), setup=nothing, concentric='out')
 def clamshells(ctx, st, u):
     # Lying on the left side, hips and knees bent; the top knee opens like a clamshell.
     t = smootherstep(u)
-    ctx.root((0, 0.0, 0.16), (0, -90, 0))
+    ctx.root((0, 0.0, 0.16), (0, 90, 0))  # on the left side: the right knee is on top
     for s in SIDES:
-        ctx.leg_fk(s, hip_flex=45, knee=90, hip_abd=(lerp(0, 40, t) if s == 'R' else 0), ankle=0)
+        ctx.leg_fk(s, hip_flex=45, knee=90, hip_abd=(lerp(0, 15, t) if s == 'R' else 0), hip_rot=(-45 * t if s == 'R' else 0))
     ctx.arm_fk('L', flex=170, elbow=100)
     ctx.arm_fk('R', flex=20, abd=-10, elbow=40)
     ctx.head(flex=0)
