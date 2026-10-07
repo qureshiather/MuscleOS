@@ -37,6 +37,7 @@ import {
   shouldPlayRestTick,
   storedRestSeconds,
   startPrefillPatch,
+  completeSession,
   stripPrefillFlags,
 } from './activeWorkoutLogic';
 
@@ -551,6 +552,28 @@ describe('buildReplacedExercise', () => {
       { completed: false },
       { completed: false },
     ]);
+  });
+});
+
+describe('completeSession', () => {
+  const base = createEmptySession('_empty', [{ exerciseId: 'bench-press', sets: 1 }]);
+
+  it('sets completedAt, strips prefill flags and keeps the template by default', () => {
+    const session = {
+      ...base,
+      exercises: base.exercises.map((ex) => ({
+        ...ex,
+        sets: ex.sets.map((st) => ({ ...st, weightKg: 60, weightPrefilled: true })),
+      })),
+    };
+    const done = completeSession(session, '2026-01-01T11:00:00.000Z');
+    expect(done.completedAt).toBe('2026-01-01T11:00:00.000Z');
+    expect(done.templateId).toBe('_empty');
+    expect(done.exercises[0]?.sets[0]).not.toHaveProperty('weightPrefilled');
+  });
+
+  it('re-points the session at a template saved from it', () => {
+    expect(completeSession(base, '2026-01-01T11:00:00.000Z', 'tpl_new').templateId).toBe('tpl_new');
   });
 });
 

@@ -858,7 +858,8 @@ export default function ActiveWorkoutScreen() {
     return () => clearTimeout(id);
   }, [focusedExIdx]);
 
-  async function handleFinish(updateCustomTemplate?: boolean) {
+  /** `savedTemplateId`: the template just created by "Save as template" — the session joins it. */
+  async function handleFinish(updateCustomTemplate?: boolean, savedTemplateId?: string) {
     if (!session) return;
     const template = allTemplates().find((t) => t.id === session.templateId);
     const overwrite = updateCustomTemplate === true && template != null && !template.isBuiltIn;
@@ -875,7 +876,7 @@ export default function ActiveWorkoutScreen() {
     const summary: FinishedSummary = {
       ...buildFinishSummary(
         session,
-        templateDisplayName(allTemplates(), session.templateId),
+        templateDisplayName(allTemplates(), savedTemplateId ?? session.templateId),
         exerciseName,
         elapsedMs
       ),
@@ -887,7 +888,7 @@ export default function ActiveWorkoutScreen() {
     }
     setFinishedSummary(summary);
     setShowConfetti(true);
-    await finishWorkout();
+    await finishWorkout(undefined, savedTemplateId);
   }
 
   function leaveFinishedWorkout() {
@@ -918,14 +919,15 @@ export default function ActiveWorkoutScreen() {
     setSavingAsTemplate(true);
     try {
       const name = saveAsTemplateName.trim() || 'Workout';
+      const templateId = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       await addTemplate({
-        id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        id: templateId,
         name,
         isBuiltIn: false,
         ...serializeTemplateExercises(templateExercisesFromSession(session.exercises)),
       });
       setSaveAsTemplateName('');
-      await handleFinish(false);
+      await handleFinish(false, templateId);
     } catch {
       savingAsTemplateRef.current = false;
       setSavingAsTemplate(false);

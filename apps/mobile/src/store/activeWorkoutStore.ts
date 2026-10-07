@@ -28,6 +28,7 @@ import {
   buildReplacedExercise,
   bumpRestKeysForInsertedSet,
   buildPreviousSnapshot,
+  completeSession,
   completeSetInSets,
   createEmptySession,
   createPrefillingSets,
@@ -44,7 +45,6 @@ import {
   remapRestAfter,
   remapRestDurations,
   resolveStaleWorkout,
-  stripPrefillFlags,
   type PreviousSnapshot,
   type RestAfter,
   type RestEndResolution,
@@ -105,8 +105,11 @@ export interface ActiveWorkoutState {
   moveExerciseDown: (exerciseIndex: number) => void;
   /** Drag-and-drop reorder; remaps rest timer indices. */
   reorderExercises: (fromIndex: number, toIndex: number) => void;
-  /** `completedAt` defaults to now; the stale-workout close passes the last activity time. */
-  finishWorkout: (completedAt?: string) => Promise<void>;
+  /**
+   * `completedAt` defaults to now; the stale-workout close passes the last activity time.
+   * `templateId` attributes the session to a template just saved from it ("Save as template").
+   */
+  finishWorkout: (completedAt?: string, templateId?: string) => Promise<void>;
   discardWorkout: () => void;
   // Rest timer actions (in store so timer survives addSet/session updates)
   startRest: (exIdx: number, setIdx: number, totalSeconds?: number) => void;
@@ -372,13 +375,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  finishWorkout: async (completedAt = new Date().toISOString()) => {
+  finishWorkout: async (completedAt = new Date().toISOString(), templateId) => {
     const { session } = get();
     if (!session) return;
-    const completed: WorkoutSession = {
-      ...stripPrefillFlags(session),
-      completedAt,
-    };
+    const completed = completeSession(session, completedAt, templateId);
     const sessions = await getSessions();
     const allSessions = [...sessions, completed];
     await setSessions(allSessions);

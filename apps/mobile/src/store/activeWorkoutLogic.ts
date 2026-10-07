@@ -306,6 +306,23 @@ export function stripPrefillFlags(session: WorkoutSession): WorkoutSession {
 }
 
 /**
+ * The session as stored on finish: prefill flags stripped and `completedAt` set. `templateId`
+ * re-points it at a template saved from this workout ("Save as template"), so history shows that
+ * template rather than the one it started from (e.g. `_empty`).
+ */
+export function completeSession(
+  session: WorkoutSession,
+  completedAt: string,
+  templateId?: string
+): WorkoutSession {
+  return {
+    ...stripPrefillFlags(session),
+    completedAt,
+    ...(templateId != null && { templateId }),
+  };
+}
+
+/**
  * The best completed weighted set: highest weight, then highest reps as a tie-break. Only
  * completed sets with a positive weight qualify. Returns undefined when none do.
  */
