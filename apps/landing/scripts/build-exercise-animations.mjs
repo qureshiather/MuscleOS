@@ -8,7 +8,8 @@
  *   app/data/exerciseDemos.json          ids with a clip, for the landing exercise pages
  *
  * Usage:
- *   node scripts/build-exercise-animations.mjs                 # every built-in template exercise
+ *   node scripts/build-exercise-animations.mjs                 # every animated exercise
+ *   node scripts/build-exercise-animations.mjs --missing       # only those without clips yet
  *   node scripts/build-exercise-animations.mjs squat deadlift  # just these
  *   node scripts/build-exercise-animations.mjs --check [ids…]  # contact sheet of key frames
  *   node scripts/build-exercise-animations.mjs --manifest      # only rewrite the id list
@@ -39,14 +40,12 @@ const FPS = 24;
 const THEMES = ['dark', 'light'];
 const BLENDER_ARGS = ['-b', '--factory-startup', '--python-exit-code', '1', '-P', join(PIPELINE, 'render_exercise.py')];
 
-/** Exercise ids used by the built-in templates, in first-appearance order. */
-function builtInExerciseIds() {
-  const src = readFileSync(join(MOBILE_DATA, 'builtInTemplates.ts'), 'utf8');
-  const ids = [];
-  for (const m of src.matchAll(/exerciseIds:\s*\[([^\]]*)\]/g)) {
-    for (const id of m[1].matchAll(/'([^']+)'/g)) if (!ids.includes(id[1])) ids.push(id[1]);
-  }
-  return ids;
+/** Every exercise with choreography (scripts/exercise-animations/catalog.py). */
+async function specIds() {
+  const { stdout } = await run(BLENDER, [...BLENDER_ARGS, '--', '--list'], { maxBuffer: 16 * 1024 * 1024 });
+  const line = stdout.split('\n').find((l) => l.startsWith('SPECS '));
+  if (!line) throw new Error('could not list exercise specs');
+  return line.slice(6).trim().split(/\s+/);
 }
 
 function musclesById() {
@@ -147,8 +146,13 @@ async function main() {
     return;
   }
   const check = process.argv.includes('--check');
-  const requested = process.argv.slice(2).filter((a) => a !== '--check');
-  const ids = requested.length ? requested : builtInExerciseIds();
+  const missing = process.argv.includes('--missing');
+  const requested = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+  let ids = requested.length ? requested : await specIds();
+  if (missing) {
+    const have = new Set(renderedIds());
+    ids = ids.filter((id) => !have.has(id));
+  }
   const muscles = musclesById();
   mkdirSync(OUT, { recursive: true });
   // Build the shared mannequin once, so parallel renders only read the cache.

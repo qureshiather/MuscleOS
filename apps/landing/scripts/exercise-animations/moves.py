@@ -17,11 +17,11 @@ STAND_Z = M.PELVIS_Z
 # -- limbs -------------------------------------------------------------------------------------
 
 
-def feet(ctx, width=0.0, toe_out=0.0, y=0.0):
-    """Both feet flat on the floor, `width` wider than hip width, toes turned out."""
+def feet(ctx, width=0.0, toe_out=0.0, y=0.0, floor=0.0):
+    """Both feet flat on a surface `floor` m up, `width` wider than hip width, toes turned out."""
     for s in SIDES:
         x = sgn(s) * (0.098 + width)
-        ctx.target('leg.' + s, (x, y + 0.01, 0.085), qz(sgn(s) * toe_out) @ ctx.body.rest_quat('foot.' + s))
+        ctx.target('leg.' + s, (x, y + 0.01, floor + 0.085), qz(sgn(s) * toe_out) @ ctx.body.rest_quat('foot.' + s))
 
 
 def knees_out(ctx, amount=0.3):
@@ -92,9 +92,9 @@ def hang_bar(ctx, bar, grip, bar_y, bar_z=None):
 # -- positions ---------------------------------------------------------------------------------
 
 
-def stand(ctx, width=0.03, toe_out=0.0, y=0.0):
-    ctx.root((0, 0, STAND_Z))
-    feet(ctx, width=width, toe_out=toe_out, y=y)
+def stand(ctx, width=0.03, toe_out=0.0, y=0.0, floor=0.0):
+    ctx.root((0, y, STAND_Z + floor))
+    feet(ctx, width=width, toe_out=toe_out, y=y, floor=floor)
 
 
 def lie_on_bench(ctx, bench_height=0.44, feet_y=-0.48):
@@ -112,3 +112,29 @@ def sit(ctx, seat_height, y=0.1, hip_flex=88, knee=92, ankle=0, hip_abd=0, lean=
     ctx.spine(flex=lean)
     for s in SIDES:
         ctx.leg_fk(s, hip_flex=hip_flex, knee=knee, ankle=ankle, hip_abd=hip_abd)
+
+
+def hang_dumbbells(ctx, dumbbells, x=0.25, y=None, neutral=True, z=None):
+    """Dumbbells hanging from straight arms (IK) at the sides; neutral grip runs the handles front
+    to back. With z, the body is not moved: arms bend as needed to reach."""
+    from equipment import along
+
+    for s, db in zip(SIDES, dumbbells):
+        sh = ctx.world('upperarm.' + s, 'head')
+        p = ctx.grip_hang(s, sh.y if y is None else y, x)
+        if z is not None:
+            p.z = z
+        thumb = Vector((0, -1, 0)) if neutral else Vector((-sgn(s), 0, 0))
+        ctx.grip(s, p, thumb)
+        db.location = p
+        db.rotation_quaternion = along(thumb)
+    elbows(ctx, (0.3, 1, 0))
+
+
+def hold_dumbbell(ctx, db, side, point, thumb):
+    """One hand closes on a dumbbell handle at `point`, handle along `thumb`."""
+    from equipment import along
+
+    ctx.grip(side, point, thumb)
+    db.location = Vector(point)
+    db.rotation_quaternion = along(thumb)
