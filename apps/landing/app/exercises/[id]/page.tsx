@@ -13,7 +13,6 @@ import {
   EXERCISES,
   exercisePath,
   getExercise,
-  hasDemo,
   muscleLine,
   relatedExercises,
   typeLine,
@@ -141,14 +140,9 @@ export default async function ExercisePage({ params }: { params: Promise<Params>
                   <li key={e.id}>
                     <Link
                       href={exercisePath(e.id)}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span className="min-w-0 truncate font-medium text-ink">{e.name}</span>
-                      {hasDemo(e.id) ? (
-                        <span className="font-mono-label shrink-0 text-[11px] uppercase tracking-wider text-ready">
-                          Demo
-                        </span>
-                      ) : null}
                     </Link>
                   </li>
                 ))}

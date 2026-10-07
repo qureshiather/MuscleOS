@@ -17,21 +17,21 @@ mobile app bundles no media and no list of which exercises have a demo.
 **`/exercises`** shows **Staple lifts** first (a grid of demos for a fixed set of core lifts,
 `FEATURED_DEMOS`, with the count of animated exercises), then **All exercises**: every
 published catalog row A–Z with a search box. Search is case-insensitive and every word must match
-the name, muscle labels or equipment labels (`filterExercises`). Rows with a demo carry a
-**Demo** badge.
+the name, muscle labels or equipment labels (`filterExercises`).
 
 **`/exercises/<id>`** exists for every published catalog exercise (static export; the id is the
 catalog id, so app links and history ids line up). It shows:
 
-- the demo, or a "Demo coming soon" panel when the exercise has none yet;
+- the demo, or a "Demo coming soon" panel for an exercise added to the catalog before its demo
+  is rendered;
 - a type line: library type and equipment (`Free Weight · Barbell`), or just the type when the
   two say the same thing (`Bodyweight`, `Machine`);
 - **Muscles worked**, the first (main) muscle emphasised;
 - **How to do it**: the catalog instruction copy;
 - a "Log it in MuscleOS" panel with the store buttons;
 - the reuse licence and light/dark MP4 download links (demo pages only);
-- **Also works your <main muscle>**: up to six other exercises sharing the main muscle, demos
-  first (`relatedExercises`).
+- **Also works your <main muscle>**: up to six other exercises sharing the main muscle
+  (`relatedExercises`).
 
 The page data is the published catalog. `generate-exercise-catalog.mjs` writes it to
 `apps/landing/app/data/exerciseCatalog.json` alongside the app's seed, so the website and app

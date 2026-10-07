@@ -629,7 +629,9 @@ def banded_hip_march(ctx, st, u):
     for s in SIDES:
         k = max(0.0, w if s == 'L' else -w)
         if k > 0.05:
-            ctx.leg_fk(s, hip_flex=lerp(15, 95, k), knee=lerp(90, 90, k))
+            # The foot lifts and the knee draws toward the chest, knee still bent ~90°.
+            foot = ctx.body.targets['leg.' + s].location.copy()
+            ctx.target('leg.' + s, foot + Vector((0, 0.18 * k, 0.3 * k)))
 
 
 @spec('standing-hip-flexor-raise', camera=cam((0, 0, 0.9), 70, 8, 3.8), setup=nothing,
@@ -713,14 +715,19 @@ def turkish_get_up(ctx, st, u):
 @spec('wall-walk', camera=cam((0, 0.3, 0.9), 75, 10, 4.4),
       setup=lambda ctx: (ctx.eq.group('wall', [ctx.eq.pad('w', (2.0, 0.1, 2.4), (0, 1.45, 1.2))]), {})[1], concentric='out')
 def wall_walk(ctx, st, u):
-    # From a push-up plank with the feet at the wall, walk the hands in and the feet up into a handstand.
+    # Start lying chest-down with the feet against the wall; press up, walk the feet up the wall
+    # and the hands in, finishing in a handstand with the belly to the wall and arms locked.
     t = smootherstep(u)
-    theta = lerp(70, 172, t)
-    hand_y = lerp(0.3, 1.25, t)
-    ctx.root((0, hand_y - 0.47 * math.sin(math.radians(min(theta, 90))), 0.5 + 0.55 * t), (theta, 0, 0))
-    ctx.head(flex=-40)
+    theta = lerp(90, 178, t)
+    pelvis = Vector((0, 0.44, 0.13)).lerp(Vector((0, 1.17, 1.1)), t)
+    pelvis.z += 0.35 * math.sin(math.pi * t) * 0.6
+    ctx.root(pelvis, (theta, 0, 0))
+    ctx.head(flex=-30)
+    press = smootherstep(min(u / 0.25, 1.0))
     for s in SIDES:
         ctx.leg_fk(s, ankle=-30)
-        ctx.target('arm.' + s, (sgn(s) * 0.2, lerp(0.0, 1.22, t) - 0.7 * (1 - t), 0.08))
+        sh_y = pelvis.y - 0.47 * math.sin(math.radians(theta))
+        ctx.target('arm.' + s, (sgn(s) * 0.2, lerp(sh_y, 1.15, t), 0.08))
         ctx.pole_world('arm.' + s, (0, 1, 0))
+    ctx.arm.location.z += 0.25 * press * (1 - t)
 

@@ -6,7 +6,7 @@ import { ExerciseDemo } from '../components/ExerciseDemo';
 import { ExerciseSearch, type ExerciseListRow } from '../components/ExerciseSearch';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
-import { DEMO_EXERCISES, demoSources, FEATURED_DEMOS, EXERCISES, exercisePath, hasDemo, muscleLine } from '../data/exercises';
+import { DEMO_EXERCISES, demoSources, FEATURED_DEMOS, EXERCISES, exercisePath, muscleLine } from '../data/exercises';
 
 export const metadata: Metadata = {
   title: 'Exercise library — How to do every lift | MuscleOS',
@@ -19,7 +19,6 @@ export default function ExercisesPage() {
     name,
     muscles,
     equipment,
-    demo: hasDemo(id),
   }));
 
   return (
