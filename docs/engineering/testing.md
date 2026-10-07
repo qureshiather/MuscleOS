@@ -131,8 +131,8 @@ state.
 | File | Covers |
 |------|--------|
 | `apps/landing/app/data/exercises.test.ts` | Website catalog order/uniqueness, demo ids are published rows, per-theme sources, search, related exercises, type line |
-| `src/utils/exerciseDemo.test.ts` | Link only for exercises with a demo, never customs; demo ids are published catalog ids |
-| `src/test/ui/exercises/exercisesTab.test.tsx` (Jest) | Detail sheet demo row opens the website page; absent without a demo |
+| `src/utils/exerciseDemo.test.ts` | Page link for every published catalog exercise; none for customs or unpublished rows |
+| `src/test/ui/exercises/exercisesTab.test.tsx` (Jest) | Detail sheet row opens the website page; absent for a custom |
 
 ### History & analytics — [history-analytics.md](../features/history-analytics.md)
 
