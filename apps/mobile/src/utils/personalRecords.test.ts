@@ -1,6 +1,8 @@
+import type { SessionExercise, WorkoutSession } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
 import type { ExercisePR, SetWithDate } from './oneRepMax';
 import {
+  exerciseHasHistory,
   filterPRsByName,
   hasStrengthProfile,
   PR_CARD_MAX_BARS,
@@ -114,5 +116,36 @@ describe('filterPRsByName', () => {
     expect(filterPRsByName(prs, 'SQUAT', nameOf).map((p) => p.exerciseId)).toEqual(['squat']);
     expect(filterPRsByName(prs, 'bench', nameOf).map((p) => p.exerciseId)).toEqual(['bench-press']);
     expect(filterPRsByName(prs, 'deadlift', nameOf)).toEqual([]);
+  });
+});
+
+describe('exerciseHasHistory', () => {
+  const session = (exercises: SessionExercise[], completedAt?: string): WorkoutSession => ({
+    id: 's1',
+    templateId: 'push',
+    startedAt: '2026-01-01T10:00:00.000Z',
+    completedAt,
+    exercises,
+  });
+  const logged = (exerciseId: string, completed = true): SessionExercise => ({
+    exerciseId,
+    sets: [{ completed, weightKg: 60, reps: 5 }],
+  });
+
+  it('is true once a completed session has a qualifying set of the exercise', () => {
+    const sessions = [session([logged('squat')], '2026-01-01T11:00:00.000Z')];
+    expect(exerciseHasHistory(sessions, 'squat')).toBe(true);
+    expect(exerciseHasHistory(sessions, 'bench-press')).toBe(false);
+  });
+
+  it('ignores incomplete sets and unfinished sessions', () => {
+    expect(exerciseHasHistory([session([logged('squat', false)], '2026-01-01T11:00:00.000Z')], 'squat')).toBe(false);
+    expect(exerciseHasHistory([session([logged('squat')])], 'squat')).toBe(false);
+  });
+
+  it('counts sets logged under an alias of the exercise', () => {
+    const sessions = [session([logged('back-squat')], '2026-01-01T11:00:00.000Z')];
+    const canonical = (id: string) => (id === 'back-squat' ? 'squat' : id);
+    expect(exerciseHasHistory(sessions, 'squat', canonical)).toBe(true);
   });
 });

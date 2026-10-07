@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
+import { useSessionsStore } from '@/store/sessionsStore';
 import { resetAppState } from '../render';
 import { exercise, renderExercises, seedExercises } from './helpers';
 
@@ -201,6 +202,42 @@ describe('detail sheet', () => {
 
     fireEvent.press(screen.getByText('Pec Deck'));
     expect(await screen.findByDisplayValue('lever 5')).toBeTruthy();
+  });
+
+  it('Save stores the note without closing the sheet, then shows Saved', async () => {
+    renderExercises();
+    fireEvent.press(await screen.findByText('Pec Deck'));
+    expect(screen.queryByTestId('exercise-note-save')).toBeNull();
+    fireEvent.changeText(await screen.findByPlaceholderText('e.g. seat 4 · lever underneath on 3'), 'seat 4 ');
+    fireEvent.press(screen.getByTestId('exercise-note-save'));
+    await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({ 'pec-deck': 'seat 4' }));
+    expect(screen.queryByTestId('exercise-note-save')).toBeNull();
+    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.getByText('Your notes')).toBeTruthy();
+  });
+
+  it('links to the exercise history only once it has logged sets', async () => {
+    const { getPathname } = renderExercises();
+    fireEvent.press(await screen.findByText('Bench Press'));
+    expect(screen.queryByTestId('exercise-detail-history')).toBeNull();
+    fireEvent.press(screen.getByText('Close'));
+
+    act(() => {
+      useSessionsStore.setState({
+        sessions: [
+          {
+            id: 's1',
+            templateId: 'push',
+            startedAt: '2026-01-01T10:00:00.000Z',
+            completedAt: '2026-01-01T11:00:00.000Z',
+            exercises: [{ exerciseId: 'bench-press', sets: [{ completed: true, weightKg: 60, reps: 5 }] }],
+          },
+        ],
+      });
+    });
+    fireEvent.press(await screen.findByText('Bench Press'));
+    fireEvent.press(await screen.findByTestId('exercise-detail-history'));
+    await waitFor(() => expect(getPathname()).toBe('/exercise-progression'));
   });
 
   it('clearing a note deletes it', async () => {

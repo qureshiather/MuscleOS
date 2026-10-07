@@ -307,14 +307,16 @@ the same line.
 it as a custom ("Save it as your own exercise."); tapping it opens the create form with the name
 prefilled. With no query, the list reads "No exercises match these filters."
 
-**Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete): name, body diagram, muscle labels, type and equipment, Edit/Delete
+**Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete and the history link): name, body diagram, muscle labels, type and equipment, a **View history** row, Edit/Delete
 for customs, instructions when present, and **Your notes** — a free-text field ("Seat height,
-lever settings…") keyed by exercise id and synced to your account. Notes save on close, on overlay
-tap, and on end-editing. They are trimmed; saving an empty note deletes the entry. Every change
-persists locally and, with cloud sync on, queues the whole notes map as one snapshot. Content below the title scrolls when it exceeds the sheet max height.
+lever settings…") keyed by exercise id and synced to your account. Content below the title scrolls when it exceeds the sheet max height.
 
-There are **no favourites** on this tab, and no links to the PR or progression screens (those are
-reached from History).
+- **View history** opens the exercise's [progression screen](history-analytics.md#exercise-progression) (the same one Personal Records opens). It is shown only when the exercise has at least one qualifying set in a completed session (`exerciseHasHistory`, aliases included), so it never lands on the empty state. Following it saves the note and closes the sheet.
+- **Notes** save on **Save**, on close, on overlay tap, and on end-editing. They are trimmed; saving an empty note deletes the entry. Every change persists locally and, with cloud sync on, queues the whole notes map as one snapshot.
+- Under the field, **Save** appears while the draft differs from the stored note (`noteSaveState`; whitespace-only edits don't count); it saves and dismisses the keyboard, leaving the sheet open. With a stored note and no edits it reads **Saved**; with neither, nothing is shown.
+- Typing uses the system keyboard. The sheet rises above it (iOS) and scrolls the note field into view when the keyboard opens, so the text box stays visible while typing.
+
+There are **no favourites** on this tab. The PR screen is reached from History; the progression screen from History and from the detail sheet.
 
 ## Exercise pickers
 
@@ -377,6 +379,7 @@ Covered (Vitest):
   matching the category isn't repeated)
 - `src/utils/customExerciseForm.test.ts` — edit target only for existing customs; validation
   (trimmed name, Type, ≥1 muscle, no max length, blank instructions → none)
+- `src/utils/noteDraft.test.ts` — `noteSaveState` unsaved / saved / empty, trimming
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper including every lowercase word;
   every catalog name matches it
 - `src/utils/exerciseIds.test.ts` — custom id numbering; retired customs resolve after live ones; alias resolution, unpublished rows still
@@ -389,8 +392,9 @@ Covered (Jest UI, `src/test/ui/exercises/`):
 - `exercisesTab.test.tsx` — header count, list order, Custom badge and meta lines, count line
   (plural/singular), search, Type and Muscle chips (AND with the query, tapping an active chip
   clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" opening the
-  prefilled form, + button, detail sheet content, notes (save on Close / end-editing / backdrop,
-  trim, delete on empty), Edit opening the prefilled form, Delete with confirm and cancel, list
+  prefilled form, + button, detail sheet content, notes (save on Close / end-editing / backdrop /
+  Save, Saved state, trim, delete on empty), View history shown only with logged sets and opening
+  progression, Edit opening the prefilled form, Delete with confirm and cancel, list
   updates after a delete
 - `createExercise.test.tsx` — validation, save → `custom_<n>` and
   back, a catalog id opens an empty create form (no clone), editing in place and clearing
