@@ -33,11 +33,13 @@ def forearm_plank(ctx, knees=False, side=None):
     """Prone on the forearms (elbows under the shoulders), or on the knees, or on one side."""
     if side:
         # Side plank on the left forearm: body faces -Y, rolled onto its left side.
-        ctx.root((0.0, 0.0, 0.33), (0, -78 if not knees else -70, 0))
+        ctx.root((0.0, 0.0, 0.33), (0, 78 if not knees else 70, 0))
         ctx.head(flex=0)
-        if knees:
-            for s in SIDES:
+        for s in SIDES:
+            if knees:
                 ctx.leg_fk(s, knee=90, hip_flex=-10)
+            else:
+                ctx.leg_fk(s, ankle=-5)  # straight line from head to heels
         sh = ctx.world('upperarm.L', 'head')
         ctx.target('arm.L', (sh.x + 0.0, sh.y - 0.26, 0.045))
         ctx.pole_world('arm.L', (0, 0, -1))
@@ -90,7 +92,7 @@ def kneeling_plank(ctx, st, u):
 @spec('weighted-plank', camera=cam((0, 0.05, 0.25), 60, 14, 3.8), setup=lambda ctx: {'plate': ctx.eq.plate()}, **HOLD)
 def weighted_plank(ctx, st, u):
     forearm_plank(ctx)
-    ctx.follow(st['plate'], 'spine', (0, 0.16, 1.15), qx(90))
+    ctx.follow(st['plate'], 'spine', (0, 0.16, 1.15))  # lying flat on the back
     orbit(ctx, (0, 0.05, 0.25), 40, 80, 14, 3.8, u)
 
 
@@ -139,7 +141,7 @@ def plank_to_push_up(ctx, st, u):
       setup=lambda ctx: (ctx.eq.flat_bench((-0.9, 0.0), length=0.5, height=0.44, yaw=90), {})[1], **HOLD)
 def copenhagen_plank(ctx, st, u):
     # Side plank with the top leg resting on a bench; the bottom leg hangs free.
-    ctx.root((0.05, 0.0, 0.42), (0, -84, 0))
+    ctx.root((-0.05, 0.0, 0.42), (0, 84, 0))
     sh = ctx.world('upperarm.L', 'head')
     ctx.target('arm.L', (sh.x, sh.y - 0.26, 0.045))
     ctx.pole_world('arm.L', (0, 0, -1))

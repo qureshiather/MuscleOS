@@ -54,8 +54,9 @@ class Timeline:
         t = frame / self.frames
         mid_out = (self.a + self.b) / 2
         mid_back = (self.c + 1) / 2
-        w_out = math.exp(-(((t - mid_out) / ((self.b - self.a) * 0.55)) ** 2))
-        w_back = math.exp(-(((t - mid_back) / ((1 - self.c) * 0.55)) ** 2))
+        # Phases can be empty (loop-time moves use the whole loop as one phase).
+        w_out = math.exp(-(((t - mid_out) / max((self.b - self.a) * 0.55, 1e-3)) ** 2))
+        w_back = math.exp(-(((t - mid_back) / max((1 - self.c) * 0.55, 1e-3)) ** 2))
         return w_out, w_back
 
 
@@ -129,7 +130,11 @@ class Ctx:
     def _fk(self, key):
         # Switch IK off now, so positions read later in this pose (props following a hand,
         # bars between the hands) see the FK pose rather than last frame's IK.
+        # A later FK pose overrides an earlier target (e.g. stand() then lift one leg).
         self.fk_limbs.add(key)
+        self._targets_set.discard(key)
+        self._rot_set.discard(key)
+        self._grips.pop(key[-1], None) if key.startswith('arm') else None
         self.body.set_ik(key, False, False)
 
     def shoulder_girdle(self, side, shrug=0, protract=0):
