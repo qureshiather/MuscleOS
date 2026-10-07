@@ -71,7 +71,7 @@ import {
   templateStructureChanged as computeTemplateStructureChanged,
   type FinishSummary,
 } from '@/utils/workoutFinish';
-import { previousLabel, setRowView } from '@/utils/workoutSetView';
+import { headerRestState, previousLabel, setRowView } from '@/utils/workoutSetView';
 import {
   canCompleteSet,
   restSecondsLeft as computeRestSecondsLeft,
@@ -366,11 +366,13 @@ type RestBarColors = {
 };
 
 /**
- * Rest duration on the divider after a set. While its countdown runs, the divider itself is the
- * progress track: it fills edge to edge as the rest elapses. Tap opens the header rest dialogue.
+ * Rest on the divider after a set: the rest actually taken once recorded, otherwise the preset.
+ * While its countdown runs, the divider itself is the progress track: it fills edge to edge as the
+ * rest elapses. Tap opens the header rest dialogue.
  */
 function RestBetweenBar({
-  presetSeconds,
+  seconds,
+  recorded,
   active,
   restSecondsLeft,
   restTotalSeconds,
@@ -380,7 +382,10 @@ function RestBetweenBar({
   testID,
 }: {
   testID?: string;
-  presetSeconds: number;
+  /** Shown when not counting down. */
+  seconds: number;
+  /** `seconds` is the rest actually taken, not the preset. */
+  recorded: boolean;
   active: boolean;
   restSecondsLeft: number;
   restTotalSeconds: number;
@@ -390,7 +395,7 @@ function RestBetweenBar({
   onPress: () => void;
 }) {
   const minHeight = useTextScaledSize(active ? 34 : 28, fontScaleCap.chrome);
-  const shownSeconds = active ? restSecondsLeft : presetSeconds;
+  const shownSeconds = active ? restSecondsLeft : seconds;
   const timeLabel = formatClock(shownSeconds);
   const progress =
     active && restTotalSeconds > 0
@@ -421,7 +426,13 @@ function RestBetweenBar({
       onPress={onPress}
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={active ? `Rest ${timeLabel} remaining` : `Rest ${timeLabel} after this set`}
+      accessibilityLabel={
+        active
+          ? `Rest ${timeLabel} remaining`
+          : recorded
+            ? `Rested ${timeLabel} after this set`
+            : `Rest ${timeLabel} after this set`
+      }
       accessibilityHint="Opens rest timer"
       hitSlop={{ top: 4, bottom: 4 }}
       style={({ pressed }) => [
@@ -575,6 +586,7 @@ export default function ActiveWorkoutScreen() {
 
   // Derive remaining seconds from end time so timer is correct after returning from background
   const restSecondsLeft = computeRestSecondsLeft(restEndTime, Date.now());
+  const headerRest = headerRestState(restAfter, restSecondsLeft);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
   const [keypadHeight, setKeypadHeight] = useState(0);
@@ -1148,7 +1160,26 @@ export default function ActiveWorkoutScreen() {
           <Pressable onPress={minimizeWorkout} hitSlop={12} accessibilityLabel="Minimize workout" testID="minimize-workout">
             <Ionicons name="chevron-down" size={28} color={colors.textSecondary} />
           </Pressable>
-          {restSecondsLeft !== null && restSecondsLeft > 0 ? (
+          {headerRest === 'set' ? (
+            // The countdown is on the set's rest row; the header only flags it and opens the same rest.
+            <Pressable
+              onPress={openTopBarRestDialog}
+              hitSlop={8}
+              testID="header-rest-active"
+              accessibilityRole="button"
+              accessibilityLabel="Rest timer running"
+              style={[
+                styles.headerTimerBtn,
+                {
+                  backgroundColor: colors.primarySurface,
+                  borderWidth: 1,
+                  borderColor: colors.primaryBorder,
+                },
+              ]}
+            >
+              <Ionicons name="timer" size={14} color={colors.primary} />
+            </Pressable>
+          ) : headerRest === 'manual' && restSecondsLeft != null ? (
             <Pressable
               onPress={openTopBarRestDialog}
               hitSlop={6}
@@ -1447,10 +1478,13 @@ export default function ActiveWorkoutScreen() {
               {se.sets.map((set, setIdx) => {
                 const isKgFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'kg';
                 const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
-                const row = setRowView(session.exercises, exIdx, setIdx, { restAfter, restSecondsLeft });
+                const row = setRowView(session.exercises, exIdx, setIdx, {
+                  restAfter,
+                  restSecondsLeft,
+                  recordedRestSeconds: restDurationsBetweenSets[`${exIdx}-${setIdx}`],
+                });
                 const isCurrentSet = row.status === 'current';
                 const isFutureSet = row.status === 'future';
-                const recordedRestSec = restDurationsBetweenSets[`${exIdx}-${setIdx}`];
                 const isActiveRestGap = row.restActive;
                 const isWarmUp = row.isWarmUp;
                 const setLabelText = row.label;
@@ -1486,7 +1520,6 @@ export default function ActiveWorkoutScreen() {
                 const canDeleteSet = se.sets.length > 1;
                 // removeSet also clears a countdown running for this set.
                 const deleteThisSet = () => removeSet(exIdx, setIdx);
-                const presetSeconds = row.restPresetSeconds;
                 const showRestAfter = row.showRestAfter;
                 const restJoinsCompletedSets = row.restJoinsCompleted;
 
@@ -1517,11 +1550,6 @@ export default function ActiveWorkoutScreen() {
                           isFuture={isFutureSet}
                           colors={colors}
                         />
-                        {set.completed && recordedRestSec != null ? (
-                          <Text style={[styles.setRestDuration, { color: colors.textMuted }]}>
-                            {formatClock(recordedRestSec)}
-                          </Text>
-                        ) : null}
                       </Pressable>
                       <View style={colPrevStyle}>
                         <Text
@@ -1656,7 +1684,8 @@ export default function ActiveWorkoutScreen() {
                     </View>
                     {showRestAfter ? (
                       <RestBetweenBar
-                        presetSeconds={presetSeconds}
+                        seconds={row.restShownSeconds}
+                        recorded={row.restIsRecorded}
                         active={isActiveRestGap}
                         restSecondsLeft={restSecondsLeft ?? 0}
                         restTotalSeconds={restTotalSeconds}
@@ -2733,13 +2762,6 @@ const styles = StyleSheet.create({
   },
   setLabel: { fontSize: 13, textAlign: 'center' },
   setLabelWarmUp: { fontSize: 11 },
-  setRestDuration: {
-    fontSize: 10,
-    fontFamily: typography.data.fontFamily,
-    textAlign: 'center',
-    marginTop: 1,
-    lineHeight: 11,
-  },
   prevCell: {
     fontFamily: typography.data.fontFamily,
     fontSize: 13,

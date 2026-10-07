@@ -4,6 +4,7 @@ import {
   activeExerciseIndex,
   firstIncompleteSetIndex,
   isCurrentSet,
+  headerRestState,
   previousLabel,
   setLabel,
   setRowView,
@@ -147,6 +148,37 @@ describe('setRowView', () => {
     expect(setRowView(exercises, 0, 1, noRest).restJoinsCompleted).toBe(false);
     const counting = { restAfter: { exIdx: 0, setIdx: 0 }, restSecondsLeft: 10 };
     expect(setRowView(exercises, 0, 0, counting).restJoinsCompleted).toBe(false);
+  });
+
+  it('shows the rest actually taken once a completed set has one recorded, else the preset', () => {
+    const exercises: SessionExercise[] = [{ exerciseId: 'a', sets: [done(), todo(), todo()] }];
+    expect(setRowView(exercises, 0, 0, { ...noRest, recordedRestSeconds: 107 })).toMatchObject({
+      restShownSeconds: 107,
+      restIsRecorded: true,
+    });
+    expect(setRowView(exercises, 0, 0, noRest)).toMatchObject({ restShownSeconds: 120, restIsRecorded: false });
+    // un-completed: a kept recording stays hidden until the set is completed again
+    expect(setRowView(exercises, 0, 1, { ...noRest, recordedRestSeconds: 90 })).toMatchObject({
+      restShownSeconds: 120,
+      restIsRecorded: false,
+    });
+  });
+
+  it('a recorded rest keeps its row even when the preset is now 0', () => {
+    const exercises: SessionExercise[] = [
+      { exerciseId: 'a', restBetweenSetsSeconds: 0, sets: [done(), todo()] },
+    ];
+    expect(setRowView(exercises, 0, 0, { ...noRest, recordedRestSeconds: 60 }).showRestAfter).toBe(true);
+  });
+
+});
+
+describe('headerRestState', () => {
+  it('flags a set rest without digits, shows a manual rest, idles otherwise', () => {
+    expect(headerRestState({ exIdx: 0, setIdx: 1 }, 90)).toBe('set');
+    expect(headerRestState(null, 90)).toBe('manual');
+    expect(headerRestState(null, null)).toBe('idle');
+    expect(headerRestState({ exIdx: 0, setIdx: 1 }, 0)).toBe('idle');
   });
 });
 

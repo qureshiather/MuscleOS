@@ -130,8 +130,8 @@ Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the fu
 - Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including the first set of later exercises — is "upcoming": it renders muted with an outlined number; there is never more than one highlighted set at a time. The set number's accessibility label reads `Set <n>, current | upcoming | completed`.
 - Completed rows tint green (success), with a matching left bar and a filled green set mark. Warm-ups have their own tint. A rest row between two completed sets carries the same tint and bar (no divider line), so a run of completed sets reads as one unbroken green column. Row tints are opaque (the tint pre-blended over the card surface) and a joining rest row bleeds a pixel into its neighbours, so fractional row edges can't show a seam between them.
 - When every set in an exercise is completed, the card is marked done: a green border and a green check icon before the exercise name.
-- After a set is completed, the actual rest taken is displayed under its number. Until that duration is shown, the set number stays vertically centered on the row.
-- A rest row sits on the divider after a set when that set's rest duration is greater than 0 (and after the last such set, above Add set). It shows that duration, or the countdown while a timer is running for that set. While counting down, the divider itself becomes the progress track: it thickens and fills with the primary colour edge to edge across the row as the rest elapses, gliding between the one-second ticks. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
+- The set number is always vertically centered on the row; nothing is shown under it.
+- A rest row sits on the divider after a set when that set's rest duration is greater than 0 or a rest was recorded for it (and after the last such set, above Add set). It shows the preset duration (`2:00 rest`), the countdown while a timer is running for that set, and, once the set is completed and a rest was recorded, the rest actually taken in place of the preset. While counting down, the divider itself becomes the progress track: it thickens and fills with the primary colour edge to edge across the row as the rest elapses, gliding between the one-second ticks. Tapping the row opens the same dialogue as the header timer: rest controls while a countdown is running, otherwise the manual start-rest picker.
 
 ### Previous values and prefill
 
@@ -234,7 +234,7 @@ means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer
 
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
 and app restarts. **Skip rest** records the time actually rested (total minus the whole seconds
-left) and clears the timer; recorded durations are kept per set and shown under the set number.
+left) and clears the timer; recorded durations are kept per set and shown on the rest row after it.
 When a countdown reaches zero its **full duration** is recorded and the timer clears. A manual
 rest (header picker) is not tied to a set, so nothing is recorded for it.
 
@@ -244,6 +244,12 @@ amount, so the progress bar and the duration recorded at the end stay true:
 - **+30** adds up to 30 s, capping the total at 15:00.
 - **−30** removes up to 30 s, but never takes the total below 30 s or leaves less than 1 s on the
   clock. At a 30 s total it does nothing.
+
+**Header timer.** The countdown digits appear in one place only. A rest started by completing a set
+counts down on that set's rest row; the header shows only a highlighted timer icon (no digits), so
+the running rest is still flagged when that row is scrolled away. A manual rest (header picker) has
+no row, so the header shows its countdown as a chip. With nothing running, the header shows a plain
+timer icon. Tapping the header or the row opens the same dialogue for the same rest.
 
 A rest row sits after a set when that set's duration is greater than 0, so completing the set
 does not shove the rows below — the countdown replaces the preset in that same row. Tapping it
