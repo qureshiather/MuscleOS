@@ -6,7 +6,7 @@ import { ExerciseDemo } from '../components/ExerciseDemo';
 import { ExerciseSearch, type ExerciseListRow } from '../components/ExerciseSearch';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
-import { DEMO_EXERCISES, demoSources, EXERCISES, exercisePath, hasDemo, muscleLine } from '../data/exercises';
+import { DEMO_EXERCISES, demoSources, FEATURED_DEMOS, EXERCISES, exercisePath, hasDemo, muscleLine } from '../data/exercises';
 
 export const metadata: Metadata = {
   title: 'Exercise library — How to do every lift | MuscleOS',
@@ -42,14 +42,14 @@ export default function ExercisesPage() {
           <section aria-labelledby="demos" className="mt-12">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 id="demos" className="font-display text-2xl font-semibold text-ink">
-                Animated demos
+                Staple lifts
               </h2>
               <p className="font-mono-label text-xs uppercase tracking-wider text-ink-muted">
-                {DEMO_EXERCISES.length} exercises · more coming
+                {DEMO_EXERCISES.length} of {EXERCISES.length} animated
               </p>
             </div>
             <ul className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-              {DEMO_EXERCISES.map((e) => {
+              {FEATURED_DEMOS.map((e) => {
                 const sources = demoSources(e.id);
                 return (
                   <li key={e.id} className="h-full">
