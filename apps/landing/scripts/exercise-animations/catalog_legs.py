@@ -349,7 +349,7 @@ def deadlift_spec(id_, setup=barbell, grip=0.24, width=0.02, toe_out=6, bar_y=DL
             return grips_z()
 
         if 'h0' not in st:  # the hinge that puts the hands on the bar at the start height
-            lo, hi = 0.0, 88.0
+            lo, hi = 0.0, 120.0
             for _ in range(18):
                 mid = (lo + hi) / 2
                 lo, hi = (lo, mid) if pose_at(mid) < start_z else (mid, hi)
@@ -388,7 +388,7 @@ def _trap_pose_spec(id_, handle_height):
                   camera=cam((0, 0, 0.75), 50, 14, 3.9))
 
 
-deadlift_spec('sumo-deadlift', grip=0.17, width=0.24, toe_out=35, knee0=88, shin0=4,
+deadlift_spec('sumo-deadlift', grip=0.17, width=0.24, toe_out=45, knee0=88, shin0=4,
               camera=cam((0, 0, 0.75), 28, 12, 3.9))
 deadlift_spec('deficit-deadlift', setup=_with(barbell, lambda ctx: ctx.eq.plyo_box((0, 0.06), height=0.05, size=(0.6, 0.5)) or {}),
               floor=0.05, knee0=100)
@@ -397,6 +397,8 @@ deadlift_spec('rack-pull', setup=_with(barbell, lambda ctx: ctx.eq.rack_pins(0.4
               start_z=0.47, knee0=28, shin0=4)
 deadlift_spec('snatch-grip-deadlift', grip=0.42, knee0=100, shin0=14)
 deadlift_spec('fat-bar-deadlift')
+# Stiff-legged: from the floor like a deadlift, but the knees stay nearly straight.
+deadlift_spec('stiff-legged-deadlift', knee0=14, shin0=2, timing=dict(hold_start=0.1, out=0.4, hold_end=0.1))
 deadlift_spec('smith-machine-deadlift', setup=lambda ctx: {'bar': ctx.eq.smith_machine(bar_y=DL_BAR_Y)})
 deadlift_spec('dumbbell-deadlift', setup=dumbbells, grip=0.21, bar_y=0.0, start_z=0.14, knee0=100,
               shin0=12, implement='dumbbells')
@@ -425,7 +427,6 @@ def rdl_spec(id_, setup=barbell, hinge=78, knee=0.07, back=0.27, implement='bar'
     spec(id_, camera=camera, setup=setup)(pose)
 
 
-rdl_spec('stiff-legged-deadlift', hinge=88, knee=0.04, back=0.3)
 rdl_spec('dumbbell-romanian-deadlift', setup=dumbbells, implement='dumbbells')
 rdl_spec('smith-machine-romanian-deadlift', setup=lambda ctx: {'bar': ctx.eq.smith_machine(bar_y=-0.11)})
 rdl_spec('good-morning', hinge=80, knee=0.06, back=0.22, implement='back')
