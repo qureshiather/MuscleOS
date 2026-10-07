@@ -21,6 +21,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '../../..');
 const SRC_PATH = join(__dirname, '../src/data/exercises.ts');
 const TS_OUT = join(__dirname, '../src/data/catalogSeed.ts');
+// The landing site's exercise pages (muscleos.app/exercises) read the published rows from here.
+const LANDING_OUT = join(ROOT, 'apps/landing/app/data/exerciseCatalog.json');
 
 const SEED_UPDATED_AT = '2026-10-02T00:00:00.000Z';
 
@@ -156,6 +158,11 @@ tsLines.push(`];`, ``);
 
 writeFileSync(TS_OUT, tsLines.join('\n'));
 
+const landingRows = catalog
+  .filter((e) => e.isPublished)
+  .map(({ id, name, muscles, equipment, category, instructions }) => ({ id, name, muscles, equipment, category, instructions }));
+writeFileSync(LANDING_OUT, `[\n${landingRows.map((r) => `  ${JSON.stringify(r)}`).join(',\n')}\n]\n`);
+
 if (INSTRUCTIONS_MIGRATION) {
   const missing = catalog.filter((e) => !e.instructions).map((e) => e.id);
   if (missing.length) {
@@ -191,3 +198,4 @@ console.log(`Wrote ${catalog.length} exercises`);
 console.log(counts);
 console.log(`unpublished: ${catalog.filter((e) => !e.isPublished).map((e) => e.id).join(', ')}`);
 console.log(`TS: ${TS_OUT}`);
+console.log(`Landing: ${LANDING_OUT}`);

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatMuscleLabels } from '@muscleos/types';
 import type { Exercise } from '@muscleos/types';
@@ -30,6 +31,7 @@ import { noteSaveState } from '@/utils/noteDraft';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { exerciseTypeLine } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
+import { exerciseDemoUrl } from '@/utils/exerciseDemo';
 
 /** Approximate detail-sheet header (title + Close + padding + hairline). */
 const DETAIL_HEADER_HEIGHT = 64;
@@ -39,6 +41,8 @@ const DETAIL_HEADER_HEIGHT = 64;
  * Save, Close, backdrop tap, back, and end-editing; the sheet rises with the keyboard so the note
  * stays visible while typing. `canManage` adds Edit/Delete for customs and a link to the exercise's
  * history — off where leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
+ * Exercises with an animated demo link to it on the website; that opens in the in-app browser over
+ * the sheet, so it's offered everywhere, mid-workout included.
  */
 export function ExerciseDetailSheet({
   exercise,
@@ -65,6 +69,7 @@ export function ExerciseDetailSheet({
   const scrollRef = useRef<ScrollView>(null);
   const saveState = noteSaveState(noteDraft, savedNote);
   const exerciseId = exercise?.id;
+  const demoUrl = exerciseId ? exerciseDemoUrl(exerciseId) : undefined;
   const hasHistory = useMemo(
     () =>
       canManage &&
@@ -146,6 +151,23 @@ export function ExerciseDetailSheet({
                 showsVerticalScrollIndicator
               >
                 <MuscleDiagram muscleIds={exercise.muscles} size={0.9} />
+                {demoUrl ? (
+                  <Pressable
+                    onPress={() => void WebBrowser.openBrowserAsync(demoUrl)}
+                    testID="exercise-detail-demo"
+                    accessibilityRole="link"
+                    accessibilityLabel={`Watch how to do ${exercise.name}`}
+                    accessibilityHint="Opens the animated demo on muscleos.app"
+                    style={({ pressed }) => [
+                      styles.historyRow,
+                      { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    <Ionicons name="play-circle-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.historyText, { color: colors.primary }]}>Watch how it&apos;s done</Text>
+                    <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Muscles</Text>
                 <Text style={[styles.bodyText, { color: colors.text }]}>
                   {formatMuscleLabels(exercise.muscles)}

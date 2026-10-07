@@ -126,6 +126,14 @@ state.
 | `src/utils/exerciseLibraryFilter.test.ts`, `customExerciseForm.test.ts` | Tab filters and summary, create-form validation, edit target |
 | `src/test/ui/exercises/*.test.tsx` (Jest) | Exercises tab, filters, empty states, create/edit exercise |
 
+### Exercise demos — [exercise-demos.md](../features/exercise-demos.md)
+
+| File | Covers |
+|------|--------|
+| `apps/landing/app/data/exercises.test.ts` | Website catalog order/uniqueness, demo ids are published rows, per-theme sources, search, related exercises, type line |
+| `src/utils/exerciseDemo.test.ts` | Link only for exercises with a demo, never customs; demo ids are published catalog ids |
+| `src/test/ui/exercises/exercisesTab.test.tsx` (Jest) | Detail sheet demo row opens the website page; absent without a demo |
+
 ### History & analytics — [history-analytics.md](../features/history-analytics.md)
 
 | File | Covers |
@@ -171,6 +179,8 @@ Things the current setup can't reach; each spec's **Tests** section has the deta
 - Native integrations: Apple/Google sign-in SDKs, sound playback,
   notification scheduling, drag-to-reorder and swipe physics.
 - The root layout's boot sequence runs only in the app; its pieces are tested individually.
+- Rendered exercise demos (Blender output) aren't asserted on; review them with
+  `build-exercise-animations.mjs --check` and by watching the clips.
 
 ## Conventions
 

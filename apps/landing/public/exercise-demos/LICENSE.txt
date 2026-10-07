@@ -1,0 +1,12 @@
+MuscleOS exercise animations
+Pages: https://muscleos.app/exercises
+
+The exercise animation files in this folder (*.mp4 and *.webp) are made by MuscleOS and are
+dedicated to the public domain under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+You can copy, modify, distribute and use them, including commercially, without asking
+permission and without credit. Credit to MuscleOS is welcome but not required.
+
+This covers the animation files only. The MuscleOS name, logo, app and the rest of the website
+are not covered by this dedication.

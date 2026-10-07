@@ -6,6 +6,9 @@ import { useSessionsStore } from '@/store/sessionsStore';
 import { resetAppState } from '../render';
 import { exercise, renderExercises, seedExercises } from './helpers';
 
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }));
+const { openBrowserAsync } = jest.requireMock('expo-web-browser') as { openBrowserAsync: jest.Mock };
+
 jest.mock('@/sync', () => ({
   notifyCustomExerciseUpsert: jest.fn(),
   notifyCustomExerciseDelete: jest.fn(),
@@ -214,6 +217,18 @@ describe('detail sheet', () => {
     expect(screen.queryByTestId('exercise-note-save')).toBeNull();
     expect(screen.getByText('Saved')).toBeTruthy();
     expect(screen.getByText('Your notes')).toBeTruthy();
+  });
+
+  it('links exercises with an animated demo to their website page', async () => {
+    renderExercises();
+    fireEvent.press(await screen.findByText('Bench Press'));
+    fireEvent.press(await screen.findByTestId('exercise-detail-demo'));
+    expect(openBrowserAsync).toHaveBeenCalledWith('https://muscleos.app/exercises/bench-press');
+    fireEvent.press(screen.getByText('Close'));
+
+    fireEvent.press(await screen.findByText('Pec Deck'));
+    await screen.findByText('Your notes');
+    expect(screen.queryByTestId('exercise-detail-demo')).toBeNull();
   });
 
   it('links to the exercise history only once it has logged sets', async () => {
