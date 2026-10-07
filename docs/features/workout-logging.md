@@ -370,7 +370,9 @@ while more exercises sit below.
 
 "Overwrite" updates the template's `exerciseIds` and per-exercise set structure from the
 session (working vs warm-up row counts, including incomplete rows) — names and folders are
-untouched. **Save as template** writes the same structure onto a new custom template.
+untouched. **Save as template** writes the same structure onto a new custom template, and the
+saved session's `templateId` is re-pointed at it — so history, the "Good work" screen, "last done"
+and volume change show the new template rather than "Empty workout" or the template it started from.
 
 Choosing **Save as template** / **Save as new template** swaps the summary to a name step
 **within the same modal** (Save · Back) where you name the template before it's created. This is a
@@ -445,6 +447,7 @@ the real router.
   rest keys, rest-key remap on reorder / remove / replace, `canCompleteSet`,
   `restDurationAfterComplete`, `storedRestSeconds`, `startPrefillPatch` and `prefillSession`
   (empty working sets only, flagged; warm-ups and partial sets skipped), `stripPrefillFlags`,
+  `completeSession` (re-points `templateId` at a saved template),
   `adjustRunningRest` (+30 cap at 15:00, −30 floors the total at 30 s and leaves ≥ 1 s, no-op at
   30 s, total and end move together), `restTakenSeconds` / `restSecondsLeft`, `resolveRestEnd`
   (full duration recorded, manual rest records nothing, 1500 ms sound grace), `shouldPlayRestTick`
@@ -493,7 +496,8 @@ the real router.
   built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
   custom-changed hint, Back, the save-as-template name step and its Back, summary contents,
   Discard workout, the Good-work screen (Exercises and Sets counts, set detail, saved session
-  keeping incomplete sets, Done), and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
+  keeping incomplete sets, Done), Save as template attributing the session to the new template,
+  and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
   Discard)
 - `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with
   and without matches, "No matching exercises", routing to `/create-exercise`

@@ -10,6 +10,7 @@ jest.mock('@/sync', () => ({
   notifySessionUpsert: jest.fn(),
   notifySessionDelete: jest.fn(),
   notifyExercisePreviousSnapshot: jest.fn(),
+  notifyTemplateUpsert: jest.fn(),
   syncAfterWorkout: jest.fn(async () => undefined),
 }));
 
@@ -190,6 +191,24 @@ describe('Good work screen', () => {
 
     press('finished-done');
     await waitFor(() => expect(r.getPathname()).toBe('/'));
+  });
+
+  test('Save as template attributes the session to the new template, not the empty workout', async () => {
+    await start('/active-workout?templateId=_empty');
+    act(() => useActiveWorkoutStore.getState().addExercise('bench-press'));
+    logSet();
+    press('finish-workout');
+    press('finish-option-save_as_template');
+    fireEvent.changeText(screen.getByDisplayValue(/^Workout /), 'Leg Day');
+    fireEvent.press(screen.getByText('Save'));
+
+    expect(await screen.findByText('Good work')).toBeTruthy();
+    expect(screen.getByText('Leg Day')).toBeTruthy();
+    const template = useTemplatesStore.getState().userTemplates.find((t) => t.name === 'Leg Day');
+    expect(template).toBeDefined();
+    await waitFor(async () => expect(await getSessions()).toHaveLength(1));
+    const [saved] = await getSessions();
+    expect(saved.templateId).toBe(template?.id);
   });
 });
 
