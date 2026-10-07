@@ -219,14 +219,14 @@ describe('detail sheet', () => {
     expect(screen.getByText('Your notes')).toBeTruthy();
   });
 
-  it('links exercises with an animated demo to their website page', async () => {
+  it('links catalog exercises to their website page, customs to nothing', async () => {
     renderExercises();
-    fireEvent.press(await screen.findByText('Bench Press'));
+    fireEvent.press(await screen.findByText('Pec Deck'));
     fireEvent.press(await screen.findByTestId('exercise-detail-demo'));
-    expect(openBrowserAsync).toHaveBeenCalledWith('https://muscleos.app/exercises/bench-press');
+    expect(openBrowserAsync).toHaveBeenCalledWith('https://muscleos.app/exercises/pec-deck');
     fireEvent.press(screen.getByText('Close'));
 
-    fireEvent.press(await screen.findByText('Pec Deck'));
+    fireEvent.press(await screen.findByText('Landmine Press'));
     await screen.findByText('Your notes');
     expect(screen.queryByTestId('exercise-detail-demo')).toBeNull();
   });
