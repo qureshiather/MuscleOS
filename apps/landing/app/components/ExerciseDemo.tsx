@@ -95,7 +95,7 @@ export function ExerciseDemo({
       ) : theme ? (
         <>
           {/* biome-ignore lint/performance/noImgElement: static export, posters are already sized */}
-          <img className="h-full w-full object-cover" src={sources[theme].poster} alt={label} />
+          <img className="h-full w-full object-cover" src={sources[theme].poster} alt={label} loading="lazy" />
           {reducedMotion && !isStatic ? (
             <button
               type="button"
@@ -112,9 +112,9 @@ export function ExerciseDemo({
       ) : (
         <>
           {/* biome-ignore lint/performance/noImgElement: static export, posters are already sized */}
-          <img className="theme-light-only h-full w-full object-cover" src={sources.light.poster} alt={label} />
+          <img className="theme-light-only h-full w-full object-cover" src={sources.light.poster} alt={label} loading="lazy" />
           {/* biome-ignore lint/performance/noImgElement: static export, posters are already sized */}
-          <img className="theme-dark-only h-full w-full object-cover" src={sources.dark.poster} alt={label} />
+          <img className="theme-dark-only h-full w-full object-cover" src={sources.dark.poster} alt={label} loading="lazy" />
         </>
       )}
     </div>
