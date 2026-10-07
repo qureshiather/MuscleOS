@@ -27,6 +27,11 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/exercises" className="text-ink-secondary transition hover:text-ink">
+                  Exercises
+                </Link>
+              </li>
+              <li>
                 <Link href="/faq" className="text-ink-secondary transition hover:text-ink">
                   FAQ
                 </Link>
