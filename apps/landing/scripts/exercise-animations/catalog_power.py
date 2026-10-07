@@ -385,13 +385,25 @@ def kb_spec(id_, kind, one_hand=False):
         sides = ['R'] if one_hand or kind not in ('swing', 'thruster', 'windmill') else SIDES
         if kind == 'windmill':
             # Bell locked out overhead in the right hand; hinge sideways to reach the left hand to the foot.
+            # Bell locked out overhead in the right hand, arm vertical, eyes on the bell. The hips push
+            # back and out to the right while the torso hinges and turns; the left hand slides down
+            # the left leg toward the foot.
             k = smootherstep(u)
-            stand(ctx, width=0.16, toe_out=-20)
-            ctx.spine(side=40 * k, twist=-20 * k, flex=20 * k)
-            ctx.bone('pelvis', (Z, 15 * k))
-            ctx.arm_fk('R', abd=170, flex=0)
-            ctx.arm_fk('L', abd=10 + 10 * k, flex=20 * k)
-            ctx.follow(st['kb'], 'hand.R', M.grip_point('R'), M.arm_rest_rot('R') @ qx(0))
+            stand(ctx, width=0.16)
+            ctx.arm.location.x -= 0.1 * k
+            ctx.bone('pelvis', (X, 70 * k), (Z, 25 * k))
+            ctx.spine(flex=10 * k, side=-15 * k, twist=35 * k)
+            ctx.head(turn=-30 * k, flex=-20 * k)
+            sh = ctx.world('upperarm.R', 'head')
+            top = sh + Vector((0, 0, M.grip_reach() * 0.99))
+            ctx.grip('R', top, (0, -1, 0))
+            ctx.pole_world('arm.R', (-1, 0, 0))
+            place(st['kb'], top)
+            knee = ctx.world('shin.L', 'head')
+            ankle = ctx.world('foot.L', 'head')
+            ctx.target('arm.L', knee.lerp(ankle, k) + Vector((0.03, -0.06, 0.05)) if k > 0.05
+                       else ctx.world('upperarm.L', 'head') + Vector((0.03, 0, -0.55)))
+            ctx.pole_world('arm.L', (1, 0, 0))
             return
         if kind == 'swing':
             # Hinge back with the bell between the legs, then snap the hips to float it to chest height.
@@ -493,7 +505,8 @@ def muscle_up_spec(id_, rings=False, band=False, jumping=False):
         z_top_pull = bar.z - 0.6
         z_support = bar.z + 0.06
         z = lerp(z_hang, z_top_pull, pull) + (z_support - z_top_pull) * press * 1.0
-        ctx.root((0, lerp(0.03, -0.12, over), z))
+        # In support the hips sit at the bar and the shoulders lean over the hands on straight arms.
+        ctx.root((0, lerp(0.03, bar.y + 0.12, over), z + 0.04 * press))
         ctx.spine(flex=lerp(-8, 30, over) - 15 * press)
         ctx.head(flex=-10 + 20 * over)
         for s in SIDES:
