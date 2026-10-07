@@ -5,8 +5,9 @@ import { ThemeToggle } from './ThemeToggle';
 
 const NAV = [
   { href: '/#features', label: 'Features', hideOnMobile: true },
+  { href: '/exercises', label: 'Exercises', hideOnMobile: false },
   { href: '/faq', label: 'FAQ', hideOnMobile: false },
-  { href: '/#pricing', label: 'Pricing', hideOnMobile: false },
+  { href: '/#pricing', label: 'Pricing', hideOnMobile: true },
   { href: '/privacy', label: 'Privacy', hideOnMobile: true },
 ] as const;
 
