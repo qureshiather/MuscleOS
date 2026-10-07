@@ -82,7 +82,7 @@ describe('number pad', () => {
     expect(screen.queryByTestId('numeric-keypad')).toBeNull();
     // rest timer started for that set (default 120 s)
     expect(useActiveWorkoutStore.getState().restAfter).toEqual({ exIdx: 0, setIdx: 0 });
-    expect(screen.getByTestId('header-rest-chip')).toBeTruthy();
+    expect(screen.getByTestId('header-rest-active')).toBeTruthy();
   });
 
   test('weight: digits in kg, Next jumps to reps of the same set', async () => {
@@ -139,15 +139,18 @@ describe('completing sets and the rest timer', () => {
     press('set-done-0-0');
     expect(setsOf(0)[0].completed).toBe(true);
     expect(screen.getByTestId('finish-workout').props.accessibilityState).toEqual({ disabled: false });
-    // the rest row after that set becomes the countdown; the header shows a chip
+    // the rest row after that set becomes the countdown — the only one on screen: the header flags
+    // the running rest without repeating the digits
     expect(screen.getByTestId('rest-row-0-0').props.accessibilityLabel).toBe('Rest 2:00 remaining');
-    expect(screen.getByTestId('header-rest-chip').props.accessibilityLabel).toBe('Rest 2:00 remaining');
+    expect(screen.getByTestId('header-rest-active')).toBeTruthy();
+    expect(screen.queryByTestId('header-rest-chip')).toBeNull();
     expect(screen.getByTestId('rest-row-0-1').props.accessibilityLabel).toBe('Rest 2:00 after this set');
 
     press('set-done-0-0');
     expect(setsOf(0)[0].completed).toBe(false);
     expect(useActiveWorkoutStore.getState().restEndTime).toBeNull();
-    expect(screen.queryByTestId('header-rest-chip')).toBeNull();
+    expect(screen.queryByTestId('header-rest-active')).toBeNull();
+    expect(screen.getByTestId('header-rest-start')).toBeTruthy();
   });
 
   test('Done is disabled on a set with no reps', async () => {
@@ -175,7 +178,7 @@ describe('completing sets and the rest timer', () => {
   test('header rest dialog: ±30 adjusts the running countdown, Skip records the rest taken', async () => {
     await startWithReps();
     press('set-done-0-0');
-    press('header-rest-chip');
+    press('header-rest-active');
     expect(screen.getByText('Rest remaining')).toBeTruthy();
     press('rest-plus-30');
     expect(useActiveWorkoutStore.getState().restTotalSeconds).toBe(150);
@@ -187,8 +190,9 @@ describe('completing sets and the rest timer', () => {
     expect(st.restEndTime).toBeNull();
     expect(st.restDurationsBetweenSets['0-0']).toBeGreaterThanOrEqual(0);
     expect(screen.queryByText('Rest remaining')).toBeNull();
-    // recorded rest shows under the set number
-    expect(within(screen.getByTestId('set-label-0-0')).getByText(/^\d+:\d\d$/)).toBeTruthy();
+    // the rest row now shows the rest actually taken, not the preset; nothing under the set number
+    expect(screen.getByTestId('rest-row-0-0').props.accessibilityLabel).toMatch(/^Rested \d+:\d\d after this set$/);
+    expect(within(screen.getByTestId('set-label-0-0')).queryByText(/^\d+:\d\d$/)).toBeNull();
   });
 
   test('the rest row after a set opens the same dialog; with no countdown it is the manual picker', async () => {
@@ -211,7 +215,29 @@ describe('completing sets and the rest timer', () => {
     });
     await waitFor(() => expect(useActiveWorkoutStore.getState().restEndTime).toBeNull());
     expect(useActiveWorkoutStore.getState().restDurationsBetweenSets['0-0']).toBe(120);
-    expect(within(screen.getByTestId('set-label-0-0')).getByText('2:00')).toBeTruthy();
+    expect(screen.getByTestId('rest-row-0-0').props.accessibilityLabel).toBe('Rested 2:00 after this set');
+  });
+
+  test('the row and the header open the same running rest; a manual rest shows its countdown in the header', async () => {
+    await startWithReps();
+    press('set-done-0-0');
+    press('rest-row-0-0');
+    expect(screen.getByText('Rest remaining')).toBeTruthy();
+    press('rest-skip');
+    press('header-rest-start');
+    press('rest-picker-60');
+    expect(screen.getByTestId('header-rest-chip').props.accessibilityLabel).toBe('Rest 1:00 remaining');
+    expect(screen.queryByTestId('header-rest-active')).toBeNull();
+  });
+
+  test('no rest row after the last set once the exercise is finished', async () => {
+    await startWithReps();
+    expect(screen.getByTestId('rest-row-0-2')).toBeTruthy();
+    for (const i of [0, 1, 2]) press(`set-done-0-${i}`);
+    expect(screen.getByTestId('rest-row-0-2')).toBeTruthy(); // counting down
+    press('rest-row-0-2');
+    press('rest-skip');
+    expect(screen.queryByTestId('rest-row-0-2')).toBeNull();
   });
 });
 

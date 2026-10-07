@@ -64,11 +64,21 @@ export interface SetRowView {
   restPresetSeconds: number;
   /** A countdown is running for the rest after this set. */
   restActive: boolean;
-  /** A rest row sits after this set: its preset is > 0, or its countdown is running. */
+  /**
+   * What the rest row shows when it isn't counting down: the rest actually taken once the set is
+   * completed and a duration was recorded, otherwise the preset.
+   */
+  restShownSeconds: number;
+  /** `restShownSeconds` is the recorded rest actually taken, not the preset. */
+  restIsRecorded: boolean;
+  /**
+   * A rest row sits after this set: its countdown is running, or it has a preset > 0 or a recorded
+   * rest — except after the last set of a finished exercise, where there's nothing left to rest for.
+   */
   showRestAfter: boolean;
   /**
    * The rest row sits between two completed sets (and isn't counting down), so it carries their
-   * green tint and bar — a run of completed sets reads as one unbroken column.
+   * green tint and bar — a run of completed sets reads as one unbroken, compact column.
    */
   restJoinsCompleted: boolean;
 }
@@ -81,7 +91,12 @@ export function setRowView(
   exercises: readonly SessionExercise[],
   exIdx: number,
   setIdx: number,
-  rest: { restAfter: RestAfter | null; restSecondsLeft: number | null }
+  rest: {
+    restAfter: RestAfter | null;
+    restSecondsLeft: number | null;
+    /** Rest recorded after this set (`restDurationsBetweenSets`), if any. */
+    recordedRestSeconds?: number;
+  }
 ): SetRowView {
   const ex = exercises[exIdx];
   const sets = ex?.sets ?? [];
@@ -100,15 +115,36 @@ export function setRowView(
     rest.restAfter.setIdx === setIdx &&
     rest.restSecondsLeft != null &&
     rest.restSecondsLeft > 0;
+  const restIsRecorded = status === 'completed' && rest.recordedRestSeconds != null;
+  const trailsFinishedExercise =
+    setIdx === sets.length - 1 && sets.every((s) => s.completed);
   return {
     label: setLabel(sets, setIdx),
     isWarmUp,
     status,
     restPresetSeconds,
     restActive,
-    showRestAfter: restActive || restPresetSeconds > 0,
+    restShownSeconds: restIsRecorded ? (rest.recordedRestSeconds ?? 0) : restPresetSeconds,
+    restIsRecorded,
+    showRestAfter:
+      restActive || (!trailsFinishedExercise && (restIsRecorded || restPresetSeconds > 0)),
     restJoinsCompleted: status === 'completed' && sets[setIdx + 1]?.completed === true && !restActive,
   };
+}
+
+/**
+ * The header's rest control. A countdown tied to a set is shown on that set's rest row, so the
+ * header only flags it (`'set'`) instead of repeating the digits; a manual rest has no row, so the
+ * header shows its countdown (`'manual'`). Either way the header and the row open the same rest.
+ */
+export type HeaderRestState = 'idle' | 'set' | 'manual';
+
+export function headerRestState(
+  restAfter: RestAfter | null,
+  restSecondsLeft: number | null
+): HeaderRestState {
+  if (restSecondsLeft == null || restSecondsLeft <= 0) return 'idle';
+  return restAfter ? 'set' : 'manual';
 }
 
 /**
