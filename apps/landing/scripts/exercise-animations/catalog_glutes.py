@@ -153,7 +153,7 @@ def clamshells(ctx, st, u):
     t = smootherstep(u)
     ctx.root((0, 0.0, 0.16), (0, -90, 0))
     for s in SIDES:
-        ctx.leg_fk(s, hip_flex=45, knee=90, hip_abd=(lerp(0, 40, t) if s == 'R' else 0) * -1, ankle=0)
+        ctx.leg_fk(s, hip_flex=45, knee=90, hip_abd=(lerp(0, 40, t) if s == 'R' else 0), ankle=0)
     ctx.arm_fk('L', flex=170, elbow=100)
     ctx.arm_fk('R', flex=20, abd=-10, elbow=40)
     ctx.head(flex=0)
@@ -360,12 +360,11 @@ def cable_pull_through(ctx, st, u):
 def back_extension(ctx, st, u):
     # Hips on the pad of a 45° bench; hinge down over it, then rise until the body is straight.
     t = smootherstep(u)
-    tilt = 45 + 50 * t
-    ctx.pin_root(M.joint('hip') - Vector((M.joint('hip').x, 0, 0)), Vector((0, -0.04, 0.95)), (tilt, 0, 0))
-    ctx.bone('pelvis', (X, 0))
+    ctx.pin_root(M.joint('hip') - Vector((M.joint('hip').x, 0, 0)), Vector((0, -0.04, 0.95)), (45, 0, 0))
+    ctx.bone('pelvis', (X, 85 * t))
     ctx.spine(flex=10 * t)
     for s in SIDES:
-        ctx.leg_fk(s, hip_flex=-45 * 0 - 0 * t, ankle=0)
+        ctx.leg_fk(s, hip_flex=85 * t, ankle=0)
         ctx.arm_fk(s, flex=40, abd=-30, elbow=120, rot=60)
 
 
@@ -591,6 +590,7 @@ def calf_spec(id_, load='none', seated=False, donkey=False, single=False, leg_pr
             sit(ctx, 0.45, y=0.38, knee=88)
             for s in SIDES:
                 ctx.leg_fk(s, hip_flex=88, knee=95, ankle=ankle)
+                ctx.arm_fk(s, flex=35, abd=4, elbow=35)
             ball = ctx.attach_point('foot.L', (0.1, -0.1, 0.02))
             ctx.arm.location.z += 0.12 - ball.z
             knees = [ctx.world('shin.' + s, 'head') for s in SIDES]
@@ -607,12 +607,12 @@ def calf_spec(id_, load='none', seated=False, donkey=False, single=False, leg_pr
         legs = ['R'] if single else SIDES
         for s in SIDES:
             if s in legs:
-                ctx.leg_fk(s, ankle=ankle, hip_flex=-85 if donkey else 0)
+                ctx.leg_fk(s, ankle=ankle, hip_flex=85 if donkey else 0)
             else:
                 ctx.leg_fk(s, knee=60, hip_flex=-10, ankle=-20)
         if donkey:
             for s in SIDES:
-                ctx.leg_fk(s, hip_flex=0, ankle=ankle)
+                ctx.leg_fk(s, hip_flex=85, ankle=ankle)  # legs vertical under the tipped pelvis
         ref = 'foot.R' if single else 'foot.L'
         ball = ctx.attach_point(ref, (0.1 if not single else -0.1, -0.1, 0.02))
         floor_z = 0.12 if step else 0.02

@@ -39,7 +39,8 @@ def push_up_spec(id_, hands_z=0.0, hands_y=-0.22, feet_z=0.0, width=0.27, knees=
                 ctx.pole_world('arm.' + s, (sgn(s) * 0.2, 1, 0.3))
             return
         pivot_rest = M.joint('knee') if knees else M.joint('toe') + Vector((0, 0.03, 0))
-        pivot = Vector((0, 0.55 if not knees else 0.12, (feet_z + 0.03) if not knees else 0.06))
+        # Feet (or knees) a body length behind the hands, so the shoulders can stack over them.
+        pivot = Vector((0, hands_y + (1.3 if not knees else 0.72), (feet_z + 0.03) if not knees else 0.06))
         if wall:
             pivot = Vector((0, 0.35, 0.03))
         reach = M.grip_reach() * 0.985
@@ -55,7 +56,7 @@ def push_up_spec(id_, hands_z=0.0, hands_y=-0.22, feet_z=0.0, width=0.27, knees=
             sh = shoulders(ctx)
             return (Vector((0, hand.y, hand.z)) - sh).length
 
-        lo, hi = 10.0, 89.0
+        lo, hi = (5.0, 40.0) if wall else (10.0, 89.0)
         for _ in range(16):
             mid = (lo + hi) / 2
             lo, hi = (mid, hi) if place_body(mid) > target else (lo, mid)
@@ -116,7 +117,7 @@ push_up_spec('cobra-push-up', cobra=True, camera=cam((0, 0.1, 0.25), 70, 12, 3.6
 push_up_spec('push-ups-with-feet-in-rings', feet_z=0.45, rings=True, setup=_feet_rings)
 
 
-@spec('handstand-push-up', camera=cam((0, 0.2, 0.9), 70, 8, 4.2),
+@spec('handstand-push-up', camera=cam((0, 0.2, 1.1), 70, 8, 4.8),
       setup=lambda ctx: (ctx.eq.group('wall', [ctx.eq.pad('w', (1.6, 0.1, 2.4), (0, 0.42, 1.2))]), {})[1])
 def handstand_push_up(ctx, st, u):
     # Upside down with the heels on a wall; the elbows bend to lower the head toward the floor.
@@ -380,15 +381,13 @@ def rotation_spec(id_, implement, external, position='side'):
             st['line'] = ctx.eq.line('line', accent=implement == 'band', radius=0.008)
         else:
             st['db'] = ctx.eq.dumbbell('db')
-        if position == 'lying':
-            ctx.eq.flat_bench((0, 0.33))
         return st
 
     def pose(ctx, st, u):
         t = smootherstep(u)
         if position == 'lying':
             # Lying on the left side; the right forearm rotates with the elbow tucked at the waist.
-            ctx.root((0, 0.0, 0.62), (0, -90, 0))
+            ctx.root((0, 0.0, 0.17), (0, 90, 0))
             for s in SIDES:
                 ctx.leg_fk(s, hip_flex=30, knee=60)
             ctx.arm_fk('L', flex=170, elbow=100)
@@ -410,7 +409,7 @@ def rotation_spec(id_, implement, external, position='side'):
         else:
             set_line(st['line'], st['anchor'], hand)
 
-    spec(id_, camera=cam((0, 0, 1.0 if position != 'lying' else 0.8), 20 if position != 'lying' else 0, 12, 3.6),
+    spec(id_, camera=cam((0, 0, 1.0 if position != 'lying' else 0.3), 20 if position != 'lying' else 0, 12 if position != 'lying' else 25, 3.6),
          setup=setup, concentric='out')(pose)
 
 
@@ -555,7 +554,7 @@ def wrist_roller(ctx, st, u):
     place(st['plate'], low)
 
 
-@spec('gripper', camera=cam((0.2, -0.1, 1.0), 40, 8, 1.8),
+@spec('gripper', camera=cam((-0.25, -0.15, 1.05), 320, 8, 2.2),
       setup=lambda ctx: {'g': ctx.eq.group('gripper', [ctx.eq.cyl('ga', 0.013, 0.11, (0, 0.0, 0.0), (0, 0, 0), ctx.eq.m_pad, 16),
                                                       ctx.eq.cyl('gb', 0.013, 0.11, (0, -0.06, 0.0), (0, 0, 0), ctx.eq.m_pad, 16)])},
       concentric='out')
@@ -603,6 +602,8 @@ def neck_spec(id_, kind):
 
     def pose(ctx, st, u):
         t = smootherstep(u)
+        for s in SIDES:
+            ctx.arm_fk(s, flex=40, abd=-20, elbow=120, rot=60)
         if kind == 'curl':
             ctx.root((0, 0.0, 0.54), (-90, 0, 0))
             ctx.head(flex=lerp(-40, 40, t))
@@ -616,13 +617,14 @@ def neck_spec(id_, kind):
             for s in SIDES:
                 ctx.target('leg.' + s, (sgn(s) * 0.2, 0.6, 0.06), qx(-80) @ ctx.body.rest_quat('foot.' + s))
         elif kind == 'prone-bridge':
-            # On the knees and forehead, hands lightly down; roll forward and back over the head.
-            ctx.root((0, 0.05, 0.55), (lerp(100, 120, t), 0, 0))
+            # Kneeling with the forehead on the floor; roll forward and back over the head.
+            ctx.root((0, 0.12, 0.5), (lerp(112, 128, t), 0, 0))
             ctx.head(flex=-20)
             for s in SIDES:
-                ctx.leg_fk(s, hip_flex=lerp(60, 40, t), knee=110, ankle=-30)
-            for s in SIDES:
-                ctx.arm_fk(s, flex=70, abd=10, elbow=60)
+                ctx.target('leg.' + s, (sgn(s) * 0.11, 0.55, 0.07), qx(-80) @ ctx.body.rest_quat('foot.' + s))
+                ctx.pole_world('leg.' + s, (0, -0.3, -1))
+                ctx.target('arm.' + s, (sgn(s) * 0.3, -0.35, 0.08))
+                ctx.pole_world('arm.' + s, (0, 1, 0))
         else:
             # Supine bridge on the head and feet, rolling the head back and forth.
             ctx.root((0, 0.1, 0.5), (lerp(-120, -105, t), 0, 0))
@@ -633,7 +635,7 @@ def neck_spec(id_, kind):
         if 'plate' in st:
             ctx.follow(st['plate'], 'head', (0, -0.11 if kind == 'curl' else 0.09, 1.66), qx(90))
 
-    spec(id_, camera=cam((0, 0.4, 0.7), 75, 10, 3.0), setup=setup, concentric='out')(pose)
+    spec(id_, camera=cam((0, 0.2, 0.6), 75, 10, 3.8), setup=setup, concentric='out')(pose)
 
 
 neck_spec('lying-neck-curl', 'curl')
