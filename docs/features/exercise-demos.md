@@ -71,7 +71,8 @@ its page shows "Demo coming soon" with the same how-to as the app.
 Demos are rendered with headless Blender from code, not hand-animated:
 
 ```
-node apps/landing/scripts/build-exercise-animations.mjs            # every built-in template exercise
+node apps/landing/scripts/build-exercise-animations.mjs            # every exercise with choreography
+node apps/landing/scripts/build-exercise-animations.mjs --missing  # only those without clips yet
 node apps/landing/scripts/build-exercise-animations.mjs squat ...  # just these
 node apps/landing/scripts/build-exercise-animations.mjs --check    # key-frame contact sheet of all
 node apps/landing/scripts/build-exercise-animations.mjs --manifest # only rewrite the id list
@@ -91,8 +92,24 @@ Everything an exercise doesn't define is shared, so a fix to any of it reaches e
 | Equipment: barbell, dumbbells, benches, cable stations, machines | `equipment.py` |
 | Positions and grips: stand, lie on a bench, sit, bar grip, hang a bar, carry dumbbells | `moves.py` |
 
-An exercise (`exercises.py`) is only its movement: equipment setup plus a pose for each point of
-the rep.
+An exercise is only its movement: equipment setup plus a pose for each point of the rep. Each one
+registers a spec by catalog id (`registry.py`); `catalog.py` imports every module, so the build
+renders whatever is registered:
+
+| Module | Exercises |
+|--------|-----------|
+| `exercises.py` | The built-in template exercises |
+| `catalog_legs.py` | Squat and deadlift/hinge variants |
+| `catalog_press.py` | Bench, incline, decline, floor, Smith, dumbbell and overhead presses |
+| `catalog_pull.py` | Rows, inverted rows, shrugs, pulldowns, pull-ups and hangs |
+| `catalog_arms.py` | Curls, triceps extensions, pushdowns and dips |
+| `catalog_glutes.py` | Bridges, hip thrusts, kickbacks, abduction/adduction, Nordics, leg machines, calves |
+| `catalog_core.py` | Planks, crunches, leg raises, rotation and anti-rotation |
+| `catalog_upper.py` | Push-ups, raises, flys, rotator cuff, cable rows, wrist, grip and neck |
+| `catalog_power.py` | Lunges, jumps, Olympic lifts, kettlebell ballistics, muscle-ups |
+
+Moves that shouldn't play backwards (Olympic lifts, jumps, alternating or walking moves) read loop
+time (`ctx.t`) and choreograph their own return instead of reversing the rep.
 
 **Look rules.** Colours mirror the app's Pulse palette. The body is the neutral diagram fill; the
 exercise's catalog muscles are drawn in `muscleHighlight` and brighten during the lifting phase.

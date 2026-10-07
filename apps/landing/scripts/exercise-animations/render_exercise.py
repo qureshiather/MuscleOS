@@ -18,7 +18,7 @@ import bpy  # noqa: E402
 
 import anim  # noqa: E402
 import equipment as E  # noqa: E402
-import exercises  # noqa: E402
+import catalog  # noqa: E402
 import mannequin as M  # noqa: E402
 import scene as S  # noqa: E402
 
@@ -27,6 +27,9 @@ CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.cache', 'mann
 
 def main():
     argv = sys.argv[sys.argv.index('--') + 1 :] if '--' in sys.argv else []
+    if argv == ['--list']:
+        print('SPECS ' + ' '.join(sorted(catalog.SPECS)))
+        return
     if argv == ['--build-mannequin']:
         S.reset_scene()
         M.build()
@@ -44,7 +47,7 @@ def main():
     ap.add_argument('--camera', default='', help='target_x,y,z,azimuth,elevation,distance override (preview)')
     args = ap.parse_args(argv)
 
-    spec = exercises.SPECS[args.id]
+    spec = catalog.SPECS[args.id]
     S.reset_scene()
     S.setup_render(args.size, args.frames, args.fps)
     S.setup_world(args.theme)
@@ -62,12 +65,14 @@ def main():
     timeline = anim.Timeline(args.frames, **spec.timing)
     baker = anim.Baker(ctx, eq.objects)
     # Warm the IK up on the first pose so frame 0 solves like every frame after it.
+    ctx.t = 0.0
     for _ in range(4):
         ctx.begin_frame()
         spec.pose(ctx, state, timeline.u(0))
         ctx.end_frame()
     for f in range(args.frames):
         u = timeline.u(f)
+        ctx.t = f / args.frames  # loop time, for moves that aren't a plain there-and-back
         ctx.begin_frame()
         spec.pose(ctx, state, u)
         ctx.end_frame()
