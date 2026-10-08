@@ -1,7 +1,7 @@
 import type { Exercise } from '@muscleos/types';
 
 /** Bundled catalog floor, instructions included. Generated — do not edit by hand. */
-export const CATALOG_SEED_UPDATED_AT = "2026-10-02T00:00:00.000Z";
+export const CATALOG_SEED_UPDATED_AT = "2026-10-08T00:00:00.000Z";
 
 export const CATALOG_SEED: Exercise[] = [
   { id: "air-squat", name: "Air Squat", muscles: ["quads", "glutes", "calves"], equipment: ["bodyweight"], category: "bodyweight", instructions: "Set your feet a little wider than your hips with toes turned slightly out. Sit your hips down and back while your knees track over your toes, keeping your chest up and heels planted. Go as low as you can hold that position, then drive through your whole foot to stand." },
@@ -250,6 +250,7 @@ export const CATALOG_SEED: Exercise[] = [
   { id: "seated-machine-row", name: "Machine Row", muscles: ["lats", "traps", "rear_delts", "biceps", "forearms"], equipment: ["machine"], category: "machine", instructions: "Adjust the seat and chest pad so the handles are at about chest height. Pull them toward your torso, squeezing your shoulder blades together. Let your arms straighten slowly." },
   { id: "machine-shoulder-press", name: "Machine Shoulder Press", muscles: ["front_delts", "triceps", "side_delts"], equipment: ["machine"], category: "machine", instructions: "Set the seat so the handles start around shoulder height. Press up until your arms are straight. Lower slowly." },
   { id: "medicine-ball-chest-pass", name: "Medicine Ball Chest Pass", muscles: ["chest", "front_delts", "triceps"], equipment: ["other"], category: "free_weight", instructions: "Stand facing a wall or partner holding a medicine ball at your chest. Step forward and push the ball away explosively with both hands. Catch it with soft arms and repeat." },
+  { id: "military-press", name: "Military Press", muscles: ["front_delts", "triceps", "side_delts", "abs"], equipment: ["barbell"], category: "free_weight", instructions: "Stand tall with your heels together and the bar at your front shoulders, hands just outside shoulder width. Squeeze your glutes and brace, then press the bar straight up without leaning back or bending your knees. Lock out overhead and lower under control to your shoulders." },
   { id: "monkey-row", name: "Monkey Row", muscles: ["side_delts", "rear_delts", "traps", "biceps"], equipment: ["dumbbell"], category: "free_weight", instructions: "Stand holding dumbbells in front of your thighs with a wide grip. Lead with your elbows to raise the weights up and out to the sides until your elbows reach shoulder height. Lower slowly." },
   { id: "mountain-climbers", name: "Mountain Climbers", muscles: ["abs", "obliques"], equipment: ["bodyweight"], category: "bodyweight", instructions: "Start in a high plank with hands under your shoulders. Drive one knee toward your chest, then quickly switch legs. Keep your hips level." },
   { id: "ring-muscle-up", name: "Muscle-Up (Rings)", muscles: ["lats", "chest", "triceps", "biceps"], equipment: ["bodyweight"], category: "bodyweight", instructions: "Hang from rings with a false grip. Pull the rings to your lower chest, then lean your chest forward over your hands and press down until your arms are straight. Lower back to a hang under control." },

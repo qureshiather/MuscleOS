@@ -4,9 +4,9 @@ import { EXERCISES } from './exercises';
 
 /** Catalog facts stated in docs/features/exercise-library.md#the-catalog. */
 describe('bundled catalog seed', () => {
-  it('has 399 rows, 396 published', () => {
-    expect(CATALOG_SEED).toHaveLength(399);
-    expect(CATALOG_SEED.filter((e) => e.isPublished !== false)).toHaveLength(396);
+  it('has 400 rows, 397 published', () => {
+    expect(CATALOG_SEED).toHaveLength(400);
+    expect(CATALOG_SEED.filter((e) => e.isPublished !== false)).toHaveLength(397);
   });
 
   it('unpublishes exactly the three retired ids', () => {
@@ -17,10 +17,10 @@ describe('bundled catalog seed', () => {
     ).toEqual(['powerlifting-exercises', 'rowing-machine', 'stationary-bike']);
   });
 
-  it('splits 177 free weight / 102 bodyweight / 60 machine / 60 cable', () => {
+  it('splits 178 free weight / 102 bodyweight / 60 machine / 60 cable', () => {
     const counts: Record<string, number> = {};
     for (const e of CATALOG_SEED) counts[e.category] = (counts[e.category] ?? 0) + 1;
-    expect(counts).toEqual({ free_weight: 177, bodyweight: 102, machine: 60, cable: 60 });
+    expect(counts).toEqual({ free_weight: 178, bodyweight: 102, machine: 60, cable: 60 });
   });
 
   it('carries aliases on 37 rows', () => {

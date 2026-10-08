@@ -170,8 +170,8 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 
 ### Add an exercise
 
-1. It must exist in the catalog (`apps/mobile/src/data/exercises.ts`, then the catalog generator) so it has an id, muscles and a page.
-2. Add a spec to the matching `catalog_*.py` module. Most are a few lines built from the shared helpers (`stand`, `sit`, `lie_on_bench`, `bar_grip`, `hang_bar`, `carry_dumbbells`, the family helpers such as `squat_spec`, `press_spec`, `row_spec`, `curl_spec`). New equipment goes in `equipment.py`.
+1. It must exist in the catalog first so it has an id, muscles and a page ([exercise-library.md → Adding a catalog exercise](exercise-library.md#adding-a-catalog-exercise)).
+2. Add a spec to the matching `catalog_*.py` module. Most are a few lines built from the shared helpers or a flag on a family helper (Military Press is `ohp_spec('military-press', heels=True)`) (`stand`, `sit`, `lie_on_bench`, `bar_grip`, `hang_bar`, `carry_dumbbells`, the family helpers such as `squat_spec`, `press_spec`, `row_spec`, `curl_spec`). New equipment goes in `equipment.py`.
 3. Review, then `node scripts/build-exercise-animations.mjs <id>`. The site picks it up from `exerciseDemos.json`, and the app already links every catalog exercise.
 
 ### Writing choreography
