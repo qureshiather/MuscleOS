@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import demoIds from './exerciseDemos.json';
 import {
+  DEMO_BASE_URL,
   DEMO_EXERCISES,
   FEATURED_DEMOS,
   demoSources,
@@ -31,8 +32,8 @@ describe('exercise catalog for the website', () => {
   it('serves a clip and poster per theme only for exercises with a demo', () => {
     expect(hasDemo('squat')).toBe(true);
     expect(demoSources('squat')).toEqual({
-      dark: { video: '/exercise-demos/squat-dark.mp4', poster: '/exercise-demos/squat-dark.webp' },
-      light: { video: '/exercise-demos/squat-light.mp4', poster: '/exercise-demos/squat-light.webp' },
+      dark: { video: `${DEMO_BASE_URL}/squat-dark.mp4`, poster: `${DEMO_BASE_URL}/squat-dark.webp` },
+      light: { video: `${DEMO_BASE_URL}/squat-light.mp4`, poster: `${DEMO_BASE_URL}/squat-light.webp` },
     });
     expect(hasDemo('not-an-exercise')).toBe(false);
     expect(demoSources('not-an-exercise')).toBeUndefined();
@@ -89,5 +90,11 @@ describe('featured demos', () => {
   it('are staple lifts that all have a demo', () => {
     expect(FEATURED_DEMOS.length).toBeGreaterThanOrEqual(12);
     for (const e of FEATURED_DEMOS) expect(hasDemo(e.id)).toBe(true);
+  });
+});
+
+describe('demo storage', () => {
+  it('serves clips from the public Vercel Blob store over https', () => {
+    expect(DEMO_BASE_URL).toMatch(/^https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/exercise-demos$/);
   });
 });
