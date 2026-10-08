@@ -57,7 +57,7 @@ function musclesById() {
   return map;
 }
 
-const CHECK_FRAMES = [0, Math.round(FRAMES * 0.3), Math.round(FRAMES * 0.55)];
+const CHECK_FRAMES = [0, Math.round(FRAMES * 0.3), Math.round(FRAMES * 0.55), Math.round(FRAMES * 0.78)];
 const CHECK_OUT = join(PIPELINE, '.cache', 'check.png');
 
 /** Start, mid-rep and far-end stills for one exercise, tiled into a row. */
