@@ -117,7 +117,7 @@ push_up_spec('cobra-push-up', cobra=True, camera=cam((0, 0.1, 0.25), 70, 12, 3.6
 push_up_spec('push-ups-with-feet-in-rings', feet_z=0.45, rings=True, setup=_feet_rings)
 
 
-@spec('handstand-push-up', camera=cam((0, 0.2, 1.1), 70, 8, 4.8),
+@spec('handstand-push-up', camera=cam((0, 0.0, 1.0), 100, 4, 4.6),
       setup=lambda ctx: (ctx.eq.group('wall', [ctx.eq.pad('w', (1.6, 0.1, 2.4), (0, 0.42, 1.2))]), {})[1])
 def handstand_push_up(ctx, st, u):
     # Upside down with the heels on a wall; the elbows bend to lower the head toward the floor.
@@ -156,7 +156,7 @@ def front_raise_spec(id_, implement='dumbbells', one_arm=False):
             carry_dumbbells(ctx, st['db'], neutral=False)
         elif implement == 'plate':
             hands = [ctx.attach_point('hand.' + s, grip_point(s)) for s in SIDES]
-            place(st['plate'], (hands[0] + hands[1]) / 2, ctx.bone_delta('forearm.L') @ qx(0))
+            place(st['plate'], (hands[0] + hands[1]) / 2)  # upright, gripped at 3 and 9 o'clock
         else:
             hands = [ctx.attach_point('hand.' + s, grip_point(s)) for s in SIDES]
             mid = (hands[0] + hands[1]) / 2
@@ -253,8 +253,9 @@ def fly_spec(id_, seated=False, height=1.7, machine=False, pec_deck=False, band=
     def setup(ctx):
         st = {}
         if band:
+            # A band fly pulls against an anchor behind the body: the band runs around the post.
             ctx.eq.group('anchor', [ctx.eq.frame('post', (0.1, 0.1, 2.0), (0, 0.6 if not reverse else -0.7, 1.0))])
-            st['anchor'] = Vector((0, 0.55 if not reverse else -0.65, 1.35))
+            st['anchor'] = Vector((0, 0.55 if not reverse else -0.65, 1.32))
             st['bands'] = [ctx.eq.line('bL', accent=True, radius=0.01), ctx.eq.line('bR', accent=True, radius=0.01)]
         elif machine or pec_deck:
             ctx.eq.group('fly_machine', [ctx.eq.pad('seat', (0.42, 0.42, 0.08), (0, 0.08, 0.45)),
@@ -294,7 +295,8 @@ def fly_spec(id_, seated=False, height=1.7, machine=False, pec_deck=False, band=
             for s, lv, h in zip(SIDES, st['levers'], hands):
                 set_line(lv, Vector((sgn(s) * 0.12, 0.45 if not reverse else -0.45, 1.4)), h)
 
-    spec(id_, camera=cam((0, 0, 1.1 if not (seated or machine or pec_deck) else 0.95), 20 if not reverse else 200, 10, 4.0),
+    az = 60 if band else (20 if not reverse else 200)
+    spec(id_, camera=cam((0, 0, 1.1 if not (seated or machine or pec_deck) else 0.95), az, 10, 4.0),
          setup=setup, concentric='out')(pose)
 
 
@@ -409,7 +411,7 @@ def rotation_spec(id_, implement, external, position='side'):
         else:
             set_line(st['line'], st['anchor'], hand)
 
-    spec(id_, camera=cam((0, 0, 1.0 if position != 'lying' else 0.3), 20 if position != 'lying' else 0, 12 if position != 'lying' else 25, 3.6),
+    spec(id_, camera=cam((0, 0, 1.0), 20, 12, 3.6) if position != 'lying' else cam((0, 0, 0.2), 0, 25, 2.6),
          setup=setup, concentric='out')(pose)
 
 

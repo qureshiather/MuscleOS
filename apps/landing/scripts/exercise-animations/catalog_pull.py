@@ -327,7 +327,7 @@ def shrug_spec(id_, implement='bar', smith=False):
         stand(ctx, width=0.03)
         t = smootherstep(u)
         for s in SIDES:
-            ctx.shoulder_girdle(s, shrug=22 * t)
+            ctx.shoulder_girdle(s, shrug=38 * t)
         if implement == 'bar':
             sh = shoulders(ctx)
             z = sh.z - M.grip_reach() * 0.985
@@ -459,12 +459,13 @@ def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, tow
             t = 0.12 * t if scap else 0.0
         hand_z = bar.z - (0.32 if towel else 0.0) - (0.4 if rings else 0.0)
         lift = (0.44 if not chest else 0.56) * t
-        ctx.root((0, 0.03 + (0.06 * t if chest else 0), hand_z - 1.06 + lift + (0.02 if scap else 0) * u))
+        ctx.root((0, 0.03 + (0.06 * t if chest else 0), hand_z - 1.06 + lift + (0.07 * smootherstep(u) if scap else 0)))
         ctx.spine(flex=-8 * t - (10 * t if chest else 0))
         ctx.head(flex=-12 * t)
         if scap:
+            # Arms stay straight; the shoulder blades pull down, lifting the body a few centimetres.
             for s in SIDES:
-                ctx.shoulder_girdle(s, shrug=-14 * u)
+                ctx.shoulder_girdle(s, shrug=lerp(25, -20, smootherstep(u)))
         if assisted:
             for s in SIDES:
                 ctx.leg_fk(s, hip_flex=0, knee=92, ankle=-20)

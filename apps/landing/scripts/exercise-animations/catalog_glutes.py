@@ -150,13 +150,13 @@ def fire_hydrants(ctx, st, u):
     ctx.leg_fk('R', hip_flex=90, hip_abd=lerp(0, 55, t), knee=90, ankle=10, hip_rot=20 * t)
 
 
-@spec('clamshells', camera=cam((0, 0.0, 0.2), 20, 55, 3.0), setup=nothing, concentric='out')
+@spec('clamshells', camera=cam((0, 0.0, 0.2), -15, 25, 2.8), setup=nothing, concentric='out')
 def clamshells(ctx, st, u):
     # Lying on the left side, hips and knees bent; the top knee opens like a clamshell.
     t = smootherstep(u)
     ctx.root((0, 0.0, 0.16), (0, 90, 0))  # on the left side: the right knee is on top
     for s in SIDES:
-        ctx.leg_fk(s, hip_flex=45, knee=90, hip_abd=(lerp(0, 15, t) if s == 'R' else 0), hip_rot=(-45 * t if s == 'R' else 0))
+        ctx.leg_fk(s, hip_flex=45, knee=90, hip_abd=(lerp(0, 20, t) if s == 'R' else 0), hip_rot=(40 * t if s == 'R' else 0))
     ctx.arm_fk('L', flex=170, elbow=100)
     ctx.arm_fk('R', flex=20, abd=-10, elbow=40)
     ctx.head(flex=0)
