@@ -17,7 +17,7 @@ This document helps AI agents and future prompts work effectively with the Muscl
 | [`docs/features/README.md`](docs/features/README.md) | Feature index, spec + test status |
 | [`docs/engineering/testing.md`](docs/engineering/testing.md) | Current test coverage and infrastructure |
 
-**Feature specs:** [templates](docs/features/templates.md) · [workout-logging](docs/features/workout-logging.md) · [recovery](docs/features/recovery.md) · [exercise-library](docs/features/exercise-library.md) · [history-analytics](docs/features/history-analytics.md) · [pricing](docs/features/pricing.md) · [accounts-and-data](docs/features/accounts-and-data.md)
+**Feature specs:** [templates](docs/features/templates.md) · [workout-logging](docs/features/workout-logging.md) · [recovery](docs/features/recovery.md) · [exercise-library](docs/features/exercise-library.md) · [exercise-demos](docs/features/exercise-demos.md) · [history-analytics](docs/features/history-analytics.md) · [pricing](docs/features/pricing.md) · [accounts-and-data](docs/features/accounts-and-data.md)
 
 ### Keep the spec matching the feature set
 
@@ -193,6 +193,7 @@ Non-obvious invariants the specs cover in detail. Check the relevant spec before
 - **Built-in templates and catalog exercises are immutable** — hide or unpublish, never delete, so historical sessions keep resolving.
 - **Recovery is never synced** — it's derived, and is recomputed locally after a sync merge.
 - **Incomplete sets are persisted** with the session but excluded from every derived metric.
+- **Exercise demo clips are not in git.** They're rendered locally with Blender and served from Vercel Blob; change or add one by editing its choreography and re-rendering by id (runbook: [exercise-demos.md](docs/features/exercise-demos.md#updating-demos)). Don't commit clips to `apps/landing/public/`, and mind the Blob free tier's 2,000 writes a month.
 - **Every new workout entry point must wait for hydration** — `/active-workout` is reachable by deep link and notification tap; start through `startFromParamsDecision()` so a running workout is never replaced and custom templates aren't mistaken for unknown ids.
 
 ---
