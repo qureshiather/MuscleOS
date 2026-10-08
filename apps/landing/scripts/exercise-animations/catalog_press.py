@@ -142,7 +142,7 @@ press_spec('smith-machine-incline-bench-press', kind='incline', smith=True)
 press_spec('smith-machine-reverse-grip-bench-press', smith=True, grip=0.3, tuck=0.35, underhand=True)
 
 
-@spec('dumbbell-fly', camera=cam((0, 0.25, 0.7), 20, 18, 3.7), setup=bench_setup('flat', 'dumbbells'))
+@spec('dumbbell-fly', camera=cam((0, 0.25, 0.7), 40, 25, 3.7), setup=bench_setup('flat', 'dumbbells'))
 def dumbbell_fly(ctx, st, u):
     # Arms open in a wide arc with a fixed soft bend; palms face each other.
     lie(ctx, 'flat')

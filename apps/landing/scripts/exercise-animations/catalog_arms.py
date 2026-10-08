@@ -85,7 +85,7 @@ def curl_spec(id_, implement='dumbbells', twist=(90, 90), flex=(2, 14), drag=Fal
             set_line(st['cable'], st['pulley'], knot)
         elif implement == 'kettlebells':
             for s, w in zip(SIDES, st['w']):
-                ctx.follow(w, 'hand.' + s, grip_point(s), held(s, qz(90)))
+                place(w, ctx.attach_point('hand.' + s, grip_point(s)))  # the bell hangs from the handle
         else:
             carry_dumbbells(ctx, st['w'], neutral=True)
         if band:
@@ -175,7 +175,7 @@ def seated_curl(id_, mode, implement='bar'):
 
     cams = {'preacher': cam((0, 0.0, 0.95), 75, 10, 3.6), 'machine': cam((0, 0.0, 0.95), 75, 10, 3.6),
             'concentration': cam((0, 0.0, 0.8), 25, 12, 3.4), 'incline': cam((0, 0.15, 0.85), 62, 14, 3.9),
-            'spider': cam((0, 0.0, 0.8), 70, 12, 3.9)}
+            'spider': cam((0, -0.2, 0.75), 250, 10, 3.6)}
     spec(id_, camera=cams[mode], setup=setup, concentric='out')(pose)
 
 
