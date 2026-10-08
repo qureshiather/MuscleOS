@@ -144,6 +144,52 @@ No other muscle is outlined, matching the app's muscle diagram highlight mode.
 - Hanging bars (deadlift, RDL) travel in front of the legs; the deadlift's hips are placed from
   joint angles with the feet planted so the bar never passes through the shins or thighs.
 
+## Updating demos
+
+A runbook for changing, adding or re-rendering demos. Commands run from `apps/landing`.
+
+### Before you start
+
+- **Tools:** Blender 5.x (`blender` on `PATH`, or set `BLENDER=`) and ffmpeg. Rendering is local; nothing renders in CI or on Vercel.
+- **Upload credentials:** `npx vercel env pull` (linked to `conveybridge/muscle-os-landing`). The OIDC token it writes lasts about 12 hours. If an upload fails with an auth or `OIDC ... not for the "development" environment` error, pull again.
+- **Write budget:** the Blob store's free tier allows 2,000 writes a month. One exercise costs 4 (two clips, two posters) and a full re-upload about 1,600, so do at most one full re-upload a month. Prefer re-rendering only what changed.
+
+### Fix or tweak one exercise
+
+1. Find its spec: `grep -rn "'<id>'" scripts/exercise-animations/` (the id is the catalog id).
+2. Edit its `pose()` (or the shared helper it calls).
+3. Review before rendering clips (see [Reviewing](#reviewing)).
+4. `node scripts/build-exercise-animations.mjs <id>` renders both themes, uploads them over the old clips (same URLs) and updates `app/data/exerciseDemos.json` if it's new.
+5. Commit the code change only; the clips aren't in git. Viewers get the new clip within a day (Blob cache).
+
+### Change something shared (body, look, equipment, a common stance)
+
+1. Edit `mannequin.py`, `scene.py`, `equipment.py` or `moves.py`. Body edits rebuild the cached mannequin automatically on the next run.
+2. `node scripts/build-exercise-animations.mjs --check` and review the contact sheet for **every** exercise. Shared changes routinely break exercises nobody touched.
+3. Re-render everything with `node scripts/build-exercise-animations.mjs` (about 2.5 hours, 6 parallel jobs: `JOBS=6`), watching the write budget. To render now and upload later, add `--no-upload`, then run `node scripts/upload-exercise-demos.mjs`.
+
+### Add an exercise
+
+1. It must exist in the catalog (`apps/mobile/src/data/exercises.ts`, then the catalog generator) so it has an id, muscles and a page.
+2. Add a spec to the matching `catalog_*.py` module. Most are a few lines built from the shared helpers (`stand`, `sit`, `lie_on_bench`, `bar_grip`, `hang_bar`, `carry_dumbbells`, the family helpers such as `squat_spec`, `press_spec`, `row_spec`, `curl_spec`). New equipment goes in `equipment.py`.
+3. Review, then `node scripts/build-exercise-animations.mjs <id>`. The site picks it up from `exerciseDemos.json`, and the app already links every catalog exercise.
+
+### Writing choreography
+
+- `pose(ctx, st, u)` sets the whole scene for rep phase `u` (0 = start, 1 = far end). The timeline eases `u` there and back, and `concentric` names the lifting direction for the highlight pulse. For moves that shouldn't reverse (Olympic lifts, jumps, alternating or walking moves), set `timing=dict(hold_start=0.0, out=1.0, hold_end=0.0)` (`LOOP` in `catalog_power.py`) and read loop time `ctx.t`.
+- World axes: the figure faces **−Y**, **+X** is its left, **z = 0** is the floor, and `ctx.root(loc, rot)` places and rotates the pelvis.
+- Limbs are either IK (`ctx.target`, `ctx.grip`, then `ctx.pole_dir`/`elbows`/`knees_out` to aim the elbow or knee) or FK (`ctx.arm_fk`, `ctx.leg_fk`). A later FK call overrides an earlier target on the same limb.
+- FK arm angles are **relative to the torso**. When the body hinges, an arm that should hang toward the floor needs `flex ≈ hinge` (the kettlebell-swing bug: arms swinging through the thighs).
+- Hands hold things through `ctx.grip(side, point, thumb_direction)` so the fist closes around the handle. Don't place props beside a hand.
+- Get the facts from a form reference (bar path, joint angles, setup), not memory. Every bad demo so far was a plausible-looking guess.
+
+### Reviewing
+
+- `node scripts/build-exercise-animations.mjs --check <ids...>` writes start, mid, far-end and return frames of each exercise to `scripts/exercise-animations/.cache/check.png`. Review it before rendering final clips.
+- For one exercise from any angle: `blender -b --factory-startup -P scripts/exercise-animations/render_exercise.py -- --id <id> --theme dark --muscles <a,b> --out /tmp/f --size 480 --stills 0,22,40 --camera x,y,z,azimuth,elevation,distance` (azimuth 0 is the front, 90 the figure's left).
+- **Check a second angle before believing a problem, or a fix.** Several "wrong" demos were only foreshortened by the camera, and several real bugs looked fine from the default view: lying-down and side-lying moves, bars passing through legs, arms crossing the body.
+- When a fix touches shared code, re-run `--check` on everything.
+
 ## Tests
 
 - `apps/landing/app/data/exercises.test.ts`: catalog order and uniqueness, demo ids are published
