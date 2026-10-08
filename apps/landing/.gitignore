@@ -29,3 +29,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# rendered exercise demo clips (hosted on Vercel Blob, MUS-114)
+/.exercise-demos/

@@ -1,6 +1,7 @@
 import type { Exercise } from '@muscleos/types';
 
 import catalog from './exerciseCatalog.json';
+import demoStore from './exerciseDemoStore.json';
 import demoIds from './exerciseDemos.json';
 
 /**
@@ -39,6 +40,9 @@ export const FEATURED_DEMOS = FEATURED_IDS.map((id) => getExercise(id)).filter(
   (e): e is CatalogExercise => e !== undefined && hasDemo(e.id),
 );
 
+/** Public Vercel Blob folder holding the clips (written by scripts/upload-exercise-demos.mjs). */
+export const DEMO_BASE_URL: string = demoStore.baseUrl;
+
 export type DemoTheme = 'dark' | 'light';
 export type DemoSources = Record<DemoTheme, { video: string; poster: string }>;
 
@@ -46,8 +50,8 @@ export type DemoSources = Record<DemoTheme, { video: string; poster: string }>;
 export function demoSources(id: string): DemoSources | undefined {
   if (!hasDemo(id)) return undefined;
   const files = (theme: DemoTheme) => ({
-    video: `/exercise-demos/${id}-${theme}.mp4`,
-    poster: `/exercise-demos/${id}-${theme}.webp`,
+    video: `${DEMO_BASE_URL}/${id}-${theme}.mp4`,
+    poster: `${DEMO_BASE_URL}/${id}-${theme}.webp`,
   });
   return { dark: files('dark'), light: files('light') };
 }
