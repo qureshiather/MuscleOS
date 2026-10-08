@@ -221,17 +221,17 @@ def _body():
     m = MB('body')
     V = Vector
     # Torso
-    m.ell((0, 0.005, 0.955), (0.15, 0.1, 0.1))  # pelvis
-    m.ell((0, -0.01, 1.1), (0.125, 0.092, 0.13))  # abdomen
-    m.ell((0, 0.005, 1.29), (0.158, 0.104, 0.155))  # ribcage
+    m.ell((0, 0.005, 0.96), (0.138, 0.098, 0.1))  # pelvis
+    m.ell((0, -0.008, 1.11), (0.142, 0.095, 0.15))  # abdomen: a straight waist, not an hourglass
+    m.ell((0, 0.005, 1.29), (0.155, 0.104, 0.16))  # ribcage
     m.ell((0, 0.03, 1.425), (0.125, 0.06, 0.07))  # upper back / traps
-    m.cap((-0.165, 0.005, 1.41), (0.165, 0.005, 1.41), 0.055)  # shoulder girdle
-    m.taper((0, 0.012, 1.39), (0, 0.0, 1.585), 0.058, 0.047, steps=3)  # neck
+    m.cap((-0.16, 0.008, 1.405), (0.16, 0.008, 1.405), 0.05)  # shoulder girdle
+    m.taper((0, 0.012, 1.4), (0, 0.004, 1.575), 0.05, 0.043, steps=3)  # neck
     for s in (1, -1):
-        m.ell((s * 0.072, 0.052, 0.9), (0.085, 0.075, 0.095))  # glutes
+        m.ell((s * 0.066, 0.05, 0.9), (0.078, 0.072, 0.092))  # glutes
         m.ell((s * 0.078, -0.06, 1.335), (0.095, 0.05, 0.07))  # pecs
         m.ell((s * 0.115, 0.03, 1.27), (0.07, 0.07, 0.13))  # lats
-        m.ell((s * 0.075, 0.03, 1.45), (0.07, 0.045, 0.035), along=(s * 0.85, 0, -0.5))  # trap slope
+        m.ell((s * 0.07, 0.03, 1.44), (0.055, 0.036, 0.024), along=(s * 0.9, 0, -0.4))  # trap slope
 
     for side in ('L', 'R'):
         sx = sgn(side)
@@ -252,8 +252,8 @@ def _body():
 
         H, K, A = joint('hip', side), joint('knee', side), joint('ankle', side)
         th, sh = K - H, A - K
-        m.ball(H + V((sx * 0.012, 0, 0.012)), 0.082)
-        m.taper(H, K, 0.082, 0.053, steps=7)
+        m.ball(H + V((sx * 0.004, 0, 0.012)), 0.074)
+        m.taper(H, K, 0.076, 0.053, steps=7)
         m.ell(H.lerp(K, 0.45) + V((sx * 0.016, -0.03, 0)), (0.065, 0.058, 0.17), along=th)  # quads
         m.ell(H.lerp(K, 0.78) + V((-sx * 0.022, -0.032, 0)), (0.04, 0.04, 0.06), along=th)  # VMO
         m.ell(H.lerp(K, 0.42) + V((0, 0.03, 0)), (0.064, 0.056, 0.16), along=th)  # hamstrings
@@ -324,7 +324,7 @@ def _foot(side):
 
 def _head():
     m = MB('head', DETAIL_RES)
-    m.ell((0, 0.006, 1.666), (0.077, 0.092, 0.1))  # cranium
+    m.ell((0, 0.006, 1.668), (0.08, 0.095, 0.105))  # cranium
     m.ell((0, -0.03, 1.6), (0.06, 0.062, 0.055))  # jaw
     m.ball((0, -0.066, 1.56), 0.022)  # chin
     m.ell((0, -0.083, 1.632), (0.011, 0.016, 0.022), along=(0, -0.4, 1))  # nose
