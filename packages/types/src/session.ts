@@ -5,8 +5,6 @@ export interface SetRecord {
   completed: boolean;
   /** Warm-up set (lighter weight, labeled separately in the log) */
   isWarmUp?: boolean;
-  /** Optional note */
-  note?: string;
   /**
    * `weightKg` is an auto-filled suggestion (from "previous" or carried over), not user-entered.
    * The keypad overwrites it on the first digit instead of appending, and it renders as a muted

@@ -1,6 +1,6 @@
 /**
  * Global Jest setup for UI tests. Swaps native modules the renderer can't load for in-memory or
- * no-op stand-ins. Per-test behaviour (Pro status, sessions, etc.) is set through the real Zustand
+ * no-op stand-ins. Per-test behaviour (sessions, templates, settings, etc.) is set through the real Zustand
  * stores — see src/test/ui/render.tsx.
  */
 import { installConsoleGuard } from '../consoleGuard';

@@ -8,6 +8,7 @@ import {
   PR_CARD_MAX_BARS,
   prCardModel,
   progressionPoints,
+  strengthAgeNote,
   strengthSummary,
 } from './personalRecords';
 
@@ -77,7 +78,26 @@ describe('prCardModel', () => {
       level: 'intermediate',
       label: 'Intermediate',
       next: { label: 'Advanced', oneRepMaxKg: 180 },
+      adjustedForAge: null,
     });
+  });
+
+  it('adjusts for age when the profile has one, and says so', () => {
+    const squat = pr('squat', [point(1, 140)]);
+    // 140 / 80 = 1.75: intermediate unadjusted; at 60 (×1.34) advanced is 2.25 / 1.34 = 1.68.
+    const strength = prCardModel(squat, { weightKg: 80, sex: 'male', age: 60 }).strength!;
+    expect(strength.level).toBe('advanced');
+    expect(strength.adjustedForAge).toBe(60);
+    expect(strengthAgeNote(strength)).toBe('Adjusted for age 60');
+    // 23–40 changes nothing, so there's nothing to say.
+    const prime = prCardModel(squat, { weightKg: 80, sex: 'male', age: 30 }).strength!;
+    expect(prime.level).toBe('intermediate');
+    expect(prime.adjustedForAge).toBeNull();
+    expect(strengthAgeNote(prime)).toBeNull();
+  });
+
+  it('shows no strength level under 14', () => {
+    expect(prCardModel(pr('squat', [point(1, 140)]), { weightKg: 80, sex: 'male', age: 13 }).strength).toBeNull();
   });
 
   it('shows no chip for exercises without standards (incl. pull-up)', () => {

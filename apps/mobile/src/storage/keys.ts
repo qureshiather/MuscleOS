@@ -9,7 +9,6 @@ export const STORAGE_KEYS = {
   /** In-progress workout, so it survives the OS killing the app mid-session */
   activeWorkout: 'muscleos_active_workout',
   recovery: 'muscleos_recovery',
-  health: 'muscleos_health',
   exercisePrevious: 'muscleos_exercise_previous',
   exerciseNotes: 'muscleos_exercise_notes',
   customExercises: 'muscleos_custom_exercises',
@@ -30,7 +29,13 @@ export const STORAGE_KEYS = {
 } as const;
 
 /**
- * Keys from the removed Basic/Pro subscription (MuscleOS is free; there are no purchases). Removed
- * on launch by `removeLegacyStorageKeys()` so they don't linger on upgraded installs.
+ * Keys for data the app no longer keeps, removed on launch by `removeLegacyStorageKeys()` so they
+ * don't linger on upgraded installs: the removed Basic/Pro subscription (MuscleOS is free), the
+ * unused health/macro store, and the height unit (height is no longer collected).
  */
-export const LEGACY_STORAGE_KEYS = ['muscleos_subscription', 'muscleos_dev_pro_override'] as const;
+export const LEGACY_STORAGE_KEYS = [
+  'muscleos_subscription',
+  'muscleos_dev_pro_override',
+  'muscleos_health',
+  'muscleos_height_unit',
+] as const;

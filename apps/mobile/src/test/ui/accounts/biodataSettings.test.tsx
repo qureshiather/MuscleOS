@@ -24,51 +24,47 @@ describe('Biodata', () => {
     renderApp({ biodata: BiodataScreen }, '/biodata');
     expect(await screen.findByText('Used for strength standards')).toBeTruthy();
     expect(screen.queryByText(/recovery estimates/)).toBeNull();
-    expect(screen.getAllByText('—')).toHaveLength(4);
+    expect(screen.getAllByText('—')).toHaveLength(3);
+    // Weight, age and gender are collected; height isn't.
+    expect(screen.queryByText(/Height/)).toBeNull();
   });
 
-  test('Edit → Save stores valid values in kg/cm and syncs them', async () => {
+  test('Edit → Save stores valid values in kg and syncs them', async () => {
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
     // Each field has a visible label (the read-only row shows the same text), not just a placeholder.
-    expect(screen.getAllByText('Height (cm)')).toHaveLength(2);
     expect(screen.getAllByText('Weight (kg)')).toHaveLength(2);
     expect(screen.getAllByText('Age')).toHaveLength(2);
     fireEvent.press(screen.getByText('female'));
-    fireEvent.changeText(screen.getByLabelText('Height (cm)'), '170');
     fireEvent.changeText(screen.getByLabelText('Weight (kg)'), '65.5');
     fireEvent.changeText(screen.getByLabelText('Age'), '34');
     fireEvent.press(screen.getByText('Save'));
     await waitFor(async () =>
-      expect((await getAppSettings()).profile).toEqual({ heightCm: 170, weightKg: 65.5, age: 34, sex: 'female' })
+      expect((await getAppSettings()).profile).toEqual({ weightKg: 65.5, age: 34, sex: 'female' })
     );
-    expect(screen.getByText('170 cm')).toBeTruthy();
+    expect(screen.getByText('34')).toBeTruthy();
     expect(screen.getByText('65.5 kg')).toBeTruthy();
     expect(screen.getByText('Female')).toBeTruthy();
     expect(sync.notifyAppSettingsSnapshot).toHaveBeenCalled();
   });
 
   test('invalid values clear the field; age must be under 150', async () => {
-    await useSettingsStore.getState().setProfile({ heightCm: 180, weightKg: 80, age: 30 });
+    await useSettingsStore.getState().setProfile({ weightKg: 80, age: 30 });
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
-    fireEvent.changeText(screen.getByLabelText('Height (cm)'), '0');
     fireEvent.changeText(screen.getByLabelText('Weight (kg)'), 'abc');
     fireEvent.changeText(screen.getByLabelText('Age'), '150');
     fireEvent.press(screen.getByText('Save'));
     await waitFor(async () => expect((await getAppSettings()).profile).toEqual({}));
   });
 
-  test('imperial units: inputs and display convert', async () => {
-    await useSettingsStore.getState().setHeightUnit('in');
+  test('pounds: input and display convert', async () => {
     await useSettingsStore.getState().setBodyWeightUnit('lb');
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
-    fireEvent.changeText(screen.getByLabelText('Height (in)'), '70');
     fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '176');
     fireEvent.press(screen.getByText('Save'));
-    await waitFor(async () => expect((await getAppSettings()).profile).toMatchObject({ heightCm: 177.8, weightKg: 79.83 }));
-    expect(screen.getByText('70 in')).toBeTruthy();
+    await waitFor(async () => expect((await getAppSettings()).profile).toEqual({ weightKg: 79.83 }));
     expect(screen.getByText('176 lb')).toBeTruthy();
   });
 
@@ -95,12 +91,13 @@ describe('Settings', () => {
   test('units are independent and persist', async () => {
     renderApp({ settings: SettingsScreen }, '/settings');
     await screen.findByText('Units');
-    // Order on screen: Height (cm|in), Body weight (kg|lb), Exercise weight (kg|lb).
+    // Order on screen: Body weight (kg|lb), Exercise weight (kg|lb). No height unit.
+    expect(screen.queryByText('in')).toBeNull();
     // Two quick taps: both changes must survive (settings writes are serialized).
-    fireEvent.press(screen.getByText('in'));
+    fireEvent.press(screen.getAllByText('lb')[0]);
     fireEvent.press(screen.getAllByText('lb')[1]);
     await waitFor(async () =>
-      expect(await getAppSettings()).toMatchObject({ heightUnit: 'in', bodyWeightUnit: 'kg', weightUnit: 'lb' })
+      expect(await getAppSettings()).toMatchObject({ bodyWeightUnit: 'lb', weightUnit: 'lb' })
     );
   });
 

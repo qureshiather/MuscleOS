@@ -38,7 +38,6 @@ function exercise(id: string, extra: Partial<Exercise> = {}): Exercise {
     muscles: ['chest'],
     equipment: ['barbell'],
     category: 'free_weight',
-    trackingType: 'weight_reps',
     isPublished: true,
     ...extra,
   };
@@ -208,7 +207,6 @@ describe('custom exercise CRUD', () => {
     expect(created).toMatchObject({
       id: 'custom_5',
       equipment: ['band'],
-      trackingType: 'weight_reps',
       isPublished: true,
     });
     const stored = JSON.parse((await AsyncStorage.getItem(STORAGE_KEYS.customExercises)) ?? '[]');

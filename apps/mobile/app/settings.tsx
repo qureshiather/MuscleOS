@@ -13,8 +13,6 @@ import { ListRow } from '@/components/ui/ListRow';
 export default function SettingsScreen() {
   const { colors, themePreference, setTheme } = useTheme();
   const router = useRouter();
-  const heightUnit = useSettingsStore((s) => s.heightUnit);
-  const setHeightUnit = useSettingsStore((s) => s.setHeightUnit);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
   const setWeightUnit = useSettingsStore((s) => s.setWeightUnit);
   const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
@@ -45,20 +43,10 @@ export default function SettingsScreen() {
         <Card style={styles.section}>
           <Text style={[typography.sectionTitle, { color: colors.text }]}>Units</Text>
           <Text style={[typography.caption, styles.hint, { color: colors.textMuted }]}>
-            Height, body weight, and exercise loads can differ.
+            Body weight and exercise loads can differ.
           </Text>
 
-          <Text style={[typography.label, styles.unitLabel, { color: colors.textSecondary }]}>Height</Text>
-          <SegmentedControl
-            options={[
-              { value: 'cm', label: 'cm' },
-              { value: 'in', label: 'in' },
-            ]}
-            value={heightUnit}
-            onChange={setHeightUnit}
-          />
-
-          <Text style={[typography.label, styles.unitLabelSpaced, { color: colors.textSecondary }]}>
+          <Text style={[typography.label, styles.unitLabel, { color: colors.textSecondary }]}>
             Body weight
           </Text>
           <SegmentedControl

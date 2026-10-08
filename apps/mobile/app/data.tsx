@@ -115,7 +115,7 @@ export default function DataScreen() {
   function handleClearAllData() {
     Alert.alert(
       'Clear all data',
-      'Resets settings, workouts, sessions, recovery, and health info. You stay signed in. This cannot be undone.',
+      'Resets settings, workouts, sessions, and recovery. You stay signed in. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

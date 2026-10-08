@@ -226,7 +226,7 @@ describe('Clear all data (D15)', () => {
     fireEvent.press(await screen.findByText('Clear all data'));
     expect(lastAlert()).toMatchObject({
       title: 'Clear all data',
-      message: 'Resets settings, workouts, sessions, recovery, and health info. You stay signed in. This cannot be undone.',
+      message: 'Resets settings, workouts, sessions, and recovery. You stay signed in. This cannot be undone.',
     });
     await pressAlertButton('Clear all');
 

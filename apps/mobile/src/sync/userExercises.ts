@@ -20,7 +20,6 @@ export interface RemoteUserExercise {
   category: string;
   muscles: string[];
   equipment: string[];
-  tracking_type: string;
   updated_at: string;
   /** Stamped by the database on every write; absent before the MUS-91 migration. */
   server_updated_at?: string;
@@ -40,7 +39,6 @@ export function customOutboxToUserRecord(entry: OutboxEntry): Record<string, unk
       category: 'free_weight',
       muscles: ['chest'],
       equipment: [],
-      tracking_type: 'weight_reps',
       updated_at: entry.updatedAt,
       deleted_at: entry.updatedAt,
     };

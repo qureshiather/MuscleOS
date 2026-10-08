@@ -1,7 +1,10 @@
+import { ageCoefficient } from './ageCoefficients';
+
 /**
  * Strength standards: 1RM / bodyweight ratios by level.
  * Based on ExRx.net and common powerlifting/weightlifting classification systems.
- * Standards are for adult lifters (>18); age not differentiated.
+ * The tables are for lifters in their prime (23–40). With an age, each threshold is divided by the
+ * lifter's age coefficient (`ageCoefficients.ts`), so a masters or teen lifter needs less.
  *
  * Exercise IDs map to standards. Unmapped exercises show no comparison. Bodyweight lifts such as
  * pull-ups have no table: a 1RM/bodyweight ratio isn't a meaningful measure for them.
@@ -66,8 +69,10 @@ export interface StrengthComparison {
   nextLevel1RMKg: number | null;
   /** Next level name */
   nextLevelName: string | null;
-  /** Whether standards are available for this exercise */
+  /** Whether standards are available for this exercise (and, with an age, for that age) */
   hasStandards: boolean;
+  /** Age coefficient the thresholds were divided by; 1 without an age or at 23–40 */
+  ageCoefficient: number;
 }
 
 /**
@@ -85,26 +90,34 @@ export function getStrengthStandards(
 
 /**
  * Compare user's 1RM to strength standards.
- * Requires bodyweight (kg) and sex from profile.
+ * Requires bodyweight (kg) and sex from profile; age is optional. Without an age the unadjusted
+ * tables apply. Under 14 there is no published standard, so it reports no standards.
  */
 export function compareToStrengthStandards(
   exerciseId: string,
   oneRepMaxKg: number,
   bodyweightKg: number,
-  sex: 'male' | 'female'
+  sex: 'male' | 'female',
+  age?: number
 ): StrengthComparison {
-  const standards = getStrengthStandards(exerciseId, sex);
+  const coefficient = age == null ? 1 : ageCoefficient(age);
+  const tables = getStrengthStandards(exerciseId, sex);
   const ratio = bodyweightKg > 0 ? oneRepMaxKg / bodyweightKg : 0;
 
-  if (!standards) {
+  if (!tables || coefficient == null) {
     return {
       ratio,
       level: 'untrained',
       nextLevel1RMKg: null,
       nextLevelName: null,
       hasStandards: false,
+      ageCoefficient: coefficient ?? 1,
     };
   }
+
+  const standards = Object.fromEntries(
+    STRENGTH_LEVEL_ORDER.map((level) => [level, tables[level] / coefficient])
+  ) as Record<StrengthLevel, number>;
 
   let detectedLevel: StrengthLevel = 'untrained';
   let nextLevel1RMKg: number | null = null;
@@ -135,5 +148,6 @@ export function compareToStrengthStandards(
     nextLevel1RMKg,
     nextLevelName,
     hasStandards: true,
+    ageCoefficient: coefficient,
   };
 }

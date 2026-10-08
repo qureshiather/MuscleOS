@@ -1,7 +1,6 @@
 import type { WorkoutTemplate, TemplateFolder } from './workout';
 import type { WorkoutSession } from './session';
 import type { MuscleRecovery } from './recovery';
-import type { MacroTargets, MetabolismInfo } from './health';
 import type { UserProfile } from './auth';
 import type { Exercise } from './exercise';
 
@@ -18,8 +17,4 @@ export interface ExportData {
   exerciseNotes?: Record<string, string>;
   /** Account-private custom exercises */
   customExercises?: Exercise[];
-  health?: {
-    macroTargets?: MacroTargets;
-    metabolism?: MetabolismInfo;
-  };
 }

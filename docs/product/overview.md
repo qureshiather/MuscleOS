@@ -100,8 +100,8 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Account | `/account` | Sign-in, sync, data, deletion, legal | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Settings | `/settings` | Appearance, units, sounds | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
 | Acknowledgements | `/acknowledgements` | Open-source license notices (from Settings → About) | [accounts-and-data.md](../features/accounts-and-data.md#acknowledgements) |
-| Biodata | `/biodata` | Height, weight, age, gender | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
-| Data | `/data` | Sync, export, import, clear this device | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
+| Biodata | `/biodata` | Body weight, age and gender | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
+| Data | `/data` | Sync, export, import, clear this device | [accounts-and-data.md](../features/accounts-and-data.md#data) |
 | Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 | Email link landing | `/auth-callback` | Spinner while an email confirm/recovery link is completed, then routes on | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |
 
@@ -113,11 +113,11 @@ These hold app-wide. Individual feature specs list their own on top of these.
 
 **Weight is stored in kilograms.** `weightKg` is the canonical unit everywhere in storage,
 sync, and every calculation. Pounds exist only as a display conversion at the UI edge
-(`apps/mobile/src/utils/weightUnits.ts`), using the factor 2.20462. Height is stored in cm.
+(`apps/mobile/src/utils/weightUnits.ts`), using the factor 2.20462.
 
 **Weight and reps are the only tracked metrics.** Every exercise is logged as weight × reps.
-There is no duration, distance, or bodyweight-only logging mode — `Exercise.trackingType`
-exists in the type but the logging UI ignores it.
+There is no duration, distance, or bodyweight-only logging mode, and exercises carry no
+tracking-type field.
 
 **One workout at a time.** A single in-progress session is persisted; starting a second is
 blocked while one is open. It survives app restarts and is resumable from a pill in the tab bar.
@@ -129,9 +129,13 @@ recomputed from the session list. "Previous" set values are different: they are 
 synced snapshot of the most recent qualifying session and are rebuilt when a session is deleted.
 
 **Only completed sets count.** A set with `completed: false` is saved with the session but is
-excluded from volume, recovery, PRs, and the finish summary. Completed warm-up sets currently
-count toward volume and recovery; see
-[history-analytics.md](../features/history-analytics.md#volume).
+excluded from volume, recovery, PRs, "previous", and the finish summary.
+
+**Completed warm-ups count like working sets.** Every derived metric — volume, recovery, PRs and
+estimated 1RM, and the "previous" snapshot — includes completed warm-up sets. Warm-ups differ only
+while logging: they're numbered `W1, W2…`, are never prefilled from "previous", carry weight only
+to another warm-up, and rest only when a warm-up rest is set
+([workout-logging.md](../features/workout-logging.md)).
 
 **Days and weeks are local-timezone.** Streaks, calendar days, and "trained today" all use the
 device's local calendar. Weeks start **Monday**.
@@ -158,6 +162,6 @@ Listed so they don't get re-proposed as bugs or half-specified in future work.
 | Plate calculator | Not implemented. |
 | Session detail screen | History cards show full detail inline; there is no drill-down route. |
 | Live PR detection during a workout | PRs are computed on read on the PR screen, not surfaced mid-session. |
-| HealthKit / Google Fit | No integration. `healthStore` holds macro/BMR helpers with no UI. |
+| HealthKit / Google Fit, nutrition | No integration and no calorie or macro tracking. |
 | Program periodization, RPE, drop sets, supersets | No data model support. |
 | Cardio, distance, or duration tracking | Out of scope. |

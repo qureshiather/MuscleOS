@@ -39,7 +39,7 @@ Anonymous sign-in stays **on**. The app creates a guest on first launch and upgr
 Authentication → URL configuration:
 
 - Site URL: `https://muscleos.app`
-- Redirect allow list: `https://muscleos.app/**`, `muscleos://**`, `https://muscleos.app/auth/confirm`
+- Redirect allow list: `https://muscleos.app/auth/confirm`, `muscleos://**`
 
 One Supabase user per email. Apple, Google, and a password on that address are the same account. Deleting the user removes all three.
 
@@ -60,12 +60,8 @@ hourly send budget and block real confirmation mail for up to an hour. Each addr
 one mail a minute, and unknown addresses get no mail at all. If that ever happens, the fix is
 Supabase Auth CAPTCHA, which also needs the app to send a CAPTCHA token.
 
-Edge Functions `save-apple-token` and `delete-account` are deployed. Redeploy after changing `supabase/functions/`:
-
-```bash
-pnpm supabase functions deploy save-apple-token
-pnpm supabase functions deploy delete-account
-```
+Edge Functions `save-apple-token` and `delete-account` are deployed. Redeploy after changing
+`supabase/functions/` ([commands](../supabase/setup.md#4-account-deletion-functions)).
 
 Apple revoke on delete needs `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and `APPLE_PRIVATE_KEY` in Edge Function secrets, with `APPLE_CLIENT_ID=com.muscle-os.app`. If those are unset, delete still removes the Supabase user and skips the Apple revoke.
 
@@ -157,8 +153,8 @@ Play, and an application id can never change once published. The Kotlin namespac
   SHA-1 is on the Google sign-in Android client above. We sign uploads with the **upload key**,
   which EAS stores (Expo → Credentials → Android → `app.muscleos`). EAS only creates or rotates it
   through the interactive `npx eas-cli credentials -p android`, which has to run in a real terminal.
-- **The first AAB had to be uploaded by hand** in Play Console. `eas submit -p android` needs the
-  Google service account with release permissions (not set up yet; upload AABs by hand).
+- **AABs are uploaded by hand** in Play Console. `eas submit -p android` would need a Google
+  service account with release permissions, which isn't configured.
 - **Production access:** this is a personal developer account, so Play requires a closed test with at
   least 12 opted-in testers for 14 consecutive days before **Apply for production access** unlocks.
   Testers are managed on the closed track's **Testers** tab and join through its opt-in link.

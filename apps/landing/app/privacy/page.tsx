@@ -52,7 +52,7 @@ export default function PrivacyPage() {
             restore them on another device. Recovery is not synced; it is recomputed locally from your sessions.
           </li>
           <li>
-            <strong>Optional biodata you enter.</strong> Height, body weight, age, and sex. Used for in-app features (the body diagram and strength standards).
+            <strong>Optional biodata you enter.</strong> Body weight, age, and sex. Used for in-app features (the body diagram and strength standards).
             It is included in the synced copy if you link an account. We do not collect health-sensor data and
             we have no HealthKit or Google Fit integration.
           </li>

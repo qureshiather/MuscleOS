@@ -24,7 +24,6 @@ interface SetRecord {
   weightKg?: number;      // always kg in storage
   completed: boolean;
   isWarmUp?: boolean;
-  note?: string;          // in the type, unused by the UI
   weightPrefilled?: boolean;  // weightKg is an auto-suggestion, not user input (see prefill)
   repsPrefilled?: boolean;    // reps is an auto-suggestion, not user input
 }
@@ -45,8 +44,8 @@ interface WorkoutSession {
 }
 ```
 
-**Not modelled:** drop sets, sets to failure, RPE, per-set notes (the field exists but no UI
-writes it), rest-pause, tempo, or duration/distance-based work. Every set is weight × reps.
+**Not modelled:** drop sets, sets to failure, RPE, per-set notes, rest-pause, tempo, or
+duration/distance-based work. Every set is weight × reps.
 
 ## Session lifecycle
 
@@ -73,10 +72,10 @@ or an unknown id (an ad-hoc list from the link) then starts. The plan is the one
 falling back to the template's own (`startPlanFromParams()`).
 
 **Only one workout at a time.** `startWorkout` no-ops if a session exists, and the home screen
-blocks a second start with a themed confirm dialog: "Workout in progress — Finish or cancel
-your current workout before starting another." **Cancel workout** discards the in-progress
-session (no extra confirm) and continues the start that was blocked; **Resume workout** opens
-it; tap the overlay to dismiss and keep it.
+blocks a second start (empty-workout hero or a template card) with a themed confirm dialog:
+"Workout in progress — Finish or cancel your current workout before starting another."
+**Cancel workout** discards the in-progress session (no extra confirm) and continues the start
+that was blocked; **Resume workout** opens it; tap the overlay to dismiss and keep it.
 
 ### Persisting and resuming
 
@@ -180,19 +179,18 @@ scrolled up so the pad never hides the row being edited.
   reps — clamping to empty at zero. Those keys are the only way to enter a fraction.
 - The **action key adapts to the field**, because logging a weight and finishing a set are
   different intents:
-  - **Weight** shows a primary **Next** that jumps to the same set's reps. A reserved **Plates**
-    slot (a plate calculator, later) sits to the right of **0**.
+  - **Weight** shows a primary **Next** that jumps to the same set's reps. A dimmed, non-pressable
+    **Plates** placeholder labelled "soon" sits to the right of **0**.
   - **Reps** shows a success **Done** (check) that **completes the set** — starting that set's
     rest — and then dismisses the pad, since a rest usually follows rather than the next
-    set. Done is disabled until reps > 0. A reserved **RPE** slot for logging effort later (to
-    inform recovery windows) sits to the right of **0**.
+    set. Done is disabled until reps > 0. A dimmed **RPE** placeholder ("soon")
+    sits to the right of **0**.
   - **Time** is only the rest-duration boxes on **Update rest timers**. −/+, Plates, and RPE
     are hidden. Digits shift into `m:ss` from the right (the first digit replaces the current
     time); a seconds value above 59 or a total past 15:00 is ignored, and 0:00 is allowed.
     **Next** moves from Work set to Warm up; **Done** hides the pad.
 - **Backspace** is in the right-hand column, above Next/Done — the same place delete lives on a
-  normal keyboard. The chevron key hides the pad. Neither reserved slot (Plates / RPE) is wired
-  to anything yet.
+  normal keyboard. The chevron key hides the pad.
 
 The pure entry maths (append, backspace, ± clamping, digit caps, `m:ss` clock entry) and what each
 key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes) live in
@@ -251,11 +249,9 @@ the running rest is still flagged when that row is scrolled away. A manual rest 
 no row, so the header shows its countdown as a chip. With nothing running, the header shows a plain
 timer icon. Tapping the header or the row opens the same dialogue for the same rest.
 
-A rest row sits after a set when that set's duration is greater than 0, so completing the set
-does not shove the rows below — the countdown replaces the preset in that same row. Tapping it
-opens the header rest dialogue (running-timer controls, or the manual picker when nothing is
-counting). It does not edit the row in place. The header dialogue's ±30 buttons change only the
-countdown already running.
+Because the rest row is already there before the set is completed, completing it doesn't shove
+the rows below — the countdown replaces the preset in that same row. Tapping the row never edits
+it in place, and the header dialogue's ±30 buttons change only the countdown already running.
 
 **Update rest timers** (exercise menu) sets the work-set and warm-up rests for the following sets
 of that exercise, for the rest of this workout. They are stored on the session's exercise only —
@@ -410,8 +406,7 @@ them, so there is no cached value to invalidate. See
 | Constant | Value |
 |----------|------:|
 | Default working sets per exercise | 3 |
-| Default rest | 120 s |
-| Rest adjust step / floor / ceiling | 30 s / 30 s total / 900 s total (−30 leaves ≥ 1 s) |
+| Rest timer values | See [Rest timer](#rest-timer) |
 | Persist debounce | 400 ms |
 | Stale workout idle threshold | 3 h |
 | Timer tick | 1000 ms |
@@ -428,11 +423,11 @@ them, so there is no cached value to invalidate. See
 | Assumption | Note |
 |------------|------|
 | One workout at a time | Enforced in the store and at every entry point |
-| Weight × reps is the only logging mode | `Exercise.trackingType` is ignored by this screen |
+| Weight × reps is the only logging mode | There is no per-exercise tracking type |
 | Whole-number typed input | The in-app number pad has no decimal key. −/+ is the only way to enter a fraction, stepping by 0.25 kg / 2.5 lb. A digit typed onto a fraction replaces it; backspace snaps the fraction off first. lb→kg conversion rounds to 2dp |
 | Sets are logged on a custom in-app pad | The OS keyboard is never raised for set entry, which is what makes Done single-tap and keeps rows visible |
 | Rest runs after the last set of an exercise too | Simpler than special-casing; skip it if unwanted |
-| Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Warm-ups still count as "completed" for recovery and volume |
+| Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Completed warm-ups still count toward every derived metric ([overview](../product/overview.md#cross-cutting-assumptions)) |
 | "Previous" is one snapshot per exercise | Best weighted set within the most recent qualifying session, not an all-time best or set-by-set history |
 | Incomplete sets are stored, not discarded | They're excluded from every derived metric instead |
 | Exercise notes are per exercise, not per session | Intended for setup cues (seat height, pin position) |

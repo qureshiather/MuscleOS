@@ -1,4 +1,4 @@
-# Preview builds (EAS)
+# EAS builds
 
 Preview builds are **standalone binaries** you can install without Expo Go or a Metro server. They use the `preview` profile in [`apps/mobile/eas.json`](../../apps/mobile/eas.json) (`distribution: "internal"`).
 

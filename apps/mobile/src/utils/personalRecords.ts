@@ -7,8 +7,8 @@ import type { WorkoutSession } from '@muscleos/types';
 import { buildExercisePRs, type ExercisePR, type SetWithDate } from '@/utils/oneRepMax';
 import { textMatchesQuery } from '@/utils/exerciseSearch';
 
-/** The biodata strength standards need (`UserAppProfile` fields). */
-export type StrengthProfile = { weightKg?: number; sex?: 'male' | 'female' };
+/** The biodata strength standards use (`UserAppProfile` fields); age is optional. */
+export type StrengthProfile = { weightKg?: number; age?: number; sex?: 'male' | 'female' };
 
 /** Bars on a Personal Records card: the most recent qualifying sets. */
 export const PR_CARD_MAX_BARS = 10;
@@ -33,6 +33,8 @@ export type StrengthSummary = {
   label: string;
   /** Next level and the 1RM (kg) it needs; null at elite. */
   next: { label: string; oneRepMaxKg: number } | null;
+  /** The age the thresholds were adjusted for, or null when they weren't (no age, or 23–40). */
+  adjustedForAge: number | null;
 };
 
 /** Profile has what strength standards need: a positive bodyweight and a sex. */
@@ -42,7 +44,8 @@ export function hasStrengthProfile(profile: StrengthProfile): boolean {
 
 /**
  * Strength level for an exercise's best e1RM, or null when the profile is missing bodyweight or
- * sex, or the exercise has no standards.
+ * sex, the exercise has no standards, or the lifter is under 14. Thresholds are age-adjusted when
+ * the profile has an age.
  */
 export function strengthSummary(
   exerciseId: string,
@@ -50,7 +53,7 @@ export function strengthSummary(
   profile: StrengthProfile
 ): StrengthSummary | null {
   if (!profile.sex || profile.weightKg == null || profile.weightKg <= 0) return null;
-  const c = compareToStrengthStandards(exerciseId, best1RMKg, profile.weightKg, profile.sex);
+  const c = compareToStrengthStandards(exerciseId, best1RMKg, profile.weightKg, profile.sex, profile.age);
   if (!c.hasStandards) return null;
   return {
     level: c.level,
@@ -59,7 +62,13 @@ export function strengthSummary(
       c.nextLevelName && c.nextLevel1RMKg != null
         ? { label: c.nextLevelName, oneRepMaxKg: c.nextLevel1RMKg }
         : null,
+    adjustedForAge: profile.age != null && c.ageCoefficient !== 1 ? Math.floor(profile.age) : null,
   };
+}
+
+/** Progression strength card note when the thresholds were age-adjusted: "Adjusted for age 52". */
+export function strengthAgeNote(strength: StrengthSummary): string | null {
+  return strength.adjustedForAge != null ? `Adjusted for age ${strength.adjustedForAge}` : null;
 }
 
 export type PRCardModel = {

@@ -89,8 +89,8 @@ and is **not** synced; a custom template's `hidden` flag is part of its record a
 
 ## Shipped built-in templates
 
-Three folders, nine templates (asserted in `src/subscription/features.test.ts` and validated
-against the exercise catalog in `src/data/builtInTemplates.test.ts`).
+Three folders, nine templates (asserted, and validated against the exercise catalog, in
+`src/data/builtInTemplates.test.ts`).
 
 | Folder | Templates | Exercises each |
 |--------|-----------|---------------:|
@@ -110,8 +110,8 @@ Renders top to bottom:
 
 **2. Empty workout hero.** Starts a session with no exercises, adding them as you go (subtitle
 "Add exercises as you go"). Skips the preview screen and goes straight to `/active-workout` with
-`templateId: '_empty'`. If a session is already in progress, the themed "Workout in progress"
-dialog is shown instead (see [workout-logging](workout-logging.md#starting)).
+`templateId: '_empty'`. If a session is already in progress, the "Workout in progress" dialog is
+shown instead ([workout-logging](workout-logging.md#starting)).
 
 **3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid, chosen by
 [recommendTemplates](#suggested-templates) over the visible templates, built-in and custom
@@ -120,8 +120,8 @@ dialog is shown instead (see [workout-logging](workout-logging.md#starting)).
 
 **4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
 most recent first, deduplicated by template and **excluding anything already in Suggested** and
-hidden templates (`pickRecentTemplates()` in
-`src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
+hidden templates; sessions whose template was deleted, and empty workouts, are skipped
+(`pickRecentTemplates()` in `src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
 relative completion time.
 
 ### Muscle art cards
@@ -172,14 +172,10 @@ Each card shows the name, optional description, `Last done: <relative>` when a c
 exists for it (the most recent one — `lastDoneByTemplate()`), and `<N> exercises`.
 
 Tapping a card opens **`/workout-preview`**, not the workout directly, passing the template id and
-its set plan. If a session is already in progress, the same "Workout in progress" dialog as the
-empty-workout hero is shown instead. The routing decision is `decideTemplateStart()` in
-`src/utils/workoutsHome.ts`: an in-progress session → the dialog; otherwise preview (built-in and
-custom templates alike) or `/active-workout` (empty).
-
-The "Workout in progress" dialog — "Finish or cancel your current workout before starting
-another." — offers **Resume workout** (go to `/active-workout`) and **Cancel workout** (discard the
-in-progress session, then continue to what was tapped).
+its set plan. The routing decision is `decideTemplateStart()` in `src/utils/workoutsHome.ts`: an
+in-progress session → the "Workout in progress" dialog
+([workout-logging](workout-logging.md#starting)); otherwise preview (built-in and custom templates
+alike) or `/active-workout` (empty).
 
 ### Context menus
 
@@ -369,7 +365,7 @@ Covered:
   +3 novelty, +5 within 30 days, −20 within 2 days), the 50% cut-off boundary, unresolved templates
   skipped, name tie-break, the limit, and the −8-per-overlap diversification
 - `src/utils/recentTemplates.test.ts` — Recent: newest first, one per template, excludes
-  Suggested / hidden, capped at 6
+  Suggested / hidden / deleted templates and empty workouts, capped at 6
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared

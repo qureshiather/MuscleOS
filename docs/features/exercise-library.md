@@ -30,9 +30,7 @@ interface Exercise {
   category: ExerciseCategory;
   instructions?: string;
   aliases?: string[];         // catalog only — legacy slug redirects
-  trackingType?: ExerciseTrackingType;  // defaults to 'weight_reps'
   isPublished?: boolean;      // catalog only; false hides from the list
-  mediaUrl?: string;          // deprecated; never set for catalog rows
 }
 ```
 
@@ -45,9 +43,8 @@ There is **no `isCustom` field** — custom exercises are identified by an `id` 
 **`Equipment`** (closed, 9 values):
 `barbell` · `dumbbell` · `kettlebell` · `cable` · `machine` · `bodyweight` · `band` · `ez_bar` · `other`
 
-**`ExerciseTrackingType`**: `weight_reps` | `bodyweight_reps` | `duration`. Present in the type
-but **not exposed in the UI and ignored by the logging screen** — everything is logged as
-weight × reps.
+There is no tracking type: every exercise is logged as weight × reps. The server tables still
+have a `tracking_type` column (default `weight_reps`); the app neither reads nor sends it.
 
 `muscles` is flat by design; see [recovery.md](recovery.md#muscle-taxonomy) for why the upstream
 primary/secondary split was flattened at build time.
@@ -233,7 +230,7 @@ Anyone can create, edit and delete their own exercises.
 
 Validation (`buildCustomExerciseDraft()`): the name is trimmed, and Save stays disabled until
 there is a name, a Type and at least one muscle. Blank instructions are saved as none, so editing
-them to empty clears them. Custom exercises always track `weight_reps`.
+them to empty clears them.
 
 Ids are assigned as `custom_<n>` where n is the highest suffix + 1 across live **and retired**
 customs (`nextCustomExerciseId()` in `src/utils/exerciseIds.ts`). Gaps are never filled and a
@@ -257,8 +254,8 @@ corrupt or older rows: invalid equipment values are stripped, a missing category
 equipment (cable → machine → bodyweight → free_weight), a missing name falls back to the id,
 unknown muscle ids are stripped (like equipment), and if no valid muscle is left the row falls
 back to `['chest']` so it always has at least one. Blank instructions are dropped and present ones
-trimmed; an unknown tracking type becomes `weight_reps`. The name and muscle fallbacks aren't
-reachable from the create UI, which requires both.
+trimmed. Fields the app doesn't model (such as the server's `tracking_type`) are dropped. The name
+and muscle fallbacks aren't reachable from the create UI, which requires both.
 
 **There is no deduplication.** Nothing stops you creating a second "Cable Row" that already
 exists in the catalog, or two customs with the same name. Names aren't unique keys — ids are.
@@ -362,9 +359,9 @@ There are **no favourites** on this tab. The PR screen is reached from History; 
 
 ## Exercise pickers
 
-Three separate inline implementations rather than one shared component: the template builder, and
-the add and replace flows in the active workout. All use the same `searchExercises` over the
-catalog plus customs, and all exclude already-selected exercises.
+Two implementations: the template builder filters `searchExercises` inline, and the active
+workout's add and replace flows share `pickerResults()` (`src/utils/exercisePicker.ts`). Both
+search the catalog plus customs and leave out exercises already selected.
 
 There is **no recently-used or most-used ordering** in any picker.
 
@@ -375,7 +372,6 @@ There is **no recently-used or most-used ordering** in any picker.
 | Category and equipment lists are **closed enums** | Adding a value is a type + migration change |
 | Catalog ids are permanent | Unpublish, never delete |
 | Instructions ship in the binary and from the server | Bundled seed includes them; later copy changes arrive by delta |
-| Custom exercises always track `weight_reps` | The field isn't editable |
 | No dedupe against the catalog or between customs | Names are not unique |
 | Sessions reference exercises by id only | No name snapshot — deleted customs are retired, not dropped, so history still resolves them |
 | Custom exercises are account-private | Enforced by RLS |
@@ -386,7 +382,7 @@ There is **no recently-used or most-used ordering** in any picker.
 
 Covered (Vitest):
 
-- `src/data/catalogSeed.test.ts` — 399 rows / 396 published, the 3 unpublished ids, 177 / 102 /
+- `src/data/catalogSeed.test.ts` — 400 rows / 397 published, the 3 unpublished ids, 178 / 102 /
   60 / 60 by Type, 37 alias rows, every row bundles the source instruction copy, no media URLs
 - `src/data/exercises.test.ts` — source ids match the bundled seed; every exercise has
   instructions; no third-party URLs or attribution; current copy is present in a migration;
@@ -415,7 +411,7 @@ Covered (Vitest):
   name, empty query passthrough, abductor/adductor stems, no abbreviations
 - `src/utils/exerciseNormalize.test.ts` — category inference order, invalid equipment and muscles
   stripped, `['chest']` fallback only when nothing valid is left, name → id fallback,
-  `weight_reps` default, instructions trimmed/dropped, snake_case mapping
+  instructions trimmed/dropped, snake_case mapping with `tracking_type` and media columns dropped
 - `src/utils/exerciseLibraryFilter.test.ts` — Muscle groups (single Chest), Type / Muscle / query
   AND, order kept with no query, the `<Type> · <Muscle>` summary, and the type line (equipment
   matching the category isn't repeated)
@@ -444,5 +440,6 @@ Covered (Jest UI, `src/test/ui/exercises/`):
 
 Not covered:
 
-- The template-builder and active-workout exercise pickers (covered with their screens' specs)
+- The pickers are tested with their screens: [templates](templates.md#tests) and
+  [workout-logging](workout-logging.md#tests)
 - The generator script itself (its output is checked through `catalogSeed.ts`)

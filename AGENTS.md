@@ -14,8 +14,8 @@ This document helps AI agents and future prompts work effectively with the Muscl
 |------------|-----|
 | [`docs/README.md`](docs/README.md) | Doc index and the rules for keeping specs in sync |
 | [`docs/product/overview.md`](docs/product/overview.md) | What the app is, design principles, screen map, cross-cutting assumptions |
-| [`docs/features/README.md`](docs/features/README.md) | Feature index, spec + test status |
-| [`docs/engineering/testing.md`](docs/engineering/testing.md) | Current test coverage and infrastructure |
+| [`docs/features/README.md`](docs/features/README.md) | Feature index |
+| [`docs/engineering/testing.md`](docs/engineering/testing.md) | Test infrastructure, conventions and known gaps |
 
 **Feature specs:** [templates](docs/features/templates.md) · [workout-logging](docs/features/workout-logging.md) · [recovery](docs/features/recovery.md) · [exercise-library](docs/features/exercise-library.md) · [exercise-demos](docs/features/exercise-demos.md) · [history-analytics](docs/features/history-analytics.md) · [pricing](docs/features/pricing.md) · [accounts-and-data](docs/features/accounts-and-data.md)
 
@@ -25,7 +25,7 @@ Docs rot silently, so treat them as part of the change rather than follow-up wor
 
 1. **Update the feature's spec in the same change** whenever you alter a user-visible behaviour or copy, a default/constant/threshold/formula, a domain type in `packages/types`, or a storage key or its sync status.
 2. **Don't add paywalls or tiers.** MuscleOS is free; every feature is for everyone ([pricing](docs/features/pricing.md)). Paid work belongs to the future Coaching offering, which gets its own spec.
-3. **New feature → add it to the [feature index](docs/features/README.md#index)** and record its test status.
+3. **New feature → add it to the [feature index](docs/features/README.md#index)** and list its tests in the spec's **Tests** section.
 4. **Edit, don't append.** These are specs describing the current app, not a changelog. Git history is the changelog.
 5. **If code and spec disagree, that's a bug.** Fix it rather than working around it, and say which one you treated as correct.
 6. **Add tests for new pure logic.** No test infrastructure is required for pure functions, so there's no excuse for skipping them. If something genuinely isn't testable with the current setup, note it in that spec's **Tests** section instead of leaving it silently uncovered.
@@ -182,7 +182,7 @@ apps/mobile/
 3. **New store**: Follow `authStore`/`templatesStore` pattern — load on app init from layout if needed.
 4. **New screen**: Add file under `app/`; use `Stack`/`Tabs` screen options for layout. Add it to the [screen map](docs/product/overview.md#screen-map).
 5. **New component**: Place in `src/components/`, use `@/` imports and `useTheme()` for colors.
-6. **Tests**: every spec rule needs a test. Pure logic → `*.test.ts` next to it (Vitest). Screens and components → `*.test.tsx` (Jest): screen tests go in `src/test/ui/<area>/` using `renderApp()` from `src/test/ui/render.tsx` — **never under `app/`** (expo-router would make them routes). Keep decisions out of screens: extract them to pure functions and unit-test those. CI runs `pnpm check` (Biome + `tsc` + Vitest + Jest via Turbo). Harness and coverage: [`docs/engineering/testing.md`](docs/engineering/testing.md).
+6. **Tests**: every spec rule needs a test. Pure logic → `*.test.ts` next to it (Vitest). Screens and components → `*.test.tsx` (Jest): screen tests go in `src/test/ui/<area>/` using `renderApp()` from `src/test/ui/render.tsx` — **never under `app/`** (expo-router would make them routes). Keep decisions out of screens: extract them to pure functions and unit-test those. CI runs `pnpm check` (Biome + `tsc` + Vitest + Jest via Turbo). Harness and conventions: [`docs/engineering/testing.md`](docs/engineering/testing.md); coverage is in each spec's **Tests** section.
 
 ### Behaviours that are easy to break
 

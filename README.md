@@ -18,7 +18,7 @@ pnpm check        # biome + typecheck + tests (also runs in GitHub Actions)
 
 Mobile app: `cd apps/mobile && pnpm dev`
 
-CI (GitHub Actions on `main` and PRs) runs the same `pnpm check` pipeline: Biome, TypeScript, and Vitest via Turbo.
+CI (GitHub Actions on `main` and PRs) runs the same `pnpm check` pipeline: Biome, TypeScript, Vitest and Jest via Turbo.
 
 ## Expo login
 
@@ -54,8 +54,8 @@ the app does — not scattered READMEs in app directories. Start at
 | Area | Path |
 |------|------|
 | **What the app is** — principles, screen map, assumptions | [`docs/product/overview.md`](docs/product/overview.md) |
-| **Feature specs** — index and test status | [`docs/features/README.md`](docs/features/README.md) |
-| Test coverage and gaps | [`docs/engineering/testing.md`](docs/engineering/testing.md) |
+| **Feature specs** — index; each spec lists its tests | [`docs/features/README.md`](docs/features/README.md) |
+| Test infrastructure and conventions | [`docs/engineering/testing.md`](docs/engineering/testing.md) |
 | Pricing — free forever; Coaching later | [`docs/features/pricing.md`](docs/features/pricing.md) |
 | EAS builds | [`docs/mobile/eas-build.md`](docs/mobile/eas-build.md) |
 | Supabase / sync | [`docs/supabase/setup.md`](docs/supabase/setup.md) |

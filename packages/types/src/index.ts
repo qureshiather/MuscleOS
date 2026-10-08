@@ -3,6 +3,5 @@ export * from './exercise';
 export * from './workout';
 export * from './session';
 export * from './recovery';
-export * from './health';
 export * from './auth';
 export * from './export';

@@ -7,20 +7,20 @@ export type RecentTemplate = { session: WorkoutSession; template: WorkoutTemplat
 
 /**
  * The home screen's Recent row: templates you've completed, most recent first, one entry per
- * template. Skips anything already shown in Suggested, templates the user can't start on their
- * tier (callers pass only startable templates), and hidden templates.
+ * template. Skips anything already shown in Suggested, hidden templates, and sessions whose
+ * template isn't in `templates` (deleted templates and empty workouts).
  *
  * `completedSessions` must already be newest-first.
  */
 export function pickRecentTemplates(args: {
   completedSessions: WorkoutSession[];
-  startableTemplates: WorkoutTemplate[];
+  templates: WorkoutTemplate[];
   suggestedIds: ReadonlySet<string>;
   isHidden: (template: WorkoutTemplate) => boolean;
   limit?: number;
 }): RecentTemplate[] {
   const { completedSessions, suggestedIds, isHidden, limit = RECENT_TEMPLATES_LIMIT } = args;
-  const templateMap = new Map(args.startableTemplates.map((t) => [t.id, t]));
+  const templateMap = new Map(args.templates.map((t) => [t.id, t]));
   const seen = new Set<string>();
   const items: RecentTemplate[] = [];
   for (const session of completedSessions) {

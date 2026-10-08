@@ -96,7 +96,6 @@ export function mergeAppSettingsPreferLocal(
   remote: SyncedAppSettings
 ): SyncedAppSettings {
   return {
-    heightUnit: local.heightUnit ?? remote.heightUnit,
     weightUnit: local.weightUnit ?? remote.weightUnit,
     bodyWeightUnit: local.bodyWeightUnit ?? remote.bodyWeightUnit,
     workoutSoundsEnabled: local.workoutSoundsEnabled ?? remote.workoutSoundsEnabled,
