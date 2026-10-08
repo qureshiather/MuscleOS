@@ -414,7 +414,9 @@ def kb_spec(id_, kind, one_hand=False):
             feet(ctx, width=0.12, toe_out=10)
             knees_out(ctx, 0.3)
             for s in sides:
-                ctx.arm_fk(s, flex=lerp(-15 + hinge * 0.1, 90, k), abd=-6, twist=-80)
+                # Arm angle is relative to the torso: at the hike the arms point back between the
+                # thighs (hinge - 20° from the torso line), at the float they're level with the chest.
+                ctx.arm_fk(s, flex=lerp(hinge - 20, 90, k), abd=-8 if not one_hand else lerp(-18, -6, k), twist=-80)
             if one_hand:
                 ctx.arm_fk('L', abd=12)
             g = ctx.attach_point('hand.R', M.grip_point('R'))
