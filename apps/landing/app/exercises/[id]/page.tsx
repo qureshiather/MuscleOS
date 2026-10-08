@@ -65,10 +65,10 @@ export default async function ExercisePage({ params }: { params: Promise<Params>
                   </div>
                   <figcaption className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
                     <span>Green shows the muscles this exercise works.</span>
-                    <a href={sources.light.video} download className="text-primary hover:underline">
+                    <a href={`${sources.light.video}?download=1`} className="text-primary hover:underline">
                       Download light MP4
                     </a>
-                    <a href={sources.dark.video} download className="text-primary hover:underline">
+                    <a href={`${sources.dark.video}?download=1`} className="text-primary hover:underline">
                       Download dark MP4
                     </a>
                   </figcaption>

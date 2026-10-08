@@ -2,10 +2,12 @@
 /**
  * Render exercise animations with headless Blender and encode them for the landing site.
  *
- * Output (committed, served statically, never bundled into the mobile app):
- *   public/exercise-demos/<id>-<theme>.mp4    H.264 loop, muted, faststart
- *   public/exercise-demos/<id>-<theme>.webp   poster frame
- *   app/data/exerciseDemos.json          ids with a clip, for the landing exercise pages
+ * Output:
+ *   .exercise-demos/<id>-<theme>.mp4   H.264 loop, muted, faststart (gitignored)
+ *   .exercise-demos/<id>-<theme>.webp  poster frame (gitignored)
+ *   app/data/exerciseDemos.json        ids with a clip, for the landing exercise pages (committed)
+ * Rendered clips are uploaded to Vercel Blob (scripts/upload-exercise-demos.mjs), which the
+ * website serves them from; they never go in git or the mobile app. --no-upload skips that.
  *
  * Usage:
  *   node scripts/build-exercise-animations.mjs                 # every animated exercise
@@ -25,12 +27,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { uploadDemos } from './upload-exercise-demos.mjs';
+
 const run = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LANDING = join(__dirname, '..');
 const MOBILE_DATA = join(LANDING, '../mobile/src/data');
 const PIPELINE = join(__dirname, 'exercise-animations');
-const OUT = join(LANDING, 'public/exercise-demos');
+const OUT = join(LANDING, '.exercise-demos');
 
 const BLENDER = process.env.BLENDER ?? 'blender';
 const JOBS = Number(process.env.JOBS ?? 3);
@@ -135,7 +139,10 @@ function renderedIds() {
 }
 
 function writeManifests() {
-  const ids = renderedIds();
+  // Clips live in Blob, so a machine may only hold the ones it rendered: keep listed ids.
+  const path = join(LANDING, 'app/data/exerciseDemos.json');
+  const listed = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : [];
+  const ids = [...new Set([...listed, ...renderedIds()])].sort();
   writeFileSync(join(LANDING, 'app/data/exerciseDemos.json'), `${JSON.stringify(ids, null, 2)}\n`);
   console.log(`Manifest: ${ids.length} exercises with demos`);
 }
@@ -208,6 +215,7 @@ async function main() {
   await Promise.all(Array.from({ length: JOBS }, worker));
   writeManifests();
   if (failed) process.exit(1);
+  if (!process.argv.includes('--no-upload')) await uploadDemos(ids);
 }
 
 main();

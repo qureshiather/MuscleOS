@@ -51,9 +51,9 @@ source through a path alias, so it never depends on that package's build output.
 
 ## Licence
 
-The animation files (`public/exercise-demos/*.mp4`, `*.webp`) are MuscleOS originals dedicated
+The animation files (`*.mp4`, `*.webp` in the Blob store) are MuscleOS originals dedicated
 to the public domain under **CC0 1.0**: anyone may use them for anything, without credit.
-`public/exercise-demos/LICENSE.txt` says so, and every demo page states it. The instruction copy,
+`LICENSE.txt` next to them in the store says so, and every demo page states it. The instruction copy,
 name, logo, app and the rest of the site are not covered.
 
 ## App link
@@ -66,6 +66,19 @@ Custom exercises and unpublished catalog rows have no page and show no row.
 Because every published exercise has a page, the app needs no list of which demos exist: a new
 demo appears behind the existing link as soon as the website deploys. Until an exercise has one,
 its page shows "Demo coming soon" with the same how-to as the app.
+
+## Hosting
+
+Clips are **not in git**. They live in a public **Vercel Blob** store connected to the
+`muscle-os-landing` project, under `exercise-demos/<id>-<theme>.{mp4,webp}`. The site builds clip
+URLs from `apps/landing/app/data/exerciseDemoStore.json` (the store's public base URL, written by
+the upload script). Blob responses are cached for a day, so a re-render reaches viewers within a
+day. Download links use Blob's `?download=1`.
+
+Uploading needs the store credentials locally: `npx vercel env pull` in `apps/landing` writes
+`VERCEL_PUBLIC_EXERCISE_DEMO_BLOB_STORE_ID` and `VERCEL_OIDC_TOKEN` to `.env.local` (the store connection
+must include the Development environment). The free Hobby tier allows 2,000 writes a month; a full
+re-upload is about 1,600 (792 clips + posters), so upload only the exercises you re-rendered.
 
 ## Rendering pipeline
 
@@ -80,8 +93,10 @@ node apps/landing/scripts/build-exercise-animations.mjs --manifest # only rewrit
 ```
 
 Each run renders a 3 s loop (72 frames, 24 fps) per theme, encodes a 480 px H.264 MP4 (about
-10–40 KB) and a WebP poster at the far end of the rep, then rewrites the website's id list (`apps/landing/app/data/exerciseDemos.json`) from the files
-on disk.
+10–40 KB) and a WebP poster at the far end of the rep into the gitignored
+`apps/landing/.exercise-demos/`, adds the ids to the website's list
+(`apps/landing/app/data/exerciseDemos.json`), then uploads the clips to Blob
+(`scripts/upload-exercise-demos.mjs`; skip with `--no-upload`).
 
 Everything an exercise doesn't define is shared, so a fix to any of it reaches every demo:
 
