@@ -202,14 +202,17 @@ def seat_pose(ctx, seat):
 
 
 def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=False, machine=False,
-             dip=False, arnold=False, one_arm=False, landmine=False, camera=None):
+             dip=False, arnold=False, one_arm=False, landmine=False, heels=False, camera=None):
     setup = ohp_setup(implement, seat, smith, machine, seat == 'floor', landmine)
     floor = seat == 'floor'
     camera = camera or cam((0, 0, 1.05 if not seat else 0.85 if not floor else 0.75), 40, 8, 4.0)
 
     def pose(ctx, st, u):
         t = smootherstep(u)
-        seat_pose(ctx, seat)
+        if heels:  # military stance: heels together, toes turned slightly out
+            stand(ctx, width=-0.06, toe_out=12)
+        else:
+            seat_pose(ctx, seat)
         if dip:  # dip and drive: knees bend, then the legs launch the bar
             d = math.sin(math.pi * min(u / 0.3, 1.0)) * (u < 0.3)
             ctx.arm.location.z -= 0.08 * d
@@ -275,6 +278,7 @@ def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=Fa
 
 
 ohp_spec('push-press', dip=True)
+ohp_spec('military-press', heels=True)
 ohp_spec('behind-the-neck-press', start='back')
 ohp_spec('snatch-grip-behind-the-neck-press', start='back', grip=0.42)
 ohp_spec('seated-barbell-overhead-press', seat='bench')

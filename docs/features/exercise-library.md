@@ -1,6 +1,6 @@
 # Exercise Library
 
-A bundled catalog of ~399 exercises, extendable with your own. The catalog is shared by every
+A bundled catalog of ~400 exercises, extendable with your own. The catalog is shared by every
 user and syncs down from Supabase; custom exercises are private to your account.
 
 | | |
@@ -54,11 +54,11 @@ primary/secondary split was flattened at build time.
 
 ## The catalog
 
-**399 exercises**, of which **396 are published** and visible in the library. Three are
+**400 exercises**, of which **397 are published** and visible in the library. Three are
 unpublished (`powerlifting-exercises`, `rowing-machine`, `stationary-bike`) — still resolvable by
 id so old sessions render, just hidden from browsing.
 
-By category: 177 free weight, 102 bodyweight, 60 machine, 60 cable.
+By category: 178 free weight, 102 bodyweight, 60 machine, 60 cable.
 
 ### Equipment and Type rules
 
@@ -180,6 +180,44 @@ two-year-old session still resolves its exercise names.
 37 catalog rows carry `aliases`, mapping old slugs to the canonical id. `getExercise(id)`
 (`resolveExerciseById()`) resolves aliases against the catalog before looking up, so renamed
 exercises don't orphan session data. No alias may equal a real catalog id.
+
+### Adding a catalog exercise
+
+A runbook for adding a row to the shared catalog. Paths are from the repo root.
+
+1. **Check it isn't already there under another name.** Search `exercises.ts` by movement, not just the name
+   you were given: "military press", "OHP" and "overhead press" are easy to mix up. Only add a
+   row if the movement is genuinely different, as Military Press (strict, heels together) is from
+   Push Press (leg drive). Otherwise improve the existing row's name or add an alias.
+2. **Add the row to `apps/mobile/src/data/exercises.ts`** in name order:
+   - `id`: lowercase kebab-case, permanent (it lives in every session that logs it), and not
+     equal to any existing id or alias.
+   - `name`: title case per the rules above.
+   - `muscles`: flat list, main mover first (the website emphasises the first). Only muscles the
+     lift really loads, since every one of them shows up as recovering.
+   - `equipment`: exactly one value, using the [classification conventions](#equipment-and-type-rules).
+     The generator derives the Type from it.
+   - `instructions`: original copy, 2–4 sentences: setup → movement → key cue.
+3. **Regenerate:** `node apps/mobile/scripts/generate-exercise-catalog.mjs`. Bump
+   `SEED_UPDATED_AT` in the generator to today first so existing installs re-apply the seed. This
+   rewrites `catalogSeed.ts` and the website's `exerciseCatalog.json`.
+4. **Write a migration** `supabase/migrations/<timestamp>_catalog_<name>.sql` that inserts the
+   row into `catalog_exercises` with `updated_at = now()` and `on conflict (id) do nothing`. The
+   generator never writes inserts. Copy `20261008010000_catalog_military_press.sql`: it selects
+   from a `('<id>', '<instructions>')` values list because `exercises.test.ts` looks for every
+   row's copy in that shape, and it casts `category` and `tracking_type` to their enums, which an
+   `insert … select` needs. Apply it to the live project
+   ([setup.md](../supabase/setup.md#1-run-migrations-supabase-cli)) when the change merges.
+5. **Update the counts** in [The catalog](#the-catalog), the [screen map](../product/overview.md#screen-map) and the tests that pin them
+   (`catalogSeed.test.ts`, `exercisesStore.test.ts`). `exercisesStore.test.ts` also pins the seed
+   date (`SEED_AT`), and its watermark fixtures must stay later than it.
+6. **Make the demo** by following [exercise-demos.md → Add an exercise](exercise-demos.md#add-an-exercise). Until
+   it's rendered, the website page shows "Demo coming soon".
+7. `pnpm check`.
+
+The exercise reaches users through three paths: new installs get it from the bundled seed,
+existing installs get it when the new binary re-applies the seed, and older binaries get it from
+the server row on their next catalog delta pull.
 
 ## Custom exercises
 

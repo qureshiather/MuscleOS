@@ -29,7 +29,7 @@ async function load() {
   return { AsyncStorage, STORAGE_KEYS, sync, seed, useExercisesStore, useExerciseNotesStore };
 }
 
-const SEED_AT = '2026-10-02T00:00:00.000Z';
+const SEED_AT = '2026-10-08T00:00:00.000Z';
 
 function exercise(id: string, extra: Partial<Exercise> = {}): Exercise {
   return {
@@ -85,13 +85,13 @@ describe('load', () => {
       JSON.stringify([exercise('bench-press', { name: 'Stale' }), exercise('server-only-lift')])
     );
     await AsyncStorage.setItem(STORAGE_KEYS.catalogSeedAppliedAt, '2026-09-01T00:00:00.000Z');
-    await AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, '2026-10-05T00:00:00.000Z');
+    await AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, '2026-10-11T00:00:00.000Z');
 
     await useExercisesStore.getState().load();
     const state = useExercisesStore.getState();
     expect(state.getExercise('bench-press')?.name).toBe('Bench Press');
     expect(state.getExercise('server-only-lift')).toBeDefined();
-    expect(await AsyncStorage.getItem(STORAGE_KEYS.catalogWatermark)).toBe('2026-10-05T00:00:00.000Z');
+    expect(await AsyncStorage.getItem(STORAGE_KEYS.catalogWatermark)).toBe('2026-10-11T00:00:00.000Z');
     expect(await AsyncStorage.getItem(STORAGE_KEYS.catalogSeedAppliedAt)).toBe(SEED_AT);
   });
 
@@ -102,7 +102,7 @@ describe('load', () => {
       JSON.stringify([exercise('bench-press', { name: 'Server Name', instructions: 'Server copy' })])
     );
     await AsyncStorage.setItem(STORAGE_KEYS.catalogSeedAppliedAt, SEED_AT);
-    await AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, '2026-10-03T00:00:00.000Z');
+    await AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, '2026-10-09T00:00:00.000Z');
 
     await useExercisesStore.getState().load();
     expect(useExercisesStore.getState().catalogExercises.map((e) => e.name)).toEqual(['Server Name']);
@@ -134,14 +134,14 @@ describe('refreshCatalog', () => {
     await useExercisesStore.getState().load();
     pull.fetchCatalogDelta.mockResolvedValueOnce({
       exercises: [exercise('bench-press', { name: 'Renamed' }), exercise('brand-new')],
-      watermark: '2026-10-06T00:00:00.000Z',
+      watermark: '2026-10-12T00:00:00.000Z',
     });
 
     await useExercisesStore.getState().refreshCatalog();
     const state = useExercisesStore.getState();
     expect(state.getExercise('bench-press')?.name).toBe('Renamed');
     expect(state.catalogExercises.at(-1)?.id).toBe('brand-new');
-    expect(await AsyncStorage.getItem(STORAGE_KEYS.catalogWatermark)).toBe('2026-10-06T00:00:00.000Z');
+    expect(await AsyncStorage.getItem(STORAGE_KEYS.catalogWatermark)).toBe('2026-10-12T00:00:00.000Z');
     const cached = JSON.parse((await AsyncStorage.getItem(STORAGE_KEYS.catalogExercises)) ?? '[]');
     expect(cached.some((e: Exercise) => e.id === 'brand-new')).toBe(true);
   });
@@ -187,10 +187,10 @@ describe('getAllExercises', () => {
     expect(useExercisesStore.getState().getExercise('hidden')).toBeDefined();
   });
 
-  it('hides the three unpublished seed rows from the 399-row bundled catalog', async () => {
+  it('hides the three unpublished seed rows from the 400-row bundled catalog', async () => {
     const { useExercisesStore } = await load();
     useExercisesStore.setState({ customExercises: [] });
-    expect(useExercisesStore.getState().getAllExercises()).toHaveLength(396);
+    expect(useExercisesStore.getState().getAllExercises()).toHaveLength(397);
   });
 });
 
