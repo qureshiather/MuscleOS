@@ -29,7 +29,6 @@ const blank: StoredAppSettingsValues = {
   unitSystem: null,
   profile: null,
   weightUnitLegacy: null,
-  heightUnit: null,
   exerciseWeightUnit: null,
   bodyWeightUnit: null,
   workoutSounds: null,
@@ -39,9 +38,8 @@ const blank: StoredAppSettingsValues = {
 beforeEach(() => __resetAsyncStorage());
 
 describe('settings defaults and fallbacks', () => {
-  it('defaults to cm, kg, kg, sounds on, theme Auto, empty biodata', () => {
+  it('defaults to kg, kg, sounds on, theme Auto, empty biodata', () => {
     expect(parseStoredAppSettings(blank)).toEqual({
-      heightUnit: 'cm',
       weightUnit: 'kg',
       bodyWeightUnit: 'kg',
       workoutSoundsEnabled: true,
@@ -53,16 +51,16 @@ describe('settings defaults and fallbacks', () => {
 
   it('unset units default from unit_system: imperial', () => {
     expect(parseStoredAppSettings({ ...blank, unitSystem: 'imperial' })).toMatchObject({
-      heightUnit: 'in',
       weightUnit: 'lb',
       bodyWeightUnit: 'lb',
     });
   });
 
-  it('the three units are independent once stored', () => {
-    expect(
-      parseStoredAppSettings({ ...blank, heightUnit: 'in', exerciseWeightUnit: 'kg', bodyWeightUnit: 'lb' })
-    ).toMatchObject({ heightUnit: 'in', weightUnit: 'kg', bodyWeightUnit: 'lb' });
+  it('the two weight units are independent once stored', () => {
+    expect(parseStoredAppSettings({ ...blank, exerciseWeightUnit: 'kg', bodyWeightUnit: 'lb' })).toMatchObject({
+      weightUnit: 'kg',
+      bodyWeightUnit: 'lb',
+    });
   });
 
   it('exercise weight falls back to the legacy single unit; body weight follows exercise weight', () => {
@@ -73,20 +71,19 @@ describe('settings defaults and fallbacks', () => {
   });
 
   it('junk values fall back; sounds off only for 0/false', () => {
-    const s = parseStoredAppSettings({ ...blank, heightUnit: 'ft', theme: 'blue', workoutSounds: 'maybe', profile: '{bad' });
-    expect(s).toMatchObject({ heightUnit: 'cm', themePreference: 'auto', workoutSoundsEnabled: true, profile: {} });
+    const s = parseStoredAppSettings({ ...blank, exerciseWeightUnit: 'stone', theme: 'blue', workoutSounds: 'maybe', profile: '{bad' });
+    expect(s).toMatchObject({ weightUnit: 'kg', themePreference: 'auto', workoutSoundsEnabled: true, profile: {} });
     expect(parseStoredAppSettings({ ...blank, workoutSounds: '0' }).workoutSoundsEnabled).toBe(false);
     expect(parseStoredAppSettings({ ...blank, workoutSounds: 'false' }).workoutSoundsEnabled).toBe(false);
   });
 
   it('persists and reads back every synced setting (theme included)', async () => {
     const settings = {
-      heightUnit: 'in' as const,
       weightUnit: 'lb' as const,
       bodyWeightUnit: 'kg' as const,
       workoutSoundsEnabled: false,
       themePreference: 'dark' as const,
-      profile: { age: 30, sex: 'female' as const },
+      profile: { weightKg: 60, sex: 'female' as const },
     };
     await setAppSettings(settings);
     expect(await getAppSettings()).toEqual(settings);
@@ -107,32 +104,36 @@ describe('settings defaults and fallbacks', () => {
 });
 
 describe('migrations', () => {
-  it('legacy lb or in promotes to unit_system imperial, only when unit_system was never written', () => {
-    expect(legacyUnitMigration({ unitSystem: null, weightUnitLegacy: 'lb', heightUnit: null })).toBe('imperial');
-    expect(legacyUnitMigration({ unitSystem: null, weightUnitLegacy: null, heightUnit: 'in' })).toBe('imperial');
-    expect(legacyUnitMigration({ unitSystem: null, weightUnitLegacy: 'kg', heightUnit: 'cm' })).toBeNull();
-    expect(legacyUnitMigration({ unitSystem: 'metric', weightUnitLegacy: 'lb', heightUnit: null })).toBeNull();
+  it('legacy lb promotes to unit_system imperial, only when unit_system was never written', () => {
+    expect(legacyUnitMigration({ unitSystem: null, weightUnitLegacy: 'lb' })).toBe('imperial');
+    expect(legacyUnitMigration({ unitSystem: null, weightUnitLegacy: 'kg' })).toBeNull();
+    expect(legacyUnitMigration({ unitSystem: null, weightUnitLegacy: null })).toBeNull();
+    expect(legacyUnitMigration({ unitSystem: 'metric', weightUnitLegacy: 'lb' })).toBeNull();
   });
 
   it('settings are written back while any unit key is unset', () => {
-    expect(settingsNeedPersist({ heightUnit: null, exerciseWeightUnit: 'kg', bodyWeightUnit: 'kg' })).toBe(true);
-    expect(settingsNeedPersist({ heightUnit: 'cm', exerciseWeightUnit: 'kg', bodyWeightUnit: 'kg' })).toBe(false);
+    expect(settingsNeedPersist({ exerciseWeightUnit: null, bodyWeightUnit: 'kg' })).toBe(true);
+    expect(settingsNeedPersist({ exerciseWeightUnit: 'kg', bodyWeightUnit: null })).toBe(true);
+    expect(settingsNeedPersist({ exerciseWeightUnit: 'kg', bodyWeightUnit: 'kg' })).toBe(false);
   });
 
   it('remote app_settings missing themePreference (or with junk) normalise to the fallback', () => {
-    expect(normalizeAppSettings({ heightUnit: 'in' } as never).themePreference).toBe('auto');
+    expect(normalizeAppSettings({ weightUnit: 'lb' } as never).themePreference).toBe('auto');
     expect(normalizeAppSettings({ weightUnit: 'stone' } as never).weightUnit).toBe('kg');
     expect(normalizeAppSettings(null)).toEqual(defaultAppSettings());
   });
 
-  it('removes the old subscription keys left by earlier builds, leaving everything else', async () => {
-    expect(LEGACY_STORAGE_KEYS).toEqual(['muscleos_subscription', 'muscleos_dev_pro_override']);
-    await AsyncStorage.setItem('muscleos_subscription', JSON.stringify({ tier: 'pro' }));
-    await AsyncStorage.setItem('muscleos_dev_pro_override', 'true');
+  it('removes keys left by earlier builds (subscription, health, height unit), leaving everything else', async () => {
+    expect(LEGACY_STORAGE_KEYS).toEqual([
+      'muscleos_subscription',
+      'muscleos_dev_pro_override',
+      'muscleos_health',
+      'muscleos_height_unit',
+    ]);
+    for (const key of LEGACY_STORAGE_KEYS) await AsyncStorage.setItem(key, 'x');
     await AsyncStorage.setItem(STORAGE_KEYS.sessions, '[]');
     await removeLegacyStorageKeys();
-    expect(await AsyncStorage.getItem('muscleos_subscription')).toBeNull();
-    expect(await AsyncStorage.getItem('muscleos_dev_pro_override')).toBeNull();
+    for (const key of LEGACY_STORAGE_KEYS) expect(await AsyncStorage.getItem(key)).toBeNull();
     expect(await AsyncStorage.getItem(STORAGE_KEYS.sessions)).toBe('[]');
   });
 
@@ -199,14 +200,13 @@ describe('clearAllData (D15)', () => {
 });
 
 describe('buildExportData', () => {
-  it('includes version 1, account profile, workouts, templates, recovery, notes, customs, health', async () => {
+  it('includes version 1, account profile, workouts, templates, recovery, notes, customs', async () => {
     await AsyncStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify([{ id: 's1', exercises: [] }]));
     await AsyncStorage.setItem(STORAGE_KEYS.templates, JSON.stringify([{ id: 't1', name: 'T', exerciseIds: [] }]));
     await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify([{ id: 'f1', name: 'F' }]));
     await AsyncStorage.setItem(STORAGE_KEYS.recovery, JSON.stringify([{ muscleId: 'chest', trainedAt: 'x' }]));
     await AsyncStorage.setItem(STORAGE_KEYS.exerciseNotes, JSON.stringify({ squat: 'Low bar' }));
     await AsyncStorage.setItem(STORAGE_KEYS.customExercises, JSON.stringify([{ id: 'c1', name: 'Mine' }]));
-    await AsyncStorage.setItem(STORAGE_KEYS.health, JSON.stringify({ macroTargets: { caloriesKcal: 2000 } }));
     await AsyncStorage.setItem('muscleos_subscription', JSON.stringify({ tier: 'pro' }));
     const data = await buildExportData({ id: 'u1', accountId: 'u1', email: 'a@b.c' } as never);
     expect(data.version).toBe(1);
@@ -220,25 +220,24 @@ describe('buildExportData', () => {
     expect(data.recovery).toHaveLength(1);
     expect(data.exerciseNotes).toEqual({ squat: 'Low bar' });
     expect(data.customExercises?.map((e) => e.id)).toEqual(['c1']);
-    expect(data.health).toMatchObject({ macroTargets: { caloriesKcal: 2000 } });
   });
 
   it('omits settings, biodata, hidden built-ins, previous, the active workout and the catalog', async () => {
-    await setAppSettings({ ...defaultAppSettings(), profile: { age: 30 } });
+    await setAppSettings({ ...defaultAppSettings(), profile: { sex: 'male' } });
     await AsyncStorage.setItem(STORAGE_KEYS.exercisePrevious, JSON.stringify({ squat: { weightKg: 100 } }));
     await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInTemplateIds, JSON.stringify(['ppl-push']));
     await AsyncStorage.setItem(STORAGE_KEYS.activeWorkout, JSON.stringify({ session: { exercises: [] } }));
     await AsyncStorage.setItem(STORAGE_KEYS.catalogExercises, JSON.stringify([{ id: 'x' }]));
     const data = (await buildExportData()) as unknown as Record<string, unknown>;
     expect(Object.keys(data).sort()).toEqual(
-      ['exportedAt', 'profile', 'recovery', 'sessions', 'templates', 'version', 'templateFolders', 'exerciseNotes', 'customExercises', 'health'].sort()
+      ['exportedAt', 'profile', 'recovery', 'sessions', 'templates', 'version', 'templateFolders', 'exerciseNotes', 'customExercises'].sort()
     );
     expect(data.profile).toBeUndefined();
     expect(data.templateFolders).toBeUndefined();
     expect(data.exerciseNotes).toBeUndefined();
     expect(data.customExercises).toBeUndefined();
-    expect(data.health).toBeUndefined();
     expect(JSON.stringify(data)).not.toContain('weightKg');
+    expect(JSON.stringify(data)).not.toContain('"sex"');
     expect(JSON.stringify(data)).not.toContain('ppl-push');
   });
 });

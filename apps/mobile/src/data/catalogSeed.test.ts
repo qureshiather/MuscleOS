@@ -36,7 +36,7 @@ describe('bundled catalog seed', () => {
   });
 
   it('sets no media URLs', () => {
-    expect(CATALOG_SEED.some((e) => e.mediaUrl !== undefined)).toBe(false);
+    expect(CATALOG_SEED.some((e) => 'mediaUrl' in e)).toBe(false);
   });
 
   it('stamps an ISO seed date', () => {

@@ -14,8 +14,7 @@ its effect everywhere, and why there is no cache to invalidate.
 | Personal records | `apps/mobile/app/personal-records.tsx` |
 | Progression | `apps/mobile/app/exercise-progression.tsx` |
 | 1RM & PRs | `apps/mobile/src/utils/oneRepMax.ts` |
-| Strength standards | `apps/mobile/src/data/strengthStandards.ts` |
-| Home stats | `apps/mobile/src/utils/homeStats.ts` |
+| Strength standards | `apps/mobile/src/data/strengthStandards.ts`, `src/data/ageCoefficients.ts` |
 | Volume, duration & set lines | `apps/mobile/src/utils/sessionStats.ts` |
 | History card summary, PRs, volume change, weeks, names | `apps/mobile/src/utils/historyCards.ts` |
 | Calendar grid & day keys | `apps/mobile/src/utils/calendar.ts` |
@@ -122,7 +121,7 @@ Empty selection shows "No workouts this day". Changing month clears the selectio
 Per exercise, across **all** completed sessions with no time window.
 
 A set qualifies when the session is completed, the set is completed, `weightKg > 0`, and
-`reps >= 1`.
+`reps >= 1`. Warm-ups qualify like any other set.
 
 | Metric | Definition |
 |--------|------------|
@@ -184,21 +183,41 @@ that then becomes the displayed PR.
 ## Strength standards
 
 Compares your estimated 1RM to bodyweight-ratio bands. Source, per the code comment: ExRx.net and
-common powerlifting/weightlifting classifications, for adult lifters over 18 with **no age
-adjustment**.
+common powerlifting/weightlifting classifications. The tables describe a lifter in their prime
+(23–40); with an age on the profile they're [age-adjusted](#age-adjustment).
 
 Levels: `untrained` · `novice` · `intermediate` · `advanced` · `elite` (there is no "beginner").
 
 Your level is the highest band whose ratio threshold `e1RM / bodyweightKg` meets or exceeds,
 scanning from elite down. The next level's target is `bodyweightKg × nextRatio`.
 
-**Requires both `weightKg` and `sex` on the profile.** Without them the PR screen shows a hint
-linking to Biodata. Female tables are roughly 60–70% of the male values.
+**Requires both `weightKg` and `sex` on the profile; `age` is optional.** Without weight or sex the
+PR screen shows a hint linking to Biodata. Female tables are roughly 60–70% of the male values.
 
 Supported exercises: `bench-press`, `close-grip-bench`, `squat`, `deadlift`,
 `romanian-deadlift`, `overhead-press`, `barbell-row`. Anything else — including `pull-up`, where a
 bodyweight ratio isn't a meaningful measure — reports `hasStandards: false`: no level, no chip,
 no strength card.
+
+### Age adjustment
+
+With an `age` on the profile, every threshold is divided by that age's powerlifting coefficient
+(`ageCoefficient()` in `src/data/ageCoefficients.ts`), so the e1RM needed for each level — and the
+next-level target — drops for teens and masters lifters. Without an age the tables apply unchanged.
+
+| Age | Coefficient | Source |
+|-----|-------------|--------|
+| Under 14 | — | No published standard: **no strength level is shown** |
+| 14–22 | 1.23 at 14, down to 1.01 at 22 | Foster |
+| 23–40 | 1 (no change) | — |
+| 41–80 | 1.01 at 41, rising to 2.05 at 80 (e.g. 1.13 at 50, 1.34 at 60) | McCulloch, corrected against the WPC Glossbrenner masters table |
+| 81–90 | 2.096 at 81 to 2.549 at 90 | USAPL |
+| Over 90 | 2.549 (the age-90 value) | — |
+
+Ages are whole years. The values were compiled from OpenPowerlifting's coefficient table, which
+cites each source; the full per-year table is in the code. When the thresholds were adjusted, the
+progression screen's strength card adds **Adjusted for age N** (`strengthAgeNote()`); the PR
+card's chip just uses the adjusted level and target.
 
 ## Exercise progression
 
@@ -215,27 +234,10 @@ its date and e1RM.
 
 Above the chart, a card shows the best e1RM (one decimal) and best set, and — with bodyweight and
 sex on the profile, for an exercise with standards — a strength card: **Strength level: Novice**
-and *Next (Intermediate): 140 kg*. Below the chart, "All recorded sets" lists date,
+and *Next (Intermediate): 140 kg*, plus *Adjusted for age 60* when age changed the thresholds. Below the chart, "All recorded sets" lists date,
 `weight × reps`, and `~e1RM` (one decimal), newest first. The screen resolves its `exerciseId`
 through aliases, so an alias link shows the canonical exercise with every set logged under either
 id; an unknown id shows *"No progression data for this exercise."*
-
-## Home stats
-
-`computeHomeStats()` powers the Workouts tab headline. Full copy table:
-[templates.md](templates.md#home-headline).
-
-| Field | Rule |
-|-------|------|
-| `sessionsThisWeek` | Completed sessions in the current **Monday-start local** week |
-| `weekStreak` | Consecutive Monday-start weeks with ≥1 session, counting back from the current week if it has one, else from the previous week |
-| `trainedToday` | Any session completed on today's local date |
-| `lastCompletedAt` | Most recent completion |
-
-The streak is **week-based, not consecutive-day**, and starting from the previous week when the
-current one is empty is what stops a streak appearing to break every Monday.
-
-No weekly volume, rep count, or duration is computed here.
 
 ## Volume
 
@@ -250,11 +252,8 @@ for (const se of session.exercises)
   }
 ```
 
-Completed sets only. **`isWarmUp` is not checked**, so completed warm-up sets count toward volume.
-That is the implemented behaviour; whether it is desirable remains an open product question.
-Warm-ups are excluded from nothing else except the rest timer.
-
-Sets with no reps contribute zero.
+Completed sets only, warm-ups included
+([overview](../product/overview.md#cross-cutting-assumptions)). Sets with no reps contribute zero.
 
 ## Relative time
 
@@ -272,14 +271,6 @@ Sets with no reps contribute zero.
 Used for template "last done", the Recent row, and sync status. `formatRecoveryReady()` lives in
 the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 
-## Export
-
-Reached from **Profile → Account → Data → Export my data** (not from these screens). Writes
-pretty-printed JSON named `muscleos-export-YYYY-MM-DD.json`, dated by the device's **local**
-calendar day (`exportFilename()`), and hands it to the share sheet.
-
-Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export).
-
 ## Assumptions
 
 | Assumption | Note |
@@ -288,8 +279,8 @@ Contents and known omissions: [accounts-and-data.md](accounts-and-data.md#export
 | Epley is the only 1RM formula | Not configurable |
 | No high-rep ceiling on 1RM estimates | Known weakness; high-rep sets can produce inflated PRs |
 | PR = best estimated 1RM | Not heaviest weight, not volume, not per-rep bests |
-| Strength standards use **estimated**, not tested, 1RM | And assume adult, no age bands |
-| Warm-up sets count toward volume | Open question |
+| Strength standards use **estimated**, not tested, 1RM | Age-adjusted by powerlifting coefficients, which were built for competition totals, not single lifts |
+| Warm-up sets count toward volume and PRs | Like every derived metric; see [overview](../product/overview.md#cross-cutting-assumptions) |
 | Local calendar days for history and calendar bucketing | Same as the rest of the app |
 | ISO date strings sort correctly for ordering | Relies on UTC ISO from `toISOString()` |
 | Unbounded history list | No pagination; assumes hobbyist-scale history |
@@ -303,7 +294,8 @@ Vitest (`apps/mobile/src/…`):
   (85×5 over 90×1), descending order, tie → newest, alias merge, history newest first
 - `utils/personalRecords.test.ts` — `progressionPoints` oldest-first with capped ratios;
   `prCardModel` last-10 bars oldest→newest, no bars under 2 sets, strength chip gated on
-  bodyweight + sex and standards (none for pull-up), elite has no next level; `filterPRsByName`;
+  bodyweight + sex and standards (none for pull-up), age-adjusted level and `strengthAgeNote`,
+  none under 14, elite has no next level; `filterPRsByName`;
   `exerciseHasHistory` qualifying sets only, completed sessions only, aliases
 - `utils/calendar.test.ts` — Monday-first headers, leading/trailing blanks, month lengths incl.
   leap February, four-row month, local-midnight day keys, marked days, sessions on a day
@@ -313,13 +305,16 @@ Vitest (`apps/mobile/src/…`):
   stats line dropping zero volume and sub-minute duration, pounds); `volumeDeltaLabel` hidden at
   0%; `weekSummary` singular and compact volume
 - `utils/sessionStats.test.ts` — volume, duration (incl. null under a minute), set lines, volume labels
-- `utils/homeStats.test.ts`, `utils/relativeTime.test.ts` — as before (home stats, `formatRelative`)
+- `utils/relativeTime.test.ts` — every `formatRelative` branch (home stats are tested under
+  [templates](templates.md#tests))
 - `data/strengthStandards.test.ts` — band selection, next-level target, sex tables, unsupported
-  exercises and pull-up reporting `hasStandards: false`
+  exercises and pull-up reporting `hasStandards: false`; age adjustment (unchanged without an age
+  or at 23–40, thresholds ÷ coefficient for teens and masters, exact boundary, none under 14)
+- `data/ageCoefficients.test.ts` — none under 14, Foster 14–22, 1 for 23–40, McCulloch 41–80,
+  USAPL 81–90 then held, monotonic, whole years
 - `store/sessionsStore.test.ts` — `completedSessions()` filter and order; `deleteSession` storage
   removal, recovery recompute, previous-map rebuild, sync notifications, unknown id no-op
 - `store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`
-- `storage/exportData.test.ts` — export filename uses the local date
 
 Jest UI (`apps/mobile/src/test/ui/history/`):
 
@@ -332,9 +327,5 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the
   2-set condition, search and no-match copy, Biodata hint, strength chips (none for pull-up), card
-  → progression; progression per-set bars oldest→newest, sets list, strength card, alias
-  id, unknown id
-
-Not covered:
-
-- Export payload assembly and the share sheet
+  → progression; progression per-set bars oldest→newest, sets list, strength card (and its
+  age-adjusted level, target and note), alias id, unknown id

@@ -21,14 +21,13 @@ describe('settingsStore.load', () => {
   it('first launch: metric defaults, sounds on, and the defaults are written back', async () => {
     await useSettingsStore.getState().load();
     expect(useSettingsStore.getState()).toMatchObject({
-      heightUnit: 'cm',
       weightUnit: 'kg',
       bodyWeightUnit: 'kg',
       workoutSoundsEnabled: true,
       profile: {},
       isLoading: false,
     });
-    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.heightUnit)).toBe('cm');
+    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.exerciseWeightUnit)).toBe('kg');
     expect(notifyAppSettingsSnapshot).not.toHaveBeenCalled();
   });
 
@@ -36,14 +35,7 @@ describe('settingsStore.load', () => {
     await AsyncStorage.setItem(APP_SETTINGS_KEYS.weightUnitLegacy, 'lb');
     await useSettingsStore.getState().load();
     expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem)).toBe('imperial');
-    expect(useSettingsStore.getState()).toMatchObject({ heightUnit: 'in', weightUnit: 'lb', bodyWeightUnit: 'lb' });
-  });
-
-  it('migrates an older in preference too', async () => {
-    await AsyncStorage.setItem(APP_SETTINGS_KEYS.heightUnit, 'in');
-    await useSettingsStore.getState().load();
-    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem)).toBe('imperial');
-    expect(useSettingsStore.getState()).toMatchObject({ heightUnit: 'in', weightUnit: 'lb' });
+    expect(useSettingsStore.getState()).toMatchObject({ weightUnit: 'lb', bodyWeightUnit: 'lb' });
   });
 });
 
@@ -52,17 +44,15 @@ describe('settingsStore setters', () => {
     await useSettingsStore.getState().load();
     await useSettingsStore.getState().setWeightUnit('lb');
     await useSettingsStore.getState().setBodyWeightUnit('kg');
-    await useSettingsStore.getState().setHeightUnit('in');
     await useSettingsStore.getState().setWorkoutSoundsEnabled(false);
     await useSettingsStore.getState().setProfile({ weightKg: 80 });
     expect(await getAppSettings()).toMatchObject({
       weightUnit: 'lb',
       bodyWeightUnit: 'kg',
-      heightUnit: 'in',
       workoutSoundsEnabled: false,
       profile: { weightKg: 80 },
     });
-    expect(notifyAppSettingsSnapshot).toHaveBeenCalledTimes(5);
+    expect(notifyAppSettingsSnapshot).toHaveBeenCalledTimes(4);
     expect(notifyAppSettingsSnapshot.mock.calls.at(-1)?.[0]).toMatchObject({ themePreference: 'auto', profile: { weightKg: 80 } });
   });
 });

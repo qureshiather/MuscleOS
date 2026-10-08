@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
+import type { WeightUnit } from '@/utils/weightUnits';
 import {
   APP_SETTINGS_KEYS,
   getAppSettings,
@@ -18,8 +18,6 @@ import { notifyAppSettingsSnapshot } from '@/sync';
 export type { UserAppProfile, SyncedAppSettings, ThemePreference };
 
 export interface SettingsState {
-  /** Stored height display (profile, etc.) */
-  heightUnit: HeightUnit;
   /** Exercise loads: workouts, PRs, templates */
   weightUnit: WeightUnit;
   /** Profile body weight display */
@@ -29,7 +27,6 @@ export interface SettingsState {
   profile: UserAppProfile;
   isLoading: boolean;
   load: () => Promise<void>;
-  setHeightUnit: (unit: HeightUnit) => Promise<void>;
   setWeightUnit: (unit: WeightUnit) => Promise<void>;
   setBodyWeightUnit: (unit: WeightUnit) => Promise<void>;
   setWorkoutSoundsEnabled: (enabled: boolean) => Promise<void>;
@@ -55,7 +52,6 @@ export function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<v
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  heightUnit: 'cm',
   weightUnit: 'kg',
   bodyWeightUnit: 'kg',
   workoutSoundsEnabled: true,
@@ -75,7 +71,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       }
 
       set({
-        heightUnit: settings.heightUnit,
         weightUnit: settings.weightUnit,
         bodyWeightUnit: settings.bodyWeightUnit,
         workoutSoundsEnabled: settings.workoutSoundsEnabled,
@@ -85,11 +80,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     } catch {
       set({ isLoading: false });
     }
-  },
-
-  setHeightUnit: async (heightUnit) => {
-    set({ heightUnit });
-    await persistAndNotify({ heightUnit });
   },
 
   setWeightUnit: async (weightUnit) => {

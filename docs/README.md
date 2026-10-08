@@ -8,7 +8,7 @@ docs disagree, one of them is a bug — see [Keeping docs in sync](#keeping-docs
 | Doc | What it covers |
 |-----|----------------|
 | [product/overview.md](product/overview.md) | What the app is, who it's for, design principles, screen map, cross-cutting assumptions |
-| [features/README.md](features/README.md) | Feature index, spec status |
+| [features/README.md](features/README.md) | Feature index |
 
 ## Feature specs
 
@@ -29,7 +29,7 @@ and the product assumptions baked in.
 
 | Doc | What it covers |
 |-----|----------------|
-| [engineering/testing.md](engineering/testing.md) | Current test coverage and infrastructure by feature |
+| [engineering/testing.md](engineering/testing.md) | Test infrastructure, conventions and known gaps |
 | [supabase/setup.md](supabase/setup.md) | Supabase schema, exercise catalog, sync tables, local setup |
 | [operations/live-services.md](operations/live-services.md) | Day-to-day management of Supabase, Resend, Google, and Apple |
 | [mobile/eas-build.md](mobile/eas-build.md) | EAS build profiles, env vars, store submission |
@@ -58,7 +58,8 @@ the things a new contributor is most likely to get wrong.
 
 **One authoritative owner per fact.** Other docs may summarize a rule for navigation or
 onboarding, but must link to its owner rather than redefine it. Pricing lives in
-[features/pricing.md](features/pricing.md).
+[features/pricing.md](features/pricing.md); test coverage lives in each spec's **Tests** section;
+sync and merge rules live in [features/accounts-and-data.md](features/accounts-and-data.md#cloud-sync).
 
 ---
 
@@ -75,8 +76,8 @@ docs when you change any of:
 - A storage key, or whether data is local-only vs cloud-synced
 
 **When you add a feature,** add it to the relevant feature spec (or add a new one), add a
-row to the index in [features/README.md](features/README.md), and record its test status in
-[engineering/testing.md](engineering/testing.md).
+row to the index in [features/README.md](features/README.md), and list its tests in the spec's
+**Tests** section.
 
 **Don't add a paywall.** Every feature is free for everyone
 ([features/pricing.md](features/pricing.md)). Paid features belong to Coaching, which gets its own

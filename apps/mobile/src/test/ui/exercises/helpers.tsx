@@ -12,7 +12,6 @@ export function exercise(id: string, name: string, extra: Partial<Exercise> = {}
     muscles: ['chest'],
     equipment: ['barbell'],
     category: 'free_weight',
-    trackingType: 'weight_reps',
     isPublished: true,
     ...extra,
   };

@@ -18,7 +18,6 @@ export default function ProfileScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
-  const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
   const isLinked = !useAuthStore((s) => s.isAnonymous);
   const authUser = useAuthStore((s) => s.user);
@@ -28,7 +27,7 @@ export default function ProfileScreen() {
   const providerIcon =
     provider === 'apple' ? 'logo-apple' : provider === 'google' ? 'logo-google' : 'mail-outline';
 
-  const biodataHint = biodataSummary(profile, { heightUnit, bodyWeightUnit });
+  const biodataHint = biodataSummary(profile, { bodyWeightUnit });
 
   return (
     <Screen kind="tab">
@@ -104,7 +103,7 @@ export default function ProfileScreen() {
           <ListRow
             inset
             last
-            title="Height, weight, age, gender"
+            title="Weight, age, gender"
             hint={biodataHint}
             testID="profile-biodata"
             onPress={() => router.push('/biodata')}

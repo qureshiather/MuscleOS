@@ -30,7 +30,6 @@ const custom: Exercise = {
   muscles: ['rear_delts'],
   equipment: ['band'],
   category: 'cable',
-  trackingType: 'weight_reps',
   isPublished: true,
 };
 
@@ -42,7 +41,6 @@ function remote(extra: Partial<RemoteUserExercise> = {}): RemoteUserExercise {
     category: 'cable',
     muscles: ['rear_delts'],
     equipment: ['band'],
-    tracking_type: 'weight_reps',
     updated_at: '2026-10-03T00:00:00.000Z',
     deleted_at: null,
     ...extra,
@@ -107,7 +105,6 @@ describe('customOutboxToUserRecord', () => {
       category: 'cable',
       muscles: ['rear_delts'],
       equipment: ['band'],
-      tracking_type: 'weight_reps',
       updated_at: '2026-10-03T00:00:00.000Z',
       deleted_at: null,
     });

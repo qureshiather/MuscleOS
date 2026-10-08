@@ -17,6 +17,7 @@ import {
   type ProgressPoint,
   progressionPoints,
   type StrengthSummary,
+  strengthAgeNote,
   strengthSummary,
 } from '@/utils/personalRecords';
 
@@ -96,6 +97,7 @@ function StrengthStandardBar({
   weightUnit: 'kg' | 'lb';
   colors: Record<string, string>;
 }) {
+  const ageNote = strengthAgeNote(strength);
   return (
     <View style={[styles.standardCard, { backgroundColor: colors.surfaceElevated }]}>
       <Text style={[styles.standardTitle, { color: colors.text }]}>Strength level: {strength.label}</Text>
@@ -104,6 +106,7 @@ function StrengthStandardBar({
           Next ({strength.next.label}): {formatE1RM(strength.next.oneRepMaxKg, weightUnit)}
         </Text>
       )}
+      {ageNote && <Text style={[styles.standardHint, { color: colors.textMuted }]}>{ageNote}</Text>}
     </View>
   );
 }

@@ -6,8 +6,8 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
-import { cmToDisplay, kgToDisplay } from '@/utils/weightUnits';
-import { buildProfileFromInputs, formatBodyWeight, formatHeight, formatSex } from '@/utils/biodata';
+import { kgToDisplay } from '@/utils/weightUnits';
+import { buildProfileFromInputs, formatBodyWeight, formatSex } from '@/utils/biodata';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { fontScaleCap } from '@/theme/layout';
@@ -16,18 +16,15 @@ export default function BiodataScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const bodyWeightUnit = useSettingsStore((s) => s.bodyWeightUnit);
-  const heightUnit = useSettingsStore((s) => s.heightUnit);
   const profile = useSettingsStore((s) => s.profile);
   const setProfile = useSettingsStore((s) => s.setProfile);
   const [editorVisible, setEditorVisible] = useState(false);
-  const [heightInput, setHeightInput] = useState('');
   const [weightInput, setWeightInput] = useState('');
   const [ageInput, setAgeInput] = useState('');
   const [sexSelection, setSexSelection] = useState<'male' | 'female' | null>(null);
 
   function openEditor() {
-    const { profile: p, bodyWeightUnit: bwu, heightUnit: hu } = useSettingsStore.getState();
-    setHeightInput(p.heightCm != null ? String(cmToDisplay(p.heightCm, hu)) : '');
+    const { profile: p, bodyWeightUnit: bwu } = useSettingsStore.getState();
     setWeightInput(p.weightKg != null ? String(kgToDisplay(p.weightKg, bwu)) : '');
     setAgeInput(p.age != null ? String(p.age) : '');
     setSexSelection(p.sex ?? null);
@@ -36,19 +33,17 @@ export default function BiodataScreen() {
 
   function saveBiodata() {
     const next = buildProfileFromInputs(
-      { height: heightInput, weight: weightInput, age: ageInput, sex: sexSelection },
-      { heightUnit, bodyWeightUnit },
+      { weight: weightInput, age: ageInput, sex: sexSelection },
+      { bodyWeightUnit },
       profile
     );
     void setProfile(next);
     setEditorVisible(false);
   }
 
-  const heightDisplay = profile.heightCm != null ? formatHeight(profile.heightCm, heightUnit) : '—';
   const weightDisplay = profile.weightKg != null ? formatBodyWeight(profile.weightKg, bodyWeightUnit) : '—';
   const ageDisplay = profile.age != null ? String(profile.age) : '—';
   const sexDisplay = formatSex(profile.sex) ?? '—';
-  const heightLabel = heightUnit === 'in' ? 'Height (in)' : 'Height (cm)';
   const weightLabel = bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)';
 
   return (
@@ -64,7 +59,7 @@ export default function BiodataScreen() {
             <View style={styles.sectionHeaderText}>
               <Text style={[typography.sectionTitle, { color: colors.text }]}>Body</Text>
               <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                Height, weight, age & gender
+                Weight, age & gender
               </Text>
             </View>
             <Pressable
@@ -76,8 +71,7 @@ export default function BiodataScreen() {
           </View>
           {(
             [
-              [heightUnit === 'in' ? 'Height (in)' : 'Height (cm)', heightDisplay],
-              [bodyWeightUnit === 'lb' ? 'Weight (lb)' : 'Weight (kg)', weightDisplay],
+              [weightLabel, weightDisplay],
               ['Age', ageDisplay],
               ['Gender', sexDisplay],
             ] as const
@@ -112,7 +106,7 @@ export default function BiodataScreen() {
           >
             <Text style={[typography.screenTitle, { fontSize: 22, color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Edit biodata</Text>
             <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
-              Height, weight, age & gender
+              Weight, age & gender
             </Text>
             <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.xs }]}>
               Gender
@@ -144,42 +138,25 @@ export default function BiodataScreen() {
               })}
             </View>
             {/* Labels sit above the fields: a placeholder alone disappears once a value is in. */}
-            <View style={styles.inputRow}>
-              <View style={styles.field}>
-                <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
-                  {heightLabel}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-                  ]}
-                  accessibilityLabel={heightLabel}
-                  value={heightInput}
-                  onChangeText={setHeightInput}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
-                  {weightLabel}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-                  ]}
-                  accessibilityLabel={weightLabel}
-                  value={weightInput}
-                  onChangeText={setWeightInput}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-            </View>
-            <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>Age</Text>
+            <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
+              {weightLabel}
+            </Text>
             <TextInput
               style={[
-                styles.inputFull,
+                styles.input,
+                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+              ]}
+              accessibilityLabel={weightLabel}
+              value={weightInput}
+              onChangeText={setWeightInput}
+              keyboardType="decimal-pad"
+            />
+            <Text style={[typography.label, styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.textMuted }]}>
+              Age
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
                 { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
               ]}
               accessibilityLabel="Age"
@@ -265,17 +242,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
   },
-  inputRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  field: { flex: 1 },
   fieldLabel: { marginBottom: spacing.xs },
+  fieldLabelSpaced: { marginTop: spacing.md },
   input: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    fontSize: 16,
-    fontFamily: typography.body.fontFamily,
-  },
-  inputFull: {
     borderWidth: 1,
     borderRadius: radius.md,
     padding: spacing.md,

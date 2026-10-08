@@ -4,13 +4,11 @@ import type {
   TemplateFolder,
   WorkoutSession,
   MuscleRecovery,
-  MacroTargets,
-  MetabolismInfo,
   ExportData,
   UserProfile,
   Exercise,
 } from '@muscleos/types';
-import type { WeightUnit, HeightUnit } from '@/utils/weightUnits';
+import type { WeightUnit } from '@/utils/weightUnits';
 import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
@@ -19,7 +17,6 @@ export const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
   profile: 'muscleos_profile',
   weightUnitLegacy: 'muscleos_weight_unit',
-  heightUnit: 'muscleos_height_unit',
   exerciseWeightUnit: 'muscleos_exercise_weight_unit',
   bodyWeightUnit: 'muscleos_body_weight_unit',
   workoutSounds: 'muscleos_workout_sounds',
@@ -29,21 +26,19 @@ export const APP_SETTINGS_KEYS = {
 export type ThemePreference = 'auto' | 'dark' | 'light';
 
 export interface UserAppProfile {
-  heightCm?: number;
   weightKg?: number;
   age?: number;
   sex?: 'male' | 'female';
 }
 
 /**
- * Keep only the current biodata fields. Older builds stored and synced a `notNatty` flag; it is
- * dropped here so it stops round-tripping through the synced copy.
+ * Keep only the current biodata fields. Older builds stored and synced `heightCm` and a `notNatty`
+ * flag; they are dropped here so they stop round-tripping through the synced copy.
  */
 export function normalizeProfile(raw: unknown): UserAppProfile {
   if (raw == null || typeof raw !== 'object') return {};
   const p = raw as Record<string, unknown>;
   const profile: UserAppProfile = {};
-  if (typeof p.heightCm === 'number') profile.heightCm = p.heightCm;
   if (typeof p.weightKg === 'number') profile.weightKg = p.weightKg;
   if (typeof p.age === 'number') profile.age = p.age;
   if (p.sex === 'male' || p.sex === 'female') profile.sex = p.sex;
@@ -52,7 +47,6 @@ export function normalizeProfile(raw: unknown): UserAppProfile {
 
 /** Synced snapshot: units, sounds, theme, and biodata. */
 export interface SyncedAppSettings {
-  heightUnit: HeightUnit;
   weightUnit: WeightUnit;
   bodyWeightUnit: WeightUnit;
   workoutSoundsEnabled: boolean;
@@ -61,18 +55,12 @@ export interface SyncedAppSettings {
 }
 
 const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
-  heightUnit: 'cm',
   weightUnit: 'kg',
   bodyWeightUnit: 'kg',
   workoutSoundsEnabled: true,
   themePreference: 'auto',
   profile: {},
 };
-
-function parseHeightUnit(s: string | null): HeightUnit | null {
-  if (s === 'cm' || s === 'in') return s;
-  return null;
-}
 
 function parseWeightUnit(s: string | null): WeightUnit | null {
   if (s === 'kg' || s === 'lb') return s;
@@ -89,7 +77,6 @@ export interface StoredAppSettingsValues {
   unitSystem: string | null;
   profile: string | null;
   weightUnitLegacy: string | null;
-  heightUnit: string | null;
   exerciseWeightUnit: string | null;
   bodyWeightUnit: string | null;
   workoutSounds: string | null;
@@ -98,12 +85,11 @@ export interface StoredAppSettingsValues {
 
 /**
  * Settings from their stored strings, with the fallbacks for keys never written or holding junk:
- * units default from `unit_system` (imperial → in/lb, else cm/kg); exercise weight falls back to the
+ * units default from `unit_system` (imperial → lb, else kg); exercise weight falls back to the
  * legacy single weight unit; body weight follows exercise weight; sounds default on; theme Auto.
  */
 export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppSettings {
   const unitSystem = raw.unitSystem === 'imperial' ? 'imperial' : 'metric';
-  const defaultHeight: HeightUnit = unitSystem === 'imperial' ? 'in' : 'cm';
   const defaultWeight: WeightUnit = unitSystem === 'imperial' ? 'lb' : 'kg';
 
   let profile: UserAppProfile = {};
@@ -115,7 +101,6 @@ export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppS
     }
   }
 
-  const heightUnit = parseHeightUnit(raw.heightUnit) ?? defaultHeight;
   const weightUnit =
     parseWeightUnit(raw.exerciseWeightUnit) ?? parseWeightUnit(raw.weightUnitLegacy) ?? defaultWeight;
   const bodyWeightUnit = parseWeightUnit(raw.bodyWeightUnit) ?? weightUnit;
@@ -124,7 +109,6 @@ export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppS
   if (raw.workoutSounds === '0' || raw.workoutSounds === 'false') workoutSoundsEnabled = false;
 
   return {
-    heightUnit,
     weightUnit,
     bodyWeightUnit,
     workoutSoundsEnabled,
@@ -138,7 +122,6 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     unitSystem,
     profile,
     weightUnitLegacy,
-    heightUnit,
     exerciseWeightUnit,
     bodyWeightUnit,
     workoutSounds,
@@ -147,7 +130,6 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.profile),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.weightUnitLegacy),
-    AsyncStorage.getItem(APP_SETTINGS_KEYS.heightUnit),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.exerciseWeightUnit),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.bodyWeightUnit),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds),
@@ -157,7 +139,6 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     unitSystem,
     profile,
     weightUnitLegacy,
-    heightUnit,
     exerciseWeightUnit,
     bodyWeightUnit,
     workoutSounds,
@@ -171,17 +152,17 @@ export async function getAppSettings(): Promise<SyncedAppSettings> {
 
 /**
  * Older builds stored one unit preference. If `unit_system` was never written but the legacy
- * weight unit is lb or the height unit is in, promote the device to `unit_system: imperial` so
+ * weight unit is lb, promote the device to `unit_system: imperial` so
  * unset units default to imperial. Returns the value to write, or null when nothing changes.
  */
-export function legacyUnitMigration(raw: Pick<StoredAppSettingsValues, 'unitSystem' | 'weightUnitLegacy' | 'heightUnit'>): 'imperial' | null {
+export function legacyUnitMigration(raw: Pick<StoredAppSettingsValues, 'unitSystem' | 'weightUnitLegacy'>): 'imperial' | null {
   if (raw.unitSystem) return null;
-  return raw.weightUnitLegacy === 'lb' || raw.heightUnit === 'in' ? 'imperial' : null;
+  return raw.weightUnitLegacy === 'lb' ? 'imperial' : null;
 }
 
-/** Any of the three unit keys unset: write the resolved settings back so they stop being derived. */
-export function settingsNeedPersist(raw: Pick<StoredAppSettingsValues, 'heightUnit' | 'exerciseWeightUnit' | 'bodyWeightUnit'>): boolean {
-  return raw.heightUnit == null || raw.exerciseWeightUnit == null || raw.bodyWeightUnit == null;
+/** Either unit key unset: write the resolved settings back so they stop being derived. */
+export function settingsNeedPersist(raw: Pick<StoredAppSettingsValues, 'exerciseWeightUnit' | 'bodyWeightUnit'>): boolean {
+  return raw.exerciseWeightUnit == null || raw.bodyWeightUnit == null;
 }
 
 const themeStorageListeners = new Set<() => void>();
@@ -203,7 +184,6 @@ function emitThemeStorageChanged(): void {
 export async function setAppSettings(settings: SyncedAppSettings): Promise<void> {
   const themePreference = parseThemePreference(settings.themePreference) ?? 'auto';
   await AsyncStorage.multiSet([
-    [APP_SETTINGS_KEYS.heightUnit, settings.heightUnit],
     [APP_SETTINGS_KEYS.exerciseWeightUnit, settings.weightUnit],
     [APP_SETTINGS_KEYS.bodyWeightUnit, settings.bodyWeightUnit],
     [APP_SETTINGS_KEYS.workoutSounds, settings.workoutSoundsEnabled ? '1' : '0'],
@@ -224,7 +204,6 @@ export function normalizeAppSettings(
 ): SyncedAppSettings {
   const base = { ...fallback, ...(payload ?? {}) };
   return {
-    heightUnit: parseHeightUnit(base.heightUnit ?? null) ?? fallback.heightUnit,
     weightUnit: parseWeightUnit(base.weightUnit ?? null) ?? fallback.weightUnit,
     bodyWeightUnit: parseWeightUnit(base.bodyWeightUnit ?? null) ?? fallback.bodyWeightUnit,
     workoutSoundsEnabled: base.workoutSoundsEnabled ?? fallback.workoutSoundsEnabled,
@@ -501,25 +480,6 @@ export async function setRecovery(recovery: MuscleRecovery[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.recovery, JSON.stringify(normalized));
 }
 
-export interface HealthData {
-  macroTargets?: MacroTargets;
-  metabolism?: MetabolismInfo;
-}
-
-export async function getHealth(): Promise<HealthData> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEYS.health);
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-export async function setHealth(health: HealthData): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.health, JSON.stringify(health));
-}
-
 /**
  * Keys Clear all data removes. Deliberately not here: the Supabase auth session (you stay signed
  * in), the in-progress workout, the sync outbox and meta, the exact-alarm prompt flag, and the
@@ -532,7 +492,6 @@ export const CLEAR_ALL_DATA_KEYS = [
   STORAGE_KEYS.hiddenBuiltInFolderIds,
   STORAGE_KEYS.sessions,
   STORAGE_KEYS.recovery,
-  STORAGE_KEYS.health,
   STORAGE_KEYS.exercisePrevious,
   STORAGE_KEYS.exerciseNotes,
   STORAGE_KEYS.customExercises,
@@ -543,7 +502,6 @@ export const CLEAR_ALL_DATA_KEYS = [
   APP_SETTINGS_KEYS.unitSystem,
   APP_SETTINGS_KEYS.profile,
   APP_SETTINGS_KEYS.weightUnitLegacy,
-  APP_SETTINGS_KEYS.heightUnit,
   APP_SETTINGS_KEYS.exerciseWeightUnit,
   APP_SETTINGS_KEYS.bodyWeightUnit,
   APP_SETTINGS_KEYS.workoutSounds,
@@ -579,7 +537,6 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     templateFolders,
     sessions,
     recovery,
-    health,
     exerciseNotes,
     customExercises,
   ] = await Promise.all([
@@ -587,7 +544,6 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     getTemplateFolders(),
     getSessions(),
     getRecovery(),
-    getHealth(),
     getExerciseNotes(),
     getCustomExercises(),
   ]);
@@ -601,6 +557,5 @@ export async function buildExportData(profile?: UserProfile | null): Promise<Exp
     recovery,
     exerciseNotes: Object.keys(exerciseNotes).length ? exerciseNotes : undefined,
     customExercises: customExercises.length ? customExercises : undefined,
-    health: Object.keys(health).length ? health : undefined,
   };
 }

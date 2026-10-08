@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  cmToDisplay,
-  displayToCm,
-  displayToKg,
-  formatHeight,
-  formatWeight,
-  kgToDisplay,
-} from './weightUnits';
+import { displayToKg, formatWeight, kgToDisplay } from './weightUnits';
 
 describe('weightUnits', () => {
   it('round-trips kg display values', () => {
@@ -27,12 +20,5 @@ describe('weightUnits', () => {
     expect(kgToDisplay(80, 'lb')).toBe(176.4);
     expect(displayToKg(176.4, 'lb')).toBe(80.01);
     expect(formatWeight(80, 'lb')).toBe('176.4 lb');
-  });
-
-  it('converts height between cm and inches', () => {
-    expect(cmToDisplay(175, 'cm')).toBe(175);
-    expect(cmToDisplay(175, 'in')).toBe(68.9);
-    expect(displayToCm(68.9, 'in')).toBe(175.01);
-    expect(formatHeight(175, 'in')).toBe('68.9 in');
   });
 });

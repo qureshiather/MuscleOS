@@ -1,11 +1,11 @@
 # Testing
 
-Where test coverage stands and what infrastructure exists.
+Test infrastructure and conventions. **What is covered lives in each feature spec's Tests
+section** — this doc doesn't repeat it.
 
 **Goal:** every behavioural rule stated in a [feature spec](../features/README.md) is backed by a
 test — the rule itself as a unit test, and its wiring (what renders, what a tap does, where it
-navigates) as a UI test. Each spec's **Tests** section lists what is covered and the few things that
-are not.
+navigates) as a UI test.
 
 ## Running tests
 
@@ -63,112 +63,18 @@ state.
   - `resetAppState()` clears storage and marks templates loaded (starting from route params waits
     on templates).
 - Area helpers in `src/test/ui/<area>/helpers.tsx` seed stores for that area.
+- `src/test/ui/harness.test.tsx` checks the harness itself: a real screen renders through the
+  router inside the app's providers.
 - `renderRouter` switches Jest to fake timers set to the real clock. Time-dependent screen tests
   pin the clock after mounting — see `renderAt()` in `src/test/ui/history/helpers.tsx` and
   `renderAtNow()` in `src/test/ui/templates/helpers.tsx`.
 - Network modules (`@/sync`, `@/lib/supabase`, sign-in) are mocked per test file.
 
-## Coverage by area
+## Convention guards
 
-### Templates — [templates.md](../features/templates.md)
-
-| File | Covers |
-|------|--------|
-| `src/data/builtInTemplates.test.ts` | Folder integrity, every built-in exercise id exists, Strong Lifts 5 working sets |
-| `src/utils/templateExercises.test.ts` | Per-exercise set/warm-up resolve, serialize, legacy `defaultSets` migrate, session→template counts |
-| `src/utils/recommendTemplates.test.ts` | Scoring arithmetic, 50% cut-off, tie-break, limit, −8 overlap diversification |
-| `src/utils/recentTemplates.test.ts` | Recent row: newest first, one per template, excludes Suggested/hidden/unstartable, cap 6 |
-| `src/store/templatesLogic.test.ts` | `allTemplates` ordering, soft-hide, folder-delete plan (hidden templates included), menu actions, home grouping |
-| `src/store/templatesStore.test.ts` | Persistence, migrations saved back, normalize-on-write, built-in hides local vs custom hides synced, folder CRUD sync calls |
-| `src/utils/workoutsHome.test.ts` | Section visibility, lapsed notice, folder defaults, last done, Suggested cap and filters, start decision |
-| `src/utils/templateDraft.test.ts` | Validation copy, create id/payload, edit patch, None clears folder, not-found |
-| `src/utils/workoutPreview.test.ts` | Rest `m:ss`, Previous formatting and omission, entry state |
-| `src/test/ui/templates/*.test.tsx` (Jest) | Home sections and menus, folder flows, create/edit template, workout preview |
-
-### Workout logging — [workout-logging.md](../features/workout-logging.md)
-
-| File | Covers |
-|------|--------|
-| `src/store/activeWorkoutLogic.test.ts` | Prefill (start and on complete), add-set carry-over, previous snapshot, warm-up insert, rest-key remap, replace reset, `reps > 0`, running-rest ±30 maths, rest end/tick, hydrate (expired rest recorded), stale close |
-| `src/store/activeWorkoutStore.test.ts` | Debounced persist and coalescing, immediate background write, no write before hydration, `lastActivityAt`, stale close, one workout at a time, 1-set minimum, toggle complete, duplicate-exercise guard, rest actions |
-| `src/storage/localStorage.activeWorkout.test.ts` | Persist/resume round-trip, corrupt-payload guards |
-| `src/utils/workoutSetView.test.ts` | Warm-up vs working numbering, single current set, muted future sets across exercises, rest rows |
-| `src/utils/keypadInput.test.ts`, `keypadInput.keys.test.ts` | Number pad digits, caps, ± steps; key handling, prefill clearing, lb→kg, Next/Done, time mode |
-| `src/utils/workoutFinish.test.ts` | Save-options matrix, structure/list change, finish summary, cancel dialog meta |
-| `src/utils/workoutNotificationCopy.test.ts` | Next/Continue/Finish target, tray content and titles |
-| `src/utils/exercisePicker.test.ts` | Picker search with already-added exclusion |
-| `src/utils/formatClock.test.ts` | Shared `m:ss` formatting |
-| `src/test/ui/workout/*.test.tsx` (Jest) | Logging, Done on first tap, rest timer, set styling, deletes, finish modal, Good work, picker, resume pill, Workout-in-progress dialog |
-
-### Recovery — [recovery.md](../features/recovery.md)
-
-| File | Covers |
-|------|--------|
-| `packages/types/src/recovery.test.ts` | Hours for all 18 muscles, `getRecoveryUntil` |
-| `packages/types/src/muscles.test.ts` | 18 muscle groups, labels |
-| `src/utils/recovery.test.ts` | `recoveryFromSessions`, expiry instant, just-trained, recently worked, session muscles, bucket copy |
-| `src/utils/muscleDiagramRegions.test.ts` | 18 muscles onto 15 regions, region states, body data |
-| `src/utils/bodyCrop.test.ts` | Muscle art side choice and crop box |
-| `src/store/recoveryStore.test.ts` | Load/persist, unchanged reload skips write, `ensureLoaded` once, latest load wins, exercises-store recompute |
-| `src/components/MuscleDiagram.test.tsx` (Jest) | Palette, diagram modes, neutral fill on Good work |
-| `src/test/ui/recovery/recovery.test.tsx` (Jest) | Recovery tab states, list order, readiness copy, re-focus expiry, explainer |
-
-### Exercise library — [exercise-library.md](../features/exercise-library.md)
-
-| File | Covers |
-|------|--------|
-| `src/data/exercises.test.ts`, `catalogSeed.test.ts` | Catalog counts and invariants, instructions in the seed, no third-party content |
-| `src/sync/catalogMerge.test.ts`, `catalogPull.test.ts` | Seed reconcile, watermark selection and advance, delta merge, error path |
-| `src/sync/userExercises.test.ts` | Custom exercise sync rows, tombstones, remote merge |
-| `src/store/exercisesStore.test.ts`, `exerciseNotesStore.test.ts` | Store load, custom CRUD + sync, notes trim/delete, note removed with its custom |
-| `src/utils/exerciseSearch.test.ts`, `exerciseSearchScoring.test.ts` | Normalization, aliases, typo tolerance, every score tier and bonus |
-| `src/utils/exerciseNormalize.test.ts`, `exerciseTitleCase.test.ts`, `exerciseIds.test.ts` | Category inference, invalid equipment/muscle stripping, title case, custom ids, aliases |
-| `src/utils/exerciseLibraryFilter.test.ts`, `customExerciseForm.test.ts` | Tab filters and summary, create-form validation, edit target |
-| `src/test/ui/exercises/*.test.tsx` (Jest) | Exercises tab, filters, empty states, create/edit exercise |
-
-### Exercise demos — [exercise-demos.md](../features/exercise-demos.md)
-
-| File | Covers |
-|------|--------|
-| `apps/landing/app/data/exercises.test.ts` | Website catalog order/uniqueness, demo ids are published rows, per-theme sources, search, related exercises, type line |
-| `src/utils/exerciseDemo.test.ts` | Page link for every published catalog exercise; none for customs or unpublished rows |
-| `src/test/ui/exercises/exercisesTab.test.tsx` (Jest) | Detail sheet row opens the website page; absent for a custom |
-
-### History & analytics — [history-analytics.md](../features/history-analytics.md)
-
-| File | Covers |
-|------|--------|
-| `src/utils/homeStats.test.ts` | Monday weeks, streaks, headline branches |
-| `src/utils/oneRepMax.test.ts` | Epley, PR selection, alias canonicalisation, 1-dp display |
-| `src/data/strengthStandards.test.ts` | Bands, next level, sex tables, unsupported exercises (pull-up has none) |
-| `src/utils/sessionStats.test.ts`, `historyCards.test.ts` | Volume, duration (none under a minute), card summary, PR badges, volume deltas, week grouping, display name |
-| `src/utils/calendar.test.ts` | Monday-first month grid, blanks, local day keys |
-| `src/utils/personalRecords.test.ts` | PR card model, strength chip gating, progression points, search |
-| `src/utils/relativeTime.test.ts` | Every `formatRelative` / `formatRecoveryReady` branch |
-| `src/store/sessionsStore.test.ts` | Completed order, delete: storage, recovery recompute, previous rebuild, sync |
-| `src/storage/exportData.test.ts` | Local-date export filename |
-| `src/test/ui/history/*.test.tsx` (Jest) | History list/delete/refresh, monthly calendar, PRs, progression |
-
-### Pricing — [pricing.md](../features/pricing.md)
-
-| File | Covers |
-|------|--------|
-| `src/utils/workoutStart.test.ts` | `startFromParamsDecision` waits; `startPlanFromParams` URL plan and template fallback |
-| `src/test/ui/workout/deepLinks.test.tsx` (Jest) | Deep-link starts for built-in, custom, empty and ad-hoc workouts; built-in mid-workout Add; preview entry |
-| `src/storage/localStorage.settings.test.ts` | Legacy subscription keys removed on launch; export never carries `subscription` |
-
-### Accounts & data — [accounts-and-data.md](../features/accounts-and-data.md)
-
-| File | Covers |
-|------|--------|
-| `src/sync/outbox.test.ts`, `syncEngine.test.ts`, `syncStatus.test.ts`, `pullWatermark.test.ts` | Serialized outbox, push, server-clock pull watermark, account switch, guest upload, debounce, status copy |
-| `src/sync/merge.test.ts`, `mergePolicy.test.ts` | Conflict rules, `applyRemoteRecords`, snapshot items |
-| `src/auth/*.test.ts` | Session launch and sign-out, provider resolution, attach, delete wipe, error copy, email links |
-| `src/storage/localStorage.*.test.ts`, `src/store/settingsStore.test.ts` | Settings parsing and migrations, profile, serialized writes, clear-data key lists |
-| `src/storage/importPlan.test.ts`, `importData.test.ts`, `importCopy.test.ts` | Parse, plan, apply, outbox only with sync on, copy |
-| `src/utils/weightUnits.test.ts`, `biodata.test.ts`, `src/store/healthStore.test.ts` | Unit conversion, biodata validation and summary, BMR/TDEE |
-| `src/theme/tabBarLayout.test.ts` | Tab bar sizing |
-| `src/test/ui/accounts/*.test.tsx` (Jest) | Profile, Account, Data, Biodata, Settings, auth screens, `/auth-callback` |
+`src/theme/noHardcodedColors.test.ts` fails on any hex or rgba literal in `app/` or
+`src/components/`; colours come from `useTheme().colors`
+([theming](../features/accounts-and-data.md#theming)).
 
 ## Known gaps
 
@@ -218,6 +124,6 @@ Per [docs/README.md](../README.md#keeping-docs-in-sync), a feature change update
 same change. For tests:
 
 1. Unit-test any new pure logic, and UI-test any new screen.
-2. Update the [status table](../features/README.md#spec-and-test-status) and this doc.
+2. List the new test files in the spec's **Tests** section.
 3. If something genuinely can't be tested with this setup, say so in the spec's **Tests** section
    and under Known gaps above.

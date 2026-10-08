@@ -1,10 +1,4 @@
-import type {
-  Equipment,
-  Exercise,
-  ExerciseCategory,
-  ExerciseTrackingType,
-  MuscleId,
-} from '@muscleos/types';
+import type { Equipment, Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
 import { EXERCISE_CATEGORIES, MUSCLE_GROUPS } from '@muscleos/types';
 
 const EQUIPMENT: Equipment[] = [
@@ -18,8 +12,6 @@ const EQUIPMENT: Equipment[] = [
   'ez_bar',
   'other',
 ];
-
-const TRACKING: ExerciseTrackingType[] = ['weight_reps', 'bodyweight_reps', 'duration'];
 
 function isCategory(value: unknown): value is ExerciseCategory {
   return typeof value === 'string' && (EXERCISE_CATEGORIES as string[]).includes(value);
@@ -51,10 +43,6 @@ export function normalizeExercise(raw: unknown, fallbackId = 'unknown'): Exercis
   );
   const category = isCategory(row.category) ? row.category : inferCategory(equipment);
   const aliases = asStringArray(row.aliases);
-  const trackingRaw = row.trackingType ?? row.tracking_type;
-  const trackingType = TRACKING.includes(trackingRaw as ExerciseTrackingType)
-    ? (trackingRaw as ExerciseTrackingType)
-    : 'weight_reps';
   const instructions =
     typeof row.instructions === 'string' && row.instructions.trim()
       ? row.instructions.trim()
@@ -68,7 +56,6 @@ export function normalizeExercise(raw: unknown, fallbackId = 'unknown'): Exercis
     equipment,
     category,
     ...(aliases.length ? { aliases } : {}),
-    trackingType,
     isPublished,
     ...(instructions ? { instructions } : {}),
   };
@@ -83,7 +70,6 @@ export function catalogRowToExercise(row: Record<string, unknown>): Exercise {
     category: row.category,
     aliases: row.aliases,
     instructions: row.instructions,
-    trackingType: row.tracking_type ?? row.trackingType,
     isPublished: row.is_published ?? row.isPublished,
   });
 }
@@ -100,7 +86,6 @@ export function exerciseToUserRow(
     category: exercise.category,
     muscles: exercise.muscles,
     equipment: exercise.equipment,
-    tracking_type: exercise.trackingType ?? 'weight_reps',
     updated_at: updatedAt,
     deleted_at: deletedAt ?? null,
   };

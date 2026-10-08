@@ -15,7 +15,7 @@ const routes = {
 
 beforeEach(async () => {
   await resetAppState();
-  useSettingsStore.setState({ profile: {}, heightUnit: 'cm', bodyWeightUnit: 'kg', isLoading: false });
+  useSettingsStore.setState({ profile: {}, bodyWeightUnit: 'kg', isLoading: false });
 });
 
 test('guest: sign-in prompt in the Account card', async () => {
@@ -59,7 +59,7 @@ test('biodata hint says what it is for until something is saved', async () => {
 
 test('biodata hint summarises saved fields in display units', async () => {
   signInAsGuest();
-  useSettingsStore.setState({ profile: { heightCm: 180, weightKg: 80, age: 30, sex: 'male' }, bodyWeightUnit: 'lb' });
+  useSettingsStore.setState({ profile: { weightKg: 80, age: 30, sex: 'male' }, bodyWeightUnit: 'lb' });
   renderApp(routes, '/profile');
-  expect(await screen.findByText('180 cm · 176.4 lb · 30 · Male')).toBeTruthy();
+  expect(await screen.findByText('176.4 lb · 30 · Male')).toBeTruthy();
 });

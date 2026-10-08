@@ -129,7 +129,6 @@ describe('applyRemoteRecords', () => {
 
 describe('snapshotItems (account-link upload)', () => {
   const settings = {
-    heightUnit: 'cm' as const,
     weightUnit: 'kg' as const,
     bodyWeightUnit: 'kg' as const,
     workoutSoundsEnabled: true,

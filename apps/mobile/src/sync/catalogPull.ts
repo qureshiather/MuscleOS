@@ -11,7 +11,7 @@ export async function fetchCatalogDelta(
   const { data, error } = await supabase
     .from('catalog_exercises')
     .select(
-      'id, name, instructions, category, muscles, equipment, aliases, tracking_type, is_published, updated_at'
+      'id, name, instructions, category, muscles, equipment, aliases, is_published, updated_at'
     )
     .gt('updated_at', watermark)
     .order('updated_at', { ascending: true });

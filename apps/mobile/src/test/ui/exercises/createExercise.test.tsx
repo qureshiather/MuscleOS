@@ -83,7 +83,6 @@ describe('create-exercise form', () => {
       category: 'cable',
       muscles: ['lats', 'rhomboids'],
       equipment: [],
-      trackingType: 'weight_reps',
     });
     expect(savedCustoms()[1].instructions).toBeUndefined();
     await waitFor(() => expect(getPathname()).toBe('/exercises'));

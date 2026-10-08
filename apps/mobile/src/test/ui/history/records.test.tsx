@@ -131,6 +131,17 @@ describe('Exercise progression', () => {
     renderAt(NOW, routes, '/exercise-progression?exerciseId=squat');
     expect(await screen.findByText('Strength level: Novice')).toBeTruthy();
     expect(screen.getByText('Next (Intermediate): 140 kg')).toBeTruthy();
+    expect(screen.queryByText(/Adjusted for age/)).toBeNull();
+  });
+
+  test('with an age, the strength card is age-adjusted and says so', async () => {
+    // Best 116.7 / 80 = 1.46. At 60 (×1.34) intermediate needs 1.75 / 1.34 = 1.31, advanced 2.25 × 80 / 1.34.
+    useSettingsStore.setState({ profile: { weightKg: 80, sex: 'male', age: 60 } });
+    await seedSessions(SESSIONS);
+    renderAt(NOW, routes, '/exercise-progression?exerciseId=squat');
+    expect(await screen.findByText('Strength level: Intermediate')).toBeTruthy();
+    expect(screen.getByText('Next (Advanced): 134.3 kg')).toBeTruthy();
+    expect(screen.getByText('Adjusted for age 60')).toBeTruthy();
   });
 
   test('no strength card for pull-ups', async () => {

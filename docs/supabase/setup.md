@@ -1,11 +1,11 @@
 # Supabase setup
 
-## Cloud sync (Strong-style)
+First-time wiring of the Supabase project: schema rules, migrations, Edge Functions, and auth
+providers. What syncs, the merge rules and when sync runs are app behaviour and live in
+[accounts-and-data.md → Cloud sync](../features/accounts-and-data.md#cloud-sync). Day-to-day
+operation is in [operations/live-services.md](../operations/live-services.md).
 
-MuscleOS syncs workout history, templates, custom exercises, exercise notes, settings (units,
-sounds, theme, biodata), and the persisted exercise-previous snapshot to Supabase for
-**linked accounts only**. Recovery is not synced; it is recomputed locally from sessions after a
-merge. Reads are always local-first (AsyncStorage); sync runs in the background.
+## Schema
 
 ### Exercise catalog vs user exercises
 
@@ -16,47 +16,27 @@ merge. Reads are always local-first (AsyncStorage); sync runs in the background.
 
 `sync_records` and `user_exercises` carry `server_updated_at`, stamped by a trigger on every write
 (`20261003010000_sync_server_updated_at.sql`). Apps pull by it, not by the writer's `updated_at`,
-so late uploads and wrong device clocks can't hide rows. **Apply this migration before shipping an
-app build that includes MUS-91**; until it's applied, those builds fall back to full pulls.
+so late uploads and wrong device clocks can't hide rows. Against a database without this migration
+the app falls back to full pulls.
 
-The app ships a bundled `CATALOG_SEED` so first launch and airplane mode already have the library. The first paint does not wait on the network. A background pull merges any rows newer than the seed watermark.
+Both exercise tables have a `tracking_type` column (default `weight_reps`). The app neither reads
+nor sends it; keep the default so older clients and the RPC keep working.
 
 Do **not** put catalog rows in `sync_records`. Custom exercises used to live there as JSONB; they migrate into `user_exercises` and new writes go to that table.
 
 **Content change** (new exercise, category fix, instruction copy): `UPDATE`/`INSERT` with `updated_at = now()`. Never delete a catalog id — set `is_published = false`. Seed scripts upsert by id and never write `user_exercises`.
 
-**Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` / `exercise_tracking_type` by adding values; old apps that see an unknown category infer one from the row's equipment (cable → machine → bodyweight → free weight).
+**Schema change:** add the same column to **both** tables in one migration, always with a `DEFAULT`. Do not rename or drop columns in the same release as the app change. The client mapper ignores unknown keys and fills missing fields. Widen `exercise_category` by adding values; old apps that see an unknown category infer one from the row's equipment (cable → machine → bodyweight → free weight).
 
-Regenerate the bundled seed after editing `apps/mobile/src/data/exercises.ts`:
+How catalog content is authored, generated into the app's seed and shipped as migrations:
+[exercise-library.md → Pipeline](../features/exercise-library.md#pipeline).
 
-```bash
-node apps/mobile/scripts/generate-exercise-catalog.mjs
-```
+`upsert_sync_records` only overwrites the server when the incoming `updated_at` is **≥** the stored
+value (equal timestamps → incoming wins). The client side — push, pull, the fallbacks when this RPC
+or `user_exercises` is missing, and the merge rules — is in
+[accounts-and-data.md → Cloud sync](../features/accounts-and-data.md#outbox-push-and-pull).
 
-It writes only `apps/mobile/src/data/catalogSeed.ts`, **instructions included**, so a fresh install has every row's copy without a delta pull. Bump `SEED_UPDATED_AT` in the script when the seed content changes so existing installs re-apply it. The generator never rewrites an applied migration (the original `20260830020000_catalog_exercises_seed.sql` is historical); server rows change only through new migrations. Instruction copy has a generator mode for that (it updates only rows whose text differs and bumps their `updated_at` so clients pull them; it refuses to overwrite an existing file):
-
-```bash
-node apps/mobile/scripts/generate-exercise-catalog.mjs --instructions-migration=<timestamp>_catalog_exercise_instructions
-```
-
-Other field changes (names, muscles, equipment, category, publish state) are hand-written migrations with `updated_at = now()`, mirroring the edit in `exercises.ts`.
-
-### Merge policy
-
-Sync is **entity-level** (sessions, templates, etc.), with field-aware merges for map/settings snapshots.
-
-| Case | Result |
-|------|--------|
-| Missing locally | Take remote (server fills gaps) |
-| Net-new locally | Keep local; push via outbox |
-| Conflict, local dirty (pending outbox) | **Local wins**; outbox `updated_at` is bumped if remote is newer so push lands |
-| Conflict, local clean — session | **Last-write-wins**: remote `updated_at` vs local `completedAt` (or `startedAt`); ties keep local |
-| Conflict, local clean — template, folder, custom exercise | No local timestamp, so **remote is taken** |
-| Notes / previous / settings, local clean or empty | Remote snapshot replaces local |
-| Notes / previous / settings, local pending | Keep local; union keys, empty local slots fill from remote. Pending local units/sounds/theme win whole; biodata merges per field |
-| Remote delete (`deleted_at`) | Same decision as an update; a deleted snapshot resets local to empty / defaults |
-
-Push uses `upsert_sync_records`, which only overwrites the server when incoming `updated_at` is **≥** the stored value (equal timestamps → incoming/local wins). If that RPC is missing (`PGRST202`), the app silently falls back to a plain `sync_records` upsert with no clock check. If the `user_exercises` table is missing (`PGRST205`), its pull returns no rows.
+## Setup
 
 ### 1. Run migrations (Supabase CLI)
 
@@ -102,22 +82,7 @@ pnpm supabase migration new my_change   # scaffold a new migration
 
 Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabase.com/dashboard) in order and run them manually.
 
-### 2. App behavior
-
-| Trigger | Action |
-|---------|--------|
-| App launch | Catalog delta pull (all users). Account sync if linked. |
-| App foreground | Catalog delta pull. Account sync if linked. |
-| Finish workout | Immediate push |
-| Guest upgraded in place (Apple/Google `linkIdentity`) | Upload a full snapshot of local data, then sync |
-| Sign into an existing account (another device, email, or a different account) | Drop the previous account's outbox, pull everything, upload the local rows the account doesn't have (guest sessions, templates, folders, customs; snapshots only if the account has none), then push |
-| Sign out | New anonymous guest; outbox and sync meta reset. Local data stays on the device |
-| History pull-to-refresh | Force sync |
-| Data → Sync now | Force sync |
-| Account → sync row tap | Force sync |
-| Any local change | Push 2 s after the last change |
-
-Anonymous users stay device-only until they link an account.
+### 2. Anonymous sign-in
 
 **Hosted project:** Authentication → Providers → **Anonymous** must be on. The app signs in anonymously on first launch, then Apple/Google `linkIdentity` upgrades that same user. If anonymous is off, Apple sign-in has nobody to link to (`Linking requires a valid user access token`).
 
@@ -151,7 +116,7 @@ Linked accounts delete themselves from Profile → Account. The app calls two Ed
 
 Anonymous users cannot call either function. Missing Apple secrets skip revoke but still delete the user.
 
-Deploy from the repo root (or `supabase/`):
+Deploy from the repo root (or `supabase/`), and again after any change to `supabase/functions/`:
 
 ```bash
 pnpm supabase functions deploy save-apple-token
@@ -194,11 +159,9 @@ Authorized redirect in the Web client / Supabase: `https://<project-ref>.supabas
 
 Signup and **Forgot password** send the user to `https://muscleos.app/auth/confirm`. The message links to that page with `token_hash` and `type` (`signup` or `recovery`). The page opens `muscleos://auth-callback`, and the app calls `verifyOtp` only then, so a mail scanner that opens the link does not use up the one-time token. An expired or already-used link stays on the page and says to request a new one. A recovery link then shows **New password**.
 
-Auth email templates (Authentication → Emails):
-
-- Confirmation subject: `Confirm your email address with MuscleOS`. The link is `https://muscleos.app/auth/confirm?token_hash={{ .TokenHash }}&type=signup`.
-- Recovery subject: `Reset your MuscleOS password`. The link is `https://muscleos.app/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`.
-- Do not use `{{ .ConfirmationURL }}`. That URL verifies the token as soon as anything fetches it.
+Auth email templates (Authentication → Emails) — subjects, links and the code-only Magic link
+template — are listed in [live-services.md → Resend](../operations/live-services.md#resend). Never
+use `{{ .ConfirmationURL }}`: it verifies the token as soon as anything fetches it.
 
 In the hosted project → Authentication → URL configuration:
 

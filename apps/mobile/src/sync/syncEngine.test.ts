@@ -529,7 +529,7 @@ describe('signing into an existing account with guest data (D13)', () => {
     fake.tables.sync_records.push(
       remoteRow('session', 'acct-s1', session('acct-s1')),
       remoteRow('exercise_note', 'default', { bench: 'Account note' }),
-      remoteRow('app_settings', 'default', { ...defaultAppSettings(), weightUnit: 'kg', profile: { age: 40 } })
+      remoteRow('app_settings', 'default', { ...defaultAppSettings(), weightUnit: 'kg', profile: { weightKg: 90 } })
     );
   });
 
@@ -547,7 +547,7 @@ describe('signing into an existing account with guest data (D13)', () => {
     expect((await getSessions()).map((s) => s.id).sort()).toEqual(['acct-s1', 'guest-s1']);
     expect(await getExerciseNotes()).toEqual({ bench: 'Account note' });
     expect((await getAppSettings()).weightUnit).toBe('kg');
-    expect((await getAppSettings()).profile).toEqual({ age: 40 });
+    expect((await getAppSettings()).profile).toEqual({ weightKg: 90 });
     expect((await getSyncMeta()).pendingLocalUpload).toBe(false);
     expect(await getOutbox()).toEqual([]);
   });

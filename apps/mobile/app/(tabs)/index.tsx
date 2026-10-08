@@ -244,7 +244,7 @@ export default function WorkoutsScreen() {
   const recentWorkouts = useMemo(() => {
     return pickRecentTemplates({
       completedSessions: completedSessions(),
-      startableTemplates: templates,
+      templates,
       suggestedIds: new Set(suggestedWorkouts.map((s) => s.template.id)),
       isHidden: isTemplateHidden,
     });

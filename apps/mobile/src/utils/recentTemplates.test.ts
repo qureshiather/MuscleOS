@@ -24,7 +24,7 @@ describe('pickRecentTemplates', () => {
   it('lists one entry per template, most recent first', () => {
     const recent = pickRecentTemplates({
       completedSessions: [done('b', 5), done('a', 4), done('b', 3)],
-      startableTemplates: templates,
+      templates,
       suggestedIds: none,
       isHidden: notHidden,
     });
@@ -34,10 +34,10 @@ describe('pickRecentTemplates', () => {
     ]);
   });
 
-  it('excludes Suggested, hidden, and unstartable templates', () => {
+  it('excludes Suggested, hidden, deleted templates and empty workouts', () => {
     const recent = pickRecentTemplates({
-      completedSessions: [done('a', 9), done('b', 8), done('custom', 7), done('c', 6)],
-      startableTemplates: templates, // 'custom' isn't startable on this tier
+      completedSessions: [done('a', 9), done('b', 8), done('gone', 7), done('_empty', 7), done('c', 6)],
+      templates, // 'gone' was deleted; '_empty' is an empty workout
       suggestedIds: new Set(['a']),
       isHidden: (t) => t.id === 'b',
     });
@@ -48,7 +48,7 @@ describe('pickRecentTemplates', () => {
     const sessions = templates.map((t, i) => done(t.id, 20 - i));
     const recent = pickRecentTemplates({
       completedSessions: sessions,
-      startableTemplates: templates,
+      templates,
       suggestedIds: none,
       isHidden: notHidden,
     });

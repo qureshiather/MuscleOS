@@ -2,8 +2,6 @@ import type { MuscleId } from './muscles';
 
 export type ExerciseCategory = 'free_weight' | 'machine' | 'cable' | 'bodyweight';
 
-export type ExerciseTrackingType = 'weight_reps' | 'bodyweight_reps' | 'duration';
-
 export interface Exercise {
   id: string;
   name: string;
@@ -14,11 +12,8 @@ export interface Exercise {
   instructions?: string;
   /** Search helpers and legacy slugs */
   aliases?: string[];
-  trackingType?: ExerciseTrackingType;
   /** Catalog only. Unpublished rows stay resolvable for history. */
   isPublished?: boolean;
-  /** @deprecated unused; kept optional for older cached rows */
-  mediaUrl?: string;
 }
 
 export type Equipment =

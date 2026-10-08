@@ -7,7 +7,6 @@ describe('normalizeExercise', () => {
       id: 'lat-pulldown',
       name: '  Lat Pulldown  ',
       equipment: ['cable', 'not-real'],
-      tracking_type: 'bodyweight_reps',
     });
 
     expect(exercise).toMatchObject({
@@ -16,7 +15,6 @@ describe('normalizeExercise', () => {
       category: 'cable',
       equipment: ['cable'],
       muscles: ['chest'],
-      trackingType: 'bodyweight_reps',
       isPublished: true,
     });
   });
@@ -29,10 +27,14 @@ describe('normalizeExercise', () => {
       equipment: ['bodyweight'],
       category: 'bodyweight',
       tracking_type: 'duration',
+      media_url: 'https://example.com/x.gif',
       is_published: false,
     });
 
-    expect(exercise.trackingType).toBe('duration');
+    // The server's tracking_type and any media columns aren't part of the app's model.
+    expect(exercise).not.toHaveProperty('trackingType');
+    expect(exercise).not.toHaveProperty('tracking_type');
+    expect(exercise).not.toHaveProperty('media_url');
     expect(exercise.isPublished).toBe(false);
     expect(exercise.muscles).toEqual(['abs']);
   });
@@ -41,13 +43,6 @@ describe('normalizeExercise', () => {
     expect(normalizeExercise({ id: 'custom_4' }).name).toBe('custom_4');
     expect(normalizeExercise({ id: 'custom_4', name: '   ' }).name).toBe('custom_4');
     expect(normalizeExercise({}, 'catalog_7')).toMatchObject({ id: 'catalog_7', name: 'catalog_7' });
-  });
-
-  it('defaults tracking type to weight_reps (customs never set it)', () => {
-    expect(normalizeExercise({ id: 'custom_1', name: 'X' }).trackingType).toBe('weight_reps');
-    expect(normalizeExercise({ id: 'custom_1', trackingType: 'nonsense' }).trackingType).toBe(
-      'weight_reps'
-    );
   });
 
   it('drops unknown muscle ids, keeping valid ones', () => {

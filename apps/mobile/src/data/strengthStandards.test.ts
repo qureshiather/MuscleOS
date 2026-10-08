@@ -49,6 +49,44 @@ describe('compareToStrengthStandards', () => {
   });
 });
 
+describe('age-adjusted standards', () => {
+  it('without an age, or at 23–40, uses the tables unchanged', () => {
+    for (const age of [undefined, 23, 30, 40]) {
+      const r = compareToStrengthStandards('bench-press', 100, 80, 'male', age);
+      expect(r.level).toBe('intermediate');
+      expect(r.nextLevel1RMKg).toBe(80 * 1.75);
+      expect(r.ageCoefficient).toBe(1);
+    }
+  });
+
+  it('divides every threshold by the age coefficient', () => {
+    // 60 → 1.34. Male bench intermediate 1.25 → 0.933, advanced 1.75 → 1.306.
+    const r = compareToStrengthStandards('bench-press', 80, 80, 'male', 60);
+    expect(r.ageCoefficient).toBe(1.34);
+    expect(r.level).toBe('intermediate'); // ratio 1.0 is only novice unadjusted
+    expect(compareToStrengthStandards('bench-press', 80, 80, 'male').level).toBe('novice');
+    expect(r.nextLevel1RMKg).toBeCloseTo((80 * 1.75) / 1.34, 10);
+  });
+
+  it('lowers teen thresholds the same way', () => {
+    // 16 → 1.13. Male squat intermediate 1.75 → 1.549.
+    expect(compareToStrengthStandards('squat', 125, 80, 'male', 16).level).toBe('intermediate');
+    expect(compareToStrengthStandards('squat', 125, 80, 'male').level).toBe('novice');
+  });
+
+  it('a level boundary sits exactly at threshold ÷ coefficient', () => {
+    const boundary = (80 * 1.25) / 1.13; // 50 → 1.13, male bench intermediate
+    expect(compareToStrengthStandards('bench-press', boundary, 80, 'male', 50).level).toBe('intermediate');
+    expect(compareToStrengthStandards('bench-press', boundary - 0.01, 80, 'male', 50).level).toBe('novice');
+  });
+
+  it('reports no standards under 14', () => {
+    const r = compareToStrengthStandards('bench-press', 100, 80, 'male', 13);
+    expect(r.hasStandards).toBe(false);
+    expect(r.nextLevel1RMKg).toBeNull();
+  });
+});
+
 describe('getStrengthStandards', () => {
   it('covers exactly the documented lifts', () => {
     for (const id of [

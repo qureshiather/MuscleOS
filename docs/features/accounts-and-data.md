@@ -60,7 +60,7 @@ Then, in `_layout.tsx`:
 5. `initAuth()` — existing Supabase session, or anonymous sign-in (`resolveLaunchUser`,
    `src/auth/authSession.ts`). Each call gives up after **10 s** (`AUTH_INIT_TIMEOUT_MS`); a timeout
    or error leaves the app an unauthenticated, device-only guest for this launch
-6. Start `loadSettings()` — units, theme, biodata, sounds
+6. Start `loadSettings()` — units, biodata, sounds (the theme is read by `ThemeProvider`)
 7. Start `loadExerciseNotes()`
 8. Start `loadStatus()` and `syncNow()` — cloud sync if an account is linked
 
@@ -73,7 +73,6 @@ native module registry timing issue.
 **On foreground:** refresh the exercise catalog, and sync.
 
 Recovery is deliberately **not** loaded at boot — the tabs that need it load it on focus.
-`healthStore.load()` is never called at all.
 
 ## Authentication
 
@@ -179,15 +178,15 @@ immediately can still send that code on delete.
 
 Supabase sessions persist via **AsyncStorage**, not SecureStore, with auto-refresh on foreground.
 `expo-secure-store` is installed as a plugin and referenced in Android backup rules, but **no app
-code currently reads or writes SecureStore**. Older documentation and comments claiming auth
-uses SecureStore were inaccurate.
+code reads or writes SecureStore**.
 
 ### Required env vars
 
 `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and optionally
 `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** client ID — required for Google Sign-In
 on Android). Each is read from `Constants.expoConfig.extra` first (set by `app.config.js` at build
-time), then from the Metro-inlined `process.env` value.
+time), then from the Metro-inlined `process.env` value. Setting them for EAS builds:
+[mobile/eas-build.md](../mobile/eas-build.md).
 
 ## Profile
 
@@ -203,40 +202,33 @@ Rows on the Account screen: Data (`/data`), Link Google (linked accounts without
 
 **Settings** on this tab is a single row into `/settings` (“Appearance, units, sounds”).
 
-**Biodata** on this tab is a single row into `/biodata` (“Height, weight, age, gender”). The hint (`biodataSummary`) is “Used for strength standards” until a value is saved, then a compact summary of the saved fields in display units (“180 cm · 176.4 lb · 30 · Male”).
+**Biodata** on this tab is a single row into `/biodata` (“Weight, age, gender”). The hint (`biodataSummary`) is “Used for strength standards” until a value is saved, then a compact summary of the saved fields in display units (“176.4 lb · 30 · Male”).
 
-**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for height, weight, age, and gender (each field labelled with its unit, so a filled field still says what it is); Save writes them together (`buildProfileFromInputs`), converting from the display units to cm/kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
+**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for gender, body weight and age (each field labelled, the weight with its unit, so a filled field still says what it is); Save writes them together (`buildProfileFromInputs`), converting the weight from the display unit to kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
-| `heightCm` | > 0 | BMR/TDEE helpers only (no UI) |
 | `weightKg` | > 0 | **Strength standards** on PR and progression screens |
-| `age` | > 0 and < 150 | BMR/TDEE helpers only — **not** used by recovery or standards |
+| `age` | > 0 and < 150 | Optional [age adjustment](history-analytics.md#age-adjustment) of strength standards |
 | `sex` | `male` \| `female` | Body diagram figure; strength standard tables |
 
-Not collected: display name (set at sign-in), birthdate, experience level, training goals.
-
-Older builds had a **Not natty** toggle (`notNatty`) that halved recovery. It has been removed.
-`normalizeProfile()` drops the flag when a stored or synced profile is read, so it stops
+Not collected: height, display name (set at sign-in), birthdate, experience level, training goals.
+Older builds stored and synced `heightCm` and a **Not natty** flag (`notNatty`, which halved
+recovery); `normalizeProfile()` drops both when a stored or synced profile is read, so they stop
 round-tripping through the synced copy.
-
-Of the biodata fields, only `sex` touches the Recovery tab, and only to pick the diagram figure.
-`weightKg` (with `sex`) drives strength standards, which is why the copy says so; `age` and
-`heightCm` aren't used by any feature users can see.
 
 ## Settings
 
 | Setting | Values | Default | Effect |
 |---------|--------|---------|--------|
 | Theme | `auto` / `dark` / `light` | `auto` | Follows the device in auto |
-| Height unit | `cm` / `in` | `cm` | Display only |
 | Body weight unit | `kg` / `lb` | `kg` | Display only |
 | Exercise weight unit | `kg` / `lb` | `kg` | Display only — set logging, PRs, volume |
 | Workout sounds | on / off | **on** | Rest tick, rest end, set complete, workout complete, and the rest notification sound |
 
-The three unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
-A legacy migration promotes older single-unit preferences to `unit_system: imperial`. Unset units
-default from `unit_system` (imperial → in / lb), exercise weight falls back to the legacy single
+The two unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
+A legacy migration promotes an older single `lb` preference to `unit_system: imperial`. Unset units
+default from `unit_system` (imperial → lb), exercise weight falls back to the legacy single
 weight unit, and body weight falls back to exercise weight (`parseStoredAppSettings`). Each change
 is written and offered to sync immediately. Every settings write — units, sounds, biodata and the
 theme picker — goes through one queue (`persistAndNotify` in `settingsStore`), so quick taps or a
@@ -244,6 +236,22 @@ theme change at the same moment as a unit change never drop one.
 
 Settings is **Appearance**, **Units**, **Sounds**, and an **About** card whose one row opens
 **Acknowledgements**.
+
+**Not settings:** rest timer default (a 120 s code constant, overridable per exercise in a session),
+haptics (none exist), and notification preferences beyond sounds.
+
+### Unit conversion
+
+`src/utils/weightUnits.ts`. kg is canonical in storage.
+
+| Direction | Rule |
+|-----------|------|
+| kg → display | lb: `round(kg × 2.20462 × 10) / 10` (1 decimal); kg: 2 decimals |
+| display → kg | lb: `round((lb / 2.20462) × 100) / 100`; kg: as entered |
+
+Pounds display rounds to 1 decimal and kilograms to 2, so a 2.5 lb or 0.25 kg plate step survives
+a round-trip. Storage of a pounds value is 2 decimal kilograms — enough that the round-trip
+doesn't drift visibly.
 
 ### Acknowledgements
 
@@ -255,8 +263,10 @@ License 1.1** lists DM Sans and DM Mono, followed by the OFL text. The entries a
 `apps/mobile/package.json` `dependencies` must have an entry; workspace `@muscleos/*` packages are
 exempt (`missingAcknowledgements`). Adding a dependency without one fails the unit test.
 
-**Data** (`/data`, from Profile → Account): Sync now (linked accounts only), Export my data, Import
-data, Clear all data.
+## Data
+
+`/data`, from Profile → Account: Sync now (linked accounts only), [Export my data](#export),
+[Import data](#import), Clear all data.
 
 - **Sync now** runs `syncNow()` and then reads the sync store: “Synced — Your workout data is up to
   date.” only when it succeeded, otherwise “Sync failed — Couldn't sync right now. Check your
@@ -268,38 +278,6 @@ data, Clear all data.
   sync meta, exact-alarm prompt flag, and Apple authorization code. Afterwards every store
   (sessions, exercises, notes, templates, recovery, settings) is reloaded so no
   screen shows cleared data; the in-progress workout is kept as-is.
-
-Privacy and Terms open `https://muscleos.app/privacy` and `https://muscleos.app/terms` from
-Profile → Account.
-
-**Not settings:** rest timer default (a 120 s code constant, overridable per exercise in a session),
-haptics (none exist), and notification preferences beyond sounds.
-
-### Unit conversion
-
-`src/utils/weightUnits.ts`. kg and cm are canonical in storage.
-
-| Direction | Rule |
-|-----------|------|
-| kg → display | lb: `round(kg × 2.20462 × 10) / 10` (1 decimal); kg: 2 decimals |
-| display → kg | lb: `round((lb / 2.20462) × 100) / 100`; kg: as entered |
-| cm → display | in: `round(cm / 2.54 × 10) / 10`; cm: 1 decimal |
-| display → cm | in: `round((in × 2.54) × 100) / 100` |
-
-Pounds display rounds to 1 decimal and kilograms to 2, so a 2.5 lb or 0.25 kg plate step survives
-a round-trip. Storage of a pounds value is 2 decimal kilograms — enough that the round-trip
-doesn't drift visibly.
-
-## Health
-
-`healthStore` persists macro targets and metabolism figures and exposes `computeBMR`,
-`computeTDEE`, and `computeMacros` (Mifflin-St Jeor plus activity multipliers).
-
-**It has no UI.** No screen imports it, `load()` is never called, and it is not synced. The data is
-included in the export payload if it somehow exists. There is **no HealthKit or Google Fit
-integration** anywhere in the app.
-
-Treat this as scaffolding for a nutrition feature that was never built.
 
 ## Cloud sync
 
@@ -313,8 +291,9 @@ Via `sync_records` and the `upsert_sync_records` RPC:
 
 `session` · `template` · `template_folder` · `exercise_previous` · `exercise_note` · `app_settings`
 
-`app_settings` is one snapshot: height, exercise-weight and body-weight units, workout sounds,
-theme, and biodata (`SyncedAppSettings`). `muscleos_unit_system` and the legacy single weight unit
+`app_settings` is one snapshot: exercise-weight and body-weight units, workout sounds, theme, and
+biodata (`SyncedAppSettings`). A snapshot from an older build may still carry `heightUnit` or
+`heightCm`; they're ignored. `muscleos_unit_system` and the legacy single weight unit
 are **not** in it — they only seed defaults on the device that has them.
 
 Custom exercises use their own table and RPC (`user_exercises` / `upsert_user_exercises`). The
@@ -394,7 +373,6 @@ Worth being precise about, because users will assume an account means everything
 | Data | Storage key |
 |------|-------------|
 | Recovery state | `muscleos_recovery` — derived; recomputed after merge |
-| Health / macros | `muscleos_health` — never synced |
 | In-progress workout | `muscleos_active_workout` — device session state |
 | Hidden built-in template / folder ids | `muscleos_hidden_builtin_*` — **UI preference lost on a new device** |
 | Catalog cache and watermark | `muscleos_catalog_*` — re-pulled |
@@ -417,15 +395,13 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_exercise_notes` | Per-exercise notes | ● |
 | `muscleos_custom_exercises` | Custom exercises | ● (`user_exercises`) |
 | `muscleos_retired_custom_exercises` | Deleted custom exercises, kept so past sessions still resolve them | ○ |
-| `muscleos_profile`, `muscleos_theme`, `muscleos_height_unit`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds` | Biodata and settings | ● (as `app_settings`) |
+| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds` | Biodata and settings | ● (as `app_settings`) |
 | `muscleos_unit_system`, `muscleos_weight_unit` (legacy) | Default unit system; older single weight unit | ○ |
 | `muscleos_hidden_builtin_template_ids`, `..._folder_ids` | Hidden built-ins | ○ |
 | `muscleos_recovery` | Derived recovery cache | ○ |
 | `muscleos_active_workout` | In-progress session + rest state + `lastActivityAt` | ○ |
-| `muscleos_health` | Macro targets, metabolism | ○ |
 | `muscleos_catalog_exercises`, `muscleos_catalog_watermark`, `muscleos_catalog_seed_applied_at` | Catalog cache | ○ |
 | `muscleos_sync_outbox`, `muscleos_sync_meta` | Sync transport (meta: owning `userId`, server-clock `pullCursor`, last pull/push/sync times, `pendingLocalUpload`) | ○ |
-| `muscleos_dev_pro_override` | Dev testing (`__DEV__` builds only; cleared in release) | ○ |
 | `muscleos_exact_alarm_prompt_shown` | Android prompt-once flag | ○ |
 | `muscleos_apple_authorization_code` | Short-lived Apple auth code for Sign in with Apple revoke | ○ |
 
@@ -438,11 +414,11 @@ on read:
 |-----------|-------|
 | Template `days[]` → flat `exerciseIds` | `migrateTemplateFromDays()` on read |
 | Template `defaultSets` → per-exercise `exercises` | `normalizeWorkoutTemplate()` on read (and on every custom-template write) |
-| Legacy lb/in preference → `unit_system: imperial` (only if `unit_system` was never written) | `legacyUnitMigration()` in `settingsStore.load`; `parseStoredAppSettings()` also reads the legacy weight unit |
+| Legacy lb preference → `unit_system: imperial` (only if `unit_system` was never written) | `legacyUnitMigration()` in `settingsStore.load`; `parseStoredAppSettings()` also reads the legacy weight unit |
 | Unset unit keys → resolved values written back | `settingsNeedPersist()` in `settingsStore.load` |
 | Sync meta without an owner → adopted by the next signed-in sync | `syncOwnerAction()` |
 | Remote `app_settings` missing `themePreference` | `normalizeAppSettings()` |
-| `muscleos_subscription` and `muscleos_dev_pro_override` (removed Pro tier) → deleted on launch | `removeLegacyStorageKeys()` in `localStorage.ts` |
+| Keys for removed data → deleted on launch: `muscleos_subscription` and `muscleos_dev_pro_override` (the Pro tier), `muscleos_health` (an unused macro store), `muscleos_height_unit` (height is no longer collected) | `LEGACY_STORAGE_KEYS`, `removeLegacyStorageKeys()` |
 
 Export carries an explicit `version: 1`.
 
@@ -470,20 +446,14 @@ Behaviour detail: [workout-logging.md](workout-logging.md#notifications).
 ## Theming
 
 Modes `auto` / `dark` / `light`, default `auto`. Palette hex values live in **one place**:
-`paletteConfig` in `src/theme/palette.ts`. `buildThemeColors(mode)` derives the translucent and
-tinted tokens from those base values. `withAlpha(hex, a)` makes a translucent rgba; `blendOver(hex,
-a, base)` makes the opaque equivalent over a known background, for fills that tile edge to edge
-(translucent neighbours seam where their edges round to different pixels).
+`paletteConfig` in `src/theme/palette.ts`, which is also the list of colour tokens (`ThemeColors`).
+`buildThemeColors(mode)` derives the translucent and tinted tokens from those base values.
+`withAlpha(hex, a)` makes a translucent rgba; `blendOver(hex, a, base)` makes the opaque equivalent
+over a known background, for fills that tile edge to edge (translucent neighbours seam where their
+edges round to different pixels).
 
-**Screens must use `useTheme().colors`** — no hardcoded hex or rgba in components.
-
-Base roles: `background`, `surface`, `surfaceElevated`, `border`, `text`, `textSecondary`,
-`textMuted`, `primary`, `primaryDim`, `primaryOn`, `accent`, `accentDim`, `danger`, `warning`,
-`success`, `successOn`, `muscleHighlight`, `muscleRecovering`, `recoveryHot`, `recoveryWarm`,
-`recoveryReady`, `bodyDiagramBorder`, `bodyDiagramFill`.
-
-Derived: `primarySurface`, `primaryBorder`, `successSurface`, `tableHeader`, `rowWarmUp`,
-`rowFuture`, `inputBorder`, `overlay`.
+**Screens must use `useTheme().colors`** — no hardcoded hex or rgba in `app/` or
+`src/components/` (enforced by `src/theme/noHardcodedColors.test.ts`).
 
 ## Export
 
@@ -491,9 +461,11 @@ Profile → Account → Data → **Export my data**. Writes pretty-printed JSON 
 `muscleos-export-YYYY-MM-DD.json` and opens the share sheet (`expo-sharing`,
 `application/json`).
 
+The file is dated by the device's **local** calendar day (`exportFilename()`).
+
 **Included:** `version: 1`, `exportedAt`, account profile (if linked), templates,
-template folders, the stored finished-session list, recovery, exercise notes, custom exercises,
-and health.
+template folders, the stored finished-session list, recovery, exercise notes, and custom
+exercises.
 
 **Not included:** app settings (units, theme, sounds), biodata (`UserAppProfile`), hidden built-in
 ids, the exercise-previous map, the active in-progress workout, and the catalog cache.
@@ -523,8 +495,8 @@ made by Export, then:
    picker shows nothing; “Imported — Added …” confirms success, and a read or write failure says
    “Import failed”.
 
-Not imported: profile, recovery (recomputed), health, settings and biodata (not exported), and the
-`subscription` field older exports carry. Imported custom templates are ready to run.
+Not imported: profile, recovery (recomputed), settings and biodata (not exported), and the
+`subscription` and `health` fields older exports carry. Imported custom templates are ready to run.
 
 ## Build and release
 
@@ -534,20 +506,8 @@ App name MuscleOS, version 1.0.0, portrait only, scheme `muscleos`. iOS bundle i
 [mobile/eas-build.md](../mobile/eas-build.md). The Android Kotlin namespace stays `com.muscleos.app`;
 only the application id changed.
 
-| EAS profile | Purpose |
-|-------------|---------|
-| `development` | Dev client, internal distribution |
-| `preview` | Internal APK / ad-hoc IPA, standalone (no Metro) |
-| `production` | Store builds, `autoIncrement: true` |
-
-Base image: Node 20.18.0, pnpm 9.14.2, Expo SDK 54.
-
-| Env var | Needed for |
-|---------|-----------|
-| `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | **Required** — accounts and sync |
-| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google sign-in |
-
-Injected via `app.config.js` into `Constants.expoConfig.extra`.
+Base image: Node 20.18.0, pnpm 9.14.2, Expo SDK 54. EAS profiles and building:
+[mobile/eas-build.md](../mobile/eas-build.md); env vars: [Required env vars](#required-env-vars).
 
 ## Assumptions
 
@@ -559,7 +519,7 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 | Delete account wipes this device | Stronger than sign-out; you continue as a guest |
 | Local wins on sync conflict when dirty | The device you're holding is the one you just used |
 | Recovery is never synced | Derived from sessions; recomputed after merge |
-| kg and cm canonical in storage | Units are a display concern only |
+| kg canonical in storage | Units are a display concern only |
 | No storage schema version | Migrations are opportunistic on read |
 | Export is portability, not backup | Omits settings and biodata; Import only adds rows |
 | Clear all data is device-only | Nothing is pushed; the account's cloud copy is untouched |
@@ -570,7 +530,7 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 
 - SecureStore-backed auth (uses AsyncStorage)
 - Email account **linking** (uses sign-up/sign-in, unlike Apple/Google)
-- HealthKit / Google Fit, and any UI for `healthStore`
+- HealthKit / Google Fit
 - Haptics setting
 - A rest-timer default in Settings
 
@@ -579,13 +539,9 @@ Injected via `app.config.js` into `Constants.expoConfig.extra`.
 Covered:
 
 - `src/utils/weightUnits.test.ts` — kg/lb and cm/in conversion and formatting round-trips
-- `src/storage/localStorage.activeWorkout.test.ts` — the `muscleos_active_workout` persist/resume
-  round-trip through an in-memory AsyncStorage harness (`src/test/mocks/`, aliased in
-  `vitest.config.mts`), including null-clear and the corrupt / missing-`exercises` guards. This is
-  the first storage-layer test; the harness is reusable for other keys.
-- `src/storage/localStorage.profile.test.ts` — `normalizeProfile()` keeps the four biodata fields
-  and drops `notNatty`, unknown keys, and malformed values, for both a stored profile and a synced
-  `app_settings` payload
+- `src/storage/localStorage.profile.test.ts` — `normalizeProfile()` keeps weight, age and sex and
+  drops the removed `heightCm` / `notNatty`, unknown keys, and malformed values, for both a stored
+  profile and a synced `app_settings` payload
 - `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
   sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest starts.
 - `src/auth/authErrors.test.ts` — known Supabase errors map to plain copy; unknown backend or provider
@@ -624,23 +580,27 @@ Covered:
   dev-only deploy hint), Google client id lookup order
 - `src/storage/localStorage.settings.test.ts` — settings defaults, unit fallbacks and
   independence, persistence round-trip, theme listeners; migrations (legacy units, write-back,
-  `normalizeAppSettings`, template `days[]` and `defaultSets`); legacy subscription keys removed;
+  `normalizeAppSettings`, template `days[]` and `defaultSets`); legacy keys removed on launch;
   `clearAllData` removed vs kept keys; export payload contents and omissions (never `subscription`)
+- `src/storage/exportData.test.ts` — the export filename uses the local date
 - `src/storage/importCopy.test.ts`, `importData.test.ts` — import dialog copy,
   `importOutboxEntries`, and `applyImport` writes, previous/recovery rebuild, and outbox (guest vs
   linked)
 - `src/store/settingsStore.test.ts` — load (defaults written back, lb/in → imperial), setters
   persist and notify sync, a theme change racing unit/sounds changes keeps all of them
-- `src/store/healthStore.test.ts` — BMR, TDEE multipliers, macros and floors, local persistence
-- `src/utils/biodata.test.ts` — editor validation and unit conversion, gender can't be cleared,
+- `src/utils/biodata.test.ts` — editor validation (weight > 0, age 1–149) and lb→kg conversion,
+  gender can't be cleared,
   Profile hint summary
+- `src/theme/palette.test.ts` — semantic tokens and `blendOver` in both modes;
+  `src/theme/noHardcodedColors.test.ts` — no colour literals in screens or components;
+  `src/theme/tabBarLayout.test.ts` — tab bar sizing
 - Screen tests (Jest, `src/test/ui/accounts/`): `profile.test.tsx` (Account card guest/linked,
   rows, biodata hint), `account.test.tsx` (guest vs linked rows, Change password only with an
   email identity, Hide My Email notice, legal links, sync row incl. failure, Sign out confirm,
   Delete account two confirms and friendly failure), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
-  pushes nothing), `biodataSettings.test.tsx` (Biodata validation, units, save; Settings units,
-  sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
+  pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
+  validation, lb, save; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:

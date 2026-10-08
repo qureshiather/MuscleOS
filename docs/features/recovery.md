@@ -246,7 +246,7 @@ colour, and the rest of the body in the neutral untrained fill.
 | An exercise counts if **any** set is completed | Warm-ups alone are enough to trigger recovery |
 | All muscles in `Exercise.muscles[]` weighted equally | No primary/secondary split; the data to support one was flattened at build time |
 | Fixed 36/48/72-hour buckets | Not personalized, not adaptive |
-| Ignores sleep, nutrition, age, sex, training age | `sex` affects only the diagram figure; `age` is collected but unused here |
+| Ignores sleep, nutrition, age, sex, training age | `sex` affects only the diagram figure; `age` only adjusts strength standards |
 | Day-grain readiness copy | Deliberate — see [Readiness copy](#readiness-copy) |
 | Delts and lats/rhomboids collapse on the diagram | A limitation of the diagram library's regions |
 
@@ -289,6 +289,5 @@ Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/test/ui/recovery/recovery
 
 Not covered:
 
-- The finish flow in `active-workout.tsx` end to end (the "Good work" diagram's session mode and
-  `musclesTrainedInSession()` are covered directly)
-- The import and delete-account recompute call sites (`importData.ts`, `account.tsx`)
+- The delete-account recompute call site (`account.tsx`). Import's recompute is covered in
+  `src/storage/importData.test.ts`.
