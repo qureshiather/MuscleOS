@@ -29,7 +29,7 @@ async function load() {
   return { AsyncStorage, STORAGE_KEYS, sync, seed, useExercisesStore, useExerciseNotesStore };
 }
 
-const SEED_AT = '2026-10-08T00:00:00.000Z';
+const SEED_AT = '2026-10-09T00:00:00.000Z';
 
 function exercise(id: string, extra: Partial<Exercise> = {}): Exercise {
   return {
@@ -101,7 +101,7 @@ describe('load', () => {
       JSON.stringify([exercise('bench-press', { name: 'Server Name', instructions: 'Server copy' })])
     );
     await AsyncStorage.setItem(STORAGE_KEYS.catalogSeedAppliedAt, SEED_AT);
-    await AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, '2026-10-09T00:00:00.000Z');
+    await AsyncStorage.setItem(STORAGE_KEYS.catalogWatermark, '2026-10-10T00:00:00.000Z');
 
     await useExercisesStore.getState().load();
     expect(useExercisesStore.getState().catalogExercises.map((e) => e.name)).toEqual(['Server Name']);

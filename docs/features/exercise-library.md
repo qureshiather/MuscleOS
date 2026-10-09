@@ -115,8 +115,10 @@ supabase/migrations/<new>.sql (hand-written)   other server-side field changes
 
 `exercises.ts` is the source of truth for the catalog. It is edited by hand — nothing scrapes
 or imports it from a third party. Every row carries **original MuscleOS instruction copy**: a
-short, second-person cue sheet (setup → movement → key cue, 2–4 sentences, sentence case, no
-medical claims). Rows carry no media URLs and the app bundles no exercise images or video; exercises
+short, second-person cue sheet written as **steps, not prose** — 2–4 steps (setup → movement →
+key cue), one per line (`\n`-separated in the string), sentence case, no trailing period, no
+medical claims. The app and website render the steps as a numbered list (`instructionSteps()` in
+`@muscleos/types`). Rows carry no media URLs and the app bundles no exercise images or video; exercises
 link to their page on the website, which carries an animated demo where one exists
 ([exercise-demos.md](exercise-demos.md)).
 
@@ -194,7 +196,7 @@ A runbook for adding a row to the shared catalog. Paths are from the repo root.
      lift really loads, since every one of them shows up as recovering.
    - `equipment`: exactly one value, using the [classification conventions](#equipment-and-type-rules).
      The generator derives the Type from it.
-   - `instructions`: original copy, 2–4 sentences: setup → movement → key cue.
+   - `instructions`: original copy, 2–4 steps separated by `\n`: setup → movement → key cue.
 3. **Regenerate:** `node apps/mobile/scripts/generate-exercise-catalog.mjs`. Bump
    `SEED_UPDATED_AT` in the generator to today first so existing installs re-apply the seed. This
    rewrites `catalogSeed.ts` and the website's `exerciseCatalog.json`.
@@ -226,7 +228,7 @@ Anyone can create, edit and delete their own exercises.
 | Type (category) | ● | One of the 4 categories |
 | Muscles | ● | At least one; any of the 18 |
 | Equipment | ○ | May be empty |
-| Instructions | ○ | Free text |
+| Instructions | ○ | Free text; one step per line shows as a numbered list |
 
 Validation (`buildCustomExerciseDraft()`): the name is trimmed, and Save stays disabled until
 there is a name, a Type and at least one muscle. Blank instructions are saved as none, so editing
@@ -346,7 +348,8 @@ it as a custom ("Save it as your own exercise."); tapping it opens the create fo
 prefilled. With no query, the list reads "No exercises match these filters."
 
 **Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete and the history link): name, body diagram, a **See how it's done** row for catalog exercises (their [website page](exercise-demos.md#app-link)), muscle labels, type and equipment, a **View history** row, Edit/Delete
-for customs, instructions when present, and **Your notes** — a free-text field ("Seat height,
+for customs, instructions when present (a numbered list of steps; a single line or paragraph
+shows as plain text, and typed `1.`, `-` or `•` markers are dropped), and **Your notes** — a free-text field ("Seat height,
 lever settings…") keyed by exercise id and synced to your account. Content below the title scrolls when it exceeds the sheet max height.
 
 - **See how it's done** opens `https://muscleos.app/exercises/<id>` (an animated demo where one exists) in the in-app browser. It is shown in every context, mid-workout included, because the browser opens over the sheet.
@@ -422,7 +425,9 @@ Covered (Vitest):
   every catalog name matches it
 - `src/utils/exerciseIds.test.ts` — custom id numbering; retired customs resolve after live ones; alias resolution, unpublished rows still
   resolving, unknown ids; catalog invariants
-- `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels
+- `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels,
+  `instructionSteps` (one step per line, blank lines and typed list markers dropped, a paragraph
+  stays one step)
 - `src/data/builtInTemplates.test.ts` — every built-in template exercise id exists in the catalog
 
 Covered (Jest UI, `src/test/ui/exercises/`):
@@ -431,7 +436,7 @@ Covered (Jest UI, `src/test/ui/exercises/`):
   (plural/singular), search, Type and Muscle chips (AND with the query, tapping an active chip
   clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" opening the
   prefilled form, + button, detail sheet content, notes (save on Close / end-editing / backdrop /
-  Save, Saved state, trim, delete on empty), View history shown only with logged sets and opening
+  Save, Saved state, trim, delete on empty), instructions as a numbered list, View history shown only with logged sets and opening
   progression, Edit opening the prefilled form, Delete with confirm and cancel, list
   updates after a delete
 - `createExercise.test.tsx` — validation, save → `custom_<n>` and

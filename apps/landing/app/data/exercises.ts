@@ -11,7 +11,7 @@ import demoIds from './exerciseDemos.json';
  */
 export type CatalogExercise = Pick<Exercise, 'id' | 'name' | 'muscles' | 'equipment' | 'category' | 'instructions'>;
 
-export { categoryLabel, equipmentLine, filterExercises, muscleLine, typeLine } from './exerciseText';
+export { categoryLabel, equipmentLine, filterExercises, instructionsSummary, muscleLine, typeLine } from './exerciseText';
 
 export const EXERCISES = (catalog as CatalogExercise[]).slice().sort((a, b) => a.name.localeCompare(b.name));
 

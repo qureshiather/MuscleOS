@@ -171,7 +171,11 @@ describe('detail sheet', () => {
   it('shows muscles, type, instructions and notes; no Edit/Delete for catalog rows', async () => {
     renderExercises();
     fireEvent.press(await screen.findByText('Bench Press'));
-    expect(await screen.findByText('Lower the bar to your chest and press.')).toBeTruthy();
+    // Instructions render as a numbered list, one step per line of copy.
+    expect(await screen.findByText('Lower the bar to your chest')).toBeTruthy();
+    expect(screen.getByText('Press it back up')).toBeTruthy();
+    expect(screen.getByText('1.')).toBeTruthy();
+    expect(screen.getByText('2.')).toBeTruthy();
     expect(screen.getByText('Chest, Triceps')).toBeTruthy();
     // Bench Press and Back Squat rows, plus the sheet.
     expect(screen.getAllByText('Free Weight · Barbell').length).toBe(3);

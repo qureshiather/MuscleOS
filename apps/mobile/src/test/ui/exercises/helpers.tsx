@@ -21,7 +21,7 @@ export function exercise(id: string, name: string, extra: Partial<Exercise> = {}
 export const CATALOG: Exercise[] = [
   exercise('bench-press', 'Bench Press', {
     muscles: ['chest', 'triceps'],
-    instructions: 'Lower the bar to your chest and press.',
+    instructions: 'Lower the bar to your chest\nPress it back up',
   }),
   exercise('back-squat', 'Back Squat', { muscles: ['quads', 'glutes'] }),
   exercise('lat-pulldown', 'Lat Pulldown', {

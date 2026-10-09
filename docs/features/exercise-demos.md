@@ -27,7 +27,7 @@ catalog id, so app links and history ids line up). It shows:
 - a type line: library type and equipment (`Free Weight · Barbell`), or just the type when the
   two say the same thing (`Bodyweight`, `Machine`);
 - **Muscles worked**, the first (main) muscle emphasised;
-- **How to do it**: the catalog instruction copy;
+- **How to do it**: the catalog instruction copy as a numbered list of steps (the meta description joins them into one line);
 - a "Log it in MuscleOS" panel with the store buttons;
 - the reuse licence and light/dark MP4 download links (demo pages only);
 - **Also works your <main muscle>**: up to six other exercises sharing the main muscle
@@ -193,7 +193,8 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 ## Tests
 
 - `apps/landing/app/data/exercises.test.ts`: catalog order and uniqueness, demo ids are published
-  rows, per-theme sources, paths, muscle labels, search, related exercises, type line.
+  rows, per-theme sources, paths, muscle labels, search, related exercises, type line, at least
+  two instruction steps per row, and the one-line instructions summary for the meta description.
 - `apps/mobile/src/utils/exerciseDemo.test.ts`: a page link for every published catalog
   exercise, none for customs or unpublished rows.
 - `apps/mobile/src/test/ui/exercises/exercisesTab.test.tsx`: the detail sheet row opens the

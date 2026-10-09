@@ -24,7 +24,7 @@ const TS_OUT = join(__dirname, '../src/data/catalogSeed.ts');
 // The landing site's exercise pages (muscleos.app/exercises) read the published rows from here.
 const LANDING_OUT = join(ROOT, 'apps/landing/app/data/exerciseCatalog.json');
 
-const SEED_UPDATED_AT = '2026-10-08T00:00:00.000Z';
+const SEED_UPDATED_AT = '2026-10-09T00:00:00.000Z';
 
 const instructionsArg = process.argv.find((a) => a.startsWith('--instructions-migration='));
 const INSTRUCTIONS_MIGRATION = instructionsArg ? instructionsArg.split('=')[1] : null;

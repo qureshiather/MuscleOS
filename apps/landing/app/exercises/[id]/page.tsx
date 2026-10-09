@@ -1,4 +1,4 @@
-import { muscleLabel } from '@muscleos/types';
+import { instructionSteps, muscleLabel } from '@muscleos/types';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -13,6 +13,7 @@ import {
   EXERCISES,
   exercisePath,
   getExercise,
+  instructionsSummary,
   muscleLine,
   relatedExercises,
   typeLine,
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   if (!exercise) return {};
   return {
     title: `${exercise.name} — How to do it | MuscleOS`,
-    description: exercise.instructions ?? `${exercise.name}: works ${muscleLine(exercise)}.`,
+    description: instructionsSummary(exercise) ?? `${exercise.name}: works ${muscleLine(exercise)}.`,
   };
 }
 
@@ -41,6 +42,7 @@ export default async function ExercisePage({ params }: { params: Promise<Params>
   if (!exercise) notFound();
   const sources = demoSources(exercise.id);
   const related = relatedExercises(exercise.id);
+  const steps = instructionSteps(exercise.instructions);
 
   return (
     <>
@@ -106,12 +108,14 @@ export default async function ExercisePage({ params }: { params: Promise<Params>
                 ))}
               </ul>
 
-              {exercise.instructions ? (
+              {steps.length > 0 ? (
                 <>
                   <h2 className="mt-8 font-display text-lg font-semibold text-ink">How to do it</h2>
-                  <p className="mt-3 max-w-prose text-[17px] leading-relaxed text-ink-secondary">
-                    {exercise.instructions}
-                  </p>
+                  <ol className="mt-3 max-w-prose list-decimal space-y-2 pl-6 text-[17px] leading-relaxed text-ink-secondary marker:text-ink-secondary">
+                    {steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
                 </>
               ) : null}
 
