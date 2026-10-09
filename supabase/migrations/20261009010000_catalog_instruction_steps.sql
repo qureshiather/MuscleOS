@@ -141,9 +141,10 @@ Lower the bar until it touches the board, pause briefly, and press back up to lo
   ('bodyweight-curl', 'Hold a low bar, rings or suspension straps with palms up and lean back with straight arms and a rigid body
 Curl your hands toward your forehead to pull your body up, keeping your elbows pointed forward
 Lower yourself slowly'),
-  ('bodyweight-leg-curl', 'Kneel or lie with your heels anchored and your body straight from knees to shoulders
-Lower your torso forward slowly using your hamstrings, then pull yourself back up, using your hands to assist if needed
-Keep your hips extended throughout'),
+  ('bodyweight-leg-curl', 'Lie on your back with your heels on sliders, or on a towel on a smooth floor
+Lift your hips so your body is straight from knees to shoulders
+Pull your heels in toward your glutes, keeping your hips up
+Slide your feet back out slowly'),
   ('body-weight-lunge', 'Stand tall with hands on your hips
 Step forward and bend both knees until the back one hovers just above the floor
 Push off the front foot to return and switch legs'),

@@ -103,7 +103,8 @@ def press_spec(id_, kind='flat', implement='bar', grip=0.4, tuck=0.9, depth=0.0,
             place(st['bar'], bar)
             bar_grip(ctx, bar, grip, underhand=underhand)
             if 'board' in st:
-                place(st['board'], ctx.attach_point('chest', (0, -0.18, 1.3)), ctx.bone_delta('chest') @ qx(90))
+                # Boards lie flat on the chest, long side along the torso; the bar touches the top.
+                place(st['board'], ctx.attach_point('chest', (0, -0.18, 1.3)), ctx.bone_delta('chest'))
             if 'bands' in st:
                 for s, band in zip(SIDES, st['bands']):
                     set_line(band, bar + Vector((sgn(s) * 0.58, 0, 0)), Vector((sgn(s) * 0.58, 0.42, 2.05)))
@@ -217,7 +218,7 @@ def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=Fa
             d = math.sin(math.pi * min(u / 0.3, 1.0)) * (u < 0.3)
             ctx.arm.location.z -= 0.08 * d
             t = smootherstep(max((u - 0.15) / 0.85, 0.0))
-        ctx.head(flex=-14 * math.sin(math.pi * min(t / 0.7, 1.0)) if start == 'front' else 0)
+        ctx.head(flex=-14 * math.sin(math.pi * min(t / 0.7, 1.0)) if start == 'front' else 10 * (1 - t))
         ctx.spine(flex=-4 + (4 if seat else 0))
         sh = shoulders(ctx)
         top_z = sh.z + lockout_z(ctx, grip)
@@ -244,8 +245,8 @@ def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=Fa
             bar_grip(ctx, bar, grip)
             if start == 'front':
                 elbows(ctx, (lerp(0.35, 0.45, t), lerp(-1.0, -0.6, t), lerp(-0.6, -0.15, t)))
-            else:
-                elbows(ctx, (1, 0.1, -0.4))
+            else:  # bar on the traps: forearms vertical, elbows under the hands and slightly back
+                elbows(ctx, (lerp(0.5, 0.9, t), 0.25, -1))
         elif machine:
             for s, lever in zip(SIDES, st['arms']):
                 lo = Vector((sgn(s) * 0.3, sh.y - 0.02, sh.z + 0.06))
@@ -260,9 +261,11 @@ def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=Fa
                 lo = Vector((sgn(s) * (0.14 if arnold else 0.3), sh.y - (0.1 if arnold else 0.02), sh.z + 0.07))
                 hi = Vector((sgn(s) * 0.2, sh.y, sh.z + lockout_z(ctx, 0.2)))
                 p = lerp_path(lo, hi, t)
-                if arnold:  # palms turn from facing you to facing forward on the way up
-                    a = math.pi * t
-                    thumb = Vector((sgn(s) * math.cos(a), -math.sin(a), 0)) * -1
+                if arnold:
+                    # Palms face you at the bottom (thumbs out), turn through neutral (thumbs back)
+                    # and face forward at lockout (thumbs in).
+                    a = math.pi * smootherstep(min(t / 0.8, 1.0))
+                    thumb = Vector((sgn(s) * math.cos(a), math.sin(a), 0))
                 else:
                     thumb = Vector((-sgn(s), 0, 0))
                 if implement == 'kettlebell':
@@ -272,14 +275,17 @@ def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=Fa
                     hold_dumbbell(ctx, w, s, p, thumb)
             if one_arm:
                 ctx.arm_fk('L', abd=8)
-            elbows(ctx, (1, -0.1 if not arnold else lerp(-1, -0.1, t), -0.4))
+            if arnold:  # elbows start in front of the chest and sweep out to the sides
+                elbows(ctx, (lerp(0.15, 1, t), lerp(-1, -0.1, t), lerp(-0.7, -0.4, t)))
+            else:
+                elbows(ctx, (1, -0.1, -0.4))
 
     spec(id_, camera=camera, setup=setup, concentric='out')(pose)
 
 
 ohp_spec('push-press', dip=True)
 ohp_spec('military-press', heels=True)
-ohp_spec('behind-the-neck-press', start='back')
+ohp_spec('behind-the-neck-press', start='back', grip=0.37)
 ohp_spec('snatch-grip-behind-the-neck-press', start='back', grip=0.42)
 ohp_spec('seated-barbell-overhead-press', seat='bench')
 ohp_spec('z-press', seat='floor', camera=cam((0, -0.2, 0.75), 45, 10, 3.9))

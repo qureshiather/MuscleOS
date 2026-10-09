@@ -251,7 +251,7 @@ crunch_spec('cable-crunch', cable=True)
 crunch_spec('machine-crunch', machine=True)
 
 
-@spec('bicycle-crunch', camera=cam((0, 0.2, 0.3), 75, 14, 3.4), setup=nothing,
+@spec('bicycle-crunch', camera=cam((0, -0.1, 0.12), 70, 16, 3.7), setup=nothing,
       timing=dict(hold_start=0.0, out=0.5, hold_end=0.0))
 def bicycle_crunch(ctx, st, u):
     # Shoulders up, legs off the floor; elbow to the opposite knee, left then right.
