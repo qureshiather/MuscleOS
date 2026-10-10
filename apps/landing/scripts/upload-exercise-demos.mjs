@@ -10,12 +10,14 @@
  * Usage:
  *   node scripts/upload-exercise-demos.mjs            # every clip in .exercise-demos/
  *   node scripts/upload-exercise-demos.mjs squat ...  # just these exercises
+ *   ... --allow-writes=N  # required for batches over 200 files (see blob-write-guard.mjs)
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { put } from '@vercel/blob';
 import { config } from 'dotenv';
+import { allowedWrites, writeGuardError } from './blob-write-guard.mjs';
 
 const LANDING = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const LOCAL_DIR = join(LANDING, '.exercise-demos');
@@ -24,7 +26,7 @@ const JOBS = 8;
 
 const CONTENT_TYPES = { '.mp4': 'video/mp4', '.webp': 'image/webp', '.txt': 'text/plain; charset=utf-8' };
 
-export async function uploadDemos(ids = []) {
+export async function uploadDemos(ids = [], argv = process.argv) {
   config({ path: join(LANDING, '.env.local'), quiet: true });
   const storeId = process.env.VERCEL_PUBLIC_EXERCISE_DEMO_BLOB_STORE_ID;
   const files = readdirSync(LOCAL_DIR).filter((f) => {
@@ -32,6 +34,8 @@ export async function uploadDemos(ids = []) {
     if (!ids.length) return true;
     return f === 'LICENSE.txt' || ids.some((id) => f.startsWith(`${id}-dark.`) || f.startsWith(`${id}-light.`));
   });
+  const refused = writeGuardError(files.length, allowedWrites(argv));
+  if (refused) throw new Error(refused);
   let next = 0;
   let base;
   async function worker() {
@@ -56,5 +60,5 @@ export async function uploadDemos(ids = []) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  await uploadDemos(process.argv.slice(2));
+  await uploadDemos(process.argv.slice(2).filter((a) => !a.startsWith('--')));
 }

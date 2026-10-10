@@ -79,6 +79,9 @@ Uploading needs the store credentials locally: `npx vercel env pull` in `apps/la
 `VERCEL_PUBLIC_EXERCISE_DEMO_BLOB_STORE_ID` and `VERCEL_OIDC_TOKEN` to `.env.local` (the store connection
 must include the Development environment). The free Hobby tier allows 2,000 writes a month; a full
 re-upload is about 1,600 (792 clips + posters), so upload only the exercises you re-rendered.
+**Going over any Hobby Blob limit blocks the whole store, reads included, for 30 days**: every demo
+on the site breaks. The upload script therefore refuses a batch of more than 200 files unless it is
+run with `--allow-writes=<count>` (`scripts/blob-write-guard.mjs`).
 
 ## Rendering pipeline
 
@@ -152,7 +155,7 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 
 - **Tools:** Blender 5.x (`blender` on `PATH`, or set `BLENDER=`) and ffmpeg. Rendering is local; nothing renders in CI or on Vercel.
 - **Upload credentials:** `npx vercel env pull` (linked to `conveybridge/muscle-os-landing`). The OIDC token it writes lasts about 12 hours. If an upload fails with an auth or `OIDC ... not for the "development" environment` error, pull again.
-- **Write budget:** the Blob store's free tier allows 2,000 writes a month. One exercise costs 4 (two clips, two posters) and a full re-upload about 1,600, so do at most one full re-upload a month. Prefer re-rendering only what changed.
+- **Write budget:** the Blob store's free tier allows 2,000 writes a month, counted across every upload that month (earlier PRs included). One exercise costs 4 (two clips, two posters) and a full re-upload about 1,600, so do at most one full re-upload a month. Prefer re-rendering only what changed. Before any batch over 200 files, check the month's usage in the Vercel dashboard (Observability → Blob), then pass `--allow-writes=<count>`; the build stops before uploading otherwise, and the rendered clips stay in `.exercise-demos/` for `upload-exercise-demos.mjs`.
 
 ### Fix or tweak one exercise
 
@@ -199,6 +202,8 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 - `apps/landing/app/data/exercises.test.ts`: catalog order and uniqueness, demo ids are published
   rows, per-theme sources, paths, muscle labels, search, related exercises, type line, at least
   two instruction steps per row, and the one-line instructions summary for the meta description.
+- `apps/landing/scripts/blob-write-guard.test.mjs`: batches over 200 files need `--allow-writes`
+  covering them; flag parsing.
 - `apps/mobile/src/utils/exerciseDemo.test.ts`: a page link for every published catalog
   exercise, none for customs or unpublished rows.
 - `apps/mobile/src/test/ui/exercises/exercisesTab.test.tsx`: the detail sheet row opens the
