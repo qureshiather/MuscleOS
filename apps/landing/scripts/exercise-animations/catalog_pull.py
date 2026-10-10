@@ -326,8 +326,10 @@ def shrug_spec(id_, implement='bar', smith=False):
     def pose(ctx, st, u):
         stand(ctx, width=0.03)
         t = smootherstep(u)
+        # A real shrug lifts the shoulders about 5 cm; much more and the deltoids peak unnaturally.
         for s in SIDES:
-            ctx.shoulder_girdle(s, shrug=38 * t)
+            ctx.shoulder_girdle(s, shrug=20 * t)
+        ctx.head(flex=-4 * t)
         if implement == 'bar':
             sh = shoulders(ctx)
             z = sh.z - M.grip_reach() * 0.985

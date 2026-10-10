@@ -11,6 +11,7 @@ import {
   filterExercises,
   getExercise,
   hasDemo,
+  instructionsSummary,
   muscleLine,
   relatedExercises,
   typeLine,
@@ -96,5 +97,16 @@ describe('featured demos', () => {
 describe('demo storage', () => {
   it('serves clips from the public Vercel Blob store over https', () => {
     expect(DEMO_BASE_URL).toMatch(/^https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/exercise-demos$/);
+  });
+});
+
+describe('instructions', () => {
+  it('gives every published row at least two steps', () => {
+    expect(EXERCISES.filter((e) => (e.instructions ?? '').split('\n').length < 2).map((e) => e.id)).toEqual([]);
+  });
+
+  it('joins steps into one line for the meta description', () => {
+    expect(instructionsSummary({ instructions: 'Brace\nPress up\nLower slowly.' })).toBe('Brace. Press up. Lower slowly.');
+    expect(instructionsSummary({ instructions: undefined })).toBeUndefined();
   });
 });

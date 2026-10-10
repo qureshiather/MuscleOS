@@ -15,7 +15,7 @@ mobile app bundles no media and no list of which exercises have a demo.
 ## Website
 
 **`/exercises`** shows **Staple lifts** first (a grid of demos for a fixed set of core lifts,
-`FEATURED_DEMOS`, with the count of animated exercises), then **All exercises**: every
+`FEATURED_DEMOS`), then **All exercises**: every
 published catalog row A–Z with a search box. Search is case-insensitive and every word must match
 the name, muscle labels or equipment labels (`filterExercises`).
 
@@ -27,7 +27,7 @@ catalog id, so app links and history ids line up). It shows:
 - a type line: library type and equipment (`Free Weight · Barbell`), or just the type when the
   two say the same thing (`Bodyweight`, `Machine`);
 - **Muscles worked**, the first (main) muscle emphasised;
-- **How to do it**: the catalog instruction copy;
+- **How to do it**: the catalog instruction copy as a numbered list of steps (the meta description joins them into one line);
 - a "Log it in MuscleOS" panel with the store buttons;
 - the reuse licence and light/dark MP4 download links (demo pages only);
 - **Also works your <main muscle>**: up to six other exercises sharing the main muscle
@@ -181,6 +181,10 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 - Limbs are either IK (`ctx.target`, `ctx.grip`, then `ctx.pole_dir`/`elbows`/`knees_out` to aim the elbow or knee) or FK (`ctx.arm_fk`, `ctx.leg_fk`). A later FK call overrides an earlier target on the same limb.
 - FK arm angles are **relative to the torso**. When the body hinges, an arm that should hang toward the floor needs `flex ≈ hinge` (the kettlebell-swing bug: arms swinging through the thighs).
 - Hands hold things through `ctx.grip(side, point, thumb_direction)` so the fist closes around the handle. Don't place props beside a hand.
+- Feet: `qx(-a)` on a foot target tilts the toes up (heels down, e.g. legs out straight); `qx(+a)` lifts the heel. A raised heel pivots about the ball of the foot (`on_toes()` in `catalog_power.py`), not the ankle, or the toes sink into the floor.
+- Put the body on the equipment: feet on a platform need the platform height as `floor`, a lie on an incline needs the bench angle `lie()` reclines to, and pads go where the body touches them (a back-extension pad sits below the hip crease so the torso folds over it).
+- Bars held in the hands hang from straight arms while pulling or lowering (Olympic lifts, deadlifts); interpolating the bar between fixed heights leaves it floating below the hands. Loop-time moves must end in their start pose.
+- Lunges use a full stride (`STRIDE`, ~85 cm): front shin about vertical, back knee under the hip. A shorter stance forces the back knee through the floor.
 - Get the facts from a form reference (bar path, joint angles, setup), not memory. Every bad demo so far was a plausible-looking guess.
 
 ### Reviewing
@@ -193,7 +197,8 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 ## Tests
 
 - `apps/landing/app/data/exercises.test.ts`: catalog order and uniqueness, demo ids are published
-  rows, per-theme sources, paths, muscle labels, search, related exercises, type line.
+  rows, per-theme sources, paths, muscle labels, search, related exercises, type line, at least
+  two instruction steps per row, and the one-line instructions summary for the meta description.
 - `apps/mobile/src/utils/exerciseDemo.test.ts`: a page link for every published catalog
   exercise, none for customs or unpublished rows.
 - `apps/mobile/src/test/ui/exercises/exercisesTab.test.tsx`: the detail sheet row opens the

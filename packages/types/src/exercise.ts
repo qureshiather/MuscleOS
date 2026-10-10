@@ -63,3 +63,16 @@ export function formatEquipmentLabels(
 ): string {
   return ids.map(equipmentLabel).join(separator);
 }
+
+/**
+ * Instruction copy split into steps for a numbered list. Catalog copy stores one step per line;
+ * a custom exercise's free text may already be typed as a list, so leading `1.`, `-` or `•`
+ * markers and blank lines are dropped. A single paragraph comes back as one step.
+ */
+export function instructionSteps(instructions: string | null | undefined): string[] {
+  if (!instructions) return [];
+  return instructions
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^(?:\d+[.)]|[-•*])\s+/, '').trim())
+    .filter(Boolean);
+}

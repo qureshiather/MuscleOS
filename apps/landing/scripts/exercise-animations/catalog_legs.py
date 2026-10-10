@@ -126,6 +126,11 @@ def _back(ctx, st, u, lean):
     back_rack(ctx, st['bar'])
 
 
+def _back_wide(ctx, st, u, lean):
+    # Low-bar style: hands well outside the shoulders, so the forearms clear the head.
+    back_rack(ctx, st['bar'], grip=0.36)
+
+
 def _front(ctx, st, u, lean):
     front_rack(ctx, st['bar'])
 
@@ -204,7 +209,7 @@ def _belt(ctx, st, u, lean):
         ctx.grip(s, (sgn(s) * 0.32, -0.45, 1.0), (0, -1, 0))
     elbows(ctx, (0.3, 1, -0.5))
     hips = ctx.attach_point('pelvis', (0, -0.02, 0.9))
-    set_line(st['strap'], (0, -0.02, 0.06), hips)
+    set_line(st['strap'], (0, -0.02, 0.0), hips)
 
 
 def _smith_back(ctx, st, u, lean):
@@ -251,9 +256,13 @@ def _safety_setup(ctx):
     return st
 
 
+BELT_DECK = 0.06
+
+
 def _belt_setup(ctx):
-    ctx.eq.plyo_box((0.42, 0), height=0.06, size=(0.3, 0.5), name='platformL')
-    ctx.eq.plyo_box((-0.42, 0), height=0.06, size=(0.3, 0.5), name='platformR')
+    # Feet stand on these (squat_spec floor=BELT_DECK), either side of the hanging weight.
+    ctx.eq.plyo_box((0.3, 0), height=BELT_DECK, size=(0.3, 0.5), name='platformL')
+    ctx.eq.plyo_box((-0.3, 0), height=BELT_DECK, size=(0.3, 0.5), name='platformR')
     ctx.eq.group('belt_rails', [
         ctx.eq.frame('railL', (0.05, 0.05, 1.0), (0.32, -0.45, 0.5)),
         ctx.eq.frame('railR', (0.05, 0.05, 1.0), (-0.32, -0.45, 0.5)),
@@ -294,7 +303,7 @@ def _machine_hold(ctx, st, u, lean):
 
 
 squat_spec('front-squat', barbell, _front, lean=14, back=0.1)
-squat_spec('box-squat', _with(barbell, _box_seat), _back, depth=0.4, back=0.24, lean=34, width=0.12)
+squat_spec('box-squat', _with(barbell, _box_seat), _back_wide, depth=0.4, back=0.24, lean=34, width=0.12)
 squat_spec('pause-squat', barbell, _back, timing=dict(hold_start=0.08, out=0.3, hold_end=0.24))
 squat_spec('pin-squat', _with(barbell, lambda ctx: ctx.eq.rack_pins(1.0, y=0.12) or {}), _back,
            timing=dict(hold_start=0.08, out=0.3, hold_end=0.2))
@@ -317,7 +326,7 @@ squat_spec('jump-squat', nothing, _bodyweight, lean=26, depth=0.4, pre=_jump_pre
            timing=dict(hold_start=0.04, out=0.4, hold_end=0.06))
 squat_spec('barbell-hack-squat', barbell, _hack_behind, lean=26, depth=0.4, back=0.14,
            camera=cam((0, 0, 0.75), 120, 10, 3.8))
-squat_spec('belt-squats', _belt_setup, _belt, lean=18, depth=0.42, width=0.32, toe_out=18,
+squat_spec('belt-squats', _belt_setup, _belt, lean=18, depth=0.42, width=0.2, toe_out=18, floor=BELT_DECK,
            camera=cam((0, -0.1, 0.8), 40, 12, 3.8))
 squat_spec('hack-squat', _hack_machine, _machine_hold, lean=-12, depth=0.42, back=0.22, width=0.06,
            camera=cam((0, 0.1, 0.9), 72, 10, 3.8))

@@ -372,11 +372,13 @@ class Equipment:
         ])
 
     def back_extension_bench(self, name='hyper', angle=45):
-        """45° hyperextension bench; hip pad top at about hip height, ankle pad behind."""
+        """45° hyperextension bench for a lifter whose hip joints sit at (0, -0.04, 0.95): the hip
+        pad's top edge is just below the hip crease (so the torso folds over it, not through it)
+        and the ankle roller sits on the back of the ankles."""
         a = math.radians(angle)
         self.group(name, [
-            self.pad(name + '_hip', (0.4, 0.12, 0.3), (0, -0.12, 0.92), (a, 0, 0)),
-            self.pad(name + '_ankle', (0.4, 0.09, 0.09), (0, 0.42, 0.38)),
+            self.pad(name + '_hip', (0.4, 0.12, 0.3), (0, 0.0, 0.7), (a, 0, 0)),
+            self.pad(name + '_ankle', (0.4, 0.09, 0.09), (0, 0.6, 0.44)),
             self.frame(name + '_rail', (0.08, 0.08, 1.1), (0, 0.15, 0.55), (a, 0, 0)),
             self.frame(name + '_foot', (0.4, 0.3, 0.04), (0, 0.5, 0.22), (a, 0, 0)),
             self.frame(name + '_base', (0.5, 1.0, 0.03), (0, 0.1, 0.015)),

@@ -500,14 +500,16 @@ def wrist_spec(id_, implement='bar', extension=False, behind=False):
         if not behind:
             ctx.eq.flat_bench((0, 0.2), length=0.5, height=0.45, yaw=90)
         if implement == 'bar':
-            return barbell(ctx, plates=1)
+            # Light work: small plates, which also clear the thighs and knees.
+            return barbell(ctx, plates=1, plate_radius=0.11, length=1.5)
         if implement == 'plate':
             return {'plate': ctx.eq.plate()}
         return dumbbells(ctx)
 
     def pose(ctx, st, u):
         t = smootherstep(u)
-        wrist = lerp(-40, 45, t) * (-1 if extension else 1)
+        # Full range: the bar sinks toward the fingers, then the wrist curls right up.
+        wrist = lerp(-55, 55, t) * (-1 if extension else 1)
         if behind:
             stand(ctx, width=0.04)
             for s in SIDES:
@@ -526,7 +528,9 @@ def wrist_spec(id_, implement='bar', extension=False, behind=False):
         else:
             carry_dumbbells(ctx, st['db'])
 
-    spec(id_, camera=cam((0, 0.0, 0.8 if not behind else 0.9), 60 if not behind else 200, 12, 3.4), setup=setup,
+    # Seated: close in on the hands, side-on, so the small wrist movement reads.
+    camera = cam((0, -0.12, 0.68), 68, 14, 2.9) if not behind else cam((0, 0.0, 0.9), 200, 12, 3.4)
+    spec(id_, camera=camera, setup=setup,
          concentric='out')(pose)
 
 

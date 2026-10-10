@@ -78,7 +78,7 @@ def _sagittal_hips(ankle, shin_lean, knee_bend, hinge):
 DL_BAR_Y = -0.065  # over mid-foot; shins and thighs brush it
 
 
-@spec('deadlift', camera=cam((0, 0, 0.75), 55, 10, 3.9), setup=barbell, concentric='out')
+@spec('deadlift', camera=cam((0, 0, 0.9), 55, 10, 4.1), setup=barbell, concentric='out')
 def deadlift(ctx, st, u):
     # Knees extend first (shins go vertical, clearing the bar's path), then the hips come
     # through to lockout. The hinge at the floor is solved so straight arms reach the bar.
@@ -434,11 +434,12 @@ def face_pull(ctx, st, u):
 @spec('barbell-curl', camera=cam((0, 0, 1.05), 50, 8, 3.8), setup=lambda ctx: barbell(ctx, plates=1),
       concentric='out')
 def barbell_curl(ctx, st, u):
-    # Strict curl: upper arms stay pinned at the sides; only the elbows bend.
+    # Strict curl: upper arms stay by the sides; only the elbows bend. At the bottom the arms
+    # angle slightly forward so the bar hangs in front of the thighs, not through them.
     stand(ctx)
     t = smootherstep(u)
     for s in SIDES:
-        ctx.arm_fk(s, flex=lerp(0, 6, t), abd=3, elbow=lerp(2, 140, t), twist=90)  # palms forward
+        ctx.arm_fk(s, flex=lerp(14, 6, t), abd=3, elbow=lerp(4, 140, t), twist=90)  # palms forward
     bar = fk_hand_midpoint(ctx)
     place(st['bar'], bar)
 

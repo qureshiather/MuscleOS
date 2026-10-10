@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { formatMuscleLabels } from '@muscleos/types';
+import { formatMuscleLabels, instructionSteps } from '@muscleos/types';
 import type { Exercise } from '@muscleos/types';
 import { useTheme } from '@/theme/ThemeContext';
 import { SheetFrame } from '@/components/layout';
@@ -91,6 +91,8 @@ export function ExerciseDetailSheet({
   useEffect(() => {
     if (exerciseId) setNoteDraft(useExerciseNotesStore.getState().notes[exerciseId] ?? '');
   }, [exerciseId]);
+
+  const steps = instructionSteps(exercise?.instructions);
 
   const close = () => {
     if (exercise) void setNote(exercise.id, noteDraft);
@@ -225,10 +227,21 @@ export function ExerciseDetailSheet({
                     </Pressable>
                   </View>
                 ) : null}
-                {exercise.instructions ? (
+                {steps.length > 0 ? (
                   <>
                     <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Instructions</Text>
-                    <Text style={[styles.bodyText, { color: colors.text }]}>{exercise.instructions}</Text>
+                    {steps.length === 1 ? (
+                      <Text style={[styles.bodyText, { color: colors.text }]}>{steps[0]}</Text>
+                    ) : (
+                      steps.map((step, i) => (
+                        <View key={`${i}-${step}`} style={styles.stepRow}>
+                          <Text style={[styles.bodyText, styles.stepNumber, { color: colors.textSecondary }]}>
+                            {i + 1}.
+                          </Text>
+                          <Text style={[styles.bodyText, styles.stepText, { color: colors.text }]}>{step}</Text>
+                        </View>
+                      ))
+                    )}
                   </>
                 ) : null}
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Your notes</Text>
@@ -306,6 +319,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   bodyText: { ...typography.body },
+  stepRow: { flexDirection: 'row', marginBottom: spacing.xs },
+  stepNumber: { width: 24 },
+  stepText: { flex: 1 },
   noteHint: { ...typography.caption, marginBottom: spacing.sm },
   noteInput: {
     ...typography.body,

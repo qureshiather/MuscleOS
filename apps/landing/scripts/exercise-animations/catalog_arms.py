@@ -9,7 +9,7 @@ import mannequin as M
 from anim import lerp, sgn, smootherstep
 from catalog_press import lie, lockout_z
 from catalog_pull import inverted_row_spec, _with_bar_at, _row_bar
-from equipment import along, place, qz, set_line
+from equipment import along, place, qx, qz, set_line
 from moves import (
     SIDES,
     carry_dumbbells,
@@ -119,7 +119,7 @@ def seated_curl(id_, mode, implement='bar'):
         elif mode == 'incline':
             ctx.eq.incline_bench(45)
         elif mode == 'spider':
-            ctx.eq.incline_bench(40)
+            ctx.eq.incline_bench()  # the angle lie(ctx, 'incline') reclines to
         elif mode == 'machine':
             ctx.eq.preacher_bench()
             st['levers'] = [ctx.eq.line('lvL', radius=0.02), ctx.eq.line('lvR', radius=0.02)]
@@ -292,11 +292,19 @@ def overhead_ext_spec(id_, implement, setup, seated=False, incline=False, camera
             ctx.leg_fk('L', hip_flex=20, knee=15)
             ctx.spine(flex=28)
         else:
-            stand(ctx, width=0.04)
+            stand(ctx, width=0.06, toe_out=6)
+            for s in SIDES:
+                ctx.pole_dir('leg.' + s, (sgn(s) * 0.1, -1, 0))
+            ctx.arm.location.z -= 0.012  # soft knees
+            ctx.spine(flex=-3)  # ribs down, braced
         # Upper arms stay up by the head; the elbows straighten to press the weight overhead.
-        flex = 168 if implement != 'cable' else 150
+        # With the weight low behind the head the elbows drift forward and out a little, as they
+        # do in a real rep, rather than staying locked to the ears.
+        top = 170 if implement != 'cable' else 150
         for s in SIDES:
-            ctx.arm_fk(s, flex=flex, abd=-4, elbow=lerp(135, 6, t), twist=60 if implement != 'dumbbell' else 90)
+            ctx.arm_fk(s, flex=lerp(top - 18, top, t), abd=lerp(10, 0, t), elbow=lerp(130, 4, t),
+                       twist=60 if implement != 'dumbbell' else 90)
+        ctx.head(flex=lerp(6, 0, t))
         if implement == 'dumbbell':
             mid = fk_hand_midpoint(ctx)
             place(st['w'], mid + ctx.bone_delta('forearm.L') @ Vector((0, 0, 0.0)), ctx.bone_delta('forearm.L') @ along((0, 0, 1)))
@@ -424,8 +432,9 @@ def dip_spec(id_, kind='bars'):
         t = smootherstep(u)
         hand_z = 1.25
         x = 0.27 if kind != 'rings' else 0.23
-        # Locked out on straight arms, then lower until the upper arms are about parallel.
-        ctx.root((0, 0.05 * t, hand_z - 0.12 - 0.3 * t))
+        # Locked out on straight arms (shoulders a full arm above the hands), then lower until
+        # the upper arms are about parallel to the floor.
+        ctx.root((0, 0.04 * t, hand_z + 0.12 - 0.34 * t))
         ctx.spine(flex=10 + 12 * t)
         for s in SIDES:
             ctx.leg_fk(s, hip_flex=8, knee=70, ankle=-25)
@@ -456,7 +465,8 @@ def bench_dip(ctx, st, u):
     ctx.root((0, 0.22, 0.6 - 0.26 * t))
     ctx.spine(flex=6)
     for s in SIDES:
-        ctx.target('leg.' + s, (sgn(s) * 0.12, -0.7, 0.07), qz(0) @ ctx.body.rest_quat('foot.' + s))
+        # Heels on the floor with the toes up, the feet roughly square to the straight legs.
+        ctx.target('leg.' + s, (sgn(s) * 0.12, -0.7, 0.09), qx(-55) @ ctx.body.rest_quat('foot.' + s))
         ctx.pole_world('leg.' + s, (0, -0.3, 1))
         ctx.grip(s, (sgn(s) * 0.2, 0.42, 0.46), (0, -1, 0))
         ctx.pole_world('arm.' + s, (sgn(s) * 0.2, 1, 0))
@@ -486,8 +496,13 @@ def tricep_press(ctx, st, u):
     elbows(ctx, (0.15, 1, 0))
 
 
-@spec('triceps-bodyweight-extension', camera=cam((0, -0.3, 0.8), 70, 10, 4.0),
-      setup=lambda ctx: (ctx.eq.rack_pins(0.95, y=-0.75), {})[1])
+def _ext_bar(ctx):
+    ctx.eq.rack_pins(0.95, y=-0.75)
+    place(ctx.eq.straight_bar('ext_bar', 1.3), (0, -0.75, 0.95))  # resting across the pins
+    return {}
+
+
+@spec('triceps-bodyweight-extension', camera=cam((0, -0.3, 0.8), 70, 10, 4.0), setup=_ext_bar)
 def triceps_bodyweight_extension(ctx, st, u):
     # Leaning into a bar at hip height on straight arms; the elbows bend to drop the head under it.
     t = smootherstep(u)

@@ -436,9 +436,11 @@ def floor_curl_spec(id_, ball=False):
         ctx.pin_root(Vector((0, 0.0, M.joint('shoulder').z)), Vector((0, 0.55, 0.1)), (-90 - 18, 0, 0))
         ctx.head(flex=20)
         heel_y = lerp(-0.6, -0.25, t)
-        heel_z = 0.07 if not ball else 0.4
+        # Resting on the heels with the toes pointing up (qx(-) lifts the toes), so the feet stay
+        # on top of the floor or ball rather than pointing into it.
+        heel_z = 0.09 if not ball else 0.4
         for s in SIDES:
-            ctx.target('leg.' + s, (sgn(s) * 0.1, heel_y, heel_z), qx(30) @ ctx.body.rest_quat('foot.' + s))
+            ctx.target('leg.' + s, (sgn(s) * 0.1, heel_y, heel_z), qx(-35) @ ctx.body.rest_quat('foot.' + s))
             ctx.pole_world('leg.' + s, (0, -0.2, 1))
             ctx.arm_fk(s, abd=14, rot=-70)
         if ball:
@@ -626,7 +628,10 @@ def calf_spec(id_, load='none', seated=False, donkey=False, single=False, leg_pr
             for s in SIDES:
                 ctx.arm_fk(s, abd=10)
 
-    spec(id_, camera=cam((0, 0, 0.7), 78, 6, 3.6), setup=setup, concentric='out' if not eccentric else 'back',
+    # Standing raises (bar on the back, up on a step) need the taller frame.
+    standing = not (seated or leg_press or donkey)
+    camera = cam((0, 0, 0.98), 78, 6, 4.2) if standing else cam((0, 0, 0.7), 78, 6, 3.6)
+    spec(id_, camera=camera, setup=setup, concentric='out' if not eccentric else 'back',
          timing=dict(hold_start=0.12, out=0.3, hold_end=0.16))(pose)
 
 

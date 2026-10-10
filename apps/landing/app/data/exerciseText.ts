@@ -3,6 +3,7 @@ import {
   type Exercise,
   formatEquipmentLabels,
   formatMuscleLabels,
+  instructionSteps,
 } from '@muscleos/types';
 
 /**
@@ -38,4 +39,10 @@ export function filterExercises<T extends Row>(rows: readonly T[], query: string
     const haystack = `${e.name} ${muscleLine(e)} ${equipmentLine(e)}`.toLowerCase();
     return words.every((w) => haystack.includes(w));
   });
+}
+
+/** Instruction steps as one line of prose, for meta descriptions and other single-line slots. */
+export function instructionsSummary(e: Pick<Exercise, 'instructions'>): string | undefined {
+  const steps = instructionSteps(e.instructions);
+  return steps.length ? steps.map((s) => (/[.!?]$/.test(s) ? s : `${s}.`)).join(' ') : undefined;
 }
