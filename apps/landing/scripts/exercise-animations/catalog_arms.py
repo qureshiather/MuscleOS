@@ -7,7 +7,7 @@ from mathutils import Vector
 
 import mannequin as M
 from anim import lerp, sgn, smootherstep
-from catalog_press import lie, lockout_z
+from catalog_press import incline_setup, lie, lockout_z
 from catalog_pull import inverted_row_spec, _with_bar_at, _row_bar
 from equipment import along, place, qx, qz, set_line
 from moves import (
@@ -107,6 +107,35 @@ curl_spec('cable-curl-with-bar', implement='cable-bar', twist=(90, 90), cable=Tr
 curl_spec('cable-curl-with-rope', implement='rope', twist=(0, 0), cable=True, camera=cam((0, -0.2, 1.0), 60, 8, 4.0))
 
 
+# Concentration curl: the back of the upper arm braces on the inner thigh just above the knee.
+CONC_TILT = 28
+CONC_LEAN = 38
+CONC_CURL = Vector((0.6, -0.8, 0)).normalized()  # forearm swings up toward the chest, palm leading
+UPPER_ARM = (M.joint('elbow') - M.joint('shoulder')).length
+FOREARM_GRIP = (M.grip_point('L') - M.joint('elbow')).length
+
+
+def concentration_pose(ctx, st, t):
+    # Hinge forward from the hips (pelvis tilt) and round the back so the shoulder comes down over
+    # the knee: the upper arm then hangs from it onto the thigh.
+    ctx.root((0, 0.2, 0.45 + 0.16), (CONC_TILT, 0, 0))
+    ctx.spine(flex=CONC_LEAN)
+    for s in SIDES:
+        ctx.leg_fk(s, hip_flex=80 + CONC_TILT, hip_abd=20, knee=82)
+    sh = ctx.world('upperarm.R', 'head')
+    knee = ctx.world('shin.R', 'head')
+    brace = knee + Vector((0.07, 0.07, 0.08))  # inside of the thigh, just above the knee
+    elbow = sh + (brace - sh).normalized() * UPPER_ARM
+    a = math.radians(lerp(8, 132, t))
+    hand = elbow + (Vector((0, 0, -1)) * math.cos(a) + CONC_CURL * math.sin(a)) * FOREARM_GRIP
+    thumb = Vector((0, 0, -1)).cross(CONC_CURL)  # handle square to the curl plane
+    hold_dumbbell(ctx, st['w'][1], 'R', hand, thumb)
+    ctx.pole_world('arm.R', elbow - (sh + hand) / 2)
+    # The free hand rests on the other knee.
+    ctx.grip('L', ctx.world('shin.L', 'head') + Vector((0.0, 0.05, 0.07)), (0, -1, 0))
+    ctx.pole_world('arm.L', (1, 0.3, -0.3))
+
+
 def seated_curl(id_, mode, implement='bar'):
     """Preacher, concentration, incline and spider curls: the upper arm is fixed by the setup."""
 
@@ -136,12 +165,10 @@ def seated_curl(id_, mode, implement='bar'):
             sit(ctx, 0.66, y=0.2, knee=95, lean=12)
             for s in sides:
                 ctx.arm_fk(s, flex=52, abd=6, elbow=lerp(12, 125, t), twist=90)
+            if 'L' not in sides:  # the free arm rests on the pad
+                ctx.arm_fk('L', flex=50, abd=8, elbow=35, twist=60)
         elif mode == 'concentration':
-            sit(ctx, 0.45, y=0.2, knee=80, hip_abd=18, lean=35)
-            for s in SIDES:
-                ctx.leg_fk(s, hip_flex=80, hip_abd=20, knee=82)
-            ctx.arm_fk('R', flex=12, abd=-8, elbow=lerp(8, 135, t), twist=90)
-            ctx.arm_fk('L', flex=30, abd=10, elbow=60)
+            concentration_pose(ctx, st, t)
         elif mode == 'incline':
             ctx.root((0, 0.06, 0.57), (-45, 0, 0))
             ctx.head(flex=20)
@@ -162,6 +189,8 @@ def seated_curl(id_, mode, implement='bar'):
             follow_hands(ctx, st['bar'])
         elif 'w' in st:
             for s, w in zip(SIDES, st['w']):
+                if mode == 'concentration' and s == 'R':
+                    continue  # held by concentration_pose
                 if s in sides:
                     ctx.follow(w, 'hand.' + s, grip_point(s), held(s, qz(90)))
                 else:
@@ -235,9 +264,13 @@ def bayesian_curl(ctx, st, u):
 def _lying_cable(on_bench):
     def setup(ctx):
         if on_bench:
+            # Pulley at bench height, so the cable runs over the thighs rather than through the hips.
             ctx.eq.flat_bench((0, 0.33))
-        ctx.eq.cable_column(0, -1.35, 1.2)
-        return {'pulley': Vector((0, -1.26, 0.12)), 'cable': ctx.eq.line('cable'), 'bar': ctx.eq.straight_bar('lb', 0.5)}
+            pulley = ctx.eq.cable_column(0, -1.35, 0.55)
+        else:
+            ctx.eq.cable_column(0, -1.35, 1.2)
+            pulley = Vector((0, -1.26, 0.12))
+        return {'pulley': pulley, 'cable': ctx.eq.line('cable'), 'bar': ctx.eq.straight_bar('lb', 0.5)}
 
     return setup
 
@@ -252,7 +285,7 @@ def lying_cable_curl(id_, on_bench):
         bar = follow_hands(ctx, st['bar'])
         set_line(st['cable'], st['pulley'], bar)
 
-    spec(id_, camera=cam((0, 0.0, 0.5 if on_bench else 0.3), 65, 18, 3.9), setup=_lying_cable(on_bench),
+    spec(id_, camera=cam((0, -0.35, 0.5 if on_bench else 0.35), 65, 18, 4.5), setup=_lying_cable(on_bench),
          concentric='out')(pose)
 
 
@@ -282,12 +315,12 @@ def tricep_pushdown_bar(ctx, st, u):
     set_line(st['cable'], st['pulley'], bar)
 
 
-def overhead_ext_spec(id_, implement, setup, seated=False, incline=False, camera=None):
+def overhead_ext_spec(id_, implement, setup, seated=False, incline=False, low_pulley=False, camera=None):
     def pose(ctx, st, u):
         t = smootherstep(u)
         if seated:
             sit(ctx, 0.47, y=0.0, knee=88, lean=-2)
-        elif implement == 'cable':
+        elif implement == 'cable' and not low_pulley:  # high pulley: lean away from it
             stand(ctx, width=0.06)
             ctx.leg_fk('L', hip_flex=20, knee=15)
             ctx.spine(flex=28)
@@ -300,7 +333,7 @@ def overhead_ext_spec(id_, implement, setup, seated=False, incline=False, camera
         # Upper arms stay up by the head; the elbows straighten to press the weight overhead.
         # With the weight low behind the head the elbows drift forward and out a little, as they
         # do in a real rep, rather than staying locked to the ears.
-        top = 170 if implement != 'cable' else 150
+        top = 170 if implement != 'cable' or low_pulley else 150
         for s in SIDES:
             ctx.arm_fk(s, flex=lerp(top - 18, top, t), abd=lerp(10, 0, t), elbow=lerp(130, 4, t),
                        twist=60 if implement != 'dumbbell' else 90)
@@ -312,7 +345,8 @@ def overhead_ext_spec(id_, implement, setup, seated=False, incline=False, camera
             follow_hands(ctx, st['bar'])
         elif implement == 'cable':
             hands = [ctx.attach_point('hand.' + s, grip_point(s)) for s in SIDES]
-            knot = (hands[0] + hands[1]) / 2 + Vector((0, 0.1, -0.05))
+            # The rope hangs from the hands toward the pulley: up and back to a high one, down to a low one.
+            knot = (hands[0] + hands[1]) / 2 + (Vector((0, 0.03, -0.1)) if low_pulley else Vector((0, 0.1, -0.05)))
             for rope, h in zip(st['ropes'], hands):
                 set_line(rope, knot, h)
             set_line(st['cable'], st['pulley'], knot)
@@ -331,6 +365,13 @@ def _overhead_cable(ctx):
             'ropes': [ctx.eq.line('rL', radius=0.012), ctx.eq.line('rR', radius=0.012)]}
 
 
+def _overhead_cable_low(ctx):
+    # Low pulley just behind the heels: the rope runs up the back to the hands behind the head.
+    ctx.eq.cable_column(0, 0.5, 1.2)
+    return {'pulley': Vector((0, 0.41, 0.15)), 'cable': ctx.eq.line('cable'),
+            'ropes': [ctx.eq.line('rL', radius=0.012), ctx.eq.line('rR', radius=0.012)]}
+
+
 def _overhead_machine(ctx):
     ctx.eq.group('ext_machine', [
         ctx.eq.pad('seat', (0.4, 0.4, 0.07), (0, 0.0, 0.43)),
@@ -342,29 +383,37 @@ def _overhead_machine(ctx):
 
 overhead_ext_spec('dumbbell-standing-triceps-extension', 'dumbbell', lambda ctx: {'w': ctx.eq.dumbbell('db')})
 overhead_ext_spec('barbell-standing-triceps-extension', 'ez', lambda ctx: {'bar': ctx.eq.ez_bar()})
-overhead_ext_spec('overhead-cable-triceps-extension', 'cable', _overhead_cable, camera=cam((0, 0.1, 1.1), 75, 8, 4.0))
+overhead_ext_spec('overhead-cable-triceps-extension', 'cable', _overhead_cable_low, low_pulley=True,
+                  camera=cam((0, 0.1, 1.15), 75, 8, 4.2))
 overhead_ext_spec('overhead-cable-triceps-extension-upper-position', 'cable', _overhead_cable,
                   camera=cam((0, 0.1, 1.1), 75, 8, 4.0))
 overhead_ext_spec('machine-overhead-triceps-extension', 'machine', _overhead_machine, seated=True)
 
 
 def _crossbody_setup(ctx):
-    ctx.eq.cable_column(0.85, -0.1, 2.0)
-    return {'pulley': Vector((0.76, -0.19, 1.45)), 'cable': ctx.eq.line('cable'),
-            'h': ctx.eq.group('dh', [ctx.eq.cyl('dhc', 0.016, 0.11, (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_metal, 16)])}
+    # Two high pulleys either side; each hand takes the cable from the opposite side.
+    for x in (0.95, -0.95):
+        ctx.eq.cable_column(x, 0.0, 2.0)
+    return {'pulleys': [Vector((0.86, -0.09, 1.95)), Vector((-0.86, -0.09, 1.95))],
+            'cables': [ctx.eq.line('cL'), ctx.eq.line('cR')],
+            'h': [ctx.eq.group(f'd{s}', [ctx.eq.cyl(f'dc{s}', 0.016, 0.11, (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_metal, 16)]) for s in SIDES]}
 
 
-@spec('crossbody-cable-triceps-extension', camera=cam((0, 0, 1.2), 15, 8, 3.9), setup=_crossbody_setup,
+@spec('crossbody-cable-triceps-extension', camera=cam((0, 0, 1.2), 15, 8, 4.4), setup=_crossbody_setup,
       concentric='out')
 def crossbody_triceps(ctx, st, u):
-    # The right hand takes the cable from the left side at chest height and sweeps out to the right.
+    # Handles crossed in front of the chest with the elbows bent; both arms extend out and down
+    # to the sides. The right hand holds the left cable and the left hand the right one.
     stand(ctx, width=0.05)
     t = smootherstep(u)
-    ctx.arm_fk('R', flex=80, abd=-40 + 75 * t, elbow=lerp(110, 8, t), twist=-80)
-    ctx.arm_fk('L', abd=6)
-    g = ctx.attach_point('hand.R', grip_point('R'))
-    place(st['h'], g, along((0, 0, 1)))
-    set_line(st['cable'], st['pulley'], g)
+    for s in SIDES:
+        # The right forearm crosses over the left one.
+        ctx.arm_fk(s, flex=lerp(50 if s == 'R' else 44, 30, t), abd=lerp(-38, 45, t), elbow=lerp(95, 8, t),
+                   twist=-80)
+    for s, c, h in zip(SIDES, st['cables'], st['h']):
+        g = ctx.attach_point('hand.' + s, grip_point(s))
+        place(h, g, along((0, 0, 1)))
+        set_line(c, st['pulleys'][1 if s == 'L' else 0], g)
 
 
 def lying_ext_spec(id_, kind='flat', implement='ez', smith=False):
@@ -372,7 +421,7 @@ def lying_ext_spec(id_, kind='flat', implement='ez', smith=False):
         if kind == 'flat':
             ctx.eq.flat_bench((0, 0.33))
         else:
-            ctx.eq.incline_bench(40)
+            incline_setup(ctx)  # the bench lie(ctx, 'incline') rests on
         if smith:
             return {'bar': ctx.eq.smith_machine(bar_y=0.6)}
         return {'bar': ctx.eq.ez_bar()} if implement == 'ez' else {'w': ctx.eq.dumbbells()}

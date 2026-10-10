@@ -142,13 +142,17 @@ class Equipment:
         place(b, (center[0], center[1], height), qz(yaw))
         return b
 
-    def incline_bench(self, back_angle=55):
+    def incline_bench(self, back_angle=55, back_offset=0.0):
+        """`back_angle` is the back pad's tilt from vertical. `back_offset` moves the back pad (and
+        its strut) back along the pad's normal, so a body reclined at that angle rests on the pad's
+        face instead of sinking into it."""
         a = math.radians(-back_angle)
+        n = Vector((0, math.cos(a), math.sin(a))) * back_offset  # pad normal, away from the user
         self.group('incline', [
             self.pad('seat', (0.3, 0.36, 0.07), (0, -0.02, 0.43)),
-            self.pad('back', (0.3, 0.07, 0.85), (0, 0.33, 0.78), (a, 0, 0)),
+            self.pad('back', (0.3, 0.07, 0.85), Vector((0, 0.33, 0.78)) + n, (a, 0, 0)),
             self.frame('post', (0.07, 0.07, 0.4), (0, 0.0, 0.2)),
-            self.frame('strut', (0.07, 0.07, 0.6), (0, 0.42, 0.33), (a, 0, 0)),
+            self.frame('strut', (0.07, 0.07, 0.6), Vector((0, 0.42, 0.33)) + n, (a, 0, 0)),
             self.frame('base', (0.4, 1.0, 0.03), (0, 0.25, 0.015)),
         ])
 
@@ -390,16 +394,28 @@ class Equipment:
         self.group(name, [self.frame(name + '_base', (0.3, 0.3, 0.06), (anchor[0], anchor[1], 0.03))])
         return Vector(anchor), self.line(name + '_bar', radius=0.016)
 
-    def decline_bench(self, center=(0, 0.33), angle=15, name='decline'):
-        """Pad tilted head-down by `angle`; leg hooks at the high end."""
+    def decline_bench(self, center=(0, 0.33), angle=15, name='decline', hook=None):
+        """Pad tilted head-down by `angle`; leg hooks at the high end. `hook` = (y offset from
+        `center`, height) puts the ankle roller there on its own post (the knees bend over the
+        pad's high end and the ankles tuck under the roller)."""
         a = math.radians(-angle)
-        self.group(name, [
-            self.pad(name + '_pad', (0.28, 1.15, 0.07), (center[0], center[1], 0.48), (a, 0, 0)),
-            self.frame(name + '_leg1', (0.05, 0.05, 0.4), (center[0], center[1] + 0.4, 0.2)),
-            self.frame(name + '_leg2', (0.05, 0.05, 0.6), (center[0], center[1] - 0.4, 0.3)),
-            self.cyl(name + '_hook', 0.04, 0.34, (center[0], center[1] - 0.72, 0.55), (0, R90, 0), self.m_pad, 24),
-            self.frame(name + '_base', (0.4, 1.2, 0.03), (center[0], center[1], 0.015)),
-        ])
+        cx, cy = center
+        parts = [
+            self.pad(name + '_pad', (0.28, 1.15, 0.07), (cx, cy, 0.48), (a, 0, 0)),
+            self.frame(name + '_leg1', (0.05, 0.05, 0.4), (cx, cy + 0.4, 0.2)),
+            self.frame(name + '_leg2', (0.05, 0.05, 0.6), (cx, cy - 0.4, 0.3)),
+            self.frame(name + '_base', (0.4, 1.2, 0.03), (cx, cy, 0.015)),
+        ]
+        if hook is None:
+            parts.append(self.cyl(name + '_hook', 0.04, 0.34, (cx, cy - 0.72, 0.55), (0, R90, 0), self.m_pad, 24))
+        else:
+            hy, hz = cy + hook[0], hook[1]
+            parts += [
+                self.cyl(name + '_hook', 0.045, 0.34, (cx, hy, hz), (0, R90, 0), self.m_pad, 24),
+                self.frame(name + '_hookpost', (0.05, 0.05, hz), (cx, hy, hz / 2)),
+                self.frame(name + '_hookrail', (0.05, cy - 0.6 - hy + 0.05, 0.03), (cx, (hy + cy - 0.6) / 2, 0.015)),
+            ]
+        self.group(name, parts)
 
 
 def along(axis):

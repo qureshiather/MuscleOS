@@ -67,6 +67,11 @@ bridge_spec('frog-pumps', frog=True)
 bridge_spec('dumbbell-frog-pumps', frog=True, weight=True)
 
 
+# The bench pad's front edge is at y = 0.11; the shoulder blades rest on it, so the pinned back
+# point sits behind the edge and the feet keep the same distance from it.
+THRUST_BACK_Y = 0.16
+
+
 def thrust_spec(id_, implement='bar', band=False, smith=False, one_leg=False, machine=False):
     def setup(ctx):
         ctx.eq.flat_bench((0, 0.25), length=1.2, height=0.42, yaw=90)
@@ -86,14 +91,16 @@ def thrust_spec(id_, implement='bar', band=False, smith=False, one_leg=False, ma
         return st
 
     def pose(ctx, st, u):
-        ctx.pin_root((0, 0.11, 1.3), (0, 0.04, 0.47), (lerp(-38, -92, u), 0, 0))
+        ctx.pin_root((0, 0.11, 1.3), (0, THRUST_BACK_Y, 0.47), (lerp(-38, -92, u), 0, 0))
         ctx.spine(flex=lerp(10, -2, u))
         ctx.head(flex=lerp(30, 70, u))
         for s in SIDES:
-            ctx.target('leg.' + s, (sgn(s) * 0.17, -0.74, 0.085))
+            ctx.target('leg.' + s, (sgn(s) * 0.17, THRUST_BACK_Y - 0.78, 0.085))
         knees_out(ctx, 0.2)
         if one_leg:
-            ctx.leg_fk('L', hip_flex=lerp(80, 90, u), knee=lerp(95, 90, u), ankle=-10)
+            # The free leg stays up all rep: hip flexion is relative to the tipped pelvis, so it
+            # has to start high for the foot to stay clear of the floor at the bottom.
+            ctx.leg_fk('L', hip_flex=lerp(125, 90, u), knee=lerp(100, 90, u), ankle=-10)
         hips = ctx.attach_point('pelvis', (0, -0.18, 0.88))
         if 'bar' in st:
             place(st['bar'], hips)
@@ -166,43 +173,61 @@ def _band_ankles(ctx):
     return {'band': ctx.eq.line('band', accent=True, radius=0.012)}
 
 
-@spec('banded-side-kick', camera=cam((0, 0, 0.8), 5, 8, 3.8), setup=_band_ankles, concentric='out')
+SUPPORT = Vector((0.45, -0.1, 1.05))  # top of a post on the figure's left, held for balance
+
+
+def _band_ankles_post(ctx):
+    ctx.eq.group('support', [ctx.eq.frame('post', (0.05, 0.05, 1.1), (SUPPORT.x, SUPPORT.y, 0.55))])
+    return _band_ankles(ctx)
+
+
+@spec('banded-side-kick', camera=cam((0, 0, 0.8), 5, 8, 3.8), setup=_band_ankles_post, concentric='out')
 def banded_side_kick(ctx, st, u):
     stand(ctx, width=0.05)
     t = smootherstep(u)
     ctx.leg_fk('R', hip_abd=lerp(0, 35, t), ankle=0)
     ctx.spine(side=6 * t)
-    for s in SIDES:
-        ctx.arm_fk(s, abd=10)
+    ctx.arm_fk('R', abd=10)
+    ctx.grip('L', SUPPORT, (0, 0, 1))
     ankles = [ctx.world('foot.' + s, 'head') for s in SIDES]
     set_line(st['band'], ankles[0] + Vector((0, 0, 0.04)), ankles[1] + Vector((0, 0, 0.04)))
 
 
-@spec('standing-hip-abduction-against-band', camera=cam((0, 0, 0.8), 5, 8, 3.8), setup=_band_ankles,
+@spec('standing-hip-abduction-against-band', camera=cam((0, 0, 0.8), 5, 8, 3.8), setup=_band_ankles_post,
       concentric='out')
 def standing_hip_abduction_band(ctx, st, u):
     stand(ctx, width=0.04)
     t = smootherstep(u)
     ctx.leg_fk('R', hip_abd=lerp(0, 40, t), ankle=0)
-    for s in SIDES:
-        ctx.arm_fk(s, abd=10)
-    ctx.grip('L', (0.45, -0.1, 1.05), (0, 0, 1))
+    ctx.arm_fk('R', abd=10)
+    ctx.grip('L', SUPPORT, (0, 0, 1))
     ankles = [ctx.world('foot.' + s, 'head') for s in SIDES]
     set_line(st['band'], ankles[0] + Vector((0, 0, 0.04)), ankles[1] + Vector((0, 0, 0.04)))
 
 
-@spec('lateral-walk-with-band', camera=cam((0, 0, 0.75), 15, 8, 3.8), setup=_band_ankles,
-      timing=ALTERNATE)
+LATERAL_STEP = 0.25
+
+
+@spec('lateral-walk-with-band', camera=cam((0.12, 0, 0.75), 15, 8, 3.8), setup=_band_ankles,
+      timing=dict(hold_start=0.0, out=1.0, hold_end=0.0))
 def lateral_walk(ctx, st, u):
-    # Quarter squat, band at the ankles; step out to the side and bring the other foot in.
-    w = wave(ctx)
-    shift = 0.12 * w
+    # Quarter squat, band at the ankles. Two steps to the left (the left foot steps out, the right
+    # follows), then two back to the right, so the loop ends where it began. Each foot stays
+    # planted except while it's lifted.
+    q = min(int(ctx.t * 4), 3)
+    s_ = smootherstep(ctx.t * 4 - q)
+    d = LATERAL_STEP
+    # Foot positions (L, R) at the start of each quarter, and which foot moves in it.
+    keys = [(0.17, -0.17), (0.17 + d, -0.17), (0.17 + d, -0.17 + d), (0.17 + d, -0.17), (0.17, -0.17)]
+    mover = ('L', 'R', 'R', 'L')[q]
+    a, b = keys[q], keys[q + 1]
+    pos = {'L': lerp(a[0], b[0], s_), 'R': lerp(a[1], b[1], s_)}
+    shift = (pos['L'] + pos['R']) / 2
     ctx.root((shift, 0.08, STAND_Z - 0.12))
     ctx.spine(flex=18)
     for s in SIDES:
-        gap = 0.17 + 0.07 * (w * sgn(s) if w * sgn(s) > 0 else 0)
-        lift = 0.06 * max(0.0, math.sin(math.pi * (w * sgn(s))) if w * sgn(s) > 0 else 0.0)
-        ctx.target('leg.' + s, (shift + sgn(s) * gap, 0.01, 0.085 + lift))
+        lift = 0.08 * math.sin(math.pi * s_) if s == mover else 0.0
+        ctx.target('leg.' + s, (pos[s], 0.01, 0.085 + lift))
     knees_out(ctx, 0.4)
     for s in SIDES:
         ctx.arm_fk(s, flex=30, elbow=80)
@@ -210,12 +235,19 @@ def lateral_walk(ctx, st, u):
     set_line(st['band'], ankles[0] + Vector((0, 0, 0.04)), ankles[1] + Vector((0, 0, 0.04)))
 
 
-@spec('hip-abduction-against-band', camera=cam((0, 0.0, 0.7), 10, 12, 3.4), setup=_band_ankles, concentric='out')
+def _seat_band(ctx):
+    ctx.eq.group('seat', [ctx.eq.pad('seat_pad', (0.42, 0.42, 0.45), (0, 0.12, 0.225))])
+    return _band_ankles(ctx)
+
+
+@spec('hip-abduction-against-band', camera=cam((0, 0.0, 0.7), 10, 12, 3.4), setup=_seat_band, concentric='out')
 def seated_abduction_band(ctx, st, u):
+    # On a box, band above the knees; the feet stay together on the floor while the knees press out.
     sit(ctx, 0.45, y=0.1, knee=90)
     t = smootherstep(u)
     for s in SIDES:
-        ctx.leg_fk(s, hip_flex=88, knee=90, hip_abd=lerp(2, 28, t))
+        ctx.target('leg.' + s, (sgn(s) * 0.07, -0.3, 0.085))
+        ctx.pole_world('leg.' + s, (sgn(s) * lerp(0.1, 1.6, t), -1, 0))
         ctx.arm_fk(s, abd=10, flex=20, elbow=30)
     knees = [ctx.world('shin.' + s, 'head') for s in SIDES]
     set_line(st['band'], knees[0] + Vector((0.04, 0, 0)), knees[1] - Vector((0.04, 0, 0)))
@@ -236,22 +268,33 @@ def band_adduction(ctx, st, u):
 
 
 def side_cable_leg(id_, abduct):
+    # The column stands on the figure's left (+X), its left hand on a grab handle. Abduction
+    # straps the outside (right) leg, which lifts away from the machine with the cable crossing in
+    # front of the standing foot; adduction straps the inside (left) leg, which starts out toward
+    # the machine and sweeps across in front of the standing leg.
+    handle = Vector((0.75, -0.1, 1.05))
+    x0 = 0.25  # stance centre, far enough from the stack for the inside leg to swing out
+
     def setup(ctx):
-        ctx.eq.cable_column(0.9 if not abduct else -0.9, 0.0, 2.0)
-        return {'pulley': Vector((0.81 if not abduct else -0.81, -0.09, 0.12)), 'cable': ctx.eq.line('cable')}
+        ctx.eq.cable_column(0.9, 0.0, 2.0)
+        ctx.eq.group('grab', [ctx.eq.cyl('grab_bar', 0.016, 0.24, tuple(handle), mat=ctx.eq.m_metal, verts=16),
+                              ctx.eq.frame('grab_arm', (0.13, 0.03, 0.03), (handle.x + 0.06, handle.y, handle.z + 0.1)),
+                              ctx.eq.frame('grab_arm2', (0.13, 0.03, 0.03), (handle.x + 0.06, handle.y, handle.z - 0.1))])
+        return {'pulley': Vector((0.81, -0.09, 0.12)), 'cable': ctx.eq.line('cable')}
 
     def pose(ctx, st, u):
-        # Side-on to a low pulley with an ankle strap; the far/near leg moves out or in.
-        stand(ctx, width=0.04)
         t = smootherstep(u)
-        side = 'R'
-        ctx.leg_fk(side, hip_abd=lerp(0, 35, t) if abduct else lerp(30, -10, t), ankle=0)
-        ctx.grip('L', (0.45, -0.1, 1.05), (0, 0, 1))
+        ctx.root((x0, 0.0, STAND_Z))
+        for s in SIDES:
+            ctx.target('leg.' + s, (x0 + sgn(s) * 0.138, 0.01, 0.085))
+        side = 'R' if abduct else 'L'
+        ctx.leg_fk(side, hip_abd=lerp(0, 35, t) if abduct else lerp(25, -12, t), ankle=0)
+        ctx.grip('L', handle, (0, 0, 1))
         ctx.arm_fk('R', abd=10)
         ankle = ctx.world('foot.' + side, 'head')
         set_line(st['cable'], st['pulley'], ankle + Vector((0, 0, 0.04)))
 
-    spec(id_, camera=cam((0, 0, 0.8), 5, 8, 3.9), setup=setup, concentric='out')(pose)
+    spec(id_, camera=cam((0.3, 0, 0.8), 5, 8, 3.9), setup=setup, concentric='out')(pose)
 
 
 side_cable_leg('cable-machine-hip-abduction', True)
@@ -301,6 +344,7 @@ def kickback_spec(id_, kind='cable'):
                 ctx.eq.frame('base', (0.5, 0.8, 0.04), (0, 0.0, 0.02)),
             ])
             st['lever'] = ctx.eq.line('lever', radius=0.02)
+            st['leg_pad'] = ctx.eq.group('leg_pad', [ctx.eq.pad('lp', (0.14, 0.08, 0.2), (0, 0, 0))])
         return st
 
     def pose(ctx, st, u):
@@ -308,18 +352,18 @@ def kickback_spec(id_, kind='cable'):
         stand(ctx, width=0.04)
         ctx.bone('pelvis', (X, 28 if kind != 'cable' else 18))
         ctx.spine(flex=10)
-        if kind == 'push':
-            ctx.leg_fk('R', hip_flex=lerp(70, -10, t), knee=lerp(100, 20, t), ankle=10)
-        else:
-            ctx.leg_fk('R', hip_flex=lerp(15, -30, t), knee=lerp(15, 5, t), ankle=10)
+        ctx.leg_fk('R', hip_flex=lerp(15, -30, t), knee=lerp(15, 5, t), ankle=10)
         for s in SIDES:
             ctx.grip(s, (sgn(s) * 0.15, -0.55, 1.1 if kind == 'cable' else 1.05), (0, 0, 1))
         elbows(ctx, (0.4, 0.4, -1))
-        foot = ctx.world('foot.R', 'head') + Vector((0, 0, 0.04))
         if kind == 'cable':
-            set_line(st['cable'], st['pulley'], foot)
+            set_line(st['cable'], st['pulley'], ctx.world('foot.R', 'head') + Vector((0, 0, 0.04)))
         else:
-            set_line(st['lever'], Vector((-0.2, -0.3, 0.6)), foot)
+            # Pad on the back of the calf, on a lever that pivots beside the hip and swings with
+            # the leg; the lever runs down the outside of the working leg.
+            ctx.follow(st['leg_pad'], 'shin.R', (-0.098, 0.085, 0.33))
+            set_line(st['lever'], ctx.world('thigh.R', 'head') + Vector((-0.17, 0, 0)),
+                     ctx.attach_point('shin.R', (-0.2, 0.085, 0.33)))
 
     spec(id_, camera=cam((0, -0.1, 0.8), 75, 10, 3.9), setup=setup, concentric='out')(pose)
 
@@ -327,7 +371,38 @@ def kickback_spec(id_, kind='cable'):
 kickback_spec('cable-glute-kickback', 'cable')
 kickback_spec('machine-glute-kickbacks', 'machine')
 kickback_spec('standing-glute-kickback-in-machine', 'machine')
-kickback_spec('standing-glute-push-down', 'push')
+PUSH_STEP = 0.35  # step height of the assisted dip machine
+
+
+def _push_down_setup(ctx):
+    h = PUSH_STEP
+    ctx.eq.group('assist_machine', [
+        ctx.eq.pad('step', (0.24, 0.4, h), (0.14, 0.05, h / 2)),  # under the standing (left) foot
+        *[ctx.eq.frame('upright' + s, (0.06, 0.06, h + 1.25), (sgn(s) * 0.36, 0.15, (h + 1.25) / 2)) for s in SIDES],
+        *[ctx.eq.frame('handle' + s, (0.04, 0.4, 0.04), (sgn(s) * 0.3, -0.03, h + 0.85)) for s in SIDES],
+        ctx.eq.frame('lever_post', (0.06, 0.06, 0.55), (-0.1, -0.6, 0.275)),
+    ])
+    return {'knee_pad': ctx.eq.group('knee_pad', [ctx.eq.pad('kp', (0.22, 0.3, 0.07), (0, 0, 0))]),
+            'lever': ctx.eq.line('lever', radius=0.02)}
+
+
+@spec('standing-glute-push-down', camera=cam((0, -0.1, 1.0), -70, 10, 4.2), setup=_push_down_setup, concentric='out')
+def standing_glute_push_down(ctx, st, u):
+    # Standing tall on the step of an assisted dip machine, hands on the handles, the right foot
+    # on the knee pad; the hip extends to push the pad down until the leg is straight beside the
+    # step.
+    t = smootherstep(u)
+    h = PUSH_STEP
+    stand(ctx, width=0.04, floor=h)
+    ctx.bone('pelvis', (X, 6))
+    ctx.leg_fk('R', hip_flex=lerp(85, 0, t), knee=lerp(90, 10, t), ankle=lerp(0, 8, t))
+    for s in SIDES:
+        ctx.grip(s, (sgn(s) * 0.3, -0.08, h + 0.85), (0, -1, 0))
+    elbows(ctx, (0.2, 1, 0))
+    sole = ctx.attach_point('foot.R', (-0.104, -0.05, -0.015))
+    pad = sole - Vector((0, 0, 0.035))
+    place(st['knee_pad'], pad)
+    set_line(st['lever'], Vector((-0.1, -0.6, 0.55)), pad)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -413,12 +488,19 @@ def nordic_spec(id_, reverse=False, machine=False):
         lean = lerp(0, -40 if reverse else 70, t)
         ctx.pin_root(M.joint('knee'), Vector((0, 0.0, knee_z)), (lean, 0, 0))
         for s in SIDES:
-            ctx.leg_fk(s, knee=90, ankle=-60)
+            # The knee angle opens as the body leans so the shins stay put under the anchor.
+            ctx.leg_fk(s, knee=90 - lean, ankle=-60)
         ctx.head(flex=-10)
         for s in SIDES:
             ctx.arm_fk(s, flex=lerp(20, 70, t) if not reverse else 20, abd=10, elbow=60)
 
-    spec(id_, camera=cam((0, 0.0, 0.6), 80, 10, 3.6), setup=setup, concentric='back')(pose)
+    if machine:
+        camera = cam((0, 0.0, 0.95), 80, 10, 4.4)
+    elif reverse:
+        camera = cam((0, 0.1, 0.5), 80, 10, 3.8)
+    else:
+        camera = cam((0, -0.3, 0.5), 80, 10, 4.0)
+    spec(id_, camera=camera, setup=setup, concentric='back')(pose)
 
 
 nordic_spec('nordic-hamstring-eccentric')
@@ -490,6 +572,10 @@ def one_leg_lying_curl(ctx, st, u):
 def seated_curl_spec(id_, one_leg=False):
     def setup(ctx):
         st = ctx.eq.leg_extension()
+        # The locked-down thigh pad across the lower thighs, on short posts from the seat sides.
+        st['thigh_pad'] = ctx.eq.group('thigh_pad', [
+            ctx.eq.pad('tp', (0.42, 0.12, 0.08), (0, 0, 0)),
+            *[ctx.eq.frame('tp_post' + s, (0.03, 0.03, 0.2), (sgn(s) * 0.23, 0, -0.1)) for s in SIDES]])
         return st
 
     def pose(ctx, st, u):
@@ -503,6 +589,7 @@ def seated_curl_spec(id_, one_leg=False):
         elbows(ctx, (0.6, 1, 0))
         knee = ctx.world('shin.R', 'head')
         place(st['lever'], (0, knee.y, knee.z), ctx.bone_delta('shin.R') @ qz(180))
+        place(st['thigh_pad'], (0, knee.y + 0.1, knee.z + 0.11))
 
     spec(id_, camera=cam((0, -0.1, 0.7), 72, 10, 3.6), setup=setup, concentric='out')(pose)
 
@@ -511,10 +598,14 @@ seated_curl_spec('seated-leg-curl')
 seated_curl_spec('one-legged-seated-leg-curl', one_leg=True)
 
 
-@spec('standing-leg-curl', camera=cam((0, 0.0, 0.85), 80, 8, 3.8),
-      setup=lambda ctx: (ctx.eq.group('slc', [ctx.eq.pad('thigh_pad', (0.3, 0.12, 0.3), (0, -0.2, 0.75)),
-                                               ctx.eq.frame('post', (0.08, 0.08, 1.2), (0, -0.35, 0.6))]), {})[1],
-      concentric='out')
+def _standing_curl_setup(ctx):
+    ctx.eq.group('slc', [ctx.eq.pad('thigh_pad', (0.3, 0.12, 0.3), (0, -0.2, 0.75)),
+                         ctx.eq.frame('post', (0.08, 0.08, 1.2), (0, -0.35, 0.6))])
+    roller = ctx.eq.group('ankle_roller', [ctx.eq.cyl('roller', 0.05, 0.25, (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_pad, 24)])
+    return {'roller': roller, 'lever': ctx.eq.line('curl_lever', radius=0.02)}
+
+
+@spec('standing-leg-curl', camera=cam((0, 0.0, 0.85), 80, 8, 3.8), setup=_standing_curl_setup, concentric='out')
 def standing_leg_curl(ctx, st, u):
     stand(ctx, width=0.03)
     ctx.spine(flex=8)
@@ -522,26 +613,53 @@ def standing_leg_curl(ctx, st, u):
     for s in SIDES:
         ctx.grip(s, (sgn(s) * 0.22, -0.35, 1.15), (0, 0, 1))
     elbows(ctx, (0.4, 0.3, -1))
+    # Roller behind the lower leg, on a lever pivoting beside the knee.
+    ctx.follow(st['roller'], 'shin.R', (-0.098, 0.075, 0.15))
+    set_line(st['lever'], ctx.world('shin.R', 'head') + Vector((-0.17, 0, 0)),
+             ctx.attach_point('shin.R', (-0.23, 0.075, 0.15)))
 
 
-@spec('standing-cable-leg-extension', camera=cam((0, 0.0, 0.8), 75, 8, 3.9),
-      setup=lambda ctx: (ctx.eq.cable_column(0, 0.75, 2.0), {'cable': ctx.eq.line('cable'),
-                                                              'pulley': Vector((0, 0.66, 0.12))})[1], concentric='out')
+def _cable_ext_setup(ctx):
+    ctx.eq.cable_column(0, 0.75, 2.0)
+    # A post on the far (right) side to hold for balance, clear of the working leg in the camera.
+    ctx.eq.group('support', [ctx.eq.frame('post', (0.05, 0.05, 1.1), (-SUPPORT.x, SUPPORT.y, 0.55))])
+    return {'cable': ctx.eq.line('cable'), 'pulley': Vector((0, 0.66, 0.12))}
+
+
+@spec('standing-cable-leg-extension', camera=cam((0, 0.0, 0.8), 75, 8, 3.9), setup=_cable_ext_setup, concentric='out')
 def standing_cable_leg_extension(ctx, st, u):
     # Facing away from a low pulley, the thigh held up; the knee straightens against the strap.
     stand(ctx, width=0.03)
     ctx.leg_fk('R', hip_flex=45, knee=lerp(85, 5, u), ankle=5)
-    for s in SIDES:
-        ctx.arm_fk(s, abd=15)
+    ctx.arm_fk('L', abd=15)
+    ctx.grip('R', (-SUPPORT.x, SUPPORT.y, SUPPORT.z), (0, 0, 1))
     set_line(st['cable'], st['pulley'], ctx.world('foot.R', 'head'))
 
 
-@spec('vertical-leg-press', camera=cam((0, 0.1, 0.6), 70, 12, 3.8),
-      setup=lambda ctx: {'plat': ctx.eq.group('vlp', [ctx.eq.box('vp', (0.6, 0.45, 0.05), (0, 0, 0), ctx.eq.m_equip, 0.01)])},
-      concentric='back')
+VLP_PAD = 0.08  # back pad under the lifter
+
+
+def _vertical_press_setup(ctx):
+    rail_y = 0.01  # under the feet, just past the hips
+    ctx.eq.group('vlp_frame', [
+        ctx.eq.pad('back_pad', (0.5, 0.85, VLP_PAD), (0, 0.45, VLP_PAD / 2)),
+        *[ctx.eq.frame('rail' + s, (0.05, 0.05, 1.5), (sgn(s) * 0.38, rail_y, 0.85)) for s in SIDES],
+        ctx.eq.frame('rail_top', (0.81, 0.05, 0.05), (0, rail_y, 1.6)),
+        ctx.eq.frame('rail_base', (0.9, 0.3, 0.04), (0, rail_y, 0.02)),
+    ])
+    plat = ctx.eq.group('vlp', [
+        ctx.eq.box('vp', (0.6, 0.45, 0.05), (0, 0, 0), ctx.eq.m_equip, 0.01),
+        *[ctx.eq.frame('sleeve' + s, (0.09, 0.09, 0.14), (sgn(s) * 0.38, 0, 0)) for s in SIDES],
+        *[ctx.eq.frame('arm' + s, (0.1, 0.04, 0.03), (sgn(s) * 0.31, 0, 0)) for s in SIDES],
+    ])
+    return {'plat': plat, 'rail_y': rail_y}
+
+
+@spec('vertical-leg-press', camera=cam((0, 0.1, 0.65), 70, 12, 4.0), setup=_vertical_press_setup, concentric='back')
 def vertical_leg_press(ctx, st, u):
-    # Lying on the back under a platform; the legs lower it toward the chest and press it up.
-    ctx.root((0, 0.1, 0.12), (-90, 0, 0))
+    # Lying on the back pad under a platform on guide rails; the legs lower it toward the chest
+    # and press it up.
+    ctx.root((0, 0.1, 0.12 + VLP_PAD), (-90, 0, 0))
     hip = (ctx.world('thigh.L', 'head') + ctx.world('thigh.R', 'head')) / 2
     z = lerp(0.85, 0.5, smootherstep(u))
     for s in SIDES:
@@ -555,23 +673,40 @@ def vertical_leg_press(ctx, st, u):
 # Calves and shins
 
 
-def calf_spec(id_, load='none', seated=False, donkey=False, single=False, leg_press=False, step=True,
+BALL_FROM_ANKLE = Vector((0, -0.11, -0.065))  # ball of the foot (sole) from the ankle, rest pose
+SEATED_STEP_Y = -0.22  # balls of the feet on a seated calf raise: just under the knees
+
+
+def calf_spec(id_,load='none', seated=False, donkey=False, single=False, leg_press=False, step=True,
               eccentric=False):
     def setup(ctx):
         st = {}
         if step:
-            ctx.eq.plyo_box((0, -0.12), height=0.1, size=(0.5, 0.2))
+            # Seated: the step sits under the shins, its back edge under the balls of the feet.
+            ctx.eq.plyo_box((0, SEATED_STEP_Y - 0.1 if seated else -0.12), height=0.1, size=(0.5, 0.2))
         if load == 'bar':
             st['bar'] = ctx.eq.barbell()
         elif load == 'smith':
             st['bar'] = ctx.eq.smith_machine(bar_y=0.07)
         elif load == 'knee_bar':
-            st['bar'] = ctx.eq.barbell()
+            st['bar'] = ctx.eq.barbell(plate_radius=0.12)  # small plates keep the feet in view
         if seated:
             ctx.eq.flat_bench((0, 0.35), length=0.45, height=0.45, yaw=90)
+            if load == 'none':
+                # Seated calf machine: a pad across the lower thighs on a lever from a front column.
+                ctx.eq.group('calf_column', [ctx.eq.frame('col', (0.08, 0.08, 0.75), (0, -0.55, 0.375)),
+                                             ctx.eq.frame('col_base', (0.5, 0.08, 0.03), (0, -0.55, 0.015))])
+                st['knee_pad'] = ctx.eq.group('knee_pad', [
+                    ctx.eq.pad('kp', (0.42, 0.14, 0.08), (0, 0, 0)),
+                    *[ctx.eq.cyl('kp_handle' + s, 0.016, 0.12, (sgn(s) * 0.26, 0, 0.04), mat=ctx.eq.m_metal, verts=16)
+                      for s in SIDES]])
+                st['lever'] = ctx.eq.line('calf_lever', radius=0.02)
         if donkey:
             ctx.eq.group('donkey', [ctx.eq.pad('support', (0.5, 0.2, 0.08), (0, -0.75, 1.0)),
-                                    ctx.eq.frame('post', (0.08, 0.08, 1.0), (0, -0.75, 0.5))])
+                                    ctx.eq.frame('post', (0.08, 0.08, 1.0), (0, -0.75, 0.5)),
+                                    ctx.eq.frame('rear_col', (0.08, 0.08, 1.25), (0, 0.6, 0.625))])
+            st['hip_pad'] = ctx.eq.group('hip_pad', [ctx.eq.pad('hp', (0.4, 0.08, 0.25), (0, 0, 0))])
+            st['lever'] = ctx.eq.line('donkey_lever', radius=0.02)
         if leg_press:
             st.update(ctx.eq.leg_press())
         return st
@@ -582,27 +717,49 @@ def calf_spec(id_, load='none', seated=False, donkey=False, single=False, leg_pr
         if eccentric:
             ankle = lerp(32, -14, t)
         if leg_press:
+            # Knees almost locked, ankles fixed on the 45° line like the leg press; the feet
+            # plantarflex about the ankle and the balls of the feet push the sled up the rail.
             ctx.root((0, 0.12, 0.56), (-48, 0, 0))
             ctx.spine(flex=8)
-            for s in SIDES:
-                ctx.leg_fk(s, hip_flex=85, knee=8, ankle=ankle)
-                ctx.grip(s, ctx.body_point((sgn(s) * 0.3, -0.16, 0.86)), (0, 0, 1))
-            ball = ctx.attach_point('foot.L', (0.1, -0.12, 0.02))
+            ctx.head(flex=20)
             rail = st['rail']
-            place(st['platform'], Vector((0, ball.y, ball.z)) + rail * 0.05, qx(45))
+            up_rail = Vector((0, rail.z, -rail.y))  # perpendicular to the rail, toward the chest
+            hip = (ctx.world('thigh.L', 'head') + ctx.world('thigh.R', 'head')) / 2
+            ankles = hip + rail * 0.72 + up_rail * 0.1
+            foot = qx(-135 + ankle)  # sole facing down the rail, then the calf raise
+            for s in SIDES:
+                ctx.target('leg.' + s, ankles + Vector((sgn(s) * 0.14, 0, 0)), foot @ ctx.body.rest_quat('foot.' + s))
+                ctx.pole_world('leg.' + s, up_rail + Vector((sgn(s) * 0.25, 0, 0)))
+                ctx.grip(s, ctx.body_point((sgn(s) * 0.3, -0.16, 0.86)), (0, 0, 1))
+            elbows(ctx, (0.6, 1, 0))
+            ball = ankles + foot @ BALL_FROM_ANKLE
+            # The sled sits where the leg press puts it for these ankles, pushed along the rail as
+            # far as the balls of the feet travel.
+            push = (ball - (ankles + qx(-135) @ BALL_FROM_ANKLE)).dot(rail)
+            place(st['platform'], ankles + rail * (0.08 + push) + up_rail * 0.06, qx(45))
             return
         if seated:
-            sit(ctx, 0.45, y=0.38, knee=88)
+            # Hips stay on the bench; the balls of the feet are pinned on the step's back edge, so
+            # the ankle angle raises the heels and lifts the knees (and the pad or bar on them).
+            sit(ctx, 0.45, y=0.32, knee=90)
             for s in SIDES:
-                ctx.leg_fk(s, hip_flex=88, knee=95, ankle=ankle)
-                ctx.arm_fk(s, flex=35, abd=4, elbow=35)
-            ball = ctx.attach_point('foot.L', (0.1, -0.1, 0.02))
-            ctx.arm.location.z += 0.12 - ball.z
+                foot = qx(ankle)  # qx(+) lifts the heel
+                ball = Vector((sgn(s) * 0.1, SEATED_STEP_Y, 0.12))
+                ctx.target('leg.' + s, ball - foot @ BALL_FROM_ANKLE, foot @ ctx.body.rest_quat('foot.' + s))
+                ctx.pole_world('leg.' + s, (0, -1, 0.3))
             knees = [ctx.world('shin.' + s, 'head') for s in SIDES]
+            mid = (knees[0] + knees[1]) / 2
             if 'bar' in st:
-                mid = (knees[0] + knees[1]) / 2 + Vector((0, -0.02, 0.06))
+                mid += Vector((0, -0.02, 0.06))
                 place(st['bar'], mid)
                 bar_grip(ctx, mid, 0.18)
+            else:
+                pad = mid + Vector((0, 0.07, 0.1))  # across the thighs just behind the knees
+                place(st['knee_pad'], pad)
+                set_line(st['lever'], Vector((0, -0.55, 0.72)), pad + Vector((0, 0, -0.02)))
+                for s in SIDES:
+                    ctx.grip(s, pad + Vector((sgn(s) * 0.26, 0, 0.04)), (0, 0, 1))
+                elbows(ctx, (1, 0.3, -0.5))
             return
         ctx.root((0, 0.0, STAND_Z))
         if donkey:
@@ -627,10 +784,21 @@ def calf_spec(id_, load='none', seated=False, donkey=False, single=False, leg_pr
         elif not donkey:
             for s in SIDES:
                 ctx.arm_fk(s, abd=10)
+        if donkey:
+            # Machine pad on the hips, on a lever from a column behind; it rides up with the heels.
+            ctx.follow(st['hip_pad'], 'pelvis', (0, 0.17, 0.93))
+            set_line(st['lever'], Vector((0, 0.6, 1.2)), ctx.attach_point('pelvis', (0, 0.2, 0.93)))
 
     # Standing raises (bar on the back, up on a step) need the taller frame.
     standing = not (seated or leg_press or donkey)
-    camera = cam((0, 0, 0.98), 78, 6, 4.2) if standing else cam((0, 0, 0.7), 78, 6, 3.6)
+    if seated:
+        camera = cam((0, -0.05, 0.45), 40, 12, 3.4)  # front-left, so the plates don't hide the feet
+    elif leg_press:
+        camera = cam((0, -0.3, 0.85), 55, 10, 3.4)  # front-left, so the feet show beside the sled
+    elif standing:
+        camera = cam((0, 0, 0.98), 78, 6, 4.2)
+    else:
+        camera = cam((0, 0, 0.7), 78, 6, 3.6)
     spec(id_, camera=camera, setup=setup, concentric='out' if not eccentric else 'back',
          timing=dict(hold_start=0.12, out=0.3, hold_end=0.16))(pose)
 
@@ -645,33 +813,49 @@ calf_spec('calf-raise-in-leg-press', leg_press=True, step=False)
 calf_spec('eccentric-heel-drop', single=True, eccentric=True)
 
 
-@spec('tibialis-raise', camera=cam((0, 0.0, 0.6), 78, 6, 3.6),
+# Ankle relative to the bottom of the heel, rest pose: toes-up foot targets pivot about the heel.
+HEEL_TO_ANKLE = Vector((0, -0.02, 0.085))
+
+
+def heel_target(ctx, side, heel, toes_up):
+    """Foot target with the heel on `heel` and the toes lifted `toes_up` degrees (qx(-a) lifts the toes)."""
+    r = qx(-toes_up)
+    ctx.target('leg.' + side, Vector(heel) + r @ HEEL_TO_ANKLE, r @ ctx.body.rest_quat('foot.' + side))
+
+
+@spec('tibialis-raise', camera=cam((0, -0.05, 0.9), 78, 6, 4.0),
       setup=lambda ctx: (ctx.eq.group('wall', [ctx.eq.pad('w', (1.2, 0.1, 2.0), (0, 0.3, 1.0))]), {})[1],
       concentric='out')
 def tibialis_raise(ctx, st, u):
     # Back against a wall, heels a step out; the toes lift toward the shins.
     ctx.root((0, 0.12, STAND_Z - 0.02), (-8, 0, 0))
     for s in SIDES:
-        ctx.target('leg.' + s, (sgn(s) * 0.1, -0.22, 0.085), qx(lerp(0, 30, smootherstep(u))) @ ctx.body.rest_quat('foot.' + s))
+        heel_target(ctx, s, (sgn(s) * 0.1, -0.2, 0.0), lerp(0, 30, smootherstep(u)))
         ctx.pole_world('leg.' + s, (0, -1, 0))
         ctx.arm_fk(s, abd=8)
 
 
-@spec('kettlebell-tibialis-raise', camera=cam((0, 0.0, 0.5), 75, 8, 3.4),
-      setup=lambda ctx: (ctx.eq.flat_bench((0, 0.2), length=0.5, height=0.5, yaw=90), {'kb': ctx.eq.kettlebell()})[1],
+KB_BENCH = 0.8  # high enough that the feet hang well clear of the floor
+
+
+@spec('kettlebell-tibialis-raise', camera=cam((0, 0.0, 0.75), 75, 8, 3.8),
+      setup=lambda ctx: (ctx.eq.flat_bench((0, 0.2), length=0.5, height=KB_BENCH, yaw=90), {'kb': ctx.eq.kettlebell()})[1],
       concentric='out')
 def kb_tibialis_raise(ctx, st, u):
-    # Seated on a high bench, a kettlebell hooked over the toes; the feet pull up against it.
-    sit(ctx, 0.5, y=0.22, knee=80)
+    # Seated on a high bench, lower legs hanging, a kettlebell's handle hooked over the right
+    # forefoot; the toes pull up toward the shin against it.
+    sit(ctx, KB_BENCH, y=0.22, knee=90)
     t = smootherstep(u)
     for s in SIDES:
-        ctx.leg_fk(s, hip_flex=88, knee=80, ankle=lerp(-30, 15, t))
+        ctx.leg_fk(s, hip_flex=88, knee=90, ankle=lerp(-30, 15, t))
         ctx.arm_fk(s, flex=20, abd=10, elbow=20)
-    toes = ctx.attach_point('foot.R', (-0.1, -0.15, 0.03))
-    place(st['kb'], toes + Vector((0, 0, 0.05)))
+    # The handle's top bar rests on the top of the forefoot and the bell hangs straight down below
+    # the sole, so the foot sits inside the handle loop.
+    top = ctx.attach_point('foot.R', (-0.105, -0.1, 0.05))
+    place(st['kb'], top + Vector((0, 0, 0.012)))
 
 
-@spec('tibialis-band-pull', camera=cam((0, 0.0, 0.3), 75, 12, 3.4),
+@spec('tibialis-band-pull', camera=cam((0, -0.15, 0.3), 75, 12, 3.6),
       setup=lambda ctx: (ctx.eq.group('anchor', [ctx.eq.frame('post', (0.1, 0.1, 0.5), (0, -1.0, 0.25))]),
                          {'band': ctx.eq.line('band', accent=True, radius=0.01)})[1], concentric='out')
 def tibialis_band_pull(ctx, st, u):
@@ -689,13 +873,15 @@ def tibialis_band_pull(ctx, st, u):
 
 @spec('heel-walks', camera=cam((0, 0, 0.8), 70, 8, 3.9), setup=nothing, timing=ALTERNATE)
 def heel_walks(ctx, st, u):
-    # Walking on the heels with the toes held up.
+    # Walking in place on the heels, toes held high, short stiff-kneed steps. The swinging foot
+    # lifts while it moves forward; the planted heel slides back under the body.
     w = wave(ctx)
+    swing = math.cos(2 * math.pi * ctx.t)
     ctx.root((0, 0.0, STAND_Z - 0.02))
     for s in SIDES:
-        step = 0.16 * (w if s == 'L' else -w)
-        lift = 0.05 * max(0.0, math.cos(math.pi * (w if s == 'L' else -w)) if (w if s == 'L' else -w) > 0 else 0)
-        ctx.target('leg.' + s, (sgn(s) * 0.1, -step, 0.085 + lift), qx(25) @ ctx.body.rest_quat('foot.' + s))
+        step = 0.13 * (w if s == 'L' else -w)
+        lift = 0.05 * max(0.0, swing if s == 'L' else -swing)
+        heel_target(ctx, s, (sgn(s) * 0.1, 0.03 - step, lift), 32)
         ctx.pole_world('leg.' + s, (0, -1, 0))
         ctx.arm_fk(s, flex=25 * (-w if s == 'L' else w), abd=6, elbow=25)
 

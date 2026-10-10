@@ -126,8 +126,8 @@ def leg_press(ctx, st, u):
     rail = st['rail']
     up_rail = Vector((0, rail.z, -rail.y))  # perpendicular to the rail, toward the chest
     hip = (ctx.world('thigh.L', 'head') + ctx.world('thigh.R', 'head')) / 2
-    # Extended to ~10° short of lockout, down to ~85° of knee bend.
-    ankles = hip + rail * lerp(0.74, 0.44, u) + up_rail * 0.1
+    # Hip-to-ankle along the rail: knees ~150° at the top (short of lockout), ~60° at the bottom.
+    ankles = hip + rail * lerp(0.86, 0.46, u) + up_rail * 0.1
     sole = qx(-135)  # the rest foot's sole turned to face down the rail
     for s in SIDES:
         ctx.target('leg.' + s, ankles + Vector((sgn(s) * 0.14, 0, 0)), sole @ ctx.body.rest_quat('foot.' + s))
@@ -161,7 +161,7 @@ def leg_extension(ctx, st, u):
     place(st['lever'], (0, knee.y, knee.z), ctx.bone_delta('shin.L'))
 
 
-@spec('calf-raise', camera=cam((0, 0, 0.7), 78, 6, 3.6), setup=lambda ctx: ctx.eq.calf_raise(), concentric='out',
+@spec('calf-raise', camera=cam((0, 0, 0.95), 78, 6, 4.1), setup=lambda ctx: ctx.eq.calf_raise(), concentric='out',
       timing=dict(hold_start=0.12, out=0.3, hold_end=0.16))
 def calf_raise(ctx, st, u):
     ctx.root((0, 0.0, STAND_Z))
@@ -251,13 +251,16 @@ def bench_press(ctx, st, u):
 
 
 def _incline_setup(ctx):
-    ctx.eq.incline_bench(55)
+    from catalog_press import incline_setup
+
+    incline_setup(ctx)
     return barbell(ctx)
 
 
 @spec('incline-bench', camera=cam((0, 0.15, 0.85), 62, 14, 3.9), setup=_incline_setup)
 def incline_bench(ctx, st, u):
-    ctx.root((0, 0.06, 0.57), (-55, 0, 0))
+    # Reclined like lie(ctx, 'incline'): back on the pad, hips on the seat.
+    ctx.root((0, 0.06, 0.6), (-55, 0, 0))
     ctx.head(flex=20)
     for s in SIDES:
         ctx.target('leg.' + s, (sgn(s) * 0.24, -0.55, 0.085))
@@ -329,8 +332,9 @@ def tricep_pushdown(ctx, st, u):
 def skull_crusher(ctx, st, u):
     lie_on_bench(ctx)
     for s in SIDES:
-        # Upper arms stay near vertical and tucked; only the elbows bend, bar to the forehead.
-        ctx.arm_fk(s, flex=lerp(82, 90, u), abd=-4, elbow=lerp(2, 100, u))
+        # Upper arms stay tucked, tilted a little toward the feet so the bar can come down to just
+        # above the forehead; only the elbows bend. Upright upper arms put the bar past the crown.
+        ctx.arm_fk(s, flex=lerp(80, 72, u), abd=-4, elbow=lerp(2, 121, u))
     bar = fk_hand_midpoint(ctx)
     place(st['bar'], bar)
     bar_grip(ctx, bar, 0.16)

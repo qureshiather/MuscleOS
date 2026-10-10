@@ -45,12 +45,16 @@ def forearm_plank(ctx, knees=False, side=None):
         ctx.pole_world('arm.L', (0, 0, -1))
         ctx.arm_fk('R', abd=-10, flex=0)
         return
-    pitch = 79.6 if not knees else 62
-    z = 0.255 if not knees else 0.3
+    pitch = 79.6 if not knees else 72
+    z = 0.255
     ctx.root((0, 0.0, z), (pitch, 0, 0))
     ctx.head(flex=-60)
     for s in SIDES:
-        ctx.leg_fk(s, ankle=-5, knee=0 if not knees else 95, hip_flex=0 if not knees else -8)
+        ctx.leg_fk(s, ankle=-5, knee=0 if not knees else 95)
+    if knees:
+        # Straight from knees to head: drop the body until the kneecaps rest on the floor, which
+        # leaves the shoulders at forearm height so the elbows sit under them.
+        ctx.arm.location.z += 0.07 - ctx.world('shin.L', 'head').z
     down = ctx.arm.matrix_world.to_quaternion().inverted() @ Vector((0, 0, -1))
     for s in SIDES:
         sh = ctx.world('upperarm.' + s, 'head')
@@ -120,28 +124,51 @@ def plank_leg_lifts(ctx, st, u):
         ctx.leg_fk(s, hip_flex=-25 * smootherstep(lift), ankle=-5)
 
 
-@spec('plank-to-push-up', camera=cam((0, 0.05, 0.3), 70, 12, 3.8), setup=nothing, concentric='out')
+def _ramp(t, a, b):
+    """0 before a, 1 after b, smooth in between."""
+    return smootherstep(min(max((t - a) / (b - a), 0.0), 1.0))
+
+
+P2P_LOW = ((0, 0.0, 0.255), (79.6, 0, 0))  # forearm plank
+P2P_HIGH = ((0, 0.0, 0.6), (68, 0, 0))  # straight-arm plank
+
+
+@spec('plank-to-push-up', camera=cam((0, 0.05, 0.3), 70, 12, 3.8), setup=nothing,
+      timing=dict(hold_start=0.0, out=1.0, hold_end=0.0), concentric='out')
 def plank_to_push_up(ctx, st, u):
-    # Forearm plank up to a straight-arm plank one hand at a time, then back down.
-    t = smootherstep(u)
-    ctx.root((0, 0.0, lerp(0.255, 0.6, t)), (lerp(79.6, 68, t), 0, 0))
+    # Forearm plank up to a straight-arm plank one hand at a time, then down one arm at a time.
+    # Two reps per loop so the lead arm alternates: right leads the first, left the second.
+    t = getattr(ctx, 't', 0.0)
+    h = (t * 2) % 1.0
+    lead, other = ('R', 'L') if t < 0.5 else ('L', 'R')
+    k = {lead: _ramp(h, 0.03, 0.19) - _ramp(h, 0.53, 0.69),
+         other: _ramp(h, 0.24, 0.40) - _ramp(h, 0.74, 0.90)}
+    # Hands land at fixed spots on the floor: the forearm spot under the low plank's shoulders and
+    # the palm spot under the high plank's.
+    spots = {}
+    for name, (loc, rot) in (('low', P2P_LOW), ('high', P2P_HIGH)):
+        ctx.root(loc, rot)
+        spots[name] = {s: ctx.world('upperarm.' + s, 'head') for s in SIDES}
+    # The torso climbs as each hand plants.
+    m = (k['L'] + k['R']) / 2
+    ctx.root(lerp(P2P_LOW[0], P2P_HIGH[0], m), lerp(P2P_LOW[1], P2P_HIGH[1], m))
     ctx.head(flex=-55)
     for s in SIDES:
-        ctx.leg_fk(s, ankle=lerp(-5, -15, t))
-    for i, s in enumerate(SIDES):
-        k = smootherstep(min(max((u - 0.5 * i) / 0.5, 0.0), 1.0))
-        sh = ctx.world('upperarm.' + s, 'head')
-        forearm = Vector((sh.x, sh.y - 0.25, 0.045))
-        hand = Vector((sh.x, sh.y - 0.02, 0.08))
-        ctx.target('arm.' + s, forearm.lerp(hand, k))
-        ctx.pole_world('arm.' + s, Vector((0, 0, -1)).lerp(Vector((0, 1, 0)), k))
+        ctx.leg_fk(s, ankle=lerp(-5, -15, m))
+        lo, hi = spots['low'][s], spots['high'][s]
+        forearm = Vector((lo.x, lo.y - 0.25, 0.045))
+        hand = Vector((hi.x, hi.y - 0.02, 0.08))
+        p = forearm.lerp(hand, k[s]) + Vector((0, 0, 0.08 * math.sin(math.pi * k[s])))
+        ctx.target('arm.' + s, p)
+        ctx.pole_world('arm.' + s, Vector((0, 0, -1)).lerp(Vector((0, 1, 0)), k[s]))
 
 
 @spec('copenhagen-plank', camera=cam((0, 0.0, 0.35), 0, 12, 4.0),
-      setup=lambda ctx: (ctx.eq.flat_bench((-0.9, 0.0), length=0.5, height=0.44, yaw=90), {})[1], **HOLD)
+      setup=lambda ctx: (ctx.eq.flat_bench((-0.9, 0.0), length=0.5, height=0.32, yaw=90), {})[1], **HOLD)
 def copenhagen_plank(ctx, st, u):
-    # Side plank with the top leg resting on a bench; the bottom leg hangs free.
-    ctx.root((-0.05, 0.0, 0.42), (0, 84, 0))
+    # Side plank on the forearm with the top leg resting on a low bench; the bottom leg hangs
+    # free. The shoulder sits at forearm height so the elbow lands under it.
+    ctx.root((-0.05, 0.0, 0.34), (0, 82, 0))
     sh = ctx.world('upperarm.L', 'head')
     ctx.target('arm.L', (sh.x, sh.y - 0.26, 0.045))
     ctx.pole_world('arm.L', (0, 0, -1))
@@ -155,8 +182,13 @@ def copenhagen_plank(ctx, st, u):
 def dynamic_side_plank(ctx, st, u):
     # Hip dips: the hips lower toward the floor and lift back into a straight side plank.
     forearm_plank(ctx, side='L')
-    ctx.arm.location.z -= 0.14 * smootherstep(1 - u)
-    ctx.bone('pelvis', (Y, 12 * smootherstep(1 - u)))
+    # The forearm and feet stay planted: roll the trunk about the support shoulder so the hips
+    # sag, and abduct the legs back the same amount so the feet stay on the floor.
+    d = smootherstep(1 - u)
+    sh = ctx.world('upperarm.L', 'head')
+    ctx.pin_root(M.joint('shoulder'), sh, (0, 78 - 14 * d, 0))
+    for s in SIDES:
+        ctx.leg_fk(s, hip_abd=-sgn(s) * 14 * d, ankle=-5)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -181,9 +213,21 @@ def arms_crossed(ctx):
         ctx.arm_fk(s, flex=40, abd=-20, elbow=120, rot=60)
 
 
-def crunch_spec(id_, depth=32, situp=False, hands='head', twist=0.0, cable=False, machine=False):
+def crunch_spec(id_, depth=32, situp=False, hands='head', twist=0.0, cable=False, machine=False, knees_down=0.0,
+                alternate=False, anchor=False):
+    """knees_down: both knees dropped this far (degrees) to one side, shoulders still crunching
+    straight up. alternate: twist to one side then the other within the loop. anchor: a pad
+    over the insteps."""
+
     def setup(ctx):
         st = {}
+        if anchor:
+            # A roller just above the insteps, on short legs, holding the feet down.
+            ctx.eq.group('foot_anchor', [
+                ctx.eq.cyl('foot_roller', 0.05, 0.42, (0, -0.63, 0.16), (0, math.pi / 2, 0), ctx.eq.m_pad, 24),
+                ctx.eq.frame('anchor_leg', (0.04, 0.04, 0.16), (0.23, -0.63, 0.08)),
+                ctx.eq.frame('anchor_leg', (0.04, 0.04, 0.16), (-0.23, -0.63, 0.08)),
+            ])
         if cable:
             ctx.eq.cable_column(0, 0.6, 2.1)
             st['pulley'] = Vector((0, 0.51, 1.9))
@@ -192,10 +236,21 @@ def crunch_spec(id_, depth=32, situp=False, hands='head', twist=0.0, cable=False
         if machine:
             ctx.eq.group('crunch_machine', [
                 ctx.eq.pad('seat', (0.42, 0.42, 0.08), (0, 0.05, 0.45)),
-                ctx.eq.pad('chest_pad', (0.42, 0.08, 0.3), (0, -0.15, 1.35)),
                 ctx.eq.frame('post', (0.1, 0.1, 0.45), (0, 0.1, 0.22)),
                 ctx.eq.frame('column', (0.08, 0.08, 1.6), (0, 0.35, 0.8)),
+                # Footrest and a roller over the shins secure the feet.
+                ctx.eq.frame('foot_rail', (0.06, 0.5, 0.04), (0, -0.15, 0.06)),
+                ctx.eq.pad('foot_plate', (0.36, 0.2, 0.04), (0, -0.38, 0.06)),
+                ctx.eq.cyl('foot_roller', 0.045, 0.4, (0, -0.47, 0.3), (0, math.pi / 2, 0), ctx.eq.m_pad, 24),
+                ctx.eq.frame('roller_post', (0.04, 0.04, 0.26), (0, -0.47, 0.15)),
             ])
+            # The chest pad and handles ride on the machine's arm, so they move with the chest
+            # (rest-pose positions: pad on the sternum, handles beside the head).
+            parts = [ctx.eq.pad('chest_pad', (0.36, 0.06, 0.24), (0, -0.2, 1.3))]
+            for x in (0.17, -0.17):
+                parts.append(ctx.eq.cyl('handle', 0.016, 0.14, (x, -0.1, 1.58), (math.pi / 2, 0, 0), ctx.eq.m_metal, 16))
+                parts.append(ctx.eq.frame('handle_arm', (0.03, 0.03, 0.34), (x, -0.1, 1.42)))
+            st['pad'] = ctx.eq.group('crunch_arm', parts)
         return st
 
     def pose(ctx, st, u):
@@ -221,15 +276,34 @@ def crunch_spec(id_, depth=32, situp=False, hands='head', twist=0.0, cable=False
             for s in SIDES:
                 ctx.leg_fk(s, hip_flex=88, knee=90)
             ctx.spine(flex=-2 + 45 * t)
+            # The pad stays on the chest and the hands hold the handles beside the head.
+            ctx.follow(st['pad'], 'chest', (0, 0, 0))
+            fwd = ctx.bone_delta('chest') @ Vector((0, -1, 0))
             for s in SIDES:
-                ctx.arm_fk(s, flex=60, abd=-5, elbow=110)
+                ctx.grip(s, ctx.attach_point('chest', (sgn(s) * 0.17, -0.1, 1.58)), fwd)
+            elbows(ctx, (0.3, -0.2, -1))
             return
-        supine(ctx)
+        tw = twist
+        if alternate:
+            # One rep to each side per loop: u is unused, the twist sign follows loop time.
+            w = wave(ctx)
+            t = smootherstep(abs(w))
+            tw = twist if w >= 0 else -twist
+        if knees_down:
+            # Knees fall to one side with the hips; the spine untwists so the shoulders face up.
+            supine(ctx, knees=False, z=0.14)  # the hips on their side sit higher
+            ctx.bone('pelvis', (Z, knees_down))
+            for s in SIDES:
+                ctx.leg_fk(s, hip_flex=75, knee=100, ankle=-10)
+        else:
+            supine(ctx)
         if situp:
             ctx.bone('pelvis', (X, 62 * t))
-            ctx.spine(flex=25 * t, twist=twist * t)
+            ctx.spine(flex=25 * t, twist=tw * t)
+        elif knees_down:
+            ctx.spine(flex=depth * t, twist=-knees_down)
         else:
-            ctx.spine(flex=depth * t, twist=twist * t)
+            ctx.spine(flex=depth * t, twist=tw * t)
         ctx.head(flex=15 * t)
         if hands == 'head':
             hands_behind_head(ctx)
@@ -240,13 +314,14 @@ def crunch_spec(id_, depth=32, situp=False, hands='head', twist=0.0, cable=False
                 ctx.arm_fk(s, flex=lerp(30, 70, t), abd=6)
 
     cam_ = cam((0, 0.2, 0.3), 75, 14, 3.4) if not (cable or machine) else cam((0, 0.0, 0.8), 70, 10, 3.6)
-    spec(id_, camera=cam_, setup=setup, concentric='out')(pose)
+    timing = dict(hold_start=0.0, out=0.5, hold_end=0.0) if alternate else {}
+    spec(id_, camera=cam_, setup=setup, concentric='out', timing=timing)(pose)
 
 
 crunch_spec('crunch')
 crunch_spec('sit-up', situp=True, hands='cross')
-crunch_spec('oblique-crunch', twist=28)
-crunch_spec('oblique-sit-up', situp=True, twist=30, hands='head')
+crunch_spec('oblique-crunch', knees_down=-80)
+crunch_spec('oblique-sit-up', situp=True, twist=30, hands='head', alternate=True, anchor=True)
 crunch_spec('cable-crunch', cable=True)
 crunch_spec('machine-crunch', machine=True)
 
@@ -265,7 +340,7 @@ def bicycle_crunch(ctx, st, u):
         ctx.leg_fk(s, hip_flex=lerp(25, 90, k), knee=lerp(10, 95, k))
 
 
-@spec('hollow-hold', camera=cam((0, 0.2, 0.25), 75, 12, 3.6), setup=nothing, **HOLD)
+@spec('hollow-hold', camera=cam((0, 0.25, 0.25), 75, 12, 4.4), setup=nothing, **HOLD)
 def hollow_hold(ctx, st, u):
     supine(ctx, knees=False)
     ctx.spine(flex=22)
@@ -273,10 +348,10 @@ def hollow_hold(ctx, st, u):
     for s in SIDES:
         ctx.leg_fk(s, hip_flex=22, ankle=-25)
         ctx.arm_fk(s, flex=165, abd=-4)
-    orbit(ctx, (0, 0.2, 0.25), 60, 100, 12, 3.6, u)
+    orbit(ctx, (0, 0.25, 0.25), 60, 100, 12, 4.4, u)
 
 
-@spec('hollow-body-crunch', camera=cam((0, 0.2, 0.25), 75, 12, 3.6), setup=nothing, concentric='out')
+@spec('hollow-body-crunch', camera=cam((0, 0.25, 0.25), 75, 12, 4.4), setup=nothing, concentric='out')
 def hollow_body_crunch(ctx, st, u):
     supine(ctx, knees=False)
     t = smootherstep(u)
@@ -368,7 +443,7 @@ def dragon_flag(ctx, st, u):
 # Hanging and supported leg raises
 
 
-def hang_raise(id_, chair=False, knees=False, situp=False, wiper=False):
+def hang_raise(id_, chair=False, knees=False, wiper=False):
     def setup(ctx):
         if chair:
             ctx.eq.captains_chair()
@@ -388,13 +463,14 @@ def hang_raise(id_, chair=False, knees=False, situp=False, wiper=False):
             for s in SIDES:
                 ctx.grip(s, Vector((sgn(s) * 0.3, bar.y, bar.z)), (-sgn(s), 0, 0))
             elbows(ctx, (0.7, -0.05, -1))
-        tuck = knees or situp  # a hanging sit-up is shown as a full knees-to-chest tuck
+        tuck = knees
         if wiper:
+            # Straight legs raised up toward the bar (pelvis tucked), then swept side to side.
             w = wave(ctx)
-            ctx.bone('pelvis', (Z, 50 * w))
-            ctx.spine(twist=-45 * w)
+            ctx.bone('pelvis', (X, -30), (Z, 50 * w))
+            ctx.spine(flex=20, twist=-45 * w)
             for s in SIDES:
-                ctx.leg_fk(s, hip_flex=88, ankle=-20)
+                ctx.leg_fk(s, hip_flex=130, ankle=-20)
             return
         ctx.bone('pelvis', (X, -12 * t))
         ctx.spine(flex=22 * t)
@@ -411,10 +487,28 @@ def hang_raise(id_, chair=False, knees=False, situp=False, wiper=False):
 
 hang_raise('hanging-leg-raise')
 hang_raise('hanging-knee-raise', knees=True)
-hang_raise('hanging-sit-up', situp=True)
 hang_raise('hanging-windshield-wiper', wiper=True)
 hang_raise('captains-chair-knee-raise', chair=True, knees=True)
 hang_raise('captains-chair-leg-raise', chair=True)
+
+
+@spec('hanging-sit-up', camera=cam((0, 0, 1.4), 70, 6, 4.6), setup=lambda ctx: {'bar': ctx.eq.pullup_bar()},
+      concentric='out')
+def hanging_sit_up(ctx, st, u):
+    # Hanging upside down with the knees hooked over the bar, arms crossed on the chest; the torso
+    # curls up toward the knees while the thighs stay vertical.
+    bar = st['bar']
+    t = smootherstep(u)
+    a = lerp(0, 55, t)
+    # Back of the knee over the bar: the thigh hangs straight down from it, the shin folds over.
+    knee = Vector((0, bar.y + 0.06, bar.z + 0.02))
+    hip = knee - Vector((0, 0, M.joint('hip').z - M.joint('knee').z))
+    ctx.pin_root(Vector((0, 0, M.joint('hip').z)), hip, (180 + a, 0, 0))
+    for s in SIDES:
+        ctx.leg_fk(s, hip_flex=a, knee=105, ankle=-20)
+    ctx.spine(flex=lerp(0, 55, t))
+    ctx.head(flex=lerp(0, 20, t))
+    arms_crossed(ctx)
 
 
 @spec('l-sit', camera=cam((0, 0.0, 0.35), 60, 10, 3.6), setup=lambda ctx: _parallettes(ctx), **HOLD)
@@ -484,7 +578,7 @@ def _side_band(height):
     return setup
 
 
-@spec('pallof-press', camera=cam((0, 0.0, 1.1), 20, 8, 4.0), setup=_side_cable(1.15), concentric='out')
+@spec('pallof-press', camera=cam((0, -0.1, 1.05), 55, 22, 4.0), setup=_side_cable(1.15), concentric='out')
 def pallof_press(ctx, st, u):
     # Side-on to the cable, hands at the sternum press straight out and resist the twist.
     stand(ctx, width=0.08)
@@ -500,18 +594,25 @@ def pallof_press(ctx, st, u):
     elbows(ctx, (0.5, 0.3, -1))
 
 
-def chop_spec(id_, start_z, end_z, setup):
+def chop_spec(id_, start_el, end_el, setup):
     def pose(ctx, st, u):
-        # Both hands on the handle sweep diagonally across the body, the torso and hips turning with it.
+        # Both hands on the handle sweep across the body at arm's length, the torso and hips turning
+        # with it. The handle is aimed from the shoulders along the chest's heading, at an elevation
+        # going from start_el to end_el (degrees), so the arms stay long and the hands can always
+        # reach it: low ends sit at hip height, high ends above the shoulder.
         stand(ctx, width=0.14, toe_out=10)
         t = smootherstep(u)
-        turn = lerp(45, -45, t)
-        ctx.spine(twist=turn * 0.9, flex=8 + 10 * abs(end_z - start_z) * t)
+        turn = lerp(50, -50, t)
+        el = lerp(start_el, end_el, t)
+        low = max(0.0, -math.sin(math.radians(el)))
+        ctx.arm.location.z -= 0.05 * low  # soft knees as the hands come down to the hip
+        knees_out(ctx, 0.2)
+        ctx.spine(twist=turn * 0.9, flex=6 + 14 * low)
         ctx.bone('pelvis', (Z, turn * 0.35))
         sh = shoulders(ctx)
-        a = math.radians(turn)
-        reach = 0.52
-        p = Vector((math.sin(a) * reach, sh.y - math.cos(a) * reach * 0.8, lerp(start_z, end_z, t)))
+        a, e = math.radians(turn), math.radians(el)
+        reach = 0.54
+        p = sh + Vector((math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e))) * reach
         for s in SIDES:
             ctx.grip(s, p + Vector((0, 0, 0.04 * sgn(s))), (0, 0, 1))
         place(st['h'], p, along((0, 0, 1)))
@@ -521,12 +622,12 @@ def chop_spec(id_, start_z, end_z, setup):
     spec(id_, camera=cam((0, 0.0, 1.1), 15, 8, 4.0), setup=setup, concentric='out')(pose)
 
 
-chop_spec('cable-machine-wood-chop-high-to-low', 1.75, 0.65, _side_cable(1.9))
-chop_spec('cable-machine-wood-chop-low-to-high', 0.6, 1.7, _side_cable(0.2))
-chop_spec('horizontal-wood-chop-with-cable', 1.25, 1.2, _side_cable(1.25))
-chop_spec('high-to-low-wood-chop-with-band', 1.75, 0.65, _side_band(1.9))
-chop_spec('band-wood-chop-low-to-high', 0.6, 1.7, _side_band(0.2))
-chop_spec('horizontal-wood-chop-with-band', 1.25, 1.2, _side_band(1.25))
+chop_spec('cable-machine-wood-chop-high-to-low', 35, -55, _side_cable(1.9))
+chop_spec('cable-machine-wood-chop-low-to-high', -55, 35, _side_cable(0.2))
+chop_spec('horizontal-wood-chop-with-cable', -15, -15, _side_cable(1.25))
+chop_spec('high-to-low-wood-chop-with-band', 35, -55, _side_band(1.9))
+chop_spec('band-wood-chop-low-to-high', -55, 35, _side_band(0.2))
+chop_spec('horizontal-wood-chop-with-band', -15, -15, _side_band(1.25))
 
 
 @spec('side-bend', camera=cam((0, 0, 1.0), 5, 8, 3.8), setup=lambda ctx: {'w': ctx.eq.dumbbell('db')}, concentric='back')
@@ -552,10 +653,11 @@ def core_twist(ctx, st, u):
     for s in SIDES:
         ctx.leg_fk(s, hip_flex=95, knee=80, ankle=-20)
     w = wave(ctx)
-    ctx.spine(flex=-10, twist=50 * w)
+    # Ball held low in front of the chest; a little side bend with the twist brings it to each hip.
+    ctx.spine(flex=-10, twist=50 * w, side=10 * w)
     hands = []
     for s in SIDES:
-        ctx.arm_fk(s, flex=60, abd=-25, elbow=70, rot=50)
+        ctx.arm_fk(s, flex=30, abd=-15, elbow=40, rot=35)
         hands.append(ctx.attach_point('hand.' + s, grip_point(s)))
     place(st['ball'], (hands[0] + hands[1]) / 2 + Vector((0, -0.04, 0)))
 
@@ -565,18 +667,35 @@ def _landmine_rot(ctx):
     return {'anchor': anchor, 'bar': line}
 
 
-@spec('landmine-rotation', camera=cam((0, -0.4, 1.0), 20, 10, 4.2), setup=_landmine_rot,
+def _heel_up(ctx, side, ankle, deg, yaw=0.0):
+    """Foot target with the heel raised `deg` on the ball of the foot, turned `yaw` about it."""
+    from catalog_power import BALL, on_toes
+
+    ball = Vector(ankle) + BALL
+    lifted, tilt = on_toes(ankle, deg)
+    q = qz(yaw)
+    ctx.target('leg.' + side, ball + q @ (lifted - ball), q @ tilt @ ctx.body.rest_quat('foot.' + side))
+
+
+@spec('landmine-rotation', camera=cam((0, -0.6, 0.8), 20, 12, 4.8), setup=_landmine_rot,
       timing=dict(hold_start=0.0, out=0.5, hold_end=0.0))
 def landmine_rotation(ctx, st, u):
-    # Arms long, the bar end sweeps in an arc from one hip to the other, the torso turning with it.
+    # Arms long, the bar end sweeps in an arc from one hip, up past the face, down to the other,
+    # the hips turning with it and the back heel pivoting.
     stand(ctx, width=0.12)
     w = wave(ctx)
-    ctx.spine(twist=-40 * w)
-    ctx.bone('pelvis', (Z, -15 * w))
-    a = math.radians(55 * w)
-    end = Vector((math.sin(a) * 0.5, -0.45 + 0.1 * abs(w), 1.45 - 0.35 * abs(w)))
+    ctx.spine(twist=-55 * w)
+    ctx.bone('pelvis', (Z, -25 * w))
+    a = math.radians(70 * w)
+    end = Vector((math.sin(a) * 0.55, -0.55 + 0.1 * abs(w), 1.5 - 0.55 * abs(w)))
     for s in SIDES:
         ctx.grip(s, end + Vector((0, 0, 0.04 * sgn(s))), (0, -0.4, 1))
+    # The foot away from the bar end rolls onto its toes and turns in as the hips rotate.
+    for s in SIDES:
+        k = max(0.0, -sgn(s) * w)
+        if k > 0.02:
+            ankle = Vector((sgn(s) * (0.098 + 0.12), 0.01, 0.085))
+            _heel_up(ctx, s, ankle, 35 * smootherstep(k), -sgn(s) * 20 * smootherstep(k))
     set_line(st['bar'], st['anchor'], end + Vector((0, -0.05, 0.02)))
     elbows(ctx, (0.3, 0.3, -1))
 
@@ -589,7 +708,9 @@ def mountain_climbers(ctx, st, u):
     for s in SIDES:
         k = max(0.0, w if s == 'L' else -w)
         if k > 0.05:
-            ctx.leg_fk(s, hip_flex=lerp(0, 95, k), knee=lerp(0, 110, k), ankle=-20)
+            # The knee drives under the chest with the foot hovering beneath the hips (a plank is
+            # already pitched ~70°, so the thigh needs well past 90° of hip flexion to come forward).
+            ctx.leg_fk(s, hip_flex=lerp(0, 125, k), knee=lerp(0, 85, k), ankle=lerp(-20, 10, k))
 
 
 @spec('kettlebell-halo', camera=cam((0, 0, 1.3), 30, 10, 3.6), setup=lambda ctx: {'kb': ctx.eq.kettlebell()},
@@ -606,7 +727,7 @@ def kettlebell_halo(ctx, st, u):
     elbows(ctx, (0.6, 0.2, -1))
 
 
-@spec('superman-raise', camera=cam((0, 0.0, 0.25), 75, 14, 3.6), setup=nothing, concentric='out')
+@spec('superman-raise', camera=cam((0, -0.1, 0.25), 75, 14, 4.5), setup=nothing, concentric='out')
 def superman_raise(ctx, st, u):
     # Face down, arms overhead; chest, arms and legs lift off the floor together.
     t = smootherstep(u)
@@ -618,31 +739,42 @@ def superman_raise(ctx, st, u):
         ctx.arm_fk(s, flex=170 + 15 * t, abd=8)
 
 
-@spec('banded-hip-march', camera=cam((0, 0.0, 0.3), 70, 14, 3.6), setup=nothing,
+@spec('banded-hip-march', camera=cam((0, 0, 0.9), 60, 8, 3.8),
+      setup=lambda ctx: {'band': ctx.eq.line('band', accent=True, radius=0.008)},
       timing=dict(hold_start=0.0, out=0.5, hold_end=0.0))
 def banded_hip_march(ctx, st, u):
-    # Hold a glute bridge and march: one knee drives up, then the other.
-    from catalog_glutes import bridge_pose
-
-    bridge_pose(ctx, 1.0)
+    # Standing tall with a mini band round the middle of both feet: one knee drives up to hip
+    # height against the band, then the other, without leaning back.
+    stand(ctx, width=0.05)
     w = wave(ctx)
     for s in SIDES:
-        k = max(0.0, w if s == 'L' else -w)
-        if k > 0.05:
-            # The foot lifts and the knee draws toward the chest, knee still bent ~90°.
-            foot = ctx.body.targets['leg.' + s].location.copy()
-            ctx.target('leg.' + s, foot + Vector((0, 0.18 * k, 0.3 * k)))
+        k = smootherstep(max(0.0, w if s == 'L' else -w))
+        if k > 0.02:
+            ctx.leg_fk(s, hip_flex=90 * k, knee=90 * k, ankle=-10 * k)
+        ctx.arm_fk(s, flex=10, abd=8, elbow=15)
+    mid = [ctx.attach_point('foot.' + s, (sgn(s) * 0.1, -0.05, 0.04)) for s in SIDES]
+    set_line(st['band'], mid[0], mid[1])
 
 
-@spec('standing-hip-flexor-raise', camera=cam((0, 0, 0.9), 70, 8, 3.8), setup=nothing,
-      timing=dict(hold_start=0.0, out=0.5, hold_end=0.0))
+STEP_H = 0.15
+
+
+def _hip_flexor_setup(ctx):
+    # A low step under the standing (left) foot and a cuff weight on the right ankle.
+    ctx.eq.plyo_box((0.13, -0.03), height=STEP_H, size=(0.26, 0.4), name='step')
+    cuff = ctx.eq.group('cuff', [ctx.eq.cyl('cuff', 0.055, 0.08, (0, 0, 0), mat=ctx.eq.m_pad, verts=24)])
+    return {'cuff': cuff}
+
+
+@spec('standing-hip-flexor-raise', camera=cam((0, 0, 1.0), 60, 8, 3.9), setup=_hip_flexor_setup,
+      concentric='out')
 def standing_hip_flexor_raise(ctx, st, u):
-    stand(ctx, width=0.03)
-    w = wave(ctx)
-    for s in SIDES:
-        k = max(0.0, w if s == 'L' else -w)
-        if k > 0.05:
-            ctx.leg_fk(s, hip_flex=95 * k, knee=95 * k)
+    # On the step on the left leg, the weighted right foot hangs free below it; raise that knee
+    # toward the chest and lower it slowly.
+    stand(ctx, width=0.03, floor=STEP_H)
+    t = smootherstep(u)
+    ctx.leg_fk('R', hip_flex=lerp(-3, 100, t), knee=lerp(5, 90, t), ankle=lerp(-5, -10, t))
+    ctx.follow(st['cuff'], 'shin.R', (-0.1, 0.01, 0.15))
     for s in SIDES:
         ctx.arm_fk(s, abd=10)
 
@@ -679,55 +811,126 @@ def kb_pull_through(ctx, st, u):
 # Floor to standing
 
 
-@spec('prisoner-get-up', camera=cam((0, 0.0, 0.7), 70, 8, 3.9), setup=nothing, concentric='back')
+@spec('prisoner-get-up', camera=cam((0, -0.2, 0.7), 70, 8, 3.9), setup=nothing,
+      timing=dict(hold_start=0.0, out=1.0, hold_end=0.0), concentric='out')
 def prisoner_get_up(ctx, st, u):
-    # Hands behind the head: kneel down one knee at a time, then step back up.
-    t = smootherstep(u)
-    ctx.root((0, 0.0, lerp(STAND_Z, 0.62, t)))
-    for i, s in enumerate(SIDES):
-        k = smootherstep(min(max((u - 0.45 * i) / 0.55, 0.0), 1.0))
-        stand_foot = Vector((sgn(s) * 0.1, 0.01, 0.085))
-        kneel_ankle = Vector((sgn(s) * 0.1, 0.43, 0.08))
-        ctx.target('leg.' + s, stand_foot.lerp(kneel_ankle, k), qx(-80 * k) @ ctx.body.rest_quat('foot.' + s))
-        ctx.pole_world('leg.' + s, (0, -1, -0.3 * k))
+    # Hands behind the head, kneeling tall: step one foot forward, stand up over it, then kneel
+    # back down one leg at a time. Two reps per loop so the lead leg alternates.
+    t = getattr(ctx, 't', 0.0)
+    h = (t * 2) % 1.0
+    lead = 'L' if t < 0.5 else 'R'
+    tucked = lambda y: (Vector((0, y + 0.40, 0.12)), 75)  # toes tucked under, knee on the floor
+    flat = lambda y: (Vector((0, y, 0.085)), 0)
+    # (root, lead foot, trail foot): kneeling tall, half-kneeling, standing over the lead foot.
+    kneel = (Vector((0, 0, 0.52)), tucked(0), tucked(0))
+    half = (Vector((0, 0, 0.52)), flat(-0.45), tucked(0))
+    up = (Vector((0, -0.44, STAND_Z)), flat(-0.44), flat(-0.44))
+    keys = [(0.06, kneel), (0.22, half), (0.28, half), (0.48, up), (0.56, up), (0.74, half), (0.80, half),
+            (0.96, kneel)]
+    a, b, k = keys[0][1], keys[0][1], 0.0
+    for (h0, k0), (h1, k1) in zip(keys, keys[1:]):
+        if h0 <= h < h1:
+            a, b, k = k0, k1, smootherstep((h - h0) / (h1 - h0))
+            break
+    else:
+        a = b = keys[-1][1] if h >= keys[-1][0] else keys[0][1]
+    ctx.root(a[0].lerp(b[0], k))
+    for s, i in ((lead, 1), ('R' if lead == 'L' else 'L', 2)):
+        (p0, tilt0), (p1, tilt1) = a[i], b[i]
+        p = p0.lerp(p1, k)
+        if (p1 - p0).length > 0.1:
+            p.z += 0.12 * math.sin(math.pi * k)  # the stepping foot clears the floor
+        p.x = sgn(s) * 0.1
+        tilt = lerp(tilt0, tilt1, k)
+        ctx.target('leg.' + s, p, qx(tilt) @ ctx.body.rest_quat('foot.' + s))
+        ctx.pole_world('leg.' + s, (0, -1, -0.3 * tilt / 75))
     hands_behind_head(ctx)
 
 
-@spec('turkish-get-up', camera=cam((0, 0.0, 0.5), 60, 14, 4.0), setup=lambda ctx: {'kb': ctx.eq.kettlebell()},
-      concentric='out')
+# Turkish get-up keyframes, right hand on the bell throughout (the rep reversed lies back down).
+# Each: (u, root loc, root rot, spine side bend, left hand, left foot (ankle, tilt), right foot,
+# left knee pole, right knee pole). Left hand: 'rest' on the floor beside the lying body, 'post'
+# planted on the floor, 'hang' by the hip. Tilt: qx(+) lifts the heel, qx(-) the toes.
+_TGU_POST = Vector((0.5, 0.05, 0.06))
+_TGU_KEYS = [
+    (0.0, (0, 0, 0.11), (-90, 0, 0), 0, 'rest', ((0.37, -0.8, 0.085), -70), ((-0.18, -0.5, 0.085), 0), (0, 0, 1), (-0.2, 0, 1)),
+    (0.2, (0.06, 0, 0.21), (-35, 15, 0), 0, 'post', ((0.37, -0.8, 0.085), -70), ((-0.18, -0.5, 0.085), 0), (0, 0, 1), (-0.2, 0, 1)),
+    # High bridge: hips up between the posted hand, the right foot and the left heel.
+    (0.38, (0.05, -0.08, 0.42), (-70, 35, 0), 0, 'post', ((0.37, -0.8, 0.085), -70), ((-0.18, -0.5, 0.085), 0), (0, 0, 1), (-0.2, -0.3, 1)),
+    # Leg swept back under: left knee down under the hips, toes tucked, trunk leaning onto the hand.
+    (0.6, (0.05, 0.0, 0.52), (0, 50, 0), 20, 'post', ((0.12, 0.40, 0.12), 75), ((-0.18, -0.5, 0.085), 0), (0, -1, -0.3), (0, -1, 0.3)),
+    # Half-kneel, trunk upright, hand off the floor.
+    (0.78, (0.0, 0.0, 0.52), (0, 0, 0), 0, 'hang', ((0.12, 0.40, 0.12), 75), ((-0.15, -0.45, 0.085), 0), (0, -1, -0.3), (0, -1, 0.3)),
+    # Stand up over the front foot.
+    (1.0, (0.0, -0.44, STAND_Z), (0, 0, 0), 0, 'hang', ((0.1, -0.44, 0.085), 0), ((-0.1, -0.44, 0.085), 0), (0, -1, 0), (0, -1, 0)),
+]
+
+
+@spec('turkish-get-up', camera=cam((0, -0.1, 1.0), 60, 12, 5.2), setup=lambda ctx: {'kb': ctx.eq.kettlebell()},
+      timing=dict(hold_start=0.03, out=0.44, hold_end=0.06), concentric='out')
 def turkish_get_up(ctx, st, u):
-    # First half of the get-up: lying with the bell pressed up, roll to the left elbow, then the hand.
-    t = smootherstep(u)
-    sit_up = lerp(0, 55, t)
-    ctx.root((0.06 * t, 0.0, 0.11 + 0.1 * t), (-90 + sit_up, 15 * t, 0))
-    ctx.target('leg.R', (-0.18, -0.5, 0.085))
-    ctx.pole_world('leg.R', (-0.2, 0, 1))
-    ctx.leg_fk('L', hip_flex=5, hip_abd=20)
+    # Lying with the bell pressed up and the right knee bent: roll to the left elbow, then the hand,
+    # bridge the hips, sweep the left leg under into a half-kneel, lift the trunk and stand. The
+    # bell stays straight over the right shoulder all the way.
+    for a, b in zip(_TGU_KEYS, _TGU_KEYS[1:]):
+        if u <= b[0]:
+            break
+    k = smootherstep((u - a[0]) / (b[0] - a[0]))
+    ctx.root(lerp(a[1], b[1], k), lerp(a[2], b[2], k))
+    ctx.spine(side=lerp(a[3], b[3], k))
+    ctx.head(flex=lerp(20, 0, smootherstep(min(u / 0.4, 1.0))))
+    for side, i, pole in (('L', 5, 7), ('R', 6, 8)):
+        (p0, t0), (p1, t1) = a[i], b[i]
+        p = Vector(p0).lerp(Vector(p1), k)
+        if (Vector(p1) - Vector(p0)).length > 0.1:
+            p.z += 0.1 * math.sin(math.pi * k)  # the sweeping foot clears the floor
+        ctx.target('leg.' + side, p, qx(lerp(t0, t1, k)) @ ctx.body.rest_quat('foot.' + side))
+        ctx.pole_world('leg.' + side, Vector(a[pole]).lerp(Vector(b[pole]), k))
     sh = ctx.world('upperarm.R', 'head')
     up = Vector((sh.x, sh.y, sh.z + M.grip_reach() * 0.98))
     ctx.grip('R', up, (1, 0, 0))
     place(st['kb'], up, qx(180))
     shl = ctx.world('upperarm.L', 'head')
-    ctx.target('arm.L', (shl.x + 0.25, shl.y - 0.1, 0.06))
+    spots = {'rest': Vector((shl.x + 0.25, shl.y - 0.1, 0.06)), 'post': _TGU_POST,
+             'hang': shl + Vector((0.06, 0.0, -0.55))}
+    ctx.target('arm.L', spots[a[4]].lerp(spots[b[4]], k))
     ctx.pole_world('arm.L', (1, 0.3, 0.2))
 
 
-@spec('wall-walk', camera=cam((0, 0.3, 0.9), 75, 10, 4.4),
-      setup=lambda ctx: (ctx.eq.group('wall', [ctx.eq.pad('w', (2.0, 0.1, 2.4), (0, 1.45, 1.2))]), {})[1], concentric='out')
+def _stair(x, n, offset):
+    """0..1 in n steps: each step is a quick smooth move followed by a pause, shifted by
+    `offset` (a fraction of a step) so limbs take turns."""
+    y = x * n - offset
+    i = math.floor(y)
+    return min(max((i + smootherstep(min((y - i) / 0.4, 1.0))) / n, 0.0), 1.0)
+
+
+def _wall_body(p):
+    """Body pitch and pelvis for climb progress p: a straight body with the ankles at the wall
+    and the shoulders held at straight-arm height, from a high plank to near vertical."""
+    th = math.radians(lerp(68, 165, p))
+    pelvis = Vector((0, 1.30 - 0.88 * math.sin(th), 0.78 - 0.475 * math.cos(th)))
+    return th, pelvis
+
+
+@spec('wall-walk', camera=cam((0, 0.5, 1.05), 75, 10, 4.9),
+      setup=lambda ctx: (ctx.eq.group('wall', [ctx.eq.pad('w', (2.0, 0.1, 2.4), (0, 1.45, 1.2))]), {})[1],
+      timing=dict(hold_start=0.05, out=0.42, hold_end=0.08), concentric='out')
 def wall_walk(ctx, st, u):
-    # Start lying chest-down with the feet against the wall; press up, walk the feet up the wall
-    # and the hands in, finishing in a handstand with the belly to the wall and arms locked.
-    t = smootherstep(u)
-    theta = lerp(90, 178, t)
-    pelvis = Vector((0, 0.44, 0.13)).lerp(Vector((0, 1.17, 1.1)), t)
-    pelvis.z += 0.35 * math.sin(math.pi * t) * 0.6
-    ctx.root(pelvis, (theta, 0, 0))
+    # High plank with the feet against the wall; the feet walk up the wall and the hands walk back
+    # toward it in four steps (feet, then hands, one at a time) to a near-vertical handstand with
+    # the belly to the wall, then walk back down the same way.
+    limbs = {'leg.L': _stair(u, 4, 0.0), 'leg.R': _stair(u, 4, 0.15),
+             'arm.L': _stair(u, 4, 0.3), 'arm.R': _stair(u, 4, 0.45)}
+    th, pelvis = _wall_body(sum(limbs.values()) / 4)
+    ctx.root(pelvis, (math.degrees(th), 0, 0))
     ctx.head(flex=-30)
-    press = smootherstep(min(u / 0.25, 1.0))
     for s in SIDES:
-        ctx.leg_fk(s, ankle=-30)
-        sh_y = pelvis.y - 0.47 * math.sin(math.radians(theta))
-        ctx.target('arm.' + s, (sgn(s) * 0.2, lerp(sh_y, 1.15, t), 0.08))
+        # Each foot sits where a straight body at its own step would put it, on the wall.
+        fth, fp = _wall_body(limbs['leg.' + s])
+        ctx.target('leg.' + s, (sgn(s) * 0.1, 1.30, fp.z - 0.88 * math.cos(fth)), ctx.foot_rot(s, (X, 30)))
+        # Each hand sits under where the shoulders are at its own step.
+        hth, hp = _wall_body(limbs['arm.' + s])
+        ctx.target('arm.' + s, (sgn(s) * 0.2, hp.y - 0.475 * math.sin(hth), 0.08))
         ctx.pole_world('arm.' + s, (0, 1, 0))
-    ctx.arm.location.z += 0.25 * press * (1 - t)
 

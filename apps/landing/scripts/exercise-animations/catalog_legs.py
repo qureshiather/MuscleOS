@@ -3,7 +3,7 @@ shared body positions and holds."""
 
 import math
 
-from mathutils import Vector
+from mathutils import Matrix, Quaternion, Vector
 
 import mannequin as M
 from anim import X, lerp, sgn, smootherstep
@@ -65,9 +65,11 @@ def front_rack(ctx, bar, grip=0.24, hands=True):
 
 
 def arms_forward(ctx, lean, u, extra=0):
-    """Arms reaching straight ahead, level with the floor (counterbalance in bodyweight squats)."""
+    """Arms reaching straight ahead, level with the floor (counterbalance in bodyweight squats).
+    FK flex is relative to the chest, and tipping the chest forward tips the arms down with it,
+    so the shoulder flexes by the same amount to keep them level."""
     for s in SIDES:
-        ctx.arm_fk(s, flex=90 - chest_flex(lean, u) + extra, abd=6)
+        ctx.arm_fk(s, flex=90 + chest_flex(lean, u) + extra, abd=6)
 
 
 def chest_hold(ctx, obj, kind='dumbbell'):
@@ -87,14 +89,6 @@ def chest_hold(ctx, obj, kind='dumbbell'):
             ctx.grip(s, at + up * 0.07 + chest @ Vector((sgn(s) * 0.06, 0, 0)), up)
     for s in SIDES:
         ctx.pole_world('arm.' + s, chest @ Vector((sgn(s) * 0.25, 0.1, -1)))
-
-
-def jump(ctx, height=0.2):
-    """Airborne offset for the launch phase of a jump (loop time 0.72–0.9)."""
-    t = getattr(ctx, 't', 0.0)
-    if 0.72 < t < 0.9:
-        return height * math.sin(math.pi * (t - 0.72) / 0.18)
-    return 0.0
 
 
 def squat_spec(id_, setup, hold, camera=None, depth=0.43, back=0.17, lean=30, width=0.06, toe_out=12,
@@ -144,8 +138,18 @@ def _goblet_db(ctx, st, u, lean):
     chest_hold(ctx, st['db'], 'dumbbell')
 
 
-def _goblet_kb(ctx, st, u, lean):
-    chest_hold(ctx, st['kb'], 'kettlebell')
+def _kb_rack(ctx, st, u, lean):
+    # Double kettlebell front rack: fists in front of the collarbones, palms facing in, elbows
+    # down and in; each bell rests on the outside of its forearm.
+    chest = ctx.bone_delta('chest')
+    for s, kb in zip(SIDES, st['kbs']):
+        p = ctx.attach_point('chest', (sgn(s) * 0.11, -0.21, 1.37))
+        down = (chest @ Vector((sgn(s) * 0.7, 0.15, -0.7))).normalized()  # handle -> bell
+        axis = chest @ Vector((0, -1, 0.3))
+        axis = (axis - down * axis.dot(down)).normalized()  # handle bar, thumb end forward
+        place(kb, p, Matrix((axis, axis.cross(down), -down)).transposed().to_quaternion())
+        ctx.grip(s, p, axis)
+        ctx.pole_world('arm.' + s, chest @ Vector((sgn(s) * -0.1, -0.5, -1)))
 
 
 def _bodyweight(ctx, st, u, lean):
@@ -216,19 +220,18 @@ def _smith_back(ctx, st, u, lean):
     back_rack(ctx, st['bar'])
 
 
-def _jump_pre(ctx, st, u):
-    st['air'] = jump(ctx, 0.18)
+# The front-rack point stays within 1 cm of this line through the squat (lean=12, back=0.08),
+# so the rails go here and the bar is held on it: a Smith bar only moves vertically.
+SMITH_FRONT_Y = -0.152
 
 
-def _jump_after(ctx, st, u):
-    h = st.get('air', 0.0)
-    if h > 0:
-        ctx.arm.location.z += h
-        for s in SIDES:
-            t = ctx.body.targets['leg.' + s]
-            t.location.z += h * 0.7
-        for s in SIDES:
-            ctx.arm_fk(s, flex=-20, abd=8)
+def _smith_front_setup(ctx):
+    return {'bar': ctx.eq.smith_machine(bar_y=SMITH_FRONT_Y)}
+
+
+def _smith_front(ctx, st, u, lean):
+    front_rack(ctx, st['bar'])
+    st['bar'].location.y = SMITH_FRONT_Y
 
 
 def _box_seat(ctx):
@@ -270,8 +273,8 @@ def _belt_setup(ctx):
     return {'strap': ctx.eq.line('belt', accent=True, radius=0.012)}
 
 
-def _kb(ctx):
-    return {'kb': ctx.eq.kettlebell()}
+def _two_kb(ctx):
+    return {'kbs': [ctx.eq.kettlebell('kbL'), ctx.eq.kettlebell('kbR')]}
 
 
 def _one_db(ctx):
@@ -305,25 +308,24 @@ def _machine_hold(ctx, st, u, lean):
 squat_spec('front-squat', barbell, _front, lean=14, back=0.1)
 squat_spec('box-squat', _with(barbell, _box_seat), _back_wide, depth=0.4, back=0.24, lean=34, width=0.12)
 squat_spec('pause-squat', barbell, _back, timing=dict(hold_start=0.08, out=0.3, hold_end=0.24))
-squat_spec('pin-squat', _with(barbell, lambda ctx: ctx.eq.rack_pins(1.0, y=0.12) or {}), _back,
+# Pins set so the bar settles on them at the bottom (bar centre 0.928 - bar radius - pin radius).
+squat_spec('pin-squat', _with(barbell, lambda ctx: ctx.eq.rack_pins(0.894, y=0.12) or {}), _back,
            timing=dict(hold_start=0.08, out=0.3, hold_end=0.2))
 squat_spec('safety-bar-squat', _safety_setup, _safety_bar, lean=24)
 squat_spec('zombie-squat', barbell, _zombie, lean=12, back=0.1)
 squat_spec('zercher-squat', barbell, _zercher, lean=18, back=0.12)
 squat_spec('smith-machine-squat', _smith, _smith_back, lean=20, back=0.12)
-squat_spec('smith-machine-front-squat', _smith, _front, lean=12, back=0.08)
+squat_spec('smith-machine-front-squat', _smith_front_setup, _smith_front, lean=12, back=0.08)
 squat_spec('landmine-squat', _landmine_setup, _landmine_hold, lean=16, back=0.12,
            camera=cam((0, -0.4, 0.8), 60, 12, 4.0))
 squat_spec('goblet-squat', _one_db, _goblet_db, lean=16, back=0.12, width=0.1, toe_out=18)
-squat_spec('kettlebell-front-squat', _kb, _goblet_kb, lean=16, back=0.12, width=0.08, toe_out=15)
+squat_spec('kettlebell-front-squat', _two_kb, _kb_rack, lean=16, back=0.12, width=0.08, toe_out=15)
 squat_spec('dumbbell-squat', dumbbells, _dumbbells_sides, lean=22, back=0.14, depth=0.4)
 squat_spec('sumo-squat', _one_db, _sumo_db, lean=10, back=0.06, width=0.24, toe_out=35, depth=0.36,
            camera=cam((0, 0, 0.8), 25, 10, 3.7))
 squat_spec('air-squat', nothing, _bodyweight, lean=26, depth=0.43)
 squat_spec('half-body-weight-squats', nothing, _bodyweight, lean=16, depth=0.24, back=0.1)
 squat_spec('chair-squats', _chair, _bodyweight, lean=26, depth=0.42, back=0.2, width=0.1)
-squat_spec('jump-squat', nothing, _bodyweight, lean=26, depth=0.4, pre=_jump_pre, after=_jump_after,
-           timing=dict(hold_start=0.04, out=0.4, hold_end=0.06))
 squat_spec('barbell-hack-squat', barbell, _hack_behind, lean=26, depth=0.4, back=0.14,
            camera=cam((0, 0, 0.75), 120, 10, 3.8))
 squat_spec('belt-squats', _belt_setup, _belt, lean=18, depth=0.42, width=0.2, toe_out=18, floor=BELT_DECK,
@@ -335,15 +337,72 @@ squat_spec('pendulum-squat', _hack_machine, _machine_hold, lean=-6, depth=0.45, 
 
 
 # ---------------------------------------------------------------------------------------------
+# Jump squat: one jump per loop, read from loop time
+
+
+def _keys(t, keys):
+    """Smoothly interpolate (time, value) keys at loop time t."""
+    for (t0, v0), (t1, v1) in zip(keys, keys[1:]):
+        if t <= t1:
+            return lerp(v0, v1, smootherstep((t - t0) / max(t1 - t0, 1e-6)))
+    return keys[-1][1]
+
+
+JUMP_BALL = Vector((0, -0.14, -0.07))  # ball of the foot from the ankle: a raised heel pivots here
+JUMP_LEAN, JUMP_WIDTH, JUMP_TOE = 26, 0.06, 12
+
+
+@spec('jump-squat', camera=cam((0, 0.05, 1.05), 50, 10, 4.7), setup=nothing, concentric='out',
+      timing=dict(hold_start=0.0, out=1.0, hold_end=0.0))
+def jump_squat(ctx, st, u):
+    # Dip to a half squat with the arms swung back (t .05–.35), drive up onto the toes as the
+    # arms swing through (.35–.47), fly with legs straight and toes pointed (.47–.67), land on
+    # the balls of the feet and absorb into a squat (.67–.76), then stand back up for the loop.
+    t = getattr(ctx, 't', 0.0)
+    k = _keys(t, [(0, 0), (0.05, 0), (0.35, 0.6), (0.47, 0), (0.67, 0), (0.76, 0.6), (0.82, 0.6), (0.98, 0), (1, 0)])
+    heel = _keys(t, [(0, 0), (0.38, 0), (0.47, 35), (0.62, 35), (0.7, 0), (1, 0)])
+    air = 0.2 * math.sin(math.pi * (t - 0.47) / 0.2) if 0.47 < t < 0.67 else 0.0
+    squat_body(ctx, k, depth=0.4, back=0.17, lean=JUMP_LEAN, width=JUMP_WIDTH, toe_out=JUMP_TOE)
+    q = Quaternion((1, 0, 0), math.radians(heel))  # +X tilt lifts the heel
+    rise = (q @ -JUMP_BALL + JUMP_BALL).z  # how far the ankle comes up as the heel lifts
+    for s in SIDES:
+        ankle = Vector((sgn(s) * (0.098 + JUMP_WIDTH), 0.01, 0.085))
+        ankle += JUMP_BALL + q @ -JUMP_BALL + Vector((0, 0, air))
+        rot = Quaternion((0, 0, 1), math.radians(sgn(s) * JUMP_TOE)) @ q @ ctx.body.rest_quat('foot.' + s)
+        ctx.target('leg.' + s, ankle, rot)
+    ctx.arm.location.z += rise + air
+    # Arm swing in world degrees forward of hanging; FK flex adds the chest tilt back in.
+    swing = _keys(t, [(0, 8), (0.05, 8), (0.35, -40), (0.47, 140), (0.67, 100), (0.76, 75), (0.82, 75), (0.98, 8), (1, 8)])
+    for s in SIDES:
+        ctx.arm_fk(s, flex=swing + chest_flex(JUMP_LEAN, k), abd=6, elbow=10)
+
+
+# ---------------------------------------------------------------------------------------------
 # Deadlift family: planted feet, hips placed from joint angles so the bar clears the legs
+
+
+def _fat_bar(ctx):
+    # Thick grip sleeves (Fat Gripz style) over the bar where the hands hold it.
+    st = barbell(ctx)
+    for s in (1, -1):
+        sleeve = ctx.eq.cyl('fat_grip', 0.03, 0.13, (s * 0.24, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_pad, 24)
+        sleeve.parent = st['bar']
+    return st
 
 
 def deadlift_spec(id_, setup=barbell, grip=0.24, width=0.02, toe_out=6, bar_y=DL_BAR_Y, start_z=0.225,
                   top_z=None, floor=0.0, knee0=92, shin0=13, neutral=False, implement='bar', camera=None,
-                  timing=None, feet_y=None, bar_lift=0.0):
+                  timing=None, feet_y=None, bar_lift=0.0, pause=None):
+    """pause: the u (bar just below the knees) to stop at on the way up; the rep then runs on
+    loop time: pull, hold, finish, hold at lockout, lower."""
     camera = camera or cam((0, 0, 0.75 + floor), 55, 10, 3.9)
+    if pause is not None:
+        timing = dict(hold_start=0.0, out=1.0, hold_end=0.0)
 
     def pose(ctx, st, u):
+        if pause is not None:
+            u = _keys(getattr(ctx, 't', 0.0), [(0, 0), (0.06, 0), (0.22, pause), (0.42, pause), (0.56, 1),
+                                               (0.66, 1), (0.94, 0), (1, 0)])
         knees = smootherstep(min(u / 0.55, 1.0))
         hips = smootherstep(max((u - 0.2) / 0.8, 0.0))
         fy = bar_y + 0.115 if feet_y is None else feet_y
@@ -401,11 +460,12 @@ deadlift_spec('sumo-deadlift', grip=0.17, width=0.24, toe_out=45, knee0=88, shin
               camera=cam((0, 0, 0.75), 28, 12, 3.9))
 deadlift_spec('deficit-deadlift', setup=_with(barbell, lambda ctx: ctx.eq.plyo_box((0, 0.06), height=0.05, size=(0.6, 0.5)) or {}),
               floor=0.05, knee0=100)
-deadlift_spec('pause-deadlift', timing=dict(hold_start=0.1, out=0.42, hold_end=0.08))
-deadlift_spec('rack-pull', setup=_with(barbell, lambda ctx: ctx.eq.rack_pins(0.45, y=DL_BAR_Y) or {}),
+deadlift_spec('pause-deadlift', pause=0.25)  # bar ~5 cm below the knees
+# Pin top (centre + 0.02) at the bar's underside (grip height 0.47 - bar radius 0.014).
+deadlift_spec('rack-pull', setup=_with(barbell, lambda ctx: ctx.eq.rack_pins(0.435, y=DL_BAR_Y) or {}),
               start_z=0.47, knee0=28, shin0=4)
 deadlift_spec('snatch-grip-deadlift', grip=0.42, knee0=100, shin0=14)
-deadlift_spec('fat-bar-deadlift')
+deadlift_spec('fat-bar-deadlift', setup=_fat_bar)
 # Stiff-legged: from the floor like a deadlift, but the knees stay nearly straight.
 deadlift_spec('stiff-legged-deadlift', knee0=14, shin0=2, timing=dict(hold_start=0.1, out=0.4, hold_end=0.1))
 deadlift_spec('smith-machine-deadlift', setup=lambda ctx: {'bar': ctx.eq.smith_machine(bar_y=DL_BAR_Y)})
@@ -476,7 +536,7 @@ def _jefferson_setup(ctx):
     return {'db': ctx.eq.dumbbell('db')}
 
 
-@spec('jefferson-curl', camera=cam((0, 0, 0.9), 75, 10, 4.1), setup=_jefferson_setup)
+@spec('jefferson-curl', camera=cam((0, 0, 1.1), 75, 10, 4.5), setup=_jefferson_setup)
 def jefferson_curl(ctx, st, u):
     # Roll down one vertebra at a time with soft knees, a dumbbell hanging from both hands.
     t = smootherstep(u)
