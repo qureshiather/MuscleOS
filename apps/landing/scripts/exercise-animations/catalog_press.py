@@ -8,7 +8,7 @@ from mathutils import Quaternion, Vector
 import mannequin as M
 from anim import lerp, sgn, smootherstep
 from equipment import place, qx, set_line
-from moves import SIDES, bar_grip, elbows, hold_dumbbell, knees_out, lie_on_bench, shoulders, sit, stand
+from moves import SIDES, STAND_Z, bar_grip, elbows, hold_dumbbell, knees_out, lie_on_bench, shoulders, sit, stand
 from registry import cam, spec
 
 
@@ -26,6 +26,19 @@ def lerp_path(a, b, t):
 # ---------------------------------------------------------------------------------------------
 # Lying presses: bar or dumbbells from the chest to over the shoulders
 
+# lie(ctx, 'incline') reclines to the incline bench's default angle, with the back this far behind
+# where the bench's back pad normally stands: incline users set the pad back so the body rests on it.
+INCLINE_BACK = 0.14
+
+# Decline bench: ankle joints (y, z) and the roller just in front of and above them.
+DECLINE_ANKLE = (-0.43, 0.31)
+DECLINE_HOOK = (DECLINE_ANKLE[0] - 0.33 - 0.09, DECLINE_ANKLE[1] + 0.05)  # y relative to the bench centre
+
+
+def incline_setup(ctx):
+    """The incline bench lie(ctx, 'incline') rests on."""
+    ctx.eq.incline_bench(back_offset=INCLINE_BACK)
+
 
 def bench_setup(kind='flat', implement='bar', pins=None, board=False, bands=False, smith=False, floor=False):
     def setup(ctx):
@@ -33,9 +46,9 @@ def bench_setup(kind='flat', implement='bar', pins=None, board=False, bands=Fals
         if kind == 'flat' and not floor:
             ctx.eq.flat_bench((0, 0.33))
         elif kind == 'decline':
-            ctx.eq.decline_bench((0, 0.33), 15)
+            ctx.eq.decline_bench((0, 0.33), 15, hook=DECLINE_HOOK)
         elif kind == 'incline':
-            ctx.eq.incline_bench(55)
+            incline_setup(ctx)
         if smith:
             st['bar'] = ctx.eq.smith_machine(bar_y=0.42 if kind != 'incline' else 0.2)
         elif implement == 'bar':
@@ -69,10 +82,14 @@ def lie(ctx, kind, legs='planted'):
     elif kind == 'decline':
         ctx.root((0, 0.06, 0.6), (-105, 0, 0))
         ctx.head(flex=6)
+        # Knees bend over the high end of the pad; the shins hang and the ankles tuck under the
+        # roller (DECLINE_HOOK) so the legs hold the body on the slope.
         for s in SIDES:
-            ctx.leg_fk(s, hip_flex=55, knee=95, ankle=10)
+            ctx.target('leg.' + s, (sgn(s) * 0.1, DECLINE_ANKLE[0], DECLINE_ANKLE[1]),
+                       qx(15) @ ctx.body.rest_quat('foot.' + s))
+            ctx.pole_world('leg.' + s, (0, -0.3, 1))
     elif kind == 'incline':
-        ctx.root((0, 0.06, 0.57), (-55, 0, 0))
+        ctx.root((0, 0.06, 0.6), (-55, 0, 0))
         ctx.head(flex=20)
         for s in SIDES:
             ctx.target('leg.' + s, (sgn(s) * 0.24, -0.55, 0.085))
@@ -125,7 +142,7 @@ def press_spec(id_, kind='flat', implement='bar', grip=0.4, tuck=0.9, depth=0.0,
 
 press_spec('close-grip-bench', grip=0.25, tuck=0.45)
 press_spec('board-press', board=True, depth=0.09)
-press_spec('pin-bench-press', pins=0.78, depth=0.04, concentric='out')
+press_spec('pin-bench-press', pins=0.696, depth=0.04, concentric='out')  # bar rests on the pins
 press_spec('feet-up-bench-press', legs='up')
 press_spec('close-grip-feet-up-bench-press', grip=0.25, tuck=0.45, legs='up')
 press_spec('band-assisted-bench-press', bands=True)
@@ -202,6 +219,20 @@ def seat_pose(ctx, seat):
         stand(ctx, width=0.04)
 
 
+def split_stance(ctx, front='L', step=0.6, drop=0.06):
+    """Staggered stance, feet `step` apart front to back with soft knees; the back foot is up on
+    its toes, pivoting about the ball of the foot."""
+    from catalog_power import on_toes  # catalog_power imports this module
+
+    back = 'R' if front == 'L' else 'L'
+    ctx.root((0, 0.0, STAND_Z - drop))
+    ctx.target('leg.' + front, (sgn(front) * 0.11, -step / 2, 0.085))
+    ankle, tilt = on_toes(Vector((sgn(back) * 0.11, step / 2, 0.085)), 25)
+    ctx.target('leg.' + back, ankle, tilt @ ctx.body.rest_quat('foot.' + back))
+    for s in SIDES:
+        ctx.pole_dir('leg.' + s, (sgn(s) * 0.1, -1, 0))
+
+
 def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=False, machine=False,
              dip=False, arnold=False, one_arm=False, landmine=False, heels=False, camera=None):
     setup = ohp_setup(implement, seat, smith, machine, seat == 'floor', landmine)
@@ -212,6 +243,8 @@ def ohp_spec(id_, implement='bar', seat=None, grip=0.26, start='front', smith=Fa
         t = smootherstep(u)
         if heels:  # military stance: heels together, toes turned slightly out
             stand(ctx, width=-0.06, toe_out=12)
+        elif landmine and one_arm:  # split stance, pressing arm on the back-leg side
+            split_stance(ctx, 'L')
         else:
             seat_pose(ctx, seat)
         if dip:  # dip and drive: knees bend, then the legs launch the bar
@@ -290,7 +323,7 @@ ohp_spec('snatch-grip-behind-the-neck-press', start='back', grip=0.42)
 ohp_spec('seated-barbell-overhead-press', seat='bench')
 ohp_spec('z-press', seat='floor', camera=cam((0, -0.2, 0.75), 45, 10, 3.9))
 ohp_spec('seated-smith-machine-shoulder-press', seat='bench', smith=True)
-ohp_spec('dumbbell-shoulder-press', implement='dumbbells')
+ohp_spec('dumbbell-shoulder-press', implement='dumbbells', camera=cam((0, 0, 1.15), 40, 8, 4.3))  # dumbbells lock out ~2.2 m up
 ohp_spec('dumbbell-ohp', implement='dumbbells', seat='bench')
 ohp_spec('arnold-press', implement='dumbbells', seat='bench', arnold=True)
 ohp_spec('kettlebell-press', implement='kettlebell', one_arm=True, camera=cam((0, 0, 1.05), 25, 8, 4.0))
@@ -299,7 +332,30 @@ ohp_spec('seated-kettlebell-press', implement='kettlebell', seat='bench', one_ar
 ohp_spec('machine-shoulder-press', seat='bench', machine=True)
 ohp_spec('landmine-press', landmine=True, camera=cam((0, -0.4, 1.0), 70, 10, 4.1))
 ohp_spec('one-arm-landmine-press', landmine=True, one_arm=True, camera=cam((0, -0.4, 1.0), 70, 10, 4.1))
-ohp_spec('smith-machine-landmine-press', landmine=True, camera=cam((0, -0.4, 1.0), 70, 10, 4.1))
+
+
+SMITH_LANDMINE_Y = -0.17  # the track runs just in front of the shoulder
+
+
+@spec('smith-machine-landmine-press', camera=cam((0, -0.1, 1.2), 55, 8, 4.3), concentric='out',
+      setup=lambda ctx: {'bar': ctx.eq.smith_machine(bar_y=SMITH_LANDMINE_Y)})
+def smith_machine_landmine_press(ctx, st, u):
+    # Split stance facing the bar; the right hand presses it from the shoulder straight up the
+    # track to a straight arm while the left arm hangs.
+    t = smootherstep(u)
+    split_stance(ctx, 'L')
+    ctx.spine(flex=5)
+    ctx.head(flex=-6 * t)
+    sh = ctx.world('upperarm.R', 'head')
+    reach = M.grip_reach() * 0.99
+    dy = sh.y - SMITH_LANDMINE_Y
+    lo = Vector((sh.x, SMITH_LANDMINE_Y, sh.z + 0.03))
+    hi = Vector((sh.x + 0.03, SMITH_LANDMINE_Y, sh.z + math.sqrt(reach**2 - dy**2 - 0.03**2)))
+    hand = lerp_path(lo, hi, t)
+    place(st['bar'], Vector((0, SMITH_LANDMINE_Y, hand.z)))
+    ctx.grip('R', hand, (1, 0, 0))
+    ctx.pole_dir('arm.R', (-lerp(0.3, 0.6, t), -1, lerp(-0.7, -0.2, t)))
+    ctx.arm_fk('L', abd=8, elbow=10)
 
 
 # ---------------------------------------------------------------------------------------------
