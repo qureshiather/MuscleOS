@@ -39,7 +39,7 @@ def on_toes(ankle, heel_up):
     """Ankle position and foot tilt for a foot whose heel is raised `heel_up` degrees while the
     ball of the foot stays on the floor where it was."""
     ball = Vector(ankle) + BALL
-    q = qx(-heel_up)
+    q = qx(heel_up)  # qx(+) lifts the heel (docs: exercise-demos.md, feet)
     return ball + q @ -BALL, q
 
 
