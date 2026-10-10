@@ -69,8 +69,50 @@ def row_spec(id_, implement='bar', grip=0.26, hinge=48, target=(0, -0.15, 1.12),
 row_spec('pendlay-row', hinge=78, from_floor=True, camera=cam((0, 0, 0.6), 64, 10, 3.9))
 row_spec('barbell-rear-delt-row', grip=0.36, hinge=70, target=(0, -0.16, 1.32), wide=True)
 row_spec('dumbbell-rear-delt-row', implement='dumbbells', grip=0.2, hinge=70, target=(0, -0.16, 1.2), wide=True)
-row_spec('monkey-row', implement='dumbbells', grip=0.2, hinge=60)
-row_spec('gorilla-row', implement='kettlebells', grip=0.22, hinge=62, camera=cam((0, 0, 0.6), 40, 12, 3.9))
+
+
+KB_REST_Z = 0.275  # kettlebell handle height with the bell on the floor
+
+
+def _gorilla_setup(ctx):
+    return {'kb': [ctx.eq.kettlebell('kbL'), ctx.eq.kettlebell('kbR')]}
+
+
+@spec('gorilla-row', camera=cam((0, 0, 0.6), 40, 12, 3.9), setup=_gorilla_setup, concentric='out',
+      timing=dict(hold_start=0.0, out=1.0, hold_end=0.0))
+def gorilla_row(ctx, st, u):
+    # Wide stance, deep hinge, both bells on the floor between the feet. One arm rows its bell to
+    # the hip while the other presses its bell into the floor, then they swap (loop time).
+    w = math.sin(2 * math.pi * getattr(ctx, 't', 0.0))
+    bent_over(ctx, hinge=70, back=0.22, drop=0.16, width=0.2)
+    knees_out(ctx, 0.5)
+    if 'drop' not in st:  # sink the hips until straight arms reach the handles on the floor
+        sh = shoulders(ctx)
+        st['drop'] = max(ctx.grip_hang('L', sh.y + 0.02, 0.13).z - KB_REST_Z, 0.0)
+    ctx.arm.location.z -= st['drop']
+    sh = shoulders(ctx)
+    for s, kb in zip(SIDES, st['kb']):
+        floor = Vector((sgn(s) * 0.13, sh.y + 0.02, KB_REST_Z))
+        rowing = smootherstep(max(w if s == 'L' else -w, 0.0))
+        hip = ctx.attach_point('spine', (sgn(s) * 0.2, -0.06, 1.12))
+        p = lerp(floor, hip, rowing)
+        ctx.grip(s, p, (0, -1, 0))
+        place(kb, p, qz(90))  # handle front to back: neutral grip
+    elbows(ctx, (0.35, 0.6, 1))
+
+
+@spec('monkey-row', camera=cam((0, 0, 1.1), 20, 8, 3.9), setup=dumbbells, concentric='out')
+def monkey_row(ctx, st, u):
+    # Wide-grip dumbbell upright row: elbows lead up and out until they reach shoulder height,
+    # the dumbbells finishing below them, wider than a barbell upright row.
+    stand(ctx, width=0.03)
+    t = smootherstep(u)
+    for s, db in zip(SIDES, st['db']):
+        sh = ctx.world('upperarm.' + s, 'head')
+        low = ctx.grip_hang(s, -0.1, 0.2)
+        top = Vector((sgn(s) * 0.3, -0.12, sh.z - 0.1))
+        hold_dumbbell(ctx, db, s, lerp(low, top, t), Vector((-sgn(s), 0, 0)))
+    elbows(ctx, (1, 0.1, lerp(0, 0.6, t)))
 
 
 def _bench_row_setup(implement):
@@ -135,8 +177,11 @@ def smith_one_arm_row(ctx, st, u):
     ctx.pole_world('arm.L', (0.5, 0.3, 0.2))
 
 
+CS_BENCH = 55  # incline_bench back angle from vertical: the pad sits 35° above the floor
+
+
 def _incline_prone_setup(ctx):
-    ctx.eq.incline_bench(40)
+    ctx.eq.incline_bench(CS_BENCH)
     return {'db': ctx.eq.dumbbells()}
 
 
@@ -145,7 +190,13 @@ def _incline_prone_setup(ctx):
 def chest_supported_row(ctx, st, u):
     # Chest on an incline bench (facing it), arms hanging; row to the hips.
     t = smootherstep(u)
-    ctx.root((0, -0.12, 0.88), (52, 0, 180))
+    # Pad geometry from incline_bench: centre (0, 0.33, 0.78), 0.85 long, 7 cm thick. The lower
+    # chest lies on its face 0.12 m below the top edge, so the head clears the end.
+    a = math.radians(CS_BENCH)
+    up, normal = Vector((0, math.sin(a), math.cos(a))), Vector((0, -math.cos(a), math.sin(a)))
+    on_pad = Vector((0, 0.33, 0.78)) + up * 0.3 + normal * 0.045
+    # Body 4° steeper than the pad so the belly settles onto it too (the chest is deeper).
+    ctx.pin_root((0, -0.17, 1.28), on_pad, (CS_BENCH - 4, 0, 180))
     ctx.head(flex=-10)
     for s in SIDES:
         ctx.target('leg.' + s, (sgn(s) * 0.15, -0.55, 0.085), qz(180) @ ctx.body.rest_quat('foot.' + s))
@@ -238,22 +289,33 @@ def inverted_row_spec(id_, setup, grip=0.3, underhand=False, straps=False, camer
     def pose(ctx, st, u):
         t = smootherstep(u)
         bar = st['bar_point']
-        heel = Vector((0, -1.05, 0.06))
-        target = lerp(M.grip_reach() * 0.985, 0.33, t)
+        # Heels placed so the straight body can bring the chest just under the bar: the chest
+        # point swings on a circle around the ankle (pinned 8 cm up). x matches the ankle to centre
+        # the body on the grip.
+        chest_pt = Vector((0, -0.17, 1.28))
+        r = (chest_pt - M.joint('ankle')).yz.length
+        heel = Vector((M.joint('ankle').x, bar.y - math.sqrt(r * r - (bar.z - 0.07 - 0.08) ** 2), 0.06))
+        aim = Vector((0, bar.y, bar.z))
 
         def place_body(theta):
-            q = ctx.root_rot_quat((-90 + theta, 0, 0))
             ctx.pin_root(M.joint('ankle'), heel + Vector((0, 0, 0.02)), (-90 + theta, 0, 0))
-            del q
-            sh = shoulders(ctx)
-            return (Vector((0, bar.y, bar.z)) - sh).length
+            ctx.head(flex=8)
 
-        lo, hi = 5.0, 70.0
-        for _ in range(16):
-            mid = (lo + hi) / 2
-            lo, hi = (mid, hi) if place_body(mid) > target else (lo, mid)
-        place_body((lo + hi) / 2)
-        ctx.head(flex=8)
+        def solve(dist, target):
+            lo, hi = 5.0, 70.0
+            for _ in range(16):
+                mid = (lo + hi) / 2
+                place_body(mid)
+                lo, hi = (mid, hi) if dist() > target else (lo, mid)
+            return (lo + hi) / 2
+
+        if 'thetas' not in st:
+            # Bottom: arms straight from the shoulders. Top: the lower chest (not the shoulders, or
+            # the head ends up between the hands) arrives right under the bar, 7 cm below it.
+            low = solve(lambda: (aim - shoulders(ctx)).length, M.grip_reach() * 0.985)
+            high = solve(lambda: ctx.attach_point('chest', chest_pt).y - aim.y + 1.0, 1.0)
+            st['thetas'] = (low, high)
+        place_body(lerp(*st['thetas'], t))
         for s in SIDES:
             ctx.leg_fk(s)
         if straps:
@@ -261,12 +323,14 @@ def inverted_row_spec(id_, setup, grip=0.3, underhand=False, straps=False, camer
                 hand = Vector((sgn(s) * grip, bar.y, bar.z))
                 ctx.grip(s, hand, (0, -1, 0))
                 place(ring, hand, along((0, 1, 0)))
-                set_line(strap, Vector((sgn(s) * grip, bar.y, 2.3)), hand)
+                anchor = st['anchors'][0 if s == 'L' else 1] if 'anchors' in st else Vector((sgn(s) * grip, bar.y, 2.3))
+                set_line(strap, anchor, hand)
         else:
             bar_grip(ctx, bar, grip, underhand=underhand)
         elbows(ctx, (0.5, -0.2, -1) if not underhand else (0.2, -0.4, -1))
 
-    spec(id_, camera=camera or cam((0, -0.4, 0.6), 70, 10, 4.0), setup=setup, concentric='out')(pose)
+    # Three-quarter front view: from the side, a rack upright lines up with the head.
+    spec(id_, camera=camera or cam((0, -0.1, 0.65), 40, 15, 4.0), setup=setup, concentric='out')(pose)
 
 
 def _row_bar(ctx):
@@ -289,7 +353,13 @@ def _ring_row(ctx):
 
 
 def _towel_row(ctx):
-    return {'bar_point': Vector((0, 0.25, 1.05)), 'handles': [ctx.eq.group(f'tw{s}', [ctx.eq.box(f'twb{s}', (0.06, 0.03, 0.14), (0, 0, 0), ctx.eq.m_accent, 0.01)]) for s in SIDES],
+    # Both towel ends wrap a post at chest height in front of the hands; the higher hands make
+    # this a steeper lean back from standing than a ring row.
+    hands, post_y = Vector((0, 0.1, 1.2)), 1.1  # post clear of the head (y 0.89) at the bottom
+    ctx.eq.group('towel_post', [ctx.eq.frame('post', (0.1, 0.1, 2.1), (0, post_y, 1.05)),
+                                ctx.eq.frame('post_base', (0.4, 0.4, 0.03), (0, post_y, 0.015))])
+    anchors = [Vector((sgn(s) * 0.03, post_y - 0.06, hands.z + 0.02)) for s in SIDES]
+    return {'bar_point': hands, 'anchors': anchors, 'handles': [ctx.eq.group(f'tw{s}', [ctx.eq.box(f'twb{s}', (0.06, 0.03, 0.14), (0, 0, 0), ctx.eq.m_accent, 0.01)]) for s in SIDES],
             'straps': [ctx.eq.line('towelL', accent=True, radius=0.02), ctx.eq.line('towelR', accent=True, radius=0.02)]}
 
 
@@ -352,19 +422,37 @@ shrug_spec('smith-machine-shrug', smith=True)
 # Pulldowns
 
 
+MACHINE_PIVOT_Y, MACHINE_PIVOT_Z = 0.3, 2.1
+
+
 def pulldown_spec(id_, grip=0.38, handle='bar', underhand=False, one_arm=False, machine=False):
     def setup(ctx):
         st = ctx.eq.lat_pulldown()
-        if handle != 'bar':
+        if handle != 'bar' or machine:
             st['bar'].hide_render = True
             for c in st['bar'].children:
                 c.hide_render = True
+        if handle == 'parallel':
+            # Neutral-grip bar: a crossbar with the two grips hanging below its ends, front to back.
+            e = ctx.eq
+            st['nbar'] = e.group('nbar', [
+                e.cyl('nb_cross', 0.016, 2 * grip + 0.04, (0, 0, 0.07), (0, math.pi / 2, 0), e.m_metal, 16),
+                *[e.cyl('nb_drop', 0.012, 0.07, (s * grip, 0, 0.035), (0, 0, 0), e.m_metal, 12) for s in (1, -1)],
+                *[e.cyl('nb_grip', 0.016, 0.13, (s * grip, 0, 0), (math.pi / 2, 0, 0), e.m_metal, 16) for s in (1, -1)],
+            ])
+        elif handle != 'bar':
             st['ends'] = [ctx.eq.group(f'h{s}', [ctx.eq.cyl(f'hd{s}', 0.016, 0.12, (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_metal, 16)]) for s in SIDES]
             if handle == 'rope':
                 st['ropes'] = [ctx.eq.line('ropeL', radius=0.012), ctx.eq.line('ropeR', radius=0.012)]
         if machine:
+            # Plate-loaded levers pivot on a beam above and behind the head, each with its own handle.
             st['cable'].hide_render = True
+            ctx.eq.group('lever_frame', [
+                ctx.eq.frame('lever_beam', (0.66, 0.08, 0.08), (0, MACHINE_PIVOT_Y, MACHINE_PIVOT_Z)),
+                ctx.eq.frame('lever_post', (0.1, 0.1, MACHINE_PIVOT_Z), (0, MACHINE_PIVOT_Y + 0.05, MACHINE_PIVOT_Z / 2)),
+            ])
             st['levers'] = [ctx.eq.line('leverL', radius=0.02), ctx.eq.line('leverR', radius=0.02)]
+            st['ends'] = [ctx.eq.group(f'mh{s}', [ctx.eq.cyl(f'mhd{s}', 0.016, 0.13, (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_metal, 16)]) for s in SIDES]
         return st
 
     def pose(ctx, st, u):
@@ -376,9 +464,18 @@ def pulldown_spec(id_, grip=0.38, handle='bar', underhand=False, one_arm=False, 
         bottom = ctx.attach_point('chest', (0, -0.15, 1.42))
         center = lerp(top, bottom, t)
         sides = ['R'] if one_arm else SIDES
-        if handle == 'bar':
+        if machine:
+            for s, end in zip(SIDES, st['ends']):
+                p = center + Vector((sgn(s) * grip, 0, 0))
+                place(end, p)
+            bar_grip(ctx, center, grip)
+        elif handle == 'bar':
             place(st['bar'], center)
             bar_grip(ctx, center, grip, underhand=underhand)
+        elif handle == 'parallel':
+            place(st['nbar'], center)
+            for s in SIDES:
+                ctx.grip(s, center + Vector((sgn(s) * grip, 0, 0)), (0, -1, 0))
         else:
             for s, end in zip(SIDES, st['ends']):
                 if s not in sides:
@@ -393,7 +490,9 @@ def pulldown_spec(id_, grip=0.38, handle='bar', underhand=False, one_arm=False, 
                     set_line(st['ropes'][0 if s == 'L' else 1], center + Vector((0, 0, 0.12)), p)
         if machine:
             for s, lever in zip(SIDES, st['levers']):
-                set_line(lever, Vector((sgn(s) * 0.5, -0.5, 2.2)), center + Vector((sgn(s) * grip, 0, 0)))
+                set_line(lever, Vector((sgn(s) * 0.3, MACHINE_PIVOT_Y, MACHINE_PIVOT_Z)), center + Vector((sgn(s) * (grip + 0.07), 0, 0)))
+        elif handle == 'parallel':
+            set_line(st['cable'], st['pulley'], center + Vector((0, 0, 0.07)))
         else:
             set_line(st['cable'], st['pulley'], center + (Vector((-0.18, 0, 0)) if one_arm else Vector()))
         if one_arm:
@@ -439,6 +538,10 @@ def straight_arm_pulldown(ctx, st, u):
 # Pull-ups and hangs
 
 
+ASSIST_PIVOT = Vector((0, 0.45, 0.35))
+NEUTRAL_DROP = 0.1
+
+
 def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, towel=False, rings=False,
                 assisted=False, scap=False, hang=False, one_arm=False):
     def setup(ctx):
@@ -447,11 +550,24 @@ def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, tow
             st['handles'] = [ctx.eq.group(f'g{s}', [ctx.eq.cyl(f'gc{s}', 0.016 if towel else 0.09, 0.14 if towel else 0.03,
                                                                (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_accent if towel else ctx.eq.m_pad, 24)]) for s in SIDES]
             st['straps'] = [ctx.eq.line('sL', accent=towel, radius=0.02 if towel else 0.008), ctx.eq.line('sR', accent=towel, radius=0.02 if towel else 0.008)]
+        if neutral:
+            # Parallel handles hung under the bar on short links, palms facing each other.
+            e = ctx.eq
+            st['bar_handles'] = NEUTRAL_DROP
+            e.group('neutral_handles', [
+                part for s in (1, -1) for part in (
+                    e.cyl('nh', 0.016, 0.18, (s * grip, st['bar'].y, st['bar'].z - NEUTRAL_DROP), (math.pi / 2, 0, 0), e.m_metal, 16),
+                    *[e.cyl('nh_link', 0.01, NEUTRAL_DROP, (s * grip, st['bar'].y + f * 0.08, st['bar'].z - NEUTRAL_DROP / 2), (0, 0, 0), e.m_metal, 12)
+                      for f in (1, -1)])])
         if assisted:
-            ctx.eq.group('assist', [
-                ctx.eq.pad('knee_pad', (0.42, 0.3, 0.06), (0, 0.06, 0.0)),
+            # Knee pad on a lever arm that pivots low on a frame behind the lifter (the
+            # counterweight pushes it up).
+            st['pad'] = ctx.eq.group('assist', [ctx.eq.box('knee_pad', (0.42, 0.3, 0.06), (0, 0.0, 0.0), ctx.eq.m_accent, 0.025)])
+            ctx.eq.group('assist_frame', [
+                ctx.eq.frame('assist_col', (0.12, 0.12, ASSIST_PIVOT.z + 0.05), (0, ASSIST_PIVOT.y + 0.04, (ASSIST_PIVOT.z + 0.05) / 2)),
+                ctx.eq.frame('assist_base', (0.5, 0.6, 0.03), (0, ASSIST_PIVOT.y - 0.1, 0.015)),
             ])
-            st['pad'] = ctx.eq.objects[-1]
+            st['pad_arm'] = ctx.eq.line('assist_arm', radius=0.025)
         return st
 
     def pose(ctx, st, u):
@@ -459,7 +575,7 @@ def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, tow
         t = smootherstep(u)
         if hang or scap:
             t = 0.12 * t if scap else 0.0
-        hand_z = bar.z - (0.32 if towel else 0.0) - (0.4 if rings else 0.0)
+        hand_z = bar.z - (0.32 if towel else 0.0) - (0.4 if rings else 0.0) - st.get('bar_handles', 0.0)
         lift = (0.44 if not chest else 0.56) * t
         ctx.root((0, 0.03 + (0.06 * t if chest else 0), hand_z - 1.06 + lift + (0.07 * smootherstep(u) if scap else 0)))
         ctx.spine(flex=-8 * t - (10 * t if chest else 0))
@@ -472,7 +588,9 @@ def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, tow
             for s in SIDES:
                 ctx.leg_fk(s, hip_flex=0, knee=92, ankle=-20)
             knee = (ctx.world('shin.L', 'head') + ctx.world('shin.R', 'head')) / 2
-            place(st['pad'], Vector((0, knee.y + 0.08, knee.z - 0.05)))
+            pad = Vector((0, knee.y + 0.08, knee.z - 0.05))
+            place(st['pad'], pad)
+            set_line(st['pad_arm'], ASSIST_PIVOT, pad - Vector((0, 0, 0.03)))
         else:
             for s in SIDES:
                 ctx.leg_fk(s, hip_flex=12, knee=28, ankle=-25)
@@ -486,7 +604,7 @@ def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, tow
         else:
             for s in sides:
                 thumb = Vector((0, -1, 0)) if neutral else Vector((sgn(s) * (1 if underhand else -1), 0, 0))
-                ctx.grip(s, Vector((sgn(s) * grip, bar.y, bar.z)), thumb)
+                ctx.grip(s, Vector((sgn(s) * grip, bar.y, hand_z)), thumb)
         if one_arm:
             ctx.arm_fk('L', abd=25)
             ctx.arm.location.x += 0.05
@@ -494,7 +612,9 @@ def pullup_spec(id_, grip=0.31, underhand=False, neutral=False, chest=False, tow
 
     concentric = 'out'
     timing = dict(hold_start=0.0, out=0.5, hold_end=0.0) if hang else {}
-    spec(id_, camera=cam((0, 0, 1.45), 32, 6, 4.6), setup=setup, concentric=concentric, timing=timing,
+    # Rings hang 0.4 m lower than the bar, so the camera follows the body down to keep the feet in.
+    camera = cam((0, 0, 1.2), 32, 6, 4.9) if rings else cam((0, 0, 1.45), 32, 6, 4.6)
+    spec(id_, camera=camera, setup=setup, concentric=concentric, timing=timing,
          pulse_floor=0.82 if hang else 0.72)(pose)
 
 

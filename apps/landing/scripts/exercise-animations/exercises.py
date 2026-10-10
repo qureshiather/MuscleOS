@@ -126,8 +126,8 @@ def leg_press(ctx, st, u):
     rail = st['rail']
     up_rail = Vector((0, rail.z, -rail.y))  # perpendicular to the rail, toward the chest
     hip = (ctx.world('thigh.L', 'head') + ctx.world('thigh.R', 'head')) / 2
-    # Extended to ~10° short of lockout, down to ~85° of knee bend.
-    ankles = hip + rail * lerp(0.74, 0.44, u) + up_rail * 0.1
+    # Hip-to-ankle along the rail: knees ~150° at the top (short of lockout), ~60° at the bottom.
+    ankles = hip + rail * lerp(0.86, 0.46, u) + up_rail * 0.1
     sole = qx(-135)  # the rest foot's sole turned to face down the rail
     for s in SIDES:
         ctx.target('leg.' + s, ankles + Vector((sgn(s) * 0.14, 0, 0)), sole @ ctx.body.rest_quat('foot.' + s))
