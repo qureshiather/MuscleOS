@@ -10,7 +10,7 @@ import mannequin as M
 from anim import X, Z, lerp, sgn, smootherstep
 from catalog_legs import back_rack, squat_body
 from catalog_press import lockout_z
-from equipment import along, place, qx, set_line
+from equipment import place, qx, qz, set_line
 from exercises import DL_BAR_Y, _sagittal_hips
 from moves import SIDES, STAND_Z, bar_grip, elbows, feet, hold_dumbbell, knees_out, shoulders, stand
 from registry import barbell, cam, dumbbells, nothing, spec  # noqa: F401
@@ -235,32 +235,45 @@ def pistol_squat(ctx, st, u):
     # Down on one leg with the other held straight out in front, arms forward to balance.
     t = smootherstep(u)
     ctx.root((0.09, 0.15 * t, STAND_Z - 0.55 * t))
-    ctx.spine(flex=10 + 30 * t)
+    ctx.spine(flex=14 + 26 * t)
     ctx.bone('pelvis', (X, 12 * t))
     ctx.target('leg.L', (0.1, 0.01, 0.085))
     ctx.pole_dir('leg.L', (0.2, -1, 0))
-    ctx.leg_fk('R', hip_flex=lerp(15, 85, t) + 12 * t, knee=4, ankle=-10)
+    # The free leg is out in front from the start (foot ~0.3 m up), not hanging beside the other.
+    ctx.leg_fk('R', hip_flex=lerp(45, 85, t) + 12 * t, knee=4, ankle=-10)
     for s in SIDES:
         ctx.arm_fk(s, flex=lerp(60, 70, t), abd=4)
 
 
 def step_up_spec(id_, poliquin=False):
     def setup(ctx):
-        ctx.eq.plyo_box((0, -0.32), height=0.45 if not poliquin else 0.12, size=(0.5, 0.4))
-        return dumbbells(ctx) if not poliquin else {}
+        if poliquin:
+            # A narrow low step under the working (left) foot, a wedge under its heel; the free
+            # foot hangs beside the step so it can reach toward the floor.
+            ctx.eq.plyo_box((0.1, -0.33), height=PQ_H, size=(0.22, 0.3))
+            ctx.eq.pad('wedge', (0.12, 0.08, 0.035), (0.1, -0.24, PQ_H + 0.0175))
+            return {}
+        ctx.eq.plyo_box((0, -0.32), height=0.45, size=(0.5, 0.4))
+        return dumbbells(ctx)
 
     def pose(ctx, st, u):
-        h = 0.45 if not poliquin else 0.12
         t = smootherstep(u)
         if poliquin:
-            # Heel-elevated, narrow step: the front knee travels far over the toes.
-            ctx.root((0, -0.32 + 0.0 * t, STAND_Z + h - 0.38 * (1 - t)))
-            ctx.target('leg.L', (0.1, -0.3, h + 0.085), qx(10) @ ctx.body.rest_quat('foot.L'))
+            h = PQ_H
+            # Heel raised on the wedge, the knee travels far forward over the toes as the hips sit
+            # straight down; the free heel lowers to just above the floor in front of the step.
+            ctx.root((0, -0.3 + 0.08 * (1 - t), STAND_Z + h - 0.22 * (1 - t)))
+            ctx.spine(flex=4 + 6 * (1 - t))
+            ankle, tilt = on_toes((0.1, -0.33, h + 0.085), 12)
+            ctx.target('leg.L', ankle, tilt @ ctx.body.rest_quat('foot.L'))
             ctx.pole_dir('leg.L', (0, -1, 0))
-            ctx.leg_fk('R', hip_flex=5, knee=lerp(40, 10, t), ankle=-20)
+            free = Vector((-0.11, -0.5, 0.085 + 0.03)).lerp(Vector((-0.11, -0.4, h + 0.05)), t)
+            ctx.target('leg.R', free, qx(-15 * (1 - t)) @ ctx.body.rest_quat('foot.R'))
+            ctx.pole_dir('leg.R', (0, -1, 0))
             for s in SIDES:
-                ctx.arm_fk(s, flex=40, abd=6)
+                ctx.arm_fk(s, flex=lerp(55, 25, t), abd=6)
             return
+        h = 0.45
         # Lead foot on the box; drive up to stand on it, the trail leg following.
         ctx.root((0, lerp(0.0, -0.3, t), lerp(STAND_Z - 0.05, STAND_Z + h, t)))
         ctx.spine(flex=lerp(15, 2, t))
@@ -274,7 +287,12 @@ def step_up_spec(id_, poliquin=False):
             hold_dumbbell(ctx, db, s, ctx.grip_hang(s, sh.y, 0.25), Vector((0, -1, 0)))
         elbows(ctx, (0.3, 1, 0))
 
-    spec(id_, camera=cam((0, -0.2, 0.9), 70, 10, 4.0), setup=setup, concentric='out')(pose)
+    # Standing on the 45 cm box puts the head at ~2.2 m.
+    camera = cam((0, -0.3, 0.95), 70, 8, 4.0) if poliquin else cam((0, -0.2, 1.1), 70, 10, 4.5)
+    spec(id_, camera=camera, setup=setup, concentric='out')(pose)
+
+
+PQ_H = 0.15  # Poliquin step height
 
 
 step_up_spec('step-up')
@@ -334,51 +352,104 @@ def box_jump(ctx, t):
         ctx.arm_fk(s, flex=8, abd=8, elbow=12)
 
 
+DEPTH_Y = 0.45  # depth-jump box centre, behind the lifter; its front edge is at y = 0.225
+BOUND = 1.0  # lateral bound distance
+
+
+def depth_jump(ctx, t):
+    """Step off the box, land and immediately jump as high as possible, land soft, then step
+    back up onto the box backwards one foot at a time (so the loop returns to the box top)."""
+    if t < 0.72:
+        fwd = phase(t, 0.06, 0.14)  # forward off the box, the feet clearing its front edge
+        fall = phase(t, 0.12, 0.19)
+        y = DEPTH_Y * (1 - fwd)
+        floor = BOX_H * (1 - fall) + 0.05 * math.sin(math.pi * fwd)
+        absorb = phase(t, 0.17, 0.23) * (1 - phase(t, 0.23, 0.3))
+        air = math.sin(math.pi * phase(t, 0.28, 0.5)) if 0.28 < t < 0.5 else 0.0
+        land = phase(t, 0.48, 0.54) * (1 - phase(t, 0.58, 0.7))
+        squat_body(ctx, max(absorb * 0.6, land * 0.55, 0.2 * air), depth=0.4, back=0.15, lean=30, width=0.08,
+                   floor=floor, y=y)
+        lift = 0.38 * air
+        ctx.arm.location.z += lift
+        for s in SIDES:
+            ctx.body.targets['leg.' + s].location.z += lift * 0.85
+        for s in SIDES:
+            ctx.arm_fk(s, flex=-40 * absorb + 150 * air + 40 * land, abd=6, elbow=10 + 20 * air)
+        return
+    # Step back up: the right foot reaches back and up onto the box, the hips rise over it, then
+    # the left follows. Feet go up before they go back, clearing the box's front edge.
+    a = phase(t, 0.72, 0.84)
+    b = phase(t, 0.82, 0.95)
+    c = phase(t, 0.86, 0.98)
+
+    def foot(s, k):
+        p_ = Vector((sgn(s) * 0.178, lerp(0.01, DEPTH_Y + 0.01, phase(k, 0.3, 1.0)),
+                     0.085 + BOX_H * phase(k, 0.0, 0.65) + 0.06 * math.sin(math.pi * k)))
+        ctx.target('leg.' + s, p_, qz(sgn(s) * 12) @ ctx.body.rest_quat('foot.' + s))
+        ctx.pole_dir('leg.' + s, (sgn(s) * 0.35, -1, 0))
+
+    ctx.root((0, lerp(0.0, 0.18, a) + (DEPTH_Y - 0.18) * b, STAND_Z - 0.06 * math.sin(math.pi * a) + BOX_H * b))
+    ctx.spine(flex=8 + 14 * math.sin(math.pi * b))
+    foot('R', a)
+    foot('L', c)
+    for s in SIDES:
+        ctx.arm_fk(s, flex=10 * math.sin(math.pi * (a + b) / 2), abd=6, elbow=10)
+
+
+def lateral_bound(ctx, t):
+    """Bound sideways from one leg, land on the other with the knee bent, then bound back. The
+    two halves of the loop mirror each other; the free foot stays tucked up behind."""
+    m = 1 if t < 0.5 else -1  # +1: off the right leg, bounding toward +X onto the left
+    lt = (t % 0.5) / 0.5
+    push, catch = ('R', 'L') if m > 0 else ('L', 'R')
+    k = phase(lt, 0.04, 0.24) * (1 - phase(lt, 0.24, 0.32))  # dip before the push
+    f = phase(lt, 0.3, 0.6)  # flight
+    airborne = 0.3 < lt < 0.6
+    land = phase(lt, 0.57, 0.65) * (1 - phase(lt, 0.75, 1.0))
+    x0, x1 = -m * BOUND / 2, m * BOUND / 2
+    # The pelvis sits just inside the standing foot and travels across in the air.
+    root_x = lerp(x0 + sgn(catch) * 0.06, x1 + sgn(push) * 0.06, f)
+    root_y = 0.06 * (k + land)
+    z = STAND_Z - 0.03 - 0.16 * k - 0.14 * land + (0.22 * math.sin(math.pi * f) if airborne else 0.0)
+    ctx.root((root_x, root_y, z))
+    ctx.spine(flex=8 + 20 * k + 18 * land, side=-m * 8 * math.sin(math.pi * f),
+              twist=-m * 15 * math.cos(math.pi * f))
+    ctx.bone('pelvis', (X, 10 * (k + land)))
+    root = Vector((root_x, root_y, z))
+
+    def tucked(side):
+        return root + Vector((sgn(side) * 0.11, 0.3, -0.55))
+
+    # The push foot stays on the floor until take-off, then folds up behind; the catching foot
+    # comes out of its tuck and reaches across to land.
+    pf = Vector((x0, 0.01, 0.085)).lerp(tucked(push), phase(f, 0.0, 0.45))
+    cf = tucked(catch).lerp(Vector((x1, 0.01, 0.085)), phase(f, 0.25, 1.0))
+    cf.z = max(cf.z, 0.085)
+    for side, p_ in ((push, pf), (catch, cf)):
+        ctx.target('leg.' + side, p_)
+        ctx.pole_dir('leg.' + side, (sgn(side) * 0.2, -1, 0))
+    # Arms swing across the body with the bound.
+    sw = math.cos(math.pi * f)  # +1 before the push, -1 after
+    for side in SIDES:
+        ctx.arm_fk(side, flex=30 + 25 * k + 25 * land + 20 * math.sin(math.pi * f), abd=8, elbow=50,
+                   rot=sgn(side) * m * 20 * sw)
+
+
+JUMPS = {'box': box_jump, 'depth': depth_jump, 'bound': lateral_bound}
+JUMP_CAMS = {'box': cam((0, -0.3, 1.12), 70, 10, 5.0), 'depth': cam((0, 0.1, 1.15), 70, 10, 5.2),
+             'bound': cam((0, -0.2, 0.9), 10, 8, 5.5)}
+
+
 def jump_spec(id_, kind):
     def setup(ctx):
         if kind in ('box', 'depth'):
-            ctx.eq.plyo_box((0, BOX_Y) if kind == 'box' else (0, 0.45), height=BOX_H, size=(0.55, 0.45))
+            ctx.eq.plyo_box((0, BOX_Y) if kind == 'box' else (0, DEPTH_Y), height=BOX_H, size=(0.55, 0.45))
         return {}
 
     def pose(ctx, st, u):
-        t = getattr(ctx, 't', 0.0)
-        if kind == 'box':
-            box_jump(ctx, t)
-            return
-        # Load (0–.3), launch and fly (.3–.55), land and absorb (.55–.75), reset (.75–1).
-        load = phase(t, 0.05, 0.3) * (1 - phase(t, 0.3, 0.38))
-        land = phase(t, 0.55, 0.62) * (1 - phase(t, 0.68, 0.85))
-        air = math.sin(math.pi * phase(t, 0.32, 0.56)) if 0.3 < t < 0.58 else 0.0
-        x_shift = 0.0
-        y = 0.0
-        floor = 0.0
-        if kind == 'box':
-            prog = phase(t, 0.32, 0.56) * (1 - phase(t, 0.85, 1.0))
-            y = -0.55 * prog
-            floor = 0.5 * phase(t, 0.5, 0.56) * (1 - phase(t, 0.85, 1.0))
-        elif kind == 'depth':
-            prog = 1 - phase(t, 0.32, 0.56)
-            y = 0.45 * prog + 0.0
-            floor = 0.5 * (1 - phase(t, 0.4, 0.55)) * (1 - 0) if t < 0.85 else 0.5 * phase(t, 0.85, 1.0)
-            y = 0.45 * (1 - phase(t, 0.32, 0.5)) if t < 0.85 else 0.45 * phase(t, 0.85, 1.0)
-        elif kind == 'bound':
-            x_shift = 0.5 * (phase(t, 0.32, 0.56) - phase(t, 0.85, 1.0))
-        k = max(load, land)
-        squat_body(ctx, k * 0.6, depth=0.4, back=0.15, lean=30, width=0.08 if kind != 'bound' else 0.05,
-                   floor=floor, y=y)
-        ctx.arm.location.x += x_shift
-        lift = 0.35 * air if kind != 'bound' else 0.25 * air
-        ctx.arm.location.z += lift
-        for s in SIDES:
-            tg = ctx.body.targets['leg.' + s]
-            tg.location.x += x_shift
-            tg.location.z += lift * 0.8
-        for s in SIDES:
-            ctx.arm_fk(s, flex=lerp(-30, 100, air) if air > 0 else -30 * load + 60 * land, abd=6)
+        JUMPS[kind](ctx, getattr(ctx, 't', 0.0))
 
-    camera = cam((0, -0.3, 1.12), 70, 10, 5.0) if kind == 'box' else cam((0, -0.2, 0.9), 70 if kind != 'bound' else 10, 10, 4.4)
-    spec(id_, camera=camera, setup=setup, timing=LOOP,
-         concentric='out')(pose)
+    spec(id_, camera=JUMP_CAMS[kind], setup=setup, timing=LOOP, concentric='out')(pose)
 
 
 jump_spec('box-jump', 'box')
@@ -524,6 +595,111 @@ olympic_spec('squat-jerk', start='rack', jerk='squat')
 # Kettlebell ballistics
 
 
+KB_FLOOR = Vector((-0.03, -0.12, 0.275))  # handle of a bell standing between the feet
+
+
+def kb_body(ctx, st, h, dip=0.0, heels=0.0):
+    """Kettlebell stance: h = 0 standing tall, 1 hinged down with the hand on the bell on the
+    floor (hips back and down, knees bent and out). dip lowers the hips for a jerk or push press;
+    heels raises both heels (onto the balls of the feet) at the drive."""
+    if 'h0' not in st:
+        # Solve the hinge that puts the straight arm's grip on the handle on the floor.
+        lo, hi = 20.0, 95.0
+        for _ in range(16):
+            mid = (lo + hi) / 2
+            kb_body_pose(ctx, mid, 1.0, 0.0, 0.0)
+            far = (ctx.world('upperarm.R', 'head') - KB_FLOOR).length > M.grip_reach('R') * 0.97
+            lo, hi = (mid, hi) if far else (lo, mid)
+        st['h0'] = (lo + hi) / 2
+    kb_body_pose(ctx, st['h0'], h, dip, heels)
+    st['lean'] = st['h0'] * h  # torso pitch, for the free arm to hang straight down
+
+
+def kb_body_pose(ctx, hinge, h, dip, heels):
+    ctx.root((0, 0.2 * h, STAND_Z - 0.24 * h - dip))
+    ctx.bone('pelvis', (X, hinge * h * 0.8))
+    ctx.spine(flex=hinge * h * 0.2)
+    ctx.head(flex=-25 * h)
+    for s in SIDES:
+        ankle, tilt = on_toes((sgn(s) * 0.218, 0.01, 0.085), heels)
+        ctx.target('leg.' + s, ankle, qz(sgn(s) * 10) @ tilt @ ctx.body.rest_quat('foot.' + s))
+    knees_out(ctx, 0.35)
+
+
+def reach_clamp(ctx, side, g):
+    """Pull a hand target in to what the straight arm reaches, so a held bell never floats."""
+    sh = ctx.world('upperarm.' + side, 'head')
+    d = g - sh
+    r = M.grip_reach(side) * 0.99
+    return sh + d.normalized() * r if d.length > r else g
+
+
+def kb_one_hand(ctx, st, t, kind):
+    """Right-hand clean, press, jerk, push press and snatch on loop time. The bell is always
+    in the hand: its path runs through a hike behind the knees and close up the front of the
+    body (the clean rolls it round the wrist into the rack), never in a straight line."""
+
+    def path(points):
+        # Waypoints with smooth arrival windows: [(point, a, b), ...] after a start point.
+        g = points[0]
+        for pt, a, b in points[1:]:
+            g = g.lerp(pt, phase(t, a, b))
+        return g
+
+    def body_points():
+        sh = ctx.world('upperarm.R', 'head')
+        hike = Vector((-0.06, 0.2, 0.5))  # back between the legs, behind the knees
+        hip = Vector((-0.07, min(ctx.arm.location.y, 0.0) - 0.27, 0.92))  # in front of the hips, clear of the thigh
+        rack = ctx.attach_point('chest', (-0.14, -0.16, 1.36))
+        over = Vector((sh.x, sh.y, sh.z + lockout_z(ctx, abs(sh.x))))
+        return hike, hip, rack, over
+
+    dip = heels = 0.0
+    if kind == 'snatch':
+        # Loop starts in the hike: snap the hips, pull high and punch through to overhead (.08–.38),
+        # hold, then let it drop in front, down past the hips and back into the next hike.
+        h = (1 - phase(t, 0.06, 0.24)) + phase(t, 0.78, 1.0)
+        kb_body(ctx, st, 0.75 * h)
+        hike, hip, rack, over = body_points()
+        high = Vector((-0.12, ctx.arm.location.y - 0.22, 1.3))  # elbow high, bell close to the body
+        front = Vector((-0.12, -0.5, 1.15))
+        g = path([hike, (hip, 0.06, 0.2), (high, 0.18, 0.3), (over, 0.28, 0.38),
+                  (front, 0.6, 0.7), (hip, 0.68, 0.8), (hike, 0.8, 1.0)])
+    elif kind == 'push':
+        # Bell in the rack throughout: dip, drive (the bell leaves as the legs straighten), lock
+        # out with the arm, hold, lower to the rack.
+        dip = 0.08 * phase(t, 0.2, 0.35) * (1 - phase(t, 0.35, 0.45))
+        heels = 18 * math.sin(math.pi * phase(t, 0.36, 0.5))
+        kb_body(ctx, st, 0.0, dip, heels)
+        hike, hip, rack, over = body_points()
+        g = path([rack, (rack.lerp(over, 0.6), 0.35, 0.45), (over, 0.45, 0.55), (rack, 0.7, 0.9)])
+    else:
+        # Clean: hand on the bell on the floor, hike it back, snap the hips and guide it up close
+        # to the body into the rack; then (press / jerk) overhead and back; lower the same way.
+        h = (1 - phase(t, 0.1, 0.26)) + phase(t, 0.84, 1.0)
+        if kind == 'jerk':
+            # Dip, drive (heels up, bell launched ~60%), re-dip under the locked arm, stand.
+            dip = 0.08 * phase(t, 0.36, 0.42) * (1 - phase(t, 0.42, 0.46)) \
+                + 0.1 * phase(t, 0.46, 0.5) * (1 - phase(t, 0.52, 0.6))
+            heels = 18 * math.sin(math.pi * phase(t, 0.42, 0.48))
+        kb_body(ctx, st, h, dip, heels)
+        hike, hip, rack, over = body_points()
+        pts = [KB_FLOOR, (hike, 0.06, 0.16), (hip, 0.16, 0.24), (rack, 0.22, 0.32)]
+        if kind == 'press':
+            pts += [(over, 0.38, 0.52), (rack, 0.64, 0.76)]
+        elif kind == 'jerk':
+            pts += [(rack.lerp(over, 0.6), 0.42, 0.46), (over, 0.46, 0.5), (rack, 0.66, 0.76)]
+        # Lower the same way: down the front of the body, a short swing back, onto the floor.
+        pts += [(hip, 0.76, 0.84), (hike, 0.82, 0.9), (KB_FLOOR, 0.9, 1.0)]
+        g = path(pts)
+    g = reach_clamp(ctx, 'R', g)
+    ctx.grip('R', g, (1, 0, 0))
+    # Low, the bell hangs under the handle; racked and overhead it rests on the back of the forearm.
+    place(st['kb'], g, qx(-25 * phase(g.z, 1.0, 1.3)))
+    ctx.arm_fk('L', flex=st['lean'], abd=12 + 20 * phase(g.z, 1.2, 1.6))
+    ctx.pole_world('arm.R', (-0.3, -0.6, -1))
+
+
 def kb_spec(id_, kind, one_hand=False):
     def setup(ctx):
         return {'kb': ctx.eq.kettlebell()}
@@ -573,45 +749,25 @@ def kb_spec(id_, kind, one_hand=False):
             place(st['kb'], g, ctx.bone_delta('forearm.R'))
             return
         if kind == 'thruster':
-            k = smootherstep(u)
             squat_body(ctx, 1 - phase(u, 0.0, 0.5), depth=0.42, back=0.12, lean=16, width=0.1)
             press = phase(u, 0.4, 1.0)
             sh = shoulders(ctx)
-            rack = ctx.attach_point('chest', (0, -0.18, 1.38))
-            over = Vector((0, sh.y, sh.z + lockout_z(ctx, 0.05)))
+            # Held by the horns, bell down against the upper chest (as in a goblet squat), so the
+            # face stays clear; pressed overhead with the bell hanging just above the head.
+            rack = ctx.attach_point('chest', (0, -0.22, 1.42))
+            over = Vector((0, sh.y - 0.04, sh.z + lockout_z(ctx, 0.06)))
             g = rack.lerp(over, press)
             for s in SIDES:
-                ctx.grip(s, g + Vector((sgn(s) * 0.05, 0, 0)), (0, 0, 1))
-            place(st['kb'], g + Vector((0, 0, 0.06)), qx(180))
+                ctx.grip(s, g + Vector((sgn(s) * 0.06, 0, 0)), (0, 0, 1))
+            place(st['kb'], g + Vector((0, 0, 0.06)))
             elbows(ctx, (0.4, -0.8, -0.5))
-            del k
             return
-        # Clean / press / jerk / snatch / push press: one hand, bell from between the feet.
-        stand(ctx, width=0.1)
-        sh = ctx.world('upperarm.R', 'head')
-        low = Vector((-0.04, 0.0, 0.2))
-        rack = ctx.attach_point('chest', (-0.14, -0.16, 1.36))
-        over = Vector((sh.x, sh.y, sh.z + lockout_z(ctx, abs(sh.x))))
-        if kind == 'snatch':
-            up = phase(t, 0.15, 0.4) * (1 - phase(t, 0.75, 1.0))
-            dip = math.sin(math.pi * phase(t, 0.0, 0.3)) * 0.12
-            ctx.arm.location.z -= dip
-            ctx.bone('pelvis', (X, 40 * (1 - phase(t, 0.0, 0.25)) + 40 * phase(t, 0.85, 1.0)))
-            g = low.lerp(over, up)
-        else:
-            clean = phase(t, 0.08, 0.3) * (1 - phase(t, 0.82, 1.0))
-            press = (phase(t, 0.42, 0.6) * (1 - phase(t, 0.65, 0.8))) if kind in ('press', 'jerk', 'push') else 0.0
-            if kind in ('jerk', 'push'):
-                ctx.arm.location.z -= 0.07 * math.sin(math.pi * phase(t, 0.36, 0.46))
-            ctx.bone('pelvis', (X, 40 * (1 - phase(t, 0.0, 0.2)) + 40 * phase(t, 0.88, 1.0)))
-            g = low.lerp(rack, clean).lerp(over, press)
-        ctx.grip('R', g, (1, 0, 0))
-        place(st['kb'], g, qx(-15) if g.z > 1.0 else qx(0))
-        ctx.arm_fk('L', abd=12)
-        ctx.pole_world('arm.R', (-0.3, -0.6, -1))
+        kb_one_hand(ctx, st, t, kind)
 
     timing = {} if kind in ('windmill', 'thruster') else LOOP
-    spec(id_, camera=cam((0, 0, 1.0), 40 if kind != 'windmill' else 10, 8, 4.0), setup=setup, timing=timing,
+    camera = cam((0, 0, 1.15), 40, 8, 4.7) if kind in ('thruster', 'press', 'jerk', 'push', 'snatch') else \
+        cam((0, 0, 1.0), 40 if kind != 'windmill' else 10, 8, 4.0)
+    spec(id_, camera=camera, setup=setup, timing=timing,
          concentric='out')(pose)
 
 
@@ -630,6 +786,9 @@ kb_spec('kettlebell-windmill', 'windmill')
 # Muscle-ups, medicine ball, devil's press
 
 
+RING_ANCHOR_Z = 3.4
+
+
 def muscle_up_spec(id_, rings=False, band=False, jumping=False):
     def setup(ctx):
         st = {}
@@ -638,6 +797,13 @@ def muscle_up_spec(id_, rings=False, band=False, jumping=False):
             ctx.eq.group('low_bar', [ctx.eq.cyl('lb', 0.016, 1.4, (0, -0.12, 1.75), (0, math.pi / 2, 0), ctx.eq.m_metal, 16),
                                      ctx.eq.frame('pL', (0.07, 0.07, 1.78), (0.68, -0.12, 0.89)),
                                      ctx.eq.frame('pR', (0.07, 0.07, 1.78), (-0.68, -0.12, 0.89))])
+        elif rings:
+            # Rings on straps from a high beam; the hands hold them at bar height in the hang.
+            st['bar'] = Vector((0, -0.12, 2.3))
+            ctx.eq.group('ring_rig', [ctx.eq.frame('beam', (1.7, 0.08, 0.08), (0, -0.12, RING_ANCHOR_Z)),
+                                      ctx.eq.frame('pL', (0.08, 0.08, RING_ANCHOR_Z), (0.85, -0.12, RING_ANCHOR_Z / 2)),
+                                      ctx.eq.frame('pR', (0.08, 0.08, RING_ANCHOR_Z), (-0.85, -0.12, RING_ANCHOR_Z / 2))])
+            st['rings'] = ctx.eq.rings()
         else:
             st['bar'] = ctx.eq.pullup_bar()
         if band:
@@ -661,17 +827,33 @@ def muscle_up_spec(id_, rings=False, band=False, jumping=False):
         ctx.head(flex=-10 + 20 * over)
         for s in SIDES:
             ctx.leg_fk(s, hip_flex=lerp(10, 40, over) - 25 * press, knee=lerp(20, 30, over), ankle=-25)
-            ctx.grip(s, Vector((sgn(s) * (0.27 if not rings else 0.24), bar.y, bar.z)), (-sgn(s), 0, 0) if not rings else (0, -1, 0))
+            if rings:
+                # False grip, thumbs forward; the rings come in to the hips in support.
+                p = Vector((sgn(s) * lerp(0.24, 0.2, press), bar.y, bar.z))
+                ctx.grip(s, p, (0, -1, 0))
+                ring, strap = st['rings'][0 if s == 'L' else 1], st['rings'][2 if s == 'L' else 3]
+                # The hand closes on the bottom of the ring (modelled upright, its axis on X).
+                place(ring, p + Vector((0, 0, 0.09)))
+                set_line(strap, Vector((sgn(s) * 0.24, bar.y, RING_ANCHOR_Z)), p + Vector((0, 0, 0.18)))
+            else:
+                ctx.grip(s, Vector((sgn(s) * 0.27, bar.y, bar.z)), (-sgn(s), 0, 0))
         elbows(ctx, (lerp(0.7, 0.3, over), lerp(-0.05, 1, over), lerp(-1, 0, over)))
         if jumping:
+            # Low bar: start squatting under it with the feet flat, then the legs drive the first
+            # part of the pull until they straighten and the feet leave the floor.
             for s in SIDES:
-                ctx.body.targets['leg.' + s].location.z = max(0.085, ctx.body.targets['leg.' + s].location.z)
+                a = ctx.world('foot.' + s, 'head')
+                if a.z < 0.1:
+                    ctx.target('leg.' + s, (a.x, lerp(a.y, 0.05, 0.6), 0.085))
+                    ctx.pole_dir('leg.' + s, (sgn(s) * 0.2, -1, 0))
         if band:
             knees = (ctx.world('shin.L', 'head') + ctx.world('shin.R', 'head')) / 2
             set_line(st['band'], Vector((0, bar.y, bar.z)), knees)
         del t
 
-    spec(id_, camera=cam((0, 0, 1.6), 55, 6, 4.8), setup=setup, concentric='out')(pose)
+    # Frame from the hanging feet to the head in support (about bar height + 0.9 m).
+    camera = cam((0, 0, 1.3), 55, 6, 5.5) if jumping else cam((0, 0, 1.95), 55, 6, 5.8)
+    spec(id_, camera=camera, setup=setup, concentric='out')(pose)
 
 
 muscle_up_spec('bar-muscle-up')
@@ -680,62 +862,121 @@ muscle_up_spec('banded-muscle-up', band=True)
 muscle_up_spec('jumping-muscle-up', jumping=True)
 
 
-@spec('ball-slams', camera=cam((0, -0.2, 1.0), 60, 8, 4.2), setup=lambda ctx: {'ball': ctx.eq.medicine_ball()},
+@spec('ball-slams', camera=cam((0, -0.2, 1.15), 60, 8, 4.7), setup=lambda ctx: {'ball': ctx.eq.medicine_ball()},
       timing=LOOP, concentric='out')
 def ball_slams(ctx, st, u):
-    # Ball overhead on the toes, then slam it into the floor with a hip hinge; pick it up and repeat.
+    # Ball overhead on the toes, then slam it into the floor with a hip hinge and knee bend; squat
+    # down to pick it up off the floor and lift it back overhead.
     t = getattr(ctx, 't', 0.0)
     up = phase(t, 0.0, 0.3) * (1 - phase(t, 0.35, 0.5))
-    hinge = phase(t, 0.35, 0.5) * (1 - phase(t, 0.8, 1.0))
-    stand(ctx, width=0.12)
-    ctx.root((0, 0.15 * hinge, STAND_Z - 0.12 * hinge + 0.03 * up))
-    ctx.bone('pelvis', (X, 55 * hinge))
-    for s in SIDES:
-        ctx.arm_fk(s, flex=lerp(lerp(40, 175, up), 70, hinge), abd=-15, elbow=20)
-    hands = [ctx.attach_point('hand.' + s, M.grip_point(s)) for s in SIDES]
-    mid = (hands[0] + hands[1]) / 2
-    on_floor = phase(t, 0.48, 0.52) * (1 - phase(t, 0.8, 0.85))
-    floor = Vector((0, -0.35, 0.12))
-    place(st['ball'], mid.lerp(floor, on_floor) + Vector((0, -0.05, 0)))
+    k = phase(t, 0.35, 0.52) * (1 - phase(t, 0.78, 1.0))
+    # Slam the arms down to the knees; at the pickup (t .55-.78) the hands reach the floor.
+    reach = phase(t, 0.5, 0.6) * (1 - phase(t, 0.72, 0.82))
+
+    def body(k, up, reach):
+        hinge = 45 * k + 20 * reach
+        ctx.root((0, 0.12 * k + 0.08 * reach, STAND_Z - 0.18 * k - 0.14 * reach + 0.03 * up))
+        ctx.bone('pelvis', (X, hinge))
+        ctx.spine(flex=10 * k + 10 * reach)
+        heel = 25 * up  # up onto the toes at the overhead reach
+        for s in SIDES:
+            ankle, tilt = on_toes((sgn(s) * 0.218, 0.01, 0.085), heel)
+            ctx.target('leg.' + s, ankle, tilt @ ctx.body.rest_quat('foot.' + s))
+        knees_out(ctx, 0.3)
+        for s in SIDES:
+            # Arm angles are relative to the torso: flex ≈ hinge + spine hangs them to the floor.
+            ctx.arm_fk(s, flex=lerp(lerp(40, 175, up), hinge + 10 * k + 10 * reach + 8, k), abd=-15, elbow=20 - 10 * reach)
+        hands = [ctx.attach_point('hand.' + s, M.grip_point(s)) for s in SIDES]
+        return (hands[0] + hands[1]) / 2 + Vector((0, -0.05, 0))
+
+    if 'floor' not in st:
+        # The ball lands where the hands reach at the bottom of the pickup.
+        p = body(1.0, 0.0, 1.0)
+        st['floor'] = Vector((p.x, p.y, 0.12))
+    mid = body(k, up, reach)
+    # Released at the bottom of the slam, it drops onto the floor ahead of the hands, sits there,
+    # and is in the hands again from the pickup on.
+    drop = phase(t, 0.44, 0.5)
+    pick = phase(t, 0.62, 0.68)
+    on_floor = drop * (1 - pick)
+    place(st['ball'], mid.lerp(st['floor'], on_floor))
 
 
-@spec('medicine-ball-chest-pass', camera=cam((0, -0.4, 1.1), 70, 8, 4.4), setup=lambda ctx: {'ball': ctx.eq.medicine_ball()},
+@spec('medicine-ball-chest-pass', camera=cam((0, -0.85, 1.0), 70, 8, 5.2), setup=lambda ctx: {'ball': ctx.eq.medicine_ball()},
       timing=LOOP, concentric='out')
 def chest_pass(ctx, st, u):
-    # From the chest, step and push the ball away; it travels out and comes back.
+    # From the chest, step forward and push the ball away; it travels out and comes back, and the
+    # front foot steps back in.
     t = getattr(ctx, 't', 0.0)
     push = phase(t, 0.1, 0.25) * (1 - phase(t, 0.6, 0.8))
+    step = phase(t, 0.06, 0.22) * (1 - phase(t, 0.7, 0.95))
+    moving = math.sin(math.pi * phase(t, 0.06, 0.22)) if t < 0.5 else math.sin(math.pi * phase(t, 0.7, 0.95))
     stand(ctx, width=0.08)
+    ctx.arm.location.y -= 0.12 * step
+    # The right foot steps 30 cm forward; the left stays put and its heel peels up.
+    ankle, tilt = on_toes((0.178, 0.01, 0.085), 20 * step)
+    ctx.target('leg.L', ankle, tilt @ ctx.body.rest_quat('foot.L'))
+    ctx.target('leg.R', (-0.178, 0.01 - 0.3 * step, 0.085 + 0.05 * moving))
     for s in SIDES:
-        ctx.arm_fk(s, flex=lerp(55, 88, push), abd=-25 + 20 * push, elbow=lerp(110, 5, push), rot=50 * (1 - push))
+        ctx.arm_fk(s, flex=lerp(42, 88, push), abd=-25 + 20 * push, elbow=lerp(118, 5, push), rot=50 * (1 - push))
     hands = [ctx.attach_point('hand.' + s, M.grip_point(s)) for s in SIDES]
     mid = (hands[0] + hands[1]) / 2 + Vector((0, -0.08, 0))
     flight = math.sin(math.pi * phase(t, 0.22, 0.65)) if 0.22 < t < 0.65 else 0.0
-    place(st['ball'], mid + Vector((0, -1.6 * flight, 0.1 * flight)))
+    place(st['ball'], mid + Vector((0, -1.1 * flight, 0.1 * flight)))
 
 
-@spec('devils-press', camera=cam((0, -0.1, 0.8), 60, 10, 4.2), setup=dumbbells, timing=LOOP, concentric='out')
+@spec('devils-press', camera=cam((0, -0.1, 0.85), 60, 10, 4.6), setup=dumbbells, timing=LOOP, concentric='out')
 def devils_press(ctx, st, u):
-    # Hands on the dumbbells in a plank, chest to the floor, jump the feet in, then swing both
-    # bells from the floor to overhead in one motion.
+    # Hands on the dumbbells in a plank, chest to the floor, jump the feet in beside the bells,
+    # then swing both bells from the floor to overhead in one motion; lower them back to the floor
+    # and jump the feet back out. The pose blends continuously (root pitch + IK limbs) so the
+    # plank, crouch and stand flow into each other.
     t = getattr(ctx, 't', 0.0)
-    plank = 1 - phase(t, 0.25, 0.35)
-    swing = phase(t, 0.35, 0.6) * (1 - phase(t, 0.75, 0.95))
-    if plank > 0.5:
+    if 'bells' not in st:
         from catalog_core import high_plank
 
-        high_plank(ctx, lift=-0.2 * math.sin(math.pi * phase(t, 0.0, 0.2)))
-        for s, db in zip(SIDES, st['db']):
-            sh = ctx.world('upperarm.' + s, 'head')
-            hold_dumbbell(ctx, db, s, Vector((sh.x, sh.y - 0.02, 0.1)), Vector((0, -1, 0)))
-        return
-    hinge = 1 - swing
-    ctx.root((0, 0.2 * hinge, STAND_Z - 0.2 * hinge))
-    ctx.bone('pelvis', (X, 70 * hinge))
-    feet(ctx, width=0.12)
-    knees_out(ctx, 0.3)
-    for s, db in zip(SIDES, st['db']):
-        ctx.arm_fk(s, flex=lerp(20, 178, swing), abd=6)
-        g = ctx.attach_point('hand.' + s, M.grip_point(s))
-        place(db, g, along((0, -1, 0)))
+        high_plank(ctx)
+        st['bells'] = [Vector((ctx.world('upperarm.' + s, 'head').x, ctx.world('upperarm.' + s, 'head').y - 0.02, 0.1))
+                       for s in SIDES]
+    bells = st['bells']
+    bell_y = bells[0].y
+    foot_y = bell_y + 0.36  # feet land just behind the bells, wider than them
 
+    dip = -0.3 * math.sin(math.pi * phase(t, 0.0, 0.18))  # chest to the floor
+    jin = phase(t, 0.18, 0.3) if t < 0.6 else 1 - phase(t, 0.88, 1.0)  # 0 plank, 1 feet in
+    hop = math.sin(math.pi * (phase(t, 0.18, 0.3) if t < 0.6 else phase(t, 0.88, 1.0)))
+    rise = phase(t, 0.42, 0.54) * (1 - phase(t, 0.68, 0.8))  # crouch to standing
+    plank_root = Vector((0, 0.0, 0.62 + dip))
+    crouch_root = Vector((0, foot_y + 0.16, 0.6))
+    stand_root = Vector((0, foot_y, STAND_Z))
+    root = plank_root.lerp(crouch_root, jin).lerp(stand_root, rise) + Vector((0, 0, 0.1 * hop))
+    ctx.root(root, (lerp(lerp(68, 72, jin), 0, rise), 0, 0))
+    ctx.spine(flex=12 * jin * (1 - rise))
+    ctx.head(flex=lerp(lerp(-50, -35, jin), 0, rise))
+    for s in SIDES:
+        plank_foot = Vector((sgn(s) * 0.12, 0.95, 0.06))
+        crouch_foot = Vector((sgn(s) * 0.3, foot_y, 0.085))
+        ctx.target('leg.' + s, plank_foot.lerp(crouch_foot, jin) + Vector((0, 0, 0.08 * hop)))
+        ctx.pole_world('leg.' + s, Vector((0, 0, 1)).lerp(Vector((sgn(s) * 0.4, -1, 0)), jin))
+
+    # Hands: on the bells on the floor, then a straight-arm arc from the floor (a short swing back
+    # between the legs) to overhead, and the same arc back down.
+    up = phase(t, 0.36, 0.42) * 0.25 + phase(t, 0.42, 0.56) * 0.75
+    down = phase(t, 0.68, 0.84)
+    k = up * (1 - down)
+    reach = M.grip_reach() * 0.97
+    for s, db, bell in zip(SIDES, st['db'], bells):
+        sh = ctx.world('upperarm.' + s, 'head')
+        d = bell - sh
+        th0 = math.degrees(math.atan2(-d.y, -d.z))  # world angle from straight down toward the front
+        lift = phase(t, 0.36, 0.42) if t < 0.6 else 1 - phase(t, 0.68, 0.84)
+        th = lerp(th0, -20, phase(t, 0.36, 0.42)) if t < 0.42 else lerp(-20, 180, phase(t, 0.42, 0.56))
+        if t >= 0.6:
+            th = lerp(180, th0, down)
+        r = lerp(d.length, reach, lift)
+        g = sh + Vector((0, -math.sin(math.radians(th)), -math.cos(math.radians(th)))) * r
+        if k == 0.0:
+            g = bell
+        g.x = bell.x
+        hold_dumbbell(ctx, db, s, g, Vector((0, -1, 0)))
+        ctx.pole_world('arm.' + s, Vector((sgn(s) * 0.5, 1, 0)).lerp(Vector((sgn(s) * 1, 0.3, 0)), rise))
