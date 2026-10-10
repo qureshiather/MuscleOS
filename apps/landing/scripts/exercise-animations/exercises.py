@@ -161,7 +161,7 @@ def leg_extension(ctx, st, u):
     place(st['lever'], (0, knee.y, knee.z), ctx.bone_delta('shin.L'))
 
 
-@spec('calf-raise', camera=cam((0, 0, 0.7), 78, 6, 3.6), setup=lambda ctx: ctx.eq.calf_raise(), concentric='out',
+@spec('calf-raise', camera=cam((0, 0, 0.95), 78, 6, 4.1), setup=lambda ctx: ctx.eq.calf_raise(), concentric='out',
       timing=dict(hold_start=0.12, out=0.3, hold_end=0.16))
 def calf_raise(ctx, st, u):
     ctx.root((0, 0.0, STAND_Z))
