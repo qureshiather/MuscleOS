@@ -37,11 +37,11 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'coaching',
     question: 'What is Coaching?',
     paragraphs: [
-      'Coaching is coming later and will be how MuscleOS makes money. Personal trainers will be able to send you programs to run in MuscleOS, and the MuscleOS AI coach will build a program around your goals and adjust it as you train.',
-      'It’s optional. Nothing in the free app is held back for it.',
+      'Coaching is coming later and will be how MuscleOS makes money. Personal trainers will be able to send you programs to run in MuscleOS, the MuscleOS AI coach will build a program around your goals, and the app will set your next weights and reps from what you logged.',
+      'It’s optional. Logging, templates, recovery and history stay free.',
     ],
     answerText:
-      'Coaching is a future, optional paid offering: personal trainers sending you programs to run in MuscleOS, and an AI coach that builds and adjusts a program for your goals. The app itself stays free.',
+      'Coaching is a future, optional paid offering: personal trainers sending you programs to run in MuscleOS, an AI coach that builds a program for your goals, and next weights and reps set from what you logged. The app itself stays free.',
   },
   {
     id: 'how-to-workout',

@@ -23,8 +23,9 @@ Lifters who train with weights on a repeating split (push/pull/legs, upper/lower
 want a log that is faster than a notes app and less bloated than a coaching platform. The
 app assumes free-weight and machine work in a gym, not running, cycling, or classes.
 
-It is deliberately **not** a coach. It does not prescribe weights, generate programs, count
-calories, or score your form. It records what you did and shows it back to you.
+The free app is deliberately **not** a coach. It does not prescribe weights, generate programs,
+count calories, or score your form — prescribing belongs to Coaching. It records what you did and
+shows it back to you.
 
 ## Design principles
 
@@ -43,8 +44,9 @@ reference data.
 
 **Free, all of it.** Every feature — custom templates and exercises, analytics, everything — is
 free for everyone, with or without an account. There's no paywall and nothing to buy. MuscleOS will
-make money from Coaching (personal trainers and an AI coach), which isn't built yet. See
-[pricing.md](../features/pricing.md).
+make money from Coaching (personal trainers, an AI coach and automatic progression), which isn't
+built yet. Training features stay free; Coaching is only where someone else decides what you lift.
+See [pricing.md](../features/pricing.md#where-the-line-is).
 
 **Built-in content is immutable; your content is yours.** See below.
 
@@ -159,9 +161,9 @@ Listed so they don't get re-proposed as bugs or half-specified in future work.
 
 | Not built | Note |
 |-----------|------|
-| Plate calculator | Not implemented. |
+| Plate calculator | Not implemented. Free when built ([pricing](../features/pricing.md#where-the-line-is)). |
 | Session detail screen | History cards show full detail inline; there is no drill-down route. |
 | Live PR detection during a workout | PRs are computed on read on the PR screen, not surfaced mid-session. |
 | HealthKit / Google Fit, nutrition | No integration and no calorie or macro tracking. |
-| Program periodization, RPE, drop sets, supersets | No data model support. |
+| Multi-week programs, RPE, drop sets, supersets | No data model support. Free when built; automatic progression is Coaching ([pricing](../features/pricing.md#where-the-line-is)). |
 | Cardio, distance, or duration tracking | Out of scope. |
