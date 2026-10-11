@@ -89,6 +89,7 @@ const INCLUDED_POINTS = [
 const COACHING_POINTS = [
   'Personal trainers send you programs to run in MuscleOS',
   'The MuscleOS AI coach builds a program around your goals',
+  'Your next weights and reps, set from what you logged',
 ] as const;
 
 export function LandingPage() {
@@ -251,8 +252,8 @@ export function LandingPage() {
                 </p>
                 <p className="font-display text-xl font-semibold text-ink">Coaching</p>
                 <p className="mt-2 text-sm text-ink-secondary">
-                  When you want a plan built for you. Optional, and nothing in the free app is held back
-                  for it.
+                  For when you want someone else to plan your training. Optional, and paid. The app
+                  stays free.
                 </p>
                 <ul className="mt-5 space-y-2.5 text-sm text-ink-secondary">
                   {COACHING_POINTS.map((point) => (

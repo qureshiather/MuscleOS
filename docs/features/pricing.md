@@ -39,9 +39,19 @@ MuscleOS will make money from **Coaching**, which is not built yet:
 
 - **Personal trainers** give their clients programs to run in MuscleOS (a trainer portal).
 - **The MuscleOS AI coach** builds a program around the user's goals and adapts it to what they log.
+- **Automatic progression** — the app prescribing the next session's load and reps from what was
+  logged, including stall and deload handling.
 
-Nothing in the app today is held back for Coaching. When it ships it gets its own spec, including
-how it's billed. Planned work lives in Linear (project **Coaching**).
+### Where the line is
+
+**Free:** anything that records, plans or shows your own training. That includes features not built
+yet — supersets, RPE, a plate calculator, recovery settings, and multi-week programs you write
+yourself. They ship free for everyone, like the rest of the app.
+
+**Coaching:** anything where someone else — a trainer or MuscleOS — decides what you lift.
+
+Everything in the app today stays free. Coaching gets its own spec when it ships, including how it's
+billed. Planned work lives in Linear (project **Coaching**).
 
 ## Upgrading from a build that had Pro
 

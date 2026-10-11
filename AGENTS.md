@@ -169,7 +169,8 @@ apps/mobile/
 ### 10. Pricing
 
 - **MuscleOS is free forever.** Every feature is available to everyone, with or without an account. No tiers, no paywall, no in-app purchases, no billing SDK. Spec: [`docs/features/pricing.md`](docs/features/pricing.md).
-- **Coaching** (personal trainers + the MuscleOS AI coach) is the future paid offering. It isn't built; track it in Linear (project **Coaching**).
+- **Coaching** (personal trainers, the MuscleOS AI coach, automatic progression) is the future paid offering. It isn't built; track it in Linear (project **Coaching**).
+- **The line:** features that record, plan or show your own training (supersets, RPE, plate calculator, recovery settings, self-written programs) are free. Only features where a trainer or MuscleOS decides what you lift are Coaching. See [pricing](docs/features/pricing.md#where-the-line-is).
 - **Exercise catalog:** `catalog_exercises` in Supabase + bundled `CATALOG_SEED`. User customs are `user_exercises` (account-private). See [`docs/supabase/setup.md`](docs/supabase/setup.md).
 
 ---
