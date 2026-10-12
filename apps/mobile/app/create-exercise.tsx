@@ -18,7 +18,7 @@ import {
   EQUIPMENT_LABELS,
   EXERCISE_CATEGORIES,
   EXERCISE_CATEGORY_LABELS,
-  MUSCLE_GROUPS,
+  formatMuscleLabels,
   muscleLabel,
 } from '@muscleos/types';
 import type { ExerciseCategory, MuscleId, Equipment } from '@muscleos/types';
@@ -26,21 +26,67 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
-import { buildCustomExerciseDraft, resolveExerciseEditTarget } from '@/utils/customExerciseForm';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import {
+  buildCustomExerciseDraft,
+  equipmentForCategory,
+  equipmentOptions,
+  missingFieldsHint,
+  resolveExerciseEditTarget,
+} from '@/utils/customExerciseForm';
+import {
+  MUSCLE_AREAS,
+  areaSelection,
+  prefersSpecificMuscles,
+  toggleArea,
+  toggleMuscle,
+} from '@/utils/muscleAreas';
 
-const EQUIPMENT_OPTIONS: Equipment[] = [
-  'barbell',
-  'dumbbell',
-  'kettlebell',
-  'cable',
-  'machine',
-  'bodyweight',
-  'band',
-  'ez_bar',
-  'other',
+type MuscleView = 'areas' | 'specific';
+
+const MUSCLE_VIEW_OPTIONS: { value: MuscleView; label: string }[] = [
+  { value: 'areas', label: 'Body areas' },
+  { value: 'specific', label: 'Specific muscles' },
 ];
 
-const MUSCLE_IDS = Object.keys(MUSCLE_GROUPS) as MuscleId[];
+/** Field heading with optional right-aligned meta (`Optional`, `3 selected`). */
+function FieldLabel({ title, meta }: { title: string; meta?: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.labelRow}>
+      <Text style={[typography.label, { color: colors.textSecondary }]}>{title}</Text>
+      {meta ? <Text style={[typography.caption, { color: colors.textMuted }]}>{meta}</Text> : null}
+    </View>
+  );
+}
+
+/** Selectable chip; `partial` marks a body area with only some of its muscles picked. */
+function Chip({
+  label,
+  state,
+  onPress,
+}: {
+  label: string;
+  state: 'on' | 'partial' | 'off';
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const backgroundColor =
+    state === 'on' ? colors.primary : state === 'partial' ? colors.primarySurface : colors.surface;
+  const borderColor = state === 'off' ? colors.border : colors.primary;
+  const textColor =
+    state === 'on' ? colors.primaryOn : state === 'partial' ? colors.primary : colors.textSecondary;
+  return (
+    <Pressable
+      style={[styles.chip, { backgroundColor, borderColor }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: state === 'on' }}
+    >
+      <Text style={[typography.label, { color: textColor }]}>{label}</Text>
+    </Pressable>
+  );
+}
 
 export default function CreateExerciseScreen() {
   const { colors } = useTheme();
@@ -68,6 +114,9 @@ export default function CreateExerciseScreen() {
   const [muscles, setMuscles] = useState<MuscleId[]>(existing?.muscles ?? []);
   const [equipment, setEquipment] = useState<Equipment[]>(existing?.equipment ?? []);
   const [instructions, setInstructions] = useState(existing?.instructions ?? '');
+  const [muscleView, setMuscleView] = useState<MuscleView>(
+    prefersSpecificMuscles(existing?.muscles ?? []) ? 'specific' : 'areas'
+  );
 
   useEffect(() => {
     if (!existing) return;
@@ -76,10 +125,12 @@ export default function CreateExerciseScreen() {
     setMuscles(existing.muscles);
     setEquipment(existing.equipment);
     setInstructions(existing.instructions ?? '');
+    if (prefersSpecificMuscles(existing.muscles)) setMuscleView('specific');
   }, [existing?.id]);
 
-  function toggleMuscle(id: MuscleId) {
-    setMuscles((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
+  function selectCategory(next: ExerciseCategory) {
+    setCategory(next);
+    setEquipment((prev) => equipmentForCategory(next, prev));
   }
 
   function toggleEquip(eq: Equipment) {
@@ -111,7 +162,8 @@ export default function CreateExerciseScreen() {
   }
 
   const canSave = draft.ok;
-
+  const saveHint = draft.ok ? null : missingFieldsHint(draft.errors);
+  const equipmentChoices = equipmentOptions(category, equipment);
 
   return (
     <Screen>
@@ -121,7 +173,7 @@ export default function CreateExerciseScreen() {
         backIcon="close"
       />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Name</Text>
+        <FieldLabel title="Name" />
         <TextInput
           style={[
             styles.input,
@@ -131,57 +183,89 @@ export default function CreateExerciseScreen() {
           placeholderTextColor={colors.textMuted}
           value={name}
           onChangeText={setName}
+          autoCapitalize="words"
         />
 
-        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>Type</Text>
+        <FieldLabel title="Type" />
         <View style={styles.chipsRow}>
-          {EXERCISE_CATEGORIES.map((key) => {
-            const selected = category === key;
-            return (
-              <Pressable
-                key={key}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected ? colors.primary : colors.surface,
-                    borderColor: selected ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setCategory(key)}
-              >
-                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
-                  {EXERCISE_CATEGORY_LABELS[key]}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {EXERCISE_CATEGORIES.map((key) => (
+            <Chip
+              key={key}
+              label={EXERCISE_CATEGORY_LABELS[key]}
+              state={category === key ? 'on' : 'off'}
+              onPress={() => selectCategory(key)}
+            />
+          ))}
         </View>
 
-        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
-          Muscles · {muscles.length}
-        </Text>
-        <View style={styles.chipsRow}>
-          {MUSCLE_IDS.map((id) => {
-            const selected = muscles.includes(id);
-            return (
-              <Pressable
-                key={id}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected ? colors.primary : colors.surface,
-                    borderColor: selected ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => toggleMuscle(id)}
-              >
-                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
-                  {muscleLabel(id)}
-                </Text>
-              </Pressable>
-            );
-          })}
+        {equipmentChoices.length > 0 && (
+          <>
+            <FieldLabel title="Equipment" meta="Optional" />
+            <View style={styles.chipsRow}>
+              {equipmentChoices.map((eq) => (
+                <Chip
+                  key={eq}
+                  label={EQUIPMENT_LABELS[eq]}
+                  state={equipment.includes(eq) ? 'on' : 'off'}
+                  onPress={() => toggleEquip(eq)}
+                />
+              ))}
+            </View>
+          </>
+        )}
+
+        <FieldLabel
+          title="Muscles"
+          meta={muscles.length > 0 ? `${muscles.length} selected` : undefined}
+        />
+        <View style={styles.segment}>
+          <SegmentedControl
+            options={MUSCLE_VIEW_OPTIONS}
+            value={muscleView}
+            onChange={setMuscleView}
+          />
         </View>
+        {muscleView === 'areas' ? (
+          <>
+            <View style={styles.chipsRow}>
+              {MUSCLE_AREAS.map((area) => {
+                const state = areaSelection(muscles, area);
+                const picked = area.muscles.filter((m) => muscles.includes(m)).length;
+                return (
+                  <Chip
+                    key={area.key}
+                    label={state === 'some' ? `${area.label} ${picked}/${area.muscles.length}` : area.label}
+                    state={state === 'all' ? 'on' : state === 'some' ? 'partial' : 'off'}
+                    onPress={() => setMuscles((prev) => toggleArea(prev, area))}
+                  />
+                );
+              })}
+            </View>
+            {muscles.length > 0 && (
+              <Text style={[typography.caption, styles.selectedLine, { color: colors.textMuted }]}>
+                {formatMuscleLabels(muscles, ' · ')}
+              </Text>
+            )}
+          </>
+        ) : (
+          MUSCLE_AREAS.map((area) => (
+            <View key={area.key}>
+              <Text style={[typography.caption, styles.areaHeading, { color: colors.textMuted }]}>
+                {area.label}
+              </Text>
+              <View style={styles.chipsRow}>
+                {area.muscles.map((id) => (
+                  <Chip
+                    key={id}
+                    label={muscleLabel(id)}
+                    state={muscles.includes(id) ? 'on' : 'off'}
+                    onPress={() => setMuscles((prev) => toggleMuscle(prev, id))}
+                  />
+                ))}
+              </View>
+            </View>
+          ))
+        )}
 
         {muscles.length > 0 && (
           <Card style={styles.diagramCard}>
@@ -189,42 +273,14 @@ export default function CreateExerciseScreen() {
           </Card>
         )}
 
-        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
-          Equipment · optional
-        </Text>
-        <View style={styles.chipsRow}>
-          {EQUIPMENT_OPTIONS.map((eq) => {
-            const selected = equipment.includes(eq);
-            return (
-              <Pressable
-                key={eq}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected ? colors.primary : colors.surface,
-                    borderColor: selected ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => toggleEquip(eq)}
-              >
-                <Text style={[typography.label, { color: selected ? colors.primaryOn : colors.textSecondary }]}>
-                  {EQUIPMENT_LABELS[eq]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
-          Instructions (optional)
-        </Text>
+        <FieldLabel title="Instructions" meta="Optional" />
         <TextInput
           style={[
             styles.input,
             styles.inputMulti,
             { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
           ]}
-          placeholder="Cues, setup, tempo…"
+          placeholder="One step per line: setup, cues, tempo…"
           placeholderTextColor={colors.textMuted}
           value={instructions}
           onChangeText={setInstructions}
@@ -237,6 +293,11 @@ export default function CreateExerciseScreen() {
           disabled={!canSave}
           style={{ marginTop: spacing.sm, opacity: canSave ? 1 : 0.5 }}
         />
+        {saveHint && (
+          <Text style={[typography.caption, styles.saveHint, { color: colors.textMuted }]}>
+            {saveHint}
+          </Text>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -246,7 +307,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { padding: spacing.lg + 4, paddingBottom: 40 },
-  label: { marginBottom: spacing.sm, marginTop: spacing.sm },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  segment: { marginBottom: spacing.md },
+  areaHeading: { marginBottom: spacing.xs },
+  selectedLine: { marginTop: -spacing.xs, marginBottom: spacing.md },
+  saveHint: { textAlign: 'center', marginTop: spacing.sm },
   input: {
     borderWidth: 1,
     borderRadius: radius.md,

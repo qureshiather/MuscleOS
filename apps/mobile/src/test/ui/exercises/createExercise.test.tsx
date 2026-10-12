@@ -46,34 +46,73 @@ describe('create-exercise gate', () => {
 
 describe('create-exercise form', () => {
 
-  it('does not save until name, Type and a muscle are set', async () => {
+  it('does not save until name, Type and a muscle are set, and says what is missing', async () => {
     await openForm('/create-exercise');
     expect(await screen.findByText('New exercise')).toBeTruthy();
-    expect(screen.getByText('Equipment · optional')).toBeTruthy();
+    expect(screen.getByText('Add a name, a type and a muscle to save.')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Save exercise'));
     fireEvent.changeText(screen.getByPlaceholderText('e.g. Cable row'), '   ');
-    fireEvent.press(screen.getAllByText('Cable')[0]);
+    fireEvent.press(screen.getByText('Cable'));
+    fireEvent.press(screen.getByText('Specific muscles'));
     fireEvent.press(screen.getByText('Lats'));
+    expect(screen.getByText('Add a name to save.')).toBeTruthy();
     fireEvent.press(screen.getByText('Save exercise'));
     await act(async () => {});
     expect(savedCustoms()).toHaveLength(1);
 
     fireEvent.changeText(screen.getByPlaceholderText('e.g. Cable row'), 'Cable Row');
     fireEvent.press(screen.getByText('Lats')); // deselect: no muscles
-    expect(screen.getByText('Muscles · 0')).toBeTruthy();
+    expect(screen.queryByText(/selected$/)).toBeNull();
+    expect(screen.getByText('Add a muscle to save.')).toBeTruthy();
     fireEvent.press(screen.getByText('Save exercise'));
     await act(async () => {});
     expect(savedCustoms()).toHaveLength(1);
   });
 
+  it('the Shoulders shortcut selects all three delts, and tapping it again clears them', async () => {
+    await openForm('/create-exercise');
+    fireEvent.press(await screen.findByText('Shoulders'));
+    expect(screen.getByText('3 selected')).toBeTruthy();
+    expect(screen.getByText('Front Delts · Side Delts · Rear Delts')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Specific muscles'));
+    fireEvent.press(screen.getByText('Side Delts'));
+    fireEvent.press(screen.getByText('Body areas'));
+    expect(screen.getByText('Shoulders 2/3')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Shoulders 2/3')); // partial fills in
+    fireEvent.press(screen.getByText('Shoulders')); // full clears
+    expect(screen.queryByText(/selected$/)).toBeNull();
+  });
+
+  it('only offers equipment the Type does not already name', async () => {
+    await openForm('/create-exercise');
+    await screen.findByText('New exercise');
+    expect(screen.queryByText('Equipment')).toBeNull();
+
+    fireEvent.press(screen.getByText('Free Weight'));
+    expect(screen.getByText('Dumbbell')).toBeTruthy();
+    expect(screen.getAllByText('Optional')).toHaveLength(2); // Equipment and Instructions
+    fireEvent.press(screen.getByText('Dumbbell'));
+
+    fireEvent.press(screen.getByText('Cable'));
+    expect(screen.getAllByText('Cable')).toHaveLength(1);
+    expect(screen.getByText('Band')).toBeTruthy();
+    expect(screen.queryByText('Dumbbell')).toBeNull();
+
+    fireEvent.press(screen.getByText('Machine'));
+    expect(screen.queryByText('Equipment')).toBeNull();
+  });
+
   it('saves a trimmed custom as custom_<highest+1> and goes back', async () => {
     const { getPathname } = await openForm('/create-exercise');
     fireEvent.changeText(await screen.findByPlaceholderText('e.g. Cable row'), '  Seated Cable Row ');
-    fireEvent.press(screen.getAllByText('Cable')[0]);
+    fireEvent.press(screen.getByText('Cable'));
+    fireEvent.press(screen.getByText('Specific muscles'));
     fireEvent.press(screen.getByText('Lats'));
     fireEvent.press(screen.getByText('Rhomboids'));
-    expect(screen.getByText('Muscles · 2')).toBeTruthy();
+    expect(screen.getByText('2 selected')).toBeTruthy();
     fireEvent.press(screen.getByText('Save exercise'));
 
     await waitFor(() => expect(savedCustoms()).toHaveLength(2));
@@ -92,7 +131,7 @@ describe('create-exercise form', () => {
     await openForm({ pathname: '/create-exercise', params: { id: 'bench-press' } });
     expect(await screen.findByText('New exercise')).toBeTruthy();
     expect(screen.getByPlaceholderText('e.g. Cable row').props.value).toBe('');
-    expect(screen.getByText('Muscles · 0')).toBeTruthy();
+    expect(screen.queryByText(/selected$/)).toBeNull();
     fireEvent.press(screen.getByText('Save exercise'));
     await act(async () => {});
     expect(savedCustoms()).toEqual([CUSTOM]);
@@ -105,6 +144,9 @@ describe('create-exercise form', () => {
     });
     expect(await screen.findByText('Edit exercise')).toBeTruthy();
     expect(screen.getByDisplayValue('Press up and out.')).toBeTruthy();
+    // Front Delts alone is part of Shoulders, so the form opens on specific muscles.
+    expect(screen.getByText('Front Delts')).toBeTruthy();
+    expect(screen.getByText('1 selected')).toBeTruthy();
     fireEvent.changeText(screen.getByDisplayValue('Landmine Press'), 'Half-Kneeling Landmine Press');
     fireEvent.changeText(screen.getByDisplayValue('Press up and out.'), '  ');
     fireEvent.press(screen.getByText('Save changes'));
@@ -122,7 +164,7 @@ describe('created from the active-workout picker', () => {
   async function fillAndSave() {
     fireEvent.changeText(await screen.findByPlaceholderText('e.g. Cable row'), 'Sled Push');
     fireEvent.press(screen.getByText('Free Weight'));
-    fireEvent.press(screen.getByText('Quads'));
+    fireEvent.press(screen.getByText('Legs'));
     fireEvent.press(screen.getByText('Save exercise'));
     await waitFor(() => expect(savedCustoms()).toHaveLength(2));
   }
