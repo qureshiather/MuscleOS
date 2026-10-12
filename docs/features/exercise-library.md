@@ -12,6 +12,7 @@ user and syncs down from Supabase; custom exercises are private to your account.
 | Search | `apps/mobile/src/utils/exerciseSearch.ts` |
 | Library filters | `apps/mobile/src/utils/exerciseLibraryFilter.ts` |
 | Create/edit form rules | `apps/mobile/src/utils/customExerciseForm.ts` |
+| Body areas (muscle shortcuts) | `apps/mobile/src/utils/muscleAreas.ts` |
 | Seed reconcile + delta merge | `apps/mobile/src/sync/catalogMerge.ts`, `catalogPull.ts` |
 | Normalization | `apps/mobile/src/utils/exerciseNormalize.ts` |
 | Notes | `apps/mobile/src/store/exerciseNotesStore.ts` |
@@ -224,15 +225,48 @@ Anyone can create, edit and delete their own exercises.
 
 | Field | Required | Notes |
 |-------|:--------:|-------|
-| Name | ● | Non-empty after trim; no maximum length |
+| Name | ● | Non-empty after trim; no maximum length; capitalises words as you type |
 | Type (category) | ● | One of the 4 categories |
+| Equipment | ○ | Only what the Type doesn't already name (below); hidden until a Type is picked |
 | Muscles | ● | At least one; any of the 18 |
-| Equipment | ○ | May be empty |
 | Instructions | ○ | Free text; one step per line shows as a numbered list |
 
+Field headings share one style: the name on the left, and on the right `Optional` for optional
+fields or `<n> selected` for Muscles.
+
+**Equipment follows Type** (`EQUIPMENT_FOR_CATEGORY`, from the catalog's
+[equipment → Type table](#equipment-and-type-rules)), so the form never offers the same word
+twice:
+
+| Type | Equipment chips |
+|------|-----------------|
+| Free Weight | Barbell, Dumbbell, Kettlebell, EZ Bar, Other |
+| Cable | Band |
+| Machine, Bodyweight | none; the section is hidden |
+
+Changing Type drops equipment that doesn't fit the new one (`equipmentForCategory()`). Editing an
+older custom that already has out-of-Type equipment still shows those chips so they can be
+removed (`equipmentOptions()`).
+
+**Muscles** has two views, switched by a **Body areas / Specific muscles** control:
+
+- **Body areas** (default): six shortcut chips, `MUSCLE_AREAS` — Chest (chest), Shoulders (front,
+  side and rear delts), Back (lats, traps, rhomboids, lower back), Arms (biceps, triceps,
+  forearms), Core (abs, obliques), Legs (quads, hamstrings, glutes, adductors, calves). Tapping an
+  area adds all its muscles; tapping a fully selected one removes them. An area with only some
+  muscles picked shows as partial, e.g. `Shoulders 2/3`, and tapping it fills in the rest. The
+  selected muscles are listed under the chips.
+- **Specific muscles**: all 18 muscles under the same six area headings.
+
+Both views edit the same flat `muscles` list; areas are only a picking shortcut and are never
+saved. Editing a custom opens on Specific muscles when some area is partly selected
+(`prefersSpecificMuscles()`), since the area chips can't show it exactly. Areas are not derived
+from `MuscleGroup.region`, which is the diagram's front/back split.
+
 Validation (`buildCustomExerciseDraft()`): the name is trimmed, and Save stays disabled until
-there is a name, a Type and at least one muscle. Blank instructions are saved as none, so editing
-them to empty clears them.
+there is a name, a Type and at least one muscle. Under the disabled button a hint names what's
+missing, e.g. `Add a name, a type and a muscle to save.` (`missingFieldsHint()`). Blank
+instructions are saved as none, so editing them to empty clears them.
 
 Ids are assigned as `custom_<n>` where n is the highest suffix + 1 across live **and retired**
 customs (`nextCustomExerciseId()` in `src/utils/exerciseIds.ts`). Gaps are never filled and a
@@ -327,7 +361,8 @@ Header shows `<count> movements · tap for muscle map` (published catalog plus c
 `<Type> · <Muscle>` (`All · All` with no filter). Tapping an active chip clears that filter.
 
 - **Type** — All plus the 4 categories
-- **Muscle** — All, 3 coarse groups (Legs, Back, Shoulders), or any of the 18 individual muscles.
+- **Muscle** — All, 3 coarse groups (Legs, Back, Shoulders — the same muscles as those
+  [body areas](#custom-exercises)), or any of the 18 individual muscles.
   There is no coarse Chest group — chest is a single muscle, so one Chest chip covers it.
 
 Filters AND together with the search query (`filterLibraryExercises()`). Above the list a count
@@ -419,7 +454,12 @@ Covered (Vitest):
   AND, order kept with no query, the `<Type> · <Muscle>` summary, and the type line (equipment
   matching the category isn't repeated)
 - `src/utils/customExerciseForm.test.ts` — edit target only for existing customs; validation
-  (trimmed name, Type, ≥1 muscle, no max length, blank instructions → none)
+  (trimmed name, Type, ≥1 muscle, no max length, blank instructions → none); equipment options
+  per Type (Type never repeated, older out-of-Type picks kept visible), pruning on Type change,
+  the missing-fields hint
+- `src/utils/muscleAreas.test.ts` — the six areas cover all 18 muscles once; area none / some /
+  all; area toggle adds, fills a partial area and clears a full one; specific view only for a
+  partial area
 - `src/utils/noteDraft.test.ts` — `noteSaveState` unsaved / saved / empty, trimming
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper including every lowercase word;
   every catalog name matches it
@@ -439,9 +479,11 @@ Covered (Jest UI, `src/test/ui/exercises/`):
   Save, Saved state, trim, delete on empty), instructions as a numbered list, View history shown only with logged sets and opening
   progression, Edit opening the prefilled form, Delete with confirm and cancel, list
   updates after a delete
-- `createExercise.test.tsx` — validation, save → `custom_<n>` and
-  back, a catalog id opens an empty create form (no clone), editing in place and clearing
-  instructions, auto-add / swap when created from the active-workout picker
+- `createExercise.test.tsx` — validation and the missing-fields hint, the Shoulders shortcut
+  (all delts, partial `2/3`, clear), equipment chips per Type, save → `custom_<n>` and back, a
+  catalog id opens an empty create form (no clone), editing in place (opens on Specific muscles
+  for a partial area) and clearing instructions, auto-add / swap when created from the
+  active-workout picker
 
 Not covered:
 

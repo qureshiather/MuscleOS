@@ -1,6 +1,12 @@
 import type { Exercise } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
-import { buildCustomExerciseDraft, resolveExerciseEditTarget } from './customExerciseForm';
+import {
+  buildCustomExerciseDraft,
+  equipmentForCategory,
+  equipmentOptions,
+  missingFieldsHint,
+  resolveExerciseEditTarget,
+} from './customExerciseForm';
 import { isCustomExerciseId } from './exerciseIds';
 
 const custom: Exercise = {
@@ -94,5 +100,52 @@ describe('buildCustomExerciseDraft', () => {
     const long = 'x'.repeat(500);
     const draft = buildCustomExerciseDraft({ ...valid, name: long });
     expect(draft.ok && draft.exercise.name).toBe(long);
+  });
+});
+
+describe('equipmentOptions', () => {
+  it('offers nothing until a Type is picked', () => {
+    expect(equipmentOptions(null, [])).toEqual([]);
+  });
+
+  it('never repeats the Type as equipment', () => {
+    expect(equipmentOptions('free_weight', [])).toEqual([
+      'barbell',
+      'dumbbell',
+      'kettlebell',
+      'ez_bar',
+      'other',
+    ]);
+    expect(equipmentOptions('cable', [])).toEqual(['band']);
+    expect(equipmentOptions('machine', [])).toEqual([]);
+    expect(equipmentOptions('bodyweight', [])).toEqual([]);
+    expect(equipmentOptions('machine', ['machine'])).toEqual([]);
+  });
+
+  it('keeps an older custom’s out-of-Type equipment visible so it can be removed', () => {
+    expect(equipmentOptions('machine', ['barbell'])).toEqual(['barbell']);
+    expect(equipmentOptions('cable', ['cable', 'dumbbell'])).toEqual(['band', 'dumbbell']);
+  });
+});
+
+describe('equipmentForCategory', () => {
+  it('drops equipment that does not fit the new Type', () => {
+    expect(equipmentForCategory('cable', ['barbell', 'band'])).toEqual(['band']);
+    expect(equipmentForCategory('machine', ['dumbbell'])).toEqual([]);
+    expect(equipmentForCategory('free_weight', ['dumbbell', 'other'])).toEqual([
+      'dumbbell',
+      'other',
+    ]);
+  });
+});
+
+describe('missingFieldsHint', () => {
+  it('lists what is missing in field order', () => {
+    expect(missingFieldsHint([])).toBeNull();
+    expect(missingFieldsHint(['muscles'])).toBe('Add a muscle to save.');
+    expect(missingFieldsHint(['name', 'muscles'])).toBe('Add a name and a muscle to save.');
+    expect(missingFieldsHint(['name', 'category', 'muscles'])).toBe(
+      'Add a name, a type and a muscle to save.'
+    );
   });
 });

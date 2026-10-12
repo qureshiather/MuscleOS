@@ -51,3 +51,53 @@ export function buildCustomExerciseDraft(form: CustomExerciseForm): CustomExerci
     },
   };
 }
+
+/**
+ * Equipment the form offers under each Type. Type already names the cable, machine and bodyweight
+ * equipment, so those never appear as a second chip; the lists follow the catalog's equipment →
+ * Type table (bands count as Cable). Machine and Bodyweight have nothing left to add.
+ */
+export const EQUIPMENT_FOR_CATEGORY: Record<ExerciseCategory, Equipment[]> = {
+  free_weight: ['barbell', 'dumbbell', 'kettlebell', 'ez_bar', 'other'],
+  cable: ['band'],
+  machine: [],
+  bodyweight: [],
+};
+
+/**
+ * Equipment chips to show: the Type's options, plus anything an edited custom already has outside
+ * them (older customs could pick any equipment) so it can still be deselected. Equipment named by
+ * the Type itself stays hidden.
+ */
+export function equipmentOptions(
+  category: ExerciseCategory | null,
+  selected: readonly Equipment[]
+): Equipment[] {
+  if (!category) return [];
+  const options = EQUIPMENT_FOR_CATEGORY[category];
+  const extras = selected.filter((e) => !options.includes(e) && e !== category);
+  return [...options, ...extras];
+}
+
+/** Changing Type drops equipment that doesn't fit the new one. */
+export function equipmentForCategory(
+  category: ExerciseCategory,
+  equipment: readonly Equipment[]
+): Equipment[] {
+  return equipment.filter((e) => EQUIPMENT_FOR_CATEGORY[category].includes(e));
+}
+
+const MISSING_FIELD_COPY: Record<CustomExerciseFormError, string> = {
+  name: 'a name',
+  category: 'a type',
+  muscles: 'a muscle',
+};
+
+/** Hint under the disabled Save button: `Add a name, a type and a muscle to save.` */
+export function missingFieldsHint(errors: readonly CustomExerciseFormError[]): string | null {
+  if (errors.length === 0) return null;
+  const parts = errors.map((e) => MISSING_FIELD_COPY[e]);
+  const list =
+    parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+  return `Add ${list} to save.`;
+}

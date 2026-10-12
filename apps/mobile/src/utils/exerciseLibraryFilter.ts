@@ -1,15 +1,17 @@
 import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
 import { EXERCISE_CATEGORY_LABELS, equipmentLabel, muscleLabel } from '@muscleos/types';
 import { searchExercises } from '@/utils/exerciseSearch';
+import { muscleArea } from '@/utils/muscleAreas';
 
 /**
- * Coarse muscle groups offered as Muscle filter chips ahead of the 18 individual muscles. Chest
- * has no coarse group: it is a single muscle, so the individual Chest chip covers it.
+ * Coarse muscle groups offered as Muscle filter chips ahead of the 18 individual muscles, shared
+ * with the create-exercise form's area shortcuts (`MUSCLE_AREAS`). Chest has no coarse group: it is a
+ * single muscle, so the individual Chest chip covers it.
  */
 export const LARGE_MUSCLE_GROUPS: Record<string, { label: string; muscles: MuscleId[] }> = {
-  legs: { label: 'Legs', muscles: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves'] },
-  back: { label: 'Back', muscles: ['lats', 'traps', 'lower_back', 'rhomboids'] },
-  shoulders: { label: 'Shoulders', muscles: ['front_delts', 'side_delts', 'rear_delts'] },
+  legs: muscleArea('legs'),
+  back: muscleArea('back'),
+  shoulders: muscleArea('shoulders'),
 };
 
 /** Everything browsable: published catalog rows in catalog order, then customs. */
