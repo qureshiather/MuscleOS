@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_REST_SECONDS } from '@/store/activeWorkoutLogic';
-import { formatPrevious, formatRestDuration, previewEntryState } from './workoutPreview';
+import {
+  canEditFromPreview,
+  formatPrevious,
+  formatRestDuration,
+  previewEntryState,
+  previewPlan,
+} from './workoutPreview';
 
 describe('formatRestDuration', () => {
   it('formats seconds as m:ss', () => {
@@ -55,5 +61,46 @@ describe('previewEntryState', () => {
     expect(previewEntryState({ templateId: 'ppl-push', exerciseIds: ['a'], hasActiveSession: false })).toBe(
       'ready'
     );
+  });
+});
+
+describe('previewPlan', () => {
+  const template = {
+    exerciseIds: ['squat', 'bench-press'],
+    exercises: [{ exerciseId: 'squat', sets: 4, warmUpSets: 1 }, { exerciseId: 'bench-press' }],
+  };
+  const ownPlan = [
+    { exerciseId: 'squat', sets: 4, warmUpSets: 1 },
+    { exerciseId: 'bench-press', sets: 3, warmUpSets: 0 },
+  ];
+  const link = { exerciseIds: 'squat', sets: '5' };
+
+  it('previews the plan the link encodes', () => {
+    expect(previewPlan({ template, params: link, followTemplate: false })).toEqual([
+      { exerciseId: 'squat', sets: 5, warmUpSets: 0 },
+    ]);
+  });
+
+  it("falls back to the template's own plan when the link has none", () => {
+    expect(previewPlan({ template, params: {}, followTemplate: false })).toEqual(ownPlan);
+  });
+
+  it("after Edit, the template's current plan beats a stale link", () => {
+    expect(previewPlan({ template, params: link, followTemplate: true })).toEqual(ownPlan);
+  });
+
+  it('after Edit, an unresolved id still uses the link', () => {
+    expect(previewPlan({ template: undefined, params: link, followTemplate: true })).toEqual([
+      { exerciseId: 'squat', sets: 5, warmUpSets: 0 },
+    ]);
+  });
+});
+
+describe('canEditFromPreview', () => {
+  it('custom templates only', () => {
+    expect(canEditFromPreview({ isBuiltIn: false })).toBe(true);
+    expect(canEditFromPreview({})).toBe(true);
+    expect(canEditFromPreview({ isBuiltIn: true })).toBe(false);
+    expect(canEditFromPreview(undefined)).toBe(false);
   });
 });

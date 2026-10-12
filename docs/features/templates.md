@@ -198,7 +198,8 @@ folder (unhiding the single template would leave it hidden by the folder).
 - **Move** opens `Move "{name}" to` listing **No folder** (clears the folder; offered only when the
   template is in one), every other folder (the current one isn't offered), and **New folder…**, which swaps in a name field with **Back**
   and **Create & move** (creates the folder and moves the template into it).
-- **Edit** opens `/create-template?templateId=<id>`.
+- **Edit** opens `/create-template?templateId=<id>` (also reachable from the
+  [workout preview](#workout-preview)).
 - **Delete** shows a themed confirm: **Delete "{name}"? This cannot be undone.** **Cancel** (or
   tap the overlay) dismisses; **Delete** removes it.
 
@@ -267,7 +268,9 @@ There is no maximum name length and no cap on exercise count. The name is saved 
 what you're in for and what you lifted last time.
 
 The header shows the template name (or "Workout" for an id it can't resolve) with a **Start**
-button. Below: a **Muscles used** diagram, `<N> exercises · review, then start`, and one card per
+button, and, for your own templates only, an **Edit** button (`canEditFromPreview()`) that opens
+`/create-template?templateId=<id>`. Saving there returns to the preview, which now shows the edited
+template. Built-ins (and unresolved ids) have no Edit button. Below: a **Muscles used** diagram, `<N> exercises · review, then start`, and one card per
 exercise with its two-digit index, name, muscle labels, the template's set prescription
 (`3 sets` or `2 warm-ups · 5 sets`), **Previous** (`Previous: <weight> × <reps>` in the display
 unit, from the best weighted set in the most recent qualifying session; reps are dropped when
@@ -280,8 +283,9 @@ unknown, and the line is **omitted** when there is no previous), and a rest badg
 
 Guards on entry: missing template id or exercises → "Missing workout details"; an in-progress
 session → redirect to `/active-workout` (`previewEntryState()`). The previewed plan is the one the
-link encodes, falling back to the template's own (`startPlanFromParams()` in
-`src/utils/workoutStart.ts`).
+link encodes, falling back to the template's own; once **Edit** has been opened from the preview,
+the resolved template's current plan wins, so the saved edit isn't masked by the plan the link was
+opened with (`previewPlan()` in `src/utils/workoutPreview.ts`).
 
 **Start workout** (footer) and **Start** (header) both replace the route with `/active-workout`,
 passing the template id and the same set plan.
@@ -391,7 +395,8 @@ Covered:
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
   payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
 - `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting and the 2:00 default, Previous in
-  kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`
+  kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
+  (link plan, template fallback, template wins after Edit), `canEditFromPreview`
 - `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2, Recent newest
   first without Suggested picks, customs in Suggested / Recent, Built-in collapsed with every
   subfolder opened on first expand, Custom empty state / ordering / default-closed Archived and
@@ -406,7 +411,8 @@ Covered:
   and built-in ids, double-tap saving once
 - `src/test/ui/templates/workoutPreview.test.tsx` (Jest) — missing params, in-progress redirect,
   title / count line / cards, set prescription copy, 2:00 rest badge, Previous formatting and
-  omission, lb conversion, footer and header Start params
+  omission, lb conversion, footer and header Start params, no Edit for built-ins or unknown ids,
+  Edit → `/create-template` → save returns to the updated preview and starts the edited plan
 
 Not covered:
 

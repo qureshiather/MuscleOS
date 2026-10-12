@@ -7,7 +7,6 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useRedirectWhenReady } from '@/hooks/useRedirectWhenReady';
-import { startPlanFromParams } from '@/utils/workoutStart';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
@@ -15,7 +14,13 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { formatMuscleLabels } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
 import { getExercisePrevious } from '@/storage/localStorage';
-import { formatPrevious, formatRestDuration, previewEntryState } from '@/utils/workoutPreview';
+import {
+  canEditFromPreview,
+  formatPrevious,
+  formatRestDuration,
+  previewEntryState,
+  previewPlan,
+} from '@/utils/workoutPreview';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -35,12 +40,15 @@ export default function WorkoutPreviewScreen() {
     defaultSets?: string;
   }>();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
+  // Set once Edit is opened: from then on the preview follows the saved template, not the link.
+  const [followTemplate, setFollowTemplate] = useState(false);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
 
   const templateId = params.templateId ?? '';
   const template = useTemplatesStore((s) => s.allTemplates().find((t) => t.id === templateId));
-  const plan = startPlanFromParams({
+  const plan = previewPlan({
     template,
+    followTemplate,
     params: {
       exerciseIds: params.exerciseIds,
       sets: params.sets,
@@ -80,6 +88,11 @@ export default function WorkoutPreviewScreen() {
     });
   }
 
+  function handleEdit() {
+    setFollowTemplate(true);
+    router.push({ pathname: '/create-template', params: { templateId } });
+  }
+
   if (entry === 'missing') {
     return (
       <Screen kind="chrome">
@@ -105,12 +118,25 @@ export default function WorkoutPreviewScreen() {
           <Text style={[typography.screenTitle, styles.templateTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title} numberOfLines={2}>
             {templateName}
           </Text>
-          <Pressable
-            style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
-            onPress={handleStart}
-          >
-            <Text style={[typography.button, { color: colors.primaryOn }]}>Start</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            {canEditFromPreview(template) && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit template"
+                style={[styles.headerEditBtn, { borderColor: colors.border }]}
+                onPress={handleEdit}
+              >
+                <Ionicons name="create-outline" size={16} color={colors.primary} />
+                <Text style={[typography.button, { color: colors.primary }]}>Edit</Text>
+              </Pressable>
+            )}
+            <Pressable
+              style={[styles.headerStartBtn, { backgroundColor: colors.primary }]}
+              onPress={handleStart}
+            >
+              <Text style={[typography.button, { color: colors.primaryOn }]}>Start</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -202,6 +228,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 1,
+    borderRadius: radius.md,
+    borderWidth: 1,
   },
   headerStartBtn: {
     paddingHorizontal: spacing.lg,

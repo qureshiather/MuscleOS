@@ -1,4 +1,8 @@
+import type { WorkoutTemplate } from '@muscleos/types';
 import { formatWeight, type WeightUnit } from '@/utils/weightUnits';
+import { resolveTemplateExercises, type ResolvedTemplateExercise } from '@/utils/templateExercises';
+import type { StartWorkoutParams } from '@/store/activeWorkoutLogic';
+import { startPlanFromParams } from '@/utils/workoutStart';
 
 /**
  * Workout preview helpers (docs/features/templates.md#workout-preview).
@@ -38,4 +42,25 @@ export function previewEntryState(args: {
   if (args.hasActiveSession) return 'active-session';
   if (!args.templateId || args.exerciseIds.length === 0) return 'missing';
   return 'ready';
+}
+
+/**
+ * The plan the preview shows and starts: the plan the link encodes, falling back to the template's
+ * own. Once Edit has been opened from the preview (`followTemplate`), a resolved template's current
+ * plan wins, so returning from the editor shows the saved changes rather than the stale link.
+ */
+export function previewPlan(args: {
+  template: Pick<WorkoutTemplate, 'exerciseIds' | 'exercises' | 'defaultSets'> | undefined;
+  params: StartWorkoutParams;
+  followTemplate: boolean;
+}): ResolvedTemplateExercise[] {
+  if (args.followTemplate && args.template) return resolveTemplateExercises(args.template);
+  return startPlanFromParams(args);
+}
+
+/** Only your own templates can be edited from the preview; built-ins are immutable. */
+export function canEditFromPreview(
+  template: Pick<WorkoutTemplate, 'isBuiltIn'> | undefined
+): boolean {
+  return template != null && template.isBuiltIn !== true;
 }

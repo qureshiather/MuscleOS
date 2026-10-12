@@ -5,9 +5,12 @@
 import { act, fireEvent, screen } from 'expo-router/testing-library';
 import { router } from 'expo-router';
 import WorkoutPreviewScreen from '../../../../app/workout-preview';
+import CreateTemplateScreen from '../../../../app/create-template';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useTemplatesStore } from '@/store/templatesStore';
 import { routeStub } from '../render';
 import {
+  customTemplate,
   pathname,
   renderAtNow,
   resetTemplatesTestState,
@@ -27,6 +30,7 @@ const routes = {
   index: routeStub('home'),
   'workout-preview': WorkoutPreviewScreen,
   'active-workout': routeStub('active-workout'),
+  'create-template': CreateTemplateScreen,
 };
 
 const SL_A = '/workout-preview?templateId=sl-a&exerciseIds=squat,bench-press,barbell-row&sets=5,5,5';
@@ -134,5 +138,54 @@ it('the header Start button does the same', async () => {
     templateId: 'tpl_x',
     exerciseIds: 'squat,bench-press',
     warmUpSets: '1,0',
+  });
+});
+
+describe('Edit template', () => {
+  const legs = customTemplate({
+    id: 'tpl_legs',
+    name: 'Legs',
+    exerciseIds: ['squat'],
+    exercises: [{ exerciseId: 'squat', sets: 3 }],
+  });
+  const LEGS = '/workout-preview?templateId=tpl_legs&exerciseIds=squat&sets=3';
+
+  it('a built-in has no Edit button', async () => {
+    renderAtNow(routes, SL_A);
+    await screen.findByText('Workout A');
+    expect(screen.queryByLabelText('Edit template')).toBeNull();
+  });
+
+  it('an unknown id has no Edit button', async () => {
+    renderAtNow(routes, '/workout-preview?templateId=tpl_x&exerciseIds=squat');
+    await screen.findByText('Workout');
+    expect(screen.queryByLabelText('Edit template')).toBeNull();
+  });
+
+  it('a custom template opens /create-template, and saving returns to the updated preview', async () => {
+    await seed({ templates: [legs] });
+    // The root layout loads templates in the app; the route stubs here don't.
+    await useTemplatesStore.getState().load();
+    renderAtNow(routes, '/');
+    await screen.findByText('route:home');
+    act(() => router.push(LEGS));
+    expect(await screen.findByText('Legs')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Edit template'));
+    expect(await screen.findByText('Edit template')).toBeTruthy();
+    expect(pathname()).toBe('/create-template');
+    expect(searchParams()).toEqual({ templateId: 'tpl_legs' });
+
+    fireEvent.changeText(await screen.findByDisplayValue('Legs'), 'Leg day');
+    fireEvent.press(screen.getByLabelText('Increase Sets'));
+    fireEvent.press(screen.getByText('Save changes'));
+
+    expect(await screen.findByText('Leg day')).toBeTruthy();
+    expect(pathname()).toBe('/workout-preview');
+    expect(screen.getByText('4 sets')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Start workout'));
+    expect(await screen.findByText('route:active-workout')).toBeTruthy();
+    expect(searchParams()).toEqual({ templateId: 'tpl_legs', exerciseIds: 'squat', sets: '4' });
   });
 });
