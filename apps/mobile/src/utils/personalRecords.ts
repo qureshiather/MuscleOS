@@ -6,6 +6,7 @@ import {
 import type { WorkoutSession } from '@muscleos/types';
 import { buildExercisePRs, type ExercisePR, type SetWithDate } from '@/utils/oneRepMax';
 import { textMatchesQuery } from '@/utils/exerciseSearch';
+import { KG_TO_LB, type WeightUnit } from '@/utils/weightUnits';
 
 /** The biodata strength standards use (`UserAppProfile` fields); age is optional. */
 export type StrengthProfile = { weightKg?: number; age?: number; sex?: 'male' | 'female' };
@@ -109,4 +110,75 @@ export function exerciseHasHistory(
 ): boolean {
   const target = canonicalId(exerciseId);
   return buildExercisePRs(completedSessions, canonicalId).some((pr) => pr.exerciseId === target);
+}
+
+/** Lifts on the History tab's Progress strip, and the per-lift window it summarises. */
+export const PROGRESS_STRIP_MAX_LIFTS = 6;
+export const PROGRESS_SPARK_SESSIONS = 8;
+export const PROGRESS_DELTA_DAYS = 30;
+
+export type ProgressHighlight = {
+  exerciseId: string;
+  bestEstimated1RM: number;
+  /** Completed sessions with a qualifying set of this lift. */
+  sessionCount: number;
+  /** Each recent session's best e1RM as a ratio of the all-time best, oldest → newest. */
+  spark: number[];
+  /**
+   * How much the best e1RM rose in the last 30 days (kg): today's best minus the best from sets
+   * logged before the window. 0 when it didn't rise; null when every set is inside the window,
+   * so there's nothing to compare with.
+   */
+  gainKg: number | null;
+};
+
+/**
+ * The History tab's Progress strip: your most-trained lifts (most sessions, then most recent,
+ * then highest e1RM), each needing at least two sessions so there's progress to show.
+ */
+export function progressHighlights(
+  prs: readonly ExercisePR[],
+  nowMs: number,
+  max: number = PROGRESS_STRIP_MAX_LIFTS
+): ProgressHighlight[] {
+  const cutoff = new Date(nowMs - PROGRESS_DELTA_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const rows = prs.map((pr) => {
+    // Session-best e1RM, keyed by the session's completedAt.
+    const bySession = new Map<string, number>();
+    for (const set of pr.history) {
+      bySession.set(set.completedAt, Math.max(bySession.get(set.completedAt) ?? 0, set.estimated1RM));
+    }
+    const sessions = [...bySession.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const before = sessions.filter(([at]) => at < cutoff);
+    const bestBefore = before.reduce((m, [, e]) => Math.max(m, e), 0);
+    const best = pr.bestEstimated1RM;
+    return {
+      exerciseId: pr.exerciseId,
+      bestEstimated1RM: best,
+      sessionCount: sessions.length,
+      spark: sessions
+        .slice(-PROGRESS_SPARK_SESSIONS)
+        .map(([, e]) => (best > 0 ? Math.min(1, e / best) : 0)),
+      gainKg: before.length === 0 ? null : Math.max(0, best - bestBefore),
+      lastAt: sessions[sessions.length - 1]?.[0] ?? '',
+    };
+  });
+  return rows
+    .filter((r) => r.sessionCount >= 2)
+    .sort(
+      (a, b) =>
+        b.sessionCount - a.sessionCount ||
+        b.lastAt.localeCompare(a.lastAt) ||
+        b.bestEstimated1RM - a.bestEstimated1RM
+    )
+    .slice(0, max)
+    .map(({ lastAt: _lastAt, ...h }) => h);
+}
+
+/** A Progress-strip gain in the user's unit: "+5 kg" (one decimal, `.0` dropped); null for none. */
+export function formatProgressGain(gainKg: number | null, unit: WeightUnit): string | null {
+  if (gainKg == null || gainKg <= 0) return null;
+  const value = unit === 'lb' ? gainKg * KG_TO_LB : gainKg;
+  const rounded = Math.round(value * 10) / 10;
+  return rounded > 0 ? `+${rounded} ${unit}` : null;
 }

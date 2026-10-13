@@ -67,6 +67,7 @@ import {
   finishFlowVariant,
   finishSaveOptions,
   formatSummarySet,
+  summaryExerciseHasProgress,
   hasSetDetail,
   templateStructureChanged as computeTemplateStructureChanged,
   type FinishSummary,
@@ -1035,21 +1036,34 @@ export default function ActiveWorkoutScreen() {
 
           <Text style={[styles.finishedSectionLabel, { color: colors.textMuted }]}>Summary</Text>
           <View style={[styles.finishedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {finishedSummary.exercises.map((item, idx) => (
-              <View
+            {finishedSummary.exercises.map((item, idx) => {
+              const opensChart = summaryExerciseHasProgress(item);
+              return (
+              <Pressable
                 key={`${item.name}-${idx}`}
-                style={[
+                disabled={!opensChart}
+                onPress={() =>
+                  router.push({ pathname: '/exercise-progression', params: { exerciseId: item.exerciseId } })
+                }
+                accessibilityRole={opensChart ? 'button' : undefined}
+                accessibilityLabel={opensChart ? `${item.name} progress` : undefined}
+                testID={opensChart ? `finished-lift-${item.exerciseId}` : undefined}
+                style={({ pressed }) => [
                   styles.finishedExerciseRow,
                   idx < finishedSummary.exercises.length - 1 && {
                     borderBottomWidth: StyleSheet.hairlineWidth,
                     borderBottomColor: colors.border,
                   },
+                  pressed && { opacity: 0.7 },
                 ]}
               >
                 <View style={styles.finishedExerciseTop}>
-                  <Text style={[styles.finishedExerciseName, { color: colors.text }]} numberOfLines={1}>
-                    {item.name}
-                  </Text>
+                  <View style={styles.finishedExerciseNameRow}>
+                    <Text style={[styles.finishedExerciseName, { color: colors.text }]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    {opensChart ? <Ionicons name="stats-chart" size={13} color={colors.primary} /> : null}
+                  </View>
                   <Text style={[styles.finishedExerciseSets, { color: colors.textSecondary }]}>
                     {item.completed} set{item.completed !== 1 ? 's' : ''}
                   </Text>
@@ -1059,8 +1073,9 @@ export default function ActiveWorkoutScreen() {
                     {item.sets.map((s) => formatSummarySet(s, weightUnit, true)).join('  ·  ')}
                   </Text>
                 ) : null}
-              </View>
-            ))}
+              </Pressable>
+              );
+            })}
           </View>
         </ScrollView>
 
@@ -3333,6 +3348,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  finishedExerciseNameRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   finishedExerciseTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3340,7 +3361,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   finishedExerciseName: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '700',
   },

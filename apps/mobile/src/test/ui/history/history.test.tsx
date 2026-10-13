@@ -33,6 +33,7 @@ const routes = {
   '(tabs)/history': HistoryScreen,
   'personal-records': routeStub('personal-records'),
   'history-monthly': routeStub('history-monthly'),
+  'exercise-progression': routeStub('exercise-progression'),
 };
 
 async function renderHistory() {
@@ -172,4 +173,43 @@ test('volume and set weights follow the pounds setting', async () => {
   await renderHistory();
   expect(await screen.findByText('3 × 8 @ 154.3 lb')).toBeTruthy();
   expect(screen.getByText('59m · 3,704 lb')).toBeTruthy();
+});
+
+describe('progress', () => {
+  test('the Progress strip shows lifts trained in 2+ sessions; a card opens its chart', async () => {
+    await seedSessions(SESSIONS);
+    await renderHistory();
+    const strip = await screen.findByTestId('progress-strip');
+    expect(strip).toBeTruthy();
+    // Bench is in two sessions; squat and plank only one.
+    expect(screen.getByTestId('progress-lift-bench-press')).toBeTruthy();
+    expect(screen.queryByTestId('progress-lift-squat')).toBeNull();
+    // 70×8 → Epley 88.7 kg
+    expect(screen.getByLabelText(/^Bench Press, estimated 1RM 88\.7 kg/)).toBeTruthy();
+    fireEvent.press(screen.getByTestId('progress-lift-bench-press'));
+    expect(await screen.findByText('route:exercise-progression')).toBeTruthy();
+  });
+
+  test('See all opens Personal Records', async () => {
+    await seedSessions(SESSIONS);
+    await renderHistory();
+    fireEvent.press(await screen.findByTestId('progress-see-all'));
+    expect(await screen.findByText('route:personal-records')).toBeTruthy();
+  });
+
+  test('no strip when no lift has two sessions', async () => {
+    await seedSessions([SESSIONS[0], SESSIONS[3]]);
+    await renderHistory();
+    await screen.findByText('This week');
+    expect(screen.queryByTestId('progress-strip')).toBeNull();
+  });
+
+  test('a weighted lift in an expanded card opens its chart', async () => {
+    await seedSessions(SESSIONS);
+    await renderHistory();
+    await screen.findByText('This week');
+    // The newest card (bench) starts expanded.
+    fireEvent.press(screen.getByTestId('session-lift-bench-press'));
+    expect(await screen.findByText('route:exercise-progression')).toBeTruthy();
+  });
 });

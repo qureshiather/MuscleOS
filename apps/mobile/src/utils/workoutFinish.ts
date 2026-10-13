@@ -143,6 +143,7 @@ export function cancelDialogMeta(
 }
 
 export interface FinishSummaryExercise {
+  exerciseId: string;
   name: string;
   /** Completed set count (always > 0 — exercises with none are left out). */
   completed: number;
@@ -172,7 +173,7 @@ export function buildFinishSummary(
   const exercises = session.exercises
     .map((se) => {
       const sets = se.sets.filter((s) => s.completed);
-      return { name: nameOf(se.exerciseId), completed: sets.length, sets };
+      return { exerciseId: se.exerciseId, name: nameOf(se.exerciseId), completed: sets.length, sets };
     })
     .filter((ex) => ex.completed > 0);
   return {
@@ -181,6 +182,14 @@ export function buildFinishSummary(
     exercises,
     totalSets: exercises.reduce((n, ex) => n + ex.completed, 0),
   };
+}
+
+/**
+ * Whether a summary row opens its lift's progression chart: it logged a set with weight and reps,
+ * the only kind estimated 1RM (and so the chart) counts.
+ */
+export function summaryExerciseHasProgress(item: Pick<FinishSummaryExercise, 'sets'>): boolean {
+  return item.sets.some((s) => s.completed && (s.weightKg ?? 0) > 0 && (s.reps ?? 0) >= 1);
 }
 
 /**

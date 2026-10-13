@@ -19,6 +19,9 @@ import { useSessionsStore } from '@/store/sessionsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { SessionCard } from '@/components/history/SessionCard';
+import { ProgressStrip } from '@/components/history/ProgressStrip';
+import { buildExercisePRs } from '@/utils/oneRepMax';
+import { progressHighlights } from '@/utils/personalRecords';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { WorkoutSession } from '@muscleos/types';
 import { syncNow } from '@/sync';
@@ -75,6 +78,15 @@ export default function HistoryScreen() {
     [completed, getExercise]
   );
   const volumeDeltas = useMemo(() => buildVolumeDeltas(completed), [completed]);
+  const exercisePRs = useMemo(
+    () => buildExercisePRs(completed, (id) => getExercise(id)?.id ?? id),
+    [completed, getExercise]
+  );
+  const highlights = useMemo(() => progressHighlights(exercisePRs, Date.now()), [exercisePRs]);
+  // Lifts with a qualifying set have a progression chart to open.
+  const liftsWithProgress = useMemo(() => new Set(exercisePRs.map((pr) => pr.exerciseId)), [exercisePRs]);
+  const openLift = (exerciseId: string) =>
+    router.push({ pathname: '/exercise-progression', params: { exerciseId } });
 
   // The newest session starts open; every other card starts collapsed. `toggled` flips either.
   const newestId = completed[0]?.id;
@@ -164,7 +176,15 @@ export default function HistoryScreen() {
             </Text>
           </View>
         ) : (
-          weeks.map((week) => (
+          <>
+          <ProgressStrip
+            highlights={highlights}
+            exerciseName={(id) => getExercise(id)?.name ?? id}
+            weightUnit={weightUnit}
+            onOpenLift={openLift}
+            onSeeAll={() => router.push('/personal-records')}
+          />
+          {weeks.map((week) => (
             <View key={week.weekStart} style={styles.week}>
               <View style={styles.weekHeader}>
                 <Text style={[styles.weekLabel, { color: colors.textMuted }]}>{week.label}</Text>
@@ -185,11 +205,14 @@ export default function HistoryScreen() {
                     volumeDelta={volumeDeltas.get(s.id)}
                     getExerciseName={(id) => getExercise(id)?.name ?? id}
                     weightUnit={weightUnit}
+                    canOpenExercise={(id) => liftsWithProgress.has(getExercise(id)?.id ?? id)}
+                    onOpenExercise={(id) => openLift(getExercise(id)?.id ?? id)}
                   />
                 ))}
               </View>
             </View>
-          ))
+          ))}
+          </>
         )}
       </ScrollView>
       <ConfirmDialog

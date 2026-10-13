@@ -24,6 +24,7 @@ export function renderWorkout(url: string = PUSH_URL) {
       'active-workout': ActiveWorkoutScreen,
       '(tabs)/index': routeStub('tabs'),
       'create-exercise': routeStub('create-exercise'),
+      'exercise-progression': routeStub('exercise-progression'),
     },
     url
   );

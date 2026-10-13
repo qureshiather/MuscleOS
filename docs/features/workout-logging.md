@@ -398,8 +398,10 @@ On finish:
   stats), and a **"Good work"** screen shows the template name ("Empty workout" for an
   ad-hoc session, "Workout" if the template is gone), three stats — **Duration**, **Exercises**
   (with at least one completed set) and **Sets** (completed) — a diagram of the muscles trained,
-  and a summary of each exercise's completed sets (`60 kg × 5 reps  ·  …`). **Done** returns to
-  the tabs.
+  and a summary of each exercise's completed sets (`60 kg × 5 reps  ·  …`). A lift with a
+  weighted set (`summaryExerciseHasProgress`) shows a chart icon and opens its
+  [progression chart](history-analytics.md#exercise-progression); Back returns here. **Done**
+  returns to the tabs.
 
 Incomplete sets are excluded from the summary, from "previous", and from recovery — but they are
 still in the stored session.
@@ -482,7 +484,7 @@ the real router.
   `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
   `previousLabel` (`weight × reps` with no unit, unit kept without reps)
 - `src/utils/workoutFinish.test.ts` — change detection, the finish variant and option matrix,
-  `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`
+  `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`, `summaryExerciseHasProgress`
 - `src/utils/workoutNotificationCopy.test.ts` — body selection (Next / Continue to / Finish, with
   wrap-around), alert copy, titles, `trayNotificationContent` (`Rest until <clock> • …` vs
   `Rest m:ss • …`), and `restAlertAction` (schedule / cancel / keep after a background rest end)
@@ -507,7 +509,7 @@ the real router.
   built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
   custom-changed hint, Back, the save-as-template name step and its Back, summary contents,
   Discard workout, the Good-work screen (Exercises and Sets counts, set detail, saved session
-  keeping incomplete sets, Done), Save as template attributing the session to the new template,
+  keeping incomplete sets, Done, a lift opening its progress chart), Save as template attributing the session to the new template,
   and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
   Discard)
 - `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with
