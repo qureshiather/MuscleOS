@@ -77,6 +77,7 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   { name: 'react-native-screens', license: 'MIT', copyright: 'Copyright (c) 2018 Software Mansion <swmansion.com>' },
   { name: 'react-native-svg', license: 'MIT', copyright: 'Copyright (c) 2015-2016 Horcrux' },
   { name: 'react-native-url-polyfill', license: 'MIT', copyright: 'Copyright (c) 2019 Nicolas Charpentier' },
+  { name: 'react-native-view-shot', license: 'MIT', copyright: 'Copyright (c) 2016 Gaëtan Renaudeau' },
   { name: 'react-native-worklets', license: 'MIT', copyright: 'Copyright (c) 2024 nobody' },
   { name: 'zustand', license: 'MIT', copyright: 'Copyright (c) 2019 Paul Henschel' },
 ];

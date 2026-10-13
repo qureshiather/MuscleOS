@@ -203,6 +203,32 @@ describe('Good work screen', () => {
     expect(await screen.findByText('route:exercise-progression')).toBeTruthy();
   });
 
+  test('Share previews the workout image and hands a 1080×1920 PNG to the share sheet', async () => {
+    const { captureRef } = jest.requireMock('react-native-view-shot') as { captureRef: jest.Mock };
+    const Sharing = jest.requireMock('expo-sharing') as { shareAsync: jest.Mock };
+    await start(PUSH_URL);
+    logSet(0, 0, 100, 5);
+    press('finish-workout');
+    press('finish-option-save_values');
+    expect(await screen.findByText('Good work')).toBeTruthy();
+
+    press('finished-share');
+    const card = await screen.findByTestId('share-card');
+    expect(within(card).getByText(PUSH.name)).toBeTruthy();
+    expect(within(card).getByText('100 kg × 5')).toBeTruthy();
+    expect(within(card).getByText('muscleos.app')).toBeTruthy();
+
+    press('share-confirm');
+    await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalledWith('file:///tmp/share.png', expect.objectContaining({ mimeType: 'image/png' })));
+    // view-shot multiplies width/height by the screen density, so the call divides it out.
+    const { PixelRatio } = require('react-native');
+    const opts = captureRef.mock.calls[0][1];
+    expect(opts.format).toBe('png');
+    expect([opts.width * PixelRatio.get(), opts.height * PixelRatio.get()]).toEqual([1080, 1920]);
+    press('share-close');
+    await waitFor(() => expect(screen.queryByTestId('share-card')).toBeNull());
+  });
+
   test('Save as template attributes the session to the new template, not the empty workout', async () => {
     await start('/active-workout?templateId=_empty');
     act(() => useActiveWorkoutStore.getState().addExercise('bench-press'));

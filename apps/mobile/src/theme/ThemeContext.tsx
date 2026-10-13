@@ -55,6 +55,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+/**
+ * Renders `children` in the dark palette whatever the app theme — for content that leaves the app
+ * looking the same for everyone, like the shareable workout card.
+ */
+export function DarkThemeScope({ children }: { children: React.ReactNode }) {
+  const parent = useTheme();
+  const value = useMemo(() => ({ ...parent, colors: darkThemeColors, isDark: true }), [parent]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
 export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
