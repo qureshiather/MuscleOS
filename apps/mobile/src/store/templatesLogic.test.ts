@@ -217,18 +217,18 @@ describe('groupHomeTemplates', () => {
 
   it('built-in: every shipped folder with its templates by default; nothing hidden', () => {
     const { builtIn: b } = groupWith();
-    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ppl', 'builtin_ul', 'builtin_sl']);
+    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ppl', 'builtin_ul', 'builtin_sl', 'builtin_phul']);
     expect(b.folders[0].templates.map((t) => t.id)).toEqual(['ppl-push', 'ppl-pull', 'ppl-legs']);
     expect(b.uncategorized).toEqual([]);
     expect(b.hiddenFolders).toEqual([]);
     expect(b.hiddenLoose).toEqual([]);
-    expect(b.visibleCount).toBe(9);
+    expect(b.visibleCount).toBe(13);
     expect(b.hiddenCount).toBe(0);
   });
 
   it('built-in: a hidden folder moves whole into Hidden; a loose hidden template is listed alone', () => {
     const { builtIn: b } = groupWith(['ul-upper-a'], ['builtin_ppl']);
-    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ul', 'builtin_sl']);
+    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ul', 'builtin_sl', 'builtin_phul']);
     expect(b.folders[0].templates.map((t) => t.id)).not.toContain('ul-upper-a');
     expect(b.hiddenFolders.map((g) => g.folder.id)).toEqual(['builtin_ppl']);
     expect(b.hiddenFolders[0].templates.map((t) => t.id)).toEqual([
@@ -242,7 +242,7 @@ describe('groupHomeTemplates', () => {
 
   it('built-in: a folder whose templates are all individually hidden is left out', () => {
     const { builtIn: b } = groupWith(['sl-a', 'sl-b']);
-    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ppl', 'builtin_ul']);
+    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ppl', 'builtin_ul', 'builtin_phul']);
     expect(b.hiddenFolders).toEqual([]);
     expect(b.hiddenLoose.map((t) => t.id)).toEqual(['sl-a', 'sl-b']);
   });

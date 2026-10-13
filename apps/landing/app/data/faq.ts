@@ -48,14 +48,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'How do I start a workout?',
     paragraphs: ['Open the Workouts tab, then:'],
     steps: [
-      'Tap a Suggested or Recent workout, one of your own templates, or open Built-in and pick from Push Pull Legs, Upper/Lower, or Strong Lifts 5×5.',
+      'Tap a Suggested or Recent workout, one of your own templates, or open Built-in and pick from Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL.',
       'Check the exercises and what you lifted last time, then tap Start workout.',
       'Or tap Empty workout to start with no exercises and add them as you go.',
     ],
     aside:
       'Only one workout runs at a time. If you leave it, tap Resume workout above the tabs to get back to it.',
     answerText:
-      'Open the Workouts tab and tap a Suggested or Recent workout, or open Built-in and pick a template (Push Pull Legs, Upper/Lower, or Strong Lifts 5×5). Check the preview and tap Start workout. You can also run your own templates or start an empty workout. Only one workout runs at a time.',
+      'Open the Workouts tab and tap a Suggested or Recent workout, or open Built-in and pick a template (Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL). Check the preview and tap Start workout. You can also run your own templates or start an empty workout. Only one workout runs at a time.',
   },
   {
     id: 'log-sets',

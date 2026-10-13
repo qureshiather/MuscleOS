@@ -13,6 +13,7 @@ describe('built-in templates', () => {
       'builtin_ppl',
       'builtin_ul',
       'builtin_sl',
+      'builtin_phul',
     ]);
   });
 
@@ -60,6 +61,21 @@ describe('built-in templates', () => {
       expect(resolveTemplateExercises(template).every((ex) => ex.sets === 5 && ex.warmUpSets === 0)).toBe(
         true
       );
+    }
+  });
+
+  it('ships PHUL as four days: two power, two hypertrophy', () => {
+    const phul = BUILT_IN_TEMPLATES.filter((t) => t.folderId === 'builtin_phul');
+    expect(phul.map((t) => t.name)).toEqual([
+      'Upper Power',
+      'Lower Power',
+      'Upper Hypertrophy',
+      'Lower Hypertrophy',
+    ]);
+    for (const template of phul) {
+      const slots = resolveTemplateExercises(template);
+      expect(slots.map((ex) => ex.exerciseId)).toEqual(template.exerciseIds);
+      expect(slots.every((ex) => ex.sets >= 3 && ex.sets <= 4 && ex.warmUpSets === 0)).toBe(true);
     }
   });
 });

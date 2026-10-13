@@ -89,7 +89,7 @@ and is **not** synced; a custom template's `hidden` flag is part of its record a
 
 ## Shipped built-in templates
 
-Three folders, nine templates (asserted, and validated against the exercise catalog, in
+Four folders, thirteen templates (asserted, and validated against the exercise catalog, in
 `src/data/builtInTemplates.test.ts`).
 
 | Folder | Templates | Exercises each |
@@ -97,6 +97,10 @@ Three folders, nine templates (asserted, and validated against the exercise cata
 | **Push Pull Legs** (`builtin_ppl`) | Push, Pull, Legs | 6 |
 | **Upper Lower Splits** (`builtin_ul`) | Upper A, Lower A, Upper B, Lower B | 6 |
 | **Strong Lifts 5x5** (`builtin_sl`) | Workout A, Workout B | 3 (5 working sets each) |
+| **PHUL** (`builtin_phul`) | Upper Power, Lower Power, Upper Hypertrophy, Lower Hypertrophy | 5–7 (3–4 working sets each) |
+
+PHUL (Power Hypertrophy Upper Lower) runs four days a week. Templates carry set counts but not
+reps, so each day's description gives its rep ranges: 3–5 on the power compounds, 6–15 elsewhere.
 
 Every `exerciseId` in a built-in template is asserted to exist in `CATALOG_SEED`, so a shipped
 template can never reference a missing exercise.
@@ -345,7 +349,7 @@ Copy, in priority order:
 | Assumption | Note |
 |------------|------|
 | A template is an ordered exercise list **plus set structure** | Working sets default to 3, warm-ups to 0; no target weight, reps, rest, or supersets |
-| Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot |
+| Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot, PHUL 3–4 |
 | Built-in templates are **immutable**; hide, don't delete | Keeps ids stable for historical sessions |
 | Every template is free to create and run | No tiers; see [pricing.md](pricing.md) |
 | Templates are single-day | No program/week/phase structure |
@@ -358,8 +362,9 @@ Copy, in priority order:
 Covered:
 
 - `src/data/builtInTemplates.test.ts` — folder ids, every template in a folder, hide-by-folder
-  vs hide-by-template, **every built-in `exerciseId` exists in the catalog**, and Strong Lifts
-  resolves to 5 working sets / 0 warm-ups per exercise
+  vs hide-by-template, **every built-in `exerciseId` exists in the catalog**, Strong Lifts
+  resolves to 5 working sets / 0 warm-ups per exercise, and PHUL ships its four days in order
+  with 3–4 working sets per exercise
 - `src/utils/templateExercises.test.ts` — resolve (defaults, legacy `defaultSets`, per-exercise
   override, leftover-`defaultSets` ignored once `exercises` exists), serialize compact form,
   normalize dropping `defaultSets`, session-to-template set counts, and set-label copy
