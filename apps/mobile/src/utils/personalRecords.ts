@@ -116,13 +116,27 @@ export function exerciseHasHistory(
 export const PROGRESS_STRIP_MAX_LIFTS = 6;
 export const PROGRESS_SPARK_SESSIONS = 8;
 export const PROGRESS_DELTA_DAYS = 30;
+/** Height of the lowest bar in a Progress-strip sparkline. */
+export const PROGRESS_SPARK_FLOOR = 0.2;
+
+/** Scale values to bar heights between the window's low (`PROGRESS_SPARK_FLOOR`) and high (1). */
+function sparkBars(values: readonly number[]): number[] {
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  if (!(hi > lo)) return values.map(() => 1);
+  return values.map((v) => PROGRESS_SPARK_FLOOR + ((1 - PROGRESS_SPARK_FLOOR) * (v - lo)) / (hi - lo));
+}
 
 export type ProgressHighlight = {
   exerciseId: string;
   bestEstimated1RM: number;
   /** Completed sessions with a qualifying set of this lift. */
   sessionCount: number;
-  /** Each recent session's best e1RM as a ratio of the all-time best, oldest → newest. */
+  /**
+   * One bar per recent session (its best e1RM), oldest → newest, scaled between the lowest and
+   * highest of those sessions so a few kilos of progress is visible: the lowest session is
+   * `PROGRESS_SPARK_FLOOR`, the highest 1, and all bars are 1 when they're equal.
+   */
   spark: number[];
   /**
    * How much the best e1RM rose in the last 30 days (kg): today's best minus the best from sets
@@ -156,9 +170,7 @@ export function progressHighlights(
       exerciseId: pr.exerciseId,
       bestEstimated1RM: best,
       sessionCount: sessions.length,
-      spark: sessions
-        .slice(-PROGRESS_SPARK_SESSIONS)
-        .map(([, e]) => (best > 0 ? Math.min(1, e / best) : 0)),
+      spark: sparkBars(sessions.slice(-PROGRESS_SPARK_SESSIONS).map(([, e]) => e)),
       gainKg: before.length === 0 ? null : Math.max(0, best - bestBefore),
       lastAt: sessions[sessions.length - 1]?.[0] ?? '',
     };

@@ -195,7 +195,7 @@ describe('progressHighlights', () => {
     expect(progressHighlights(many, now, 2)).toHaveLength(2);
   });
 
-  it('sparks one bar per session (its best set), oldest to newest, last 8 sessions', () => {
+  it('sparks one bar per session (its best set), oldest to newest, last 8 sessions, scaled low→high', () => {
     const sets = [point(1, 50), { ...point(1, 100), completedAt: day(1) }];
     for (let d = 2; d <= 12; d++) sets.push(point(d, 100));
     const h = progressHighlights([pr('bench', sets)], now)[0];
@@ -203,8 +203,10 @@ describe('progressHighlights', () => {
     expect(h.spark).toHaveLength(PROGRESS_SPARK_SESSIONS);
     expect(h.spark.every((r) => r === 1)).toBe(true);
 
-    const rising = progressHighlights([pr('bench', [point(1, 50), point(40, 100)])], now)[0];
-    expect(rising.spark).toEqual([0.5, 1]);
+    // Scaled between the window's low and high, so small gains still show.
+    const rising = progressHighlights([pr('bench', [point(1, 95), point(10, 97.5), point(40, 100)])], now)[0];
+    expect(rising.spark).toHaveLength(3);
+    [0.2, 0.6, 1].forEach((v, i) => expect(rising.spark[i]).toBeCloseTo(v));
   });
 
   it('gain is the best now minus the best before the last 30 days', () => {
