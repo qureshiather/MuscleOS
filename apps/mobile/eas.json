@@ -5,13 +5,13 @@
   },
   "build": {
     "base": {
-      "node": "20.18.0",
+      "node": "24.21.0",
       "pnpm": "9.14.2",
       "android": {
-        "image": "sdk-54"
+        "image": "sdk-57"
       },
       "ios": {
-        "image": "sdk-54"
+        "image": "sdk-57"
       }
     },
     "development": {

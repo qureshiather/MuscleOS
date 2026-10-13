@@ -41,7 +41,7 @@ Per-screen purposes: [product/overview.md](../product/overview.md#screen-map).
 ### Boot sequence
 
 Fonts (DM Sans, DM Mono) gate the first render behind a spinner; a font load error proceeds anyway.
-The native splash is the white logo mark (`assets/splash-icon.png`, transparent) on `#14161E` — the dark palette background, the same `brandColors.background` the font-loading screen uses, so boot has no colour jump.
+The native splash is the white logo mark (`assets/splash-icon.png`, transparent) on `#14161E` — the dark palette background, the same `brandColors.background` the font-loading screen uses, so boot has no colour jump. It's configured on the `expo-splash-screen` plugin and baked into the committed native folders.
 
 Then, in `_layout.tsx`:
 
@@ -435,9 +435,9 @@ Export carries an explicit `version: 1`.
 
 `RECORD_AUDIO` is **explicitly removed** from the Android manifest — the app plays audio but never
 records. `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (added by `expo-audio` for its
-lock-screen media controls service) are removed too: sounds are short in-app cues with background
-playback off, so that service never starts, and keeping the permissions would require a Play
-foreground-service declaration. iOS declares the time-sensitive notification entitlement so rest alerts break through
+lock-screen media controls service) are removed too, and the `expo-audio` plugin sets `enableBackgroundPlayback: false` so neither the
+service nor the iOS `audio` background mode is declared: sounds are short in-app cues, and keeping
+them would require a Play foreground-service declaration. iOS declares the time-sensitive notification entitlement so rest alerts break through
 Focus modes.
 
 Channels: `workout_fallback_v1` (low importance, ongoing) and `rest_complete_fallback_v1` (high
@@ -509,7 +509,7 @@ App name MuscleOS, version 1.0.0, portrait only, scheme `muscleos`. iOS bundle i
 [mobile/eas-build.md](../mobile/eas-build.md). The Android Kotlin namespace stays `com.muscleos.app`;
 only the application id changed.
 
-Base image: Node 20.18.0, pnpm 9.14.2, Expo SDK 54. EAS profiles and building:
+Base image: Node 24.21.0, pnpm 9.14.2, Expo SDK 57. EAS profiles and building:
 [mobile/eas-build.md](../mobile/eas-build.md); env vars: [Required env vars](#required-env-vars).
 
 ## Assumptions

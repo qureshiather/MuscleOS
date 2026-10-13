@@ -52,7 +52,7 @@ MuscleOS/
 
 - **Package manager**: pnpm (v9.14.2)
 - **Build orchestration**: Turborepo
-- **Node**: >=20
+- **Node**: >=24 (`.nvmrc`)
 
 ### Key Commands
 
@@ -79,13 +79,13 @@ MuscleOS/
 
 | Area | Stack |
 |------|-------|
-| Mobile | Expo 54, React Native 0.81, expo-router, React 19 |
+| Mobile | Expo SDK 57, React Native 0.86, expo-router, React 19.2 |
 | Mobile state | Zustand |
 | Mobile storage | AsyncStorage (all app data, and the Supabase auth session) |
-| Types | Shared `@muscleos/types` package |
+| Types | Shared `@muscleos/types` package; TypeScript 7 everywhere |
 | Lint | Biome (ESLint replacement) |
 | Tests | Vitest (pure logic, stores) + Jest with jest-expo and React Native Testing Library (components, screens), run via Turbo |
-| Landing | Next.js 15, React 19, Tailwind CSS |
+| Landing | Next.js 16, React 19.2, Tailwind CSS |
 
 ---
 
@@ -95,7 +95,7 @@ MuscleOS/
 
 - All domain models live in `@muscleos/types`: `Exercise` (includes `category`), `WorkoutTemplate`, `WorkoutSession`, `MuscleRecovery`, `MuscleId`, etc.
 - **Always import types from `@muscleos/types`** — do not duplicate type definitions in the mobile app.
-- Build: `tsup` produces `dist/` with CJS + `.d.ts`.
+- Build: `tsc -p tsconfig.build.json` (TypeScript 7) emits CJS + `.d.ts` into `dist/`.
 
 ### 2. Mobile App Structure (`apps/mobile`)
 

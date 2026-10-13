@@ -44,6 +44,7 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   },
   { name: '@react-native-google-signin/google-signin', license: 'MIT', copyright: 'Copyright (c) 2015 Apptailor' },
   {
+    // Vendored inside expo-router since SDK 57.
     name: '@react-navigation/bottom-tabs',
     license: 'MIT',
     copyright: 'Copyright (c) 2017 React Navigation Contributors',
@@ -51,6 +52,7 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   { name: '@supabase/supabase-js', license: 'MIT', copyright: 'Copyright (c) 2020 Supabase' },
   { name: 'expo', license: 'MIT', copyright: EXPO },
   { name: 'expo-apple-authentication', license: 'MIT', copyright: EXPO },
+  { name: 'expo-asset', license: 'MIT', copyright: EXPO },
   { name: 'expo-audio', license: 'MIT', copyright: EXPO },
   { name: 'expo-auth-session', license: 'MIT', copyright: EXPO },
   { name: 'expo-constants', license: 'MIT', copyright: EXPO },
@@ -62,6 +64,7 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   { name: 'expo-router', license: 'MIT', copyright: EXPO },
   { name: 'expo-secure-store', license: 'MIT', copyright: EXPO },
   { name: 'expo-sharing', license: 'MIT', copyright: EXPO },
+  { name: 'expo-splash-screen', license: 'MIT', copyright: EXPO },
   { name: 'expo-status-bar', license: 'MIT', copyright: EXPO },
   { name: 'expo-web-browser', license: 'MIT', copyright: EXPO },
   { name: 'react', license: 'MIT', copyright: 'Copyright (c) Meta Platforms, Inc. and affiliates.' },

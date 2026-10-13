@@ -125,7 +125,7 @@ export function ExerciseDetailSheet({
       >
         {/* Sibling backdrop — nesting ScrollView in Pressable breaks pans on Android (MUS-31). */}
         <Pressable
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           onPress={close}
           accessibilityRole="button"
           accessibilityLabel="Dismiss exercise details"

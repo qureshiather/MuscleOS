@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/tabs';
 import { ResumeWorkoutPill } from '@/components/ResumeWorkoutPill';
 import { useTheme } from '@/theme/ThemeContext';
 import {

@@ -32,21 +32,27 @@
     "icon": "./assets/icon.png",
     "scheme": "muscleos",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#14161E"
-    },
     "plugins": [
       "expo-router",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#14161E"
+        }
+      ],
+      "expo-web-browser",
       "expo-secure-store",
       "expo-apple-authentication",
       "@react-native-google-signin/google-signin",
       [
         "expo-audio",
         {
-          "recordAudioAndroid": false
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
         }
       ],
       [
