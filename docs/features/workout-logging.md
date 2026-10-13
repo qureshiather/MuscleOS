@@ -394,7 +394,8 @@ On finish:
 - Per-exercise "previous" is overwritten from this session's best completed weighted set
   (highest weight, then reps). It can therefore move down after a lighter workout.
 - Recovery is recomputed from all sessions.
-- Confetti plays, and a **"Good work"** screen shows the template name ("Empty workout" for an
+- Confetti falls in three staggered waves (~5–6 s in all, so it's still going while you read the
+  stats), and a **"Good work"** screen shows the template name ("Empty workout" for an
   ad-hoc session, "Workout" if the template is gone), three stats — **Duration**, **Exercises**
   (with at least one completed set) and **Sets** (completed) — a diagram of the muscles trained,
   and a summary of each exercise's completed sets (`60 kg × 5 reps  ·  …`). **Done** returns to
@@ -422,7 +423,7 @@ them, so there is no cached value to invalidate. See
 | Number pad ± step (weight) | 0.25 kg / 2.5 lb |
 | Number pad ± step (reps) | 1 |
 | Number pad digit cap | 4 weight / 3 reps |
-| Confetti pieces | 48 |
+| Confetti | 72 pieces in 3 waves, 700 ms apart; each falls in 2.8–4 s |
 
 ## Assumptions
 
@@ -475,6 +476,8 @@ the real router.
   after focusing clears, any edit clears the flag, digit caps,
   lb→kg on write, ± steps, Next → reps, Done disabled until reps > 0 / completes and closes /
   only closes on a completed set) and `applyRestTimeKey` (time mode)
+- `src/utils/confetti.test.ts` — confetti waves start 700 ms apart, falls stay within 2.8–4 s,
+  and the whole celebration lasts 4 s or more
 - `src/utils/workoutSetView.test.ts` — `W1`/`1,2,3` numbering, the single current set,
   `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
   `previousLabel` (`weight × reps` with no unit, unit kept without reps)
@@ -524,6 +527,7 @@ Not currently covered:
   never opens there. The rules behind it are unit-tested (`applyRestTimeKey`,
   `storedRestSeconds`, `buildReplacedExercise`, store add/replace/remove tests).
 - Drag-to-reorder gestures, swipe *gesture* physics (the test presses the swipe action), sounds
-  actually playing, confetti, and the muscle diagram's rendering.
+  actually playing, the confetti animation itself (its timing is unit-tested), and the muscle
+  diagram's rendering.
 - The notification *scheduling* side effects (channel setup, `scheduleNotificationAsync` timing,
   the Android native module) as opposed to the copy, which is pure and tested.
