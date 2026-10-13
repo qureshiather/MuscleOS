@@ -35,6 +35,24 @@ Each week header shows a label and a summary:
 | Label | `This week`, `Last week`, otherwise `Week of Sep 7` (`Week of Dec 1, 2025` for an earlier year) |
 | Summary | `N sessions · <volume>` (`1 session` in the singular, `weekSummary()`). Volume is the week's total in the user's unit, whole numbers below 10,000 (`8,240 kg`) and one decimal in thousands above (`12.1k kg`, `formatCompactVolume`). Omitted when the week has no volume |
 
+### Progress strip
+
+Above the weeks, a **Progress** row (`ProgressStrip`) puts per-lift progress on the History tab
+itself, rather than only behind the Personal Records button. It scrolls sideways through your
+**most-trained lifts** (`progressHighlights()`): most sessions with a qualifying set first, then the
+most recently trained, then the higher e1RM. A lift needs qualifying sets in **2 or more sessions**,
+and the strip shows at most **6**; with no such lift it's hidden.
+
+| Element | Detail |
+|---------|--------|
+| Name | The exercise name (alias-logged sets count toward the catalog exercise) |
+| Best | All-time best estimated 1RM, `formatE1RM()` (`88.7 kg`), captioned *Est. 1RM* |
+| Bars | One per session for the **last 8 sessions**, oldest → newest, each that session's best e1RM as a ratio of the all-time best |
+| Footer | `+7.5 kg · 30d` (success colour) when the best e1RM rose in the last **30 days** — today's best minus the best from sets before the window (`formatProgressGain`). Otherwise `N sessions`: there was no rise, or every session is inside the window so there's nothing to compare |
+
+Tapping a card opens that lift's [progression chart](#exercise-progression); **See all** opens
+[Personal Records](#personal-records).
+
 ### Session cards
 
 Cards are **compact and expand on tap**. The newest session starts expanded; every other card
@@ -53,7 +71,9 @@ Collapsed, a card shows:
 
 Expanded, it adds one row per exercise with at least one completed set: the exercise name, a
 **PR** badge when that exercise set a PR in this session, and its completed sets as one
-line (`formatSetGroups`):
+line (`formatSetGroups`). A lift with a qualifying set anywhere in history shows a small chart icon
+and **opens its [progression chart](#exercise-progression)** on tap; bodyweight-only rows aren't
+tappable.
 
 | Sets | Line |
 |------|------|
@@ -221,8 +241,10 @@ card's chip just uses the adjusted level and target.
 
 ## Exercise progression
 
-Opened from a Personal Records card, or from **View history** in the
-[exercise detail sheet](exercise-library.md) (shown only when the exercise has history). Plots **estimated 1RM per qualifying set** over time, oldest to
+Opened from a [Progress strip](#progress-strip) card, an exercise row in an expanded
+[session card](#session-cards), a lift on the post-workout **Good work** summary
+([workout-logging](workout-logging.md#finishing)), a Personal Records card, or **View history** in
+the [exercise detail sheet](exercise-library.md) (shown only when the exercise has history). Plots **estimated 1RM per qualifying set** over time, oldest to
 newest, as custom `View` bars (no chart library). Bar height is the ratio to the best e1RM.
 
 **One bar per qualifying set, not per session** — several sets on one day give several adjacent
@@ -296,7 +318,9 @@ Vitest (`apps/mobile/src/…`):
   `prCardModel` last-10 bars oldest→newest, no bars under 2 sets, strength chip gated on
   bodyweight + sex and standards (none for pull-up), age-adjusted level and `strengthAgeNote`,
   none under 14, elite has no next level; `filterPRsByName`;
-  `exerciseHasHistory` qualifying sets only, completed sessions only, aliases
+  `exerciseHasHistory` qualifying sets only, completed sessions only, aliases;
+  `progressHighlights` (most sessions → most recent order, 2-session minimum, cap of 6, one
+  spark bar per session over the last 8, 30-day gain / 0 / null) and `formatProgressGain`
 - `utils/calendar.test.ts` — Monday-first headers, leading/trailing blanks, month lengths incl.
   leap February, four-row month, local-midnight day keys, marked days, sessions on a day
 - `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, ignored sets, alias
@@ -322,7 +346,9 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   line and volume change, newest expanded + toggling, PR badges/counts,
   alias PRs, header shortcuts to Personal Records and the calendar, delete flow (cancel,
   confirm, storage, recovery, sync), empty-state copy, pull to refresh from empty (guest reload,
-  linked sync first), pounds
+  linked sync first), pounds; the Progress strip (2-session lifts only, e1RM label, card →
+  progression, See all → Personal Records, hidden with no repeated lift) and a session card's lift
+  row → progression
 - `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the

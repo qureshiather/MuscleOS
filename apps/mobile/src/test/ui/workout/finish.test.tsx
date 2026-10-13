@@ -193,6 +193,16 @@ describe('Good work screen', () => {
     await waitFor(() => expect(r.getPathname()).toBe('/'));
   });
 
+  test('a lift with a weighted set opens its progress chart from the summary', async () => {
+    await start(PUSH_URL);
+    logSet(0, 0, 60, 5);
+    press('finish-workout');
+    press('finish-option-save_values');
+    expect(await screen.findByText('Good work')).toBeTruthy();
+    press(`finished-lift-${PUSH.exerciseIds[0]}`);
+    expect(await screen.findByText('route:exercise-progression')).toBeTruthy();
+  });
+
   test('Save as template attributes the session to the new template, not the empty workout', async () => {
     await start('/active-workout?templateId=_empty');
     act(() => useActiveWorkoutStore.getState().addExercise('bench-press'));

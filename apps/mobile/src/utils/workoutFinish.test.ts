@@ -6,6 +6,7 @@ import {
   completedSetCount,
   formatSummarySet,
   hasSetDetail,
+  summaryExerciseHasProgress,
   finishFlowVariant,
   finishSaveOptions,
   templateListChanged,
@@ -169,6 +170,7 @@ describe('buildFinishSummary', () => {
       ['Bench Press', 1],
       ['c', 2],
     ]);
+    expect(summary.exercises.map((e) => e.exerciseId)).toEqual(['a', 'c']);
     expect(summary.exercises[0].sets).toEqual([{ completed: true, weightKg: 60, reps: 5 }]);
     expect(summary.totalSets).toBe(3);
   });
@@ -196,5 +198,14 @@ describe('formatSummarySet', () => {
   it('hasSetDetail is false when no set has weight or reps', () => {
     expect(hasSetDetail([{}, {}])).toBe(false);
     expect(hasSetDetail([{}, { reps: 1 }])).toBe(true);
+  });
+});
+
+describe('summaryExerciseHasProgress', () => {
+  it('needs a completed set with weight and reps — what estimated 1RM counts', () => {
+    expect(summaryExerciseHasProgress({ sets: [{ completed: true, weightKg: 60, reps: 5 }] })).toBe(true);
+    expect(summaryExerciseHasProgress({ sets: [{ completed: true, reps: 10 }] })).toBe(false);
+    expect(summaryExerciseHasProgress({ sets: [{ completed: true, weightKg: 0, reps: 10 }] })).toBe(false);
+    expect(summaryExerciseHasProgress({ sets: [{ completed: false, weightKg: 60, reps: 5 }] })).toBe(false);
   });
 });

@@ -30,6 +30,9 @@ type SessionCardProps = {
   volumeDelta?: number;
   getExerciseName: (exerciseId: string) => string;
   weightUnit: WeightUnit;
+  /** Whether an exercise row opens that lift's progression chart (it has a qualifying set). */
+  canOpenExercise?: (exerciseId: string) => boolean;
+  onOpenExercise?: (exerciseId: string) => void;
 };
 
 /** History list card: a one-glance summary that expands to one line per exercise. */
@@ -43,6 +46,8 @@ export function SessionCard({
   volumeDelta,
   getExerciseName,
   weightUnit,
+  canOpenExercise,
+  onOpenExercise,
 }: SessionCardProps) {
   const { colors } = useTheme();
   const { exercises, countsLine, prLabel, statsLine: stats } = sessionCardSummary(
@@ -107,18 +112,27 @@ export function SessionCard({
           <View style={[styles.detail, { borderTopColor: colors.border }]}>
             {exercises.map((se, idx) => {
               const isPR = prExerciseIds?.has(se.exerciseId) ?? false;
+              const opensChart = onOpenExercise != null && (canOpenExercise?.(se.exerciseId) ?? false);
+              const name = getExerciseName(se.exerciseId);
               return (
-                <View
+                <Pressable
                   key={`${se.exerciseId}-${idx}`}
-                  style={[
+                  disabled={!opensChart}
+                  onPress={() => onOpenExercise?.(se.exerciseId)}
+                  accessibilityRole={opensChart ? 'button' : undefined}
+                  accessibilityLabel={opensChart ? `${name} progress` : undefined}
+                  testID={opensChart ? `session-lift-${se.exerciseId}` : undefined}
+                  style={({ pressed }) => [
                     styles.exerciseRow,
                     idx < exercises.length - 1 && [styles.exerciseRowDivider, { borderBottomColor: colors.border }],
+                    pressed && styles.pressed,
                   ]}
                 >
                   <View style={styles.exerciseName}>
                     <Text style={[typography.label, styles.exerciseNameText, { color: colors.text }]}>
-                      {getExerciseName(se.exerciseId)}
+                      {name}
                     </Text>
+                    {opensChart ? <Ionicons name="stats-chart" size={12} color={colors.primary} /> : null}
                     {isPR ? (
                       <View style={[styles.prBadge, { backgroundColor: withAlpha(colors.warning, 0.14) }]}>
                         <Ionicons name="trophy" size={10} color={colors.warning} />
@@ -129,7 +143,7 @@ export function SessionCard({
                   <Text style={[styles.sets, { color: colors.textSecondary }]}>
                     {formatSetGroups(se.sets, weightUnit)}
                   </Text>
-                </View>
+                </Pressable>
               );
             })}
           </View>

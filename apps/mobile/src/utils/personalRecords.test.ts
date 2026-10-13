@@ -4,10 +4,13 @@ import type { ExercisePR, SetWithDate } from './oneRepMax';
 import {
   exerciseHasHistory,
   filterPRsByName,
+  formatProgressGain,
   hasStrengthProfile,
   PR_CARD_MAX_BARS,
   prCardModel,
   progressionPoints,
+  progressHighlights,
+  PROGRESS_SPARK_SESSIONS,
   strengthAgeNote,
   strengthSummary,
 } from './personalRecords';
@@ -167,5 +170,64 @@ describe('exerciseHasHistory', () => {
     const sessions = [session([logged('back-squat')], '2026-01-01T11:00:00.000Z')];
     const canonical = (id: string) => (id === 'back-squat' ? 'squat' : id);
     expect(exerciseHasHistory(sessions, 'squat', canonical)).toBe(true);
+  });
+});
+
+describe('progressHighlights', () => {
+  // "Now" is 15 Feb 2026, so the 30-day window starts 16 Jan.
+  const now = Date.UTC(2026, 1, 15, 12);
+
+  it('lists the most-trained lifts first, then the most recent; needs 2+ sessions', () => {
+    const bench = pr('bench', [point(1, 80), point(5, 82), point(40, 90)]);
+    const squat = pr('squat', [point(2, 100), point(41, 110)]);
+    const row = pr('row', [point(3, 60), point(42, 65)]);
+    const once = pr('curl', [point(44, 30)]);
+    expect(progressHighlights([once, squat, row, bench], now).map((h) => h.exerciseId)).toEqual([
+      'bench',
+      'row',
+      'squat',
+    ]);
+  });
+
+  it('caps the strip', () => {
+    const many = Array.from({ length: 9 }, (_, i) => pr(`ex${i}`, [point(1, 50), point(40, 60)]));
+    expect(progressHighlights(many, now)).toHaveLength(6);
+    expect(progressHighlights(many, now, 2)).toHaveLength(2);
+  });
+
+  it('sparks one bar per session (its best set), oldest to newest, last 8 sessions', () => {
+    const sets = [point(1, 50), { ...point(1, 100), completedAt: day(1) }];
+    for (let d = 2; d <= 12; d++) sets.push(point(d, 100));
+    const h = progressHighlights([pr('bench', sets)], now)[0];
+    expect(h.sessionCount).toBe(12);
+    expect(h.spark).toHaveLength(PROGRESS_SPARK_SESSIONS);
+    expect(h.spark.every((r) => r === 1)).toBe(true);
+
+    const rising = progressHighlights([pr('bench', [point(1, 50), point(40, 100)])], now)[0];
+    expect(rising.spark).toEqual([0.5, 1]);
+  });
+
+  it('gain is the best now minus the best before the last 30 days', () => {
+    const h = progressHighlights([pr('bench', [point(1, 80), point(10, 85), point(40, 92.5)])], now)[0];
+    expect(h.gainKg).toBe(7.5);
+    // No new best inside the window → 0
+    const flat = progressHighlights([pr('bench', [point(1, 90), point(40, 85)])], now)[0];
+    expect(flat.gainKg).toBe(0);
+    // Every session inside the window → nothing to compare with
+    const fresh = progressHighlights([pr('bench', [point(38, 80), point(44, 90)])], now)[0];
+    expect(fresh.gainKg).toBeNull();
+  });
+});
+
+describe('formatProgressGain', () => {
+  it('shows a positive gain in the user unit, one decimal', () => {
+    expect(formatProgressGain(7.5, 'kg')).toBe('+7.5 kg');
+    expect(formatProgressGain(5, 'lb')).toBe('+11 lb');
+  });
+
+  it('shows nothing for no gain or no baseline', () => {
+    expect(formatProgressGain(0, 'kg')).toBeNull();
+    expect(formatProgressGain(null, 'kg')).toBeNull();
+    expect(formatProgressGain(0.01, 'kg')).toBeNull();
   });
 });
