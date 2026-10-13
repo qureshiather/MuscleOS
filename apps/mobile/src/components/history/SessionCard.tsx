@@ -24,6 +24,8 @@ type SessionCardProps = {
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  /** Opens the share image for this session. */
+  onShare?: () => void;
   /** Exercises that set a new best e1RM in this session. */
   prExerciseIds?: ReadonlySet<string>;
   /** Whole-percent volume change vs the previous session of the same template. */
@@ -42,6 +44,7 @@ export function SessionCard({
   expanded,
   onToggle,
   onDelete,
+  onShare,
   prExerciseIds,
   volumeDelta,
   getExerciseName,
@@ -70,15 +73,28 @@ export function SessionCard({
           <Text style={[typography.caption, { color: colors.textSecondary }]}>
             {session.completedAt ? formatSessionDate(session.completedAt) : ''}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Delete ${title}`}
-            onPress={onDelete}
-            hitSlop={touch.hitSlop}
-            style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
-          </Pressable>
+          <View style={styles.cardActions}>
+            {onShare ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Share ${title}`}
+                onPress={onShare}
+                hitSlop={touch.hitSlop}
+                style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="share-outline" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${title}`}
+              onPress={onDelete}
+              hitSlop={touch.hitSlop}
+              style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.row}>
@@ -159,6 +175,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   deleteBtn: { padding: 2 },
   pressed: { opacity: 0.6 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   title: { flexShrink: 1 },
   stats: { ...typography.caption, fontFamily: typography.data.fontFamily, fontVariant: ['tabular-nums'] },
   peek: { flex: 1 },

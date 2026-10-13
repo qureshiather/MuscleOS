@@ -20,6 +20,8 @@ its effect everywhere, and why there is no cache to invalidate.
 | Calendar grid & day keys | `apps/mobile/src/utils/calendar.ts` |
 | PR card & progression models | `apps/mobile/src/utils/personalRecords.ts` |
 | History card | `apps/mobile/src/components/history/SessionCard.tsx` |
+| Progress strip | `apps/mobile/src/components/history/ProgressStrip.tsx` |
+| Share image: model, card, preview | `apps/mobile/src/utils/shareCard.ts`, `src/components/share/WorkoutShareCard.tsx`, `src/components/share/ShareWorkoutSheet.tsx` |
 | Store | `apps/mobile/src/store/sessionsStore.ts` |
 
 ## History list
@@ -106,6 +108,30 @@ workout and it will show up here with duration, volume, and sets."*
 runs a cloud sync first.
 
 The header has two shortcuts: a trophy to Personal Records and a calendar to the monthly view.
+
+### Sharing a workout
+
+A workout can be shared as an **image** — something to post or send that also shows off the app.
+**Share** sits next to Done on the post-workout **Good work** screen
+([workout-logging](workout-logging.md#finishing)), and a share icon sits beside the trash button
+on every session card. Both open the same preview (`ShareWorkoutSheet`) with **Close** and
+**Share**; Share captures the card (`react-native-view-shot`) and opens the OS share sheet
+(`expo-sharing`) with a PNG. A failed capture shows *"Couldn't create the image. Try again."*
+
+The card (`WorkoutShareCard`) is a fixed **360 × 640** layout captured at 3×, so the image is
+always **1080 × 1920** (9:16, story-sized), and it's always drawn in the **dark palette**
+(`DarkThemeScope`) so every share looks the same whatever the app theme. Content comes from
+`shareCardModel()`:
+
+| Element | Detail |
+|---------|--------|
+| Title + date | Template name as on the session card (`templateDisplayName`), and `Tue, Sep 15` |
+| Stats | **Duration** (`formatSessionDuration`), **Sets** (completed), **Volume** (`formatVolume`, user unit). Duration and volume are dropped when missing or zero |
+| Muscles | The session's trained muscles on the body diagram (`musclesTrainedInSession`); hidden when none |
+| Lifts | Each exercise with a completed set and its **best set** (`bestSetLabel`): the highest-e1RM weighted set as `100 kg × 5`, or the most reps (`12 reps`) when nothing was weighted. A **PR** badge marks lifts that set a PR in that session (the same rule as the card's PR badges). At most **6**, then `+N more` |
+| Footer | App icon, **MuscleOS**, and `muscleos.app` |
+
+Nothing about sharing is stored or synced; the image is a temporary file handed to the share sheet.
 
 ### Deleting a session
 
@@ -328,6 +354,9 @@ Vitest (`apps/mobile/src/…`):
   `templateDisplayName`; `isCardExpanded`; `sessionCardSummary` (counts, singulars, PR label,
   stats line dropping zero volume and sub-minute duration, pounds); `volumeDeltaLabel` hidden at
   0%; `weekSummary` singular and compact volume
+- `utils/shareCard.test.ts` — `bestSetLabel` (highest e1RM over heaviest, pounds, bodyweight
+  reps and singular, incomplete sets ignored) and `shareCardModel` (title, date, stats with
+  missing duration / zero volume dropped, PR flags, 6-lift cap with `+N more`)
 - `utils/sessionStats.test.ts` — volume, duration (incl. null under a minute), set lines, volume labels
 - `utils/relativeTime.test.ts` — every `formatRelative` branch (home stats are tested under
   [templates](templates.md#tests))
@@ -347,8 +376,8 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   alias PRs, header shortcuts to Personal Records and the calendar, delete flow (cancel,
   confirm, storage, recovery, sync), empty-state copy, pull to refresh from empty (guest reload,
   linked sync first), pounds; the Progress strip (2-session lifts only, e1RM label, card →
-  progression, See all → Personal Records, hidden with no repeated lift) and a session card's lift
-  row → progression
+  progression, See all → Personal Records, hidden with no repeated lift), a session card's lift
+  row → progression, and a session card's share image (best set, PR badge, volume)
 - `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the

@@ -400,8 +400,9 @@ On finish:
   (with at least one completed set) and **Sets** (completed) — a diagram of the muscles trained,
   and a summary of each exercise's completed sets (`60 kg × 5 reps  ·  …`). A lift with a
   weighted set (`summaryExerciseHasProgress`) shows a chart icon and opens its
-  [progression chart](history-analytics.md#exercise-progression); Back returns here. **Done**
-  returns to the tabs.
+  [progression chart](history-analytics.md#exercise-progression); Back returns here. **Share**
+  previews the workout as an image and opens the share sheet
+  ([sharing a workout](history-analytics.md#sharing-a-workout)). **Done** returns to the tabs.
 
 Incomplete sets are excluded from the summary, from "previous", and from recovery — but they are
 still in the stored session.
@@ -509,7 +510,8 @@ the real router.
   built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
   custom-changed hint, Back, the save-as-template name step and its Back, summary contents,
   Discard workout, the Good-work screen (Exercises and Sets counts, set detail, saved session
-  keeping incomplete sets, Done, a lift opening its progress chart), Save as template attributing the session to the new template,
+  keeping incomplete sets, Done, a lift opening its progress chart, Share previewing the image and
+  handing a 1080×1920 PNG to the share sheet), Save as template attributing the session to the new template,
   and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
   Discard)
 - `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with

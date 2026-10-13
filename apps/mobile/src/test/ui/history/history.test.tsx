@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
+import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import HistoryScreen from '../../../../app/(tabs)/history';
 import { getSessions } from '@/storage/localStorage';
 import { useAuthStore } from '@/store/authStore';
@@ -212,4 +212,16 @@ describe('progress', () => {
     fireEvent.press(screen.getByTestId('session-lift-bench-press'));
     expect(await screen.findByText('route:exercise-progression')).toBeTruthy();
   });
+});
+
+test('a session card shares its workout image with its best sets and PRs', async () => {
+  await seedSessions(SESSIONS);
+  await renderHistory();
+  await screen.findByText('This week');
+  fireEvent.press(screen.getAllByLabelText('Share Push')[0]);
+  const card = await screen.findByTestId('share-card');
+  // Newest Push: 3 × 8 @ 70 kg, a PR over the earlier 60 kg session.
+  expect(within(card).getByText('70 kg × 8')).toBeTruthy();
+  expect(within(card).getByText('PR')).toBeTruthy();
+  expect(within(card).getByText('1,680 kg')).toBeTruthy();
 });

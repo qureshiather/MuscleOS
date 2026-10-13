@@ -46,7 +46,10 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { WorkoutConfetti } from '@/components/WorkoutConfetti';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { musclesTrainedInSession } from '@/utils/recovery';
-import { templateDisplayName } from '@/utils/historyCards';
+import { buildSessionPRs, templateDisplayName } from '@/utils/historyCards';
+import { type ShareCardModel, shareCardModel } from '@/utils/shareCard';
+import { ShareWorkoutSheet } from '@/components/share/ShareWorkoutSheet';
+import { useSessionsStore } from '@/store/sessionsStore';
 import { Ionicons } from '@expo/vector-icons';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
 import { pickerFooter, pickerResults } from '@/utils/exercisePicker';
@@ -501,7 +504,7 @@ function RestBetweenBar({
 /** Height of the fade over the bottom of the finish summary list when it overflows. */
 const SUMMARY_FADE_HEIGHT = 36;
 
-type FinishedSummary = FinishSummary & { muscleIds: MuscleId[] };
+type FinishedSummary = FinishSummary & { muscleIds: MuscleId[]; share: ShareCardModel };
 
 export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
@@ -664,6 +667,7 @@ export default function ActiveWorkoutScreen() {
   const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [finishedSummary, setFinishedSummary] = useState<FinishedSummary | null>(null);
 
   const prevRestSecondsLeftRef = useRef<number | null>(null);
@@ -893,14 +897,16 @@ export default function ActiveWorkoutScreen() {
       });
     }
 
+    const completedAt = new Date().toISOString();
+    const title = templateDisplayName(allTemplates(), savedTemplateId ?? session.templateId);
+    const finished = { ...session, completedAt };
+    // PRs against every earlier session, as the History card will show them.
+    const prior = useSessionsStore.getState().completedSessions();
+    const prIds = buildSessionPRs([finished, ...prior], (id) => getExercise(id)?.id ?? id).get(session.id);
     const summary: FinishedSummary = {
-      ...buildFinishSummary(
-        session,
-        templateDisplayName(allTemplates(), savedTemplateId ?? session.templateId),
-        exerciseName,
-        elapsedMs
-      ),
+      ...buildFinishSummary(session, title, exerciseName, elapsedMs),
       muscleIds: musclesTrainedInSession(session, getExercise),
+      share: shareCardModel(finished, { title, nameOf: exerciseName, unit: weightUnit, prExerciseIds: prIds }),
     };
 
     if (workoutSoundsEnabled) {
@@ -908,7 +914,7 @@ export default function ActiveWorkoutScreen() {
     }
     setFinishedSummary(summary);
     setShowConfetti(true);
-    await finishWorkout(undefined, savedTemplateId);
+    await finishWorkout(completedAt, savedTemplateId);
   }
 
   function leaveFinishedWorkout() {
@@ -1079,15 +1085,30 @@ export default function ActiveWorkoutScreen() {
           </View>
         </ScrollView>
 
-        <ScreenFooter style={[styles.finishedFooter, { borderTopColor: colors.border }]}>
+        <ScreenFooter style={[styles.finishedFooter, styles.finishedFooterRow, { borderTopColor: colors.border }]}>
           <Pressable
-            style={[styles.finishedDoneBtn, { backgroundColor: colors.primary }]}
+            style={[styles.finishedDoneBtn, styles.finishedShareBtn, { borderColor: colors.border }]}
+            onPress={() => setShareOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Share workout"
+            testID="finished-share"
+          >
+            <Ionicons name="share-outline" size={20} color={colors.text} />
+            <Text style={[styles.finishedDoneBtnText, { color: colors.text }]}>Share</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.finishedDoneBtn, styles.finishedDoneBtnMain, { backgroundColor: colors.primary }]}
             onPress={leaveFinishedWorkout}
             testID="finished-done"
           >
             <Text style={[styles.finishedDoneBtnText, { color: colors.primaryOn }]}>Done</Text>
           </Pressable>
         </ScreenFooter>
+        <ShareWorkoutSheet
+          model={shareOpen ? finishedSummary.share : null}
+          muscleIds={finishedSummary.muscleIds}
+          onClose={() => setShareOpen(false)}
+        />
         <WorkoutConfetti visible={showConfetti} />
       </Screen>
     );
@@ -3380,10 +3401,19 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  finishedFooterRow: { flexDirection: 'row', gap: 10 },
   finishedDoneBtn: {
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+  },
+  finishedDoneBtnMain: { flex: 1 },
+  finishedShareBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    borderWidth: 1,
   },
   finishedDoneBtnText: {
     fontSize: 17,

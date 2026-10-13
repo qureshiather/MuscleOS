@@ -22,6 +22,9 @@ import { SessionCard } from '@/components/history/SessionCard';
 import { ProgressStrip } from '@/components/history/ProgressStrip';
 import { buildExercisePRs } from '@/utils/oneRepMax';
 import { progressHighlights } from '@/utils/personalRecords';
+import { shareCardModel } from '@/utils/shareCard';
+import { musclesTrainedInSession } from '@/utils/recovery';
+import { ShareWorkoutSheet } from '@/components/share/ShareWorkoutSheet';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { WorkoutSession } from '@muscleos/types';
 import { syncNow } from '@/sync';
@@ -103,6 +106,15 @@ export default function HistoryScreen() {
   };
 
   const [deleteTarget, setDeleteTarget] = useState<WorkoutSession | null>(null);
+  const [shareTarget, setShareTarget] = useState<WorkoutSession | null>(null);
+  const shareModel = shareTarget
+    ? shareCardModel(shareTarget, {
+        title: templateDisplayName(templates, shareTarget.templateId),
+        nameOf: (id) => getExercise(id)?.name ?? id,
+        unit: weightUnit,
+        prExerciseIds: sessionPRs.get(shareTarget.id),
+      })
+    : null;
 
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
@@ -201,6 +213,7 @@ export default function HistoryScreen() {
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
                     onDelete={() => setDeleteTarget(s)}
+                    onShare={() => setShareTarget(s)}
                     prExerciseIds={sessionPRs.get(s.id)}
                     volumeDelta={volumeDeltas.get(s.id)}
                     getExerciseName={(id) => getExercise(id)?.name ?? id}
@@ -215,6 +228,11 @@ export default function HistoryScreen() {
           </>
         )}
       </ScrollView>
+      <ShareWorkoutSheet
+        model={shareModel}
+        muscleIds={shareTarget ? musclesTrainedInSession(shareTarget, getExercise) : []}
+        onClose={() => setShareTarget(null)}
+      />
       <ConfirmDialog
         visible={deleteTarget != null}
         title="Delete workout"
