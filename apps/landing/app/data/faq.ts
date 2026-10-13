@@ -176,12 +176,12 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     id: 'units',
-    question: 'Can I use pounds?',
+    question: 'Can I use kilograms?',
     paragraphs: [
-      'Yes. Go to Profile → Settings → Units. Exercise weight, body weight, and height each have their own setting, so you can lift in kilograms and weigh yourself in pounds.',
+      'Yes. MuscleOS starts in pounds; switch in Profile → Settings → Units. Exercise weight and body weight each have their own setting, so you can lift in kilograms and weigh yourself in pounds.',
     ],
     answerText:
-      'Yes. Profile → Settings → Units has separate settings for exercise weight, body weight, and height.',
+      'Yes. It starts in pounds; Profile → Settings → Units has separate settings for exercise weight and body weight.',
   },
   {
     id: 'account',

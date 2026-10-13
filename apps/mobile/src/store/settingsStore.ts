@@ -52,8 +52,8 @@ export function persistAndNotify(partial: Partial<SyncedAppSettings>): Promise<v
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  weightUnit: 'kg',
-  bodyWeightUnit: 'kg',
+  weightUnit: 'lb',
+  bodyWeightUnit: 'lb',
   workoutSoundsEnabled: true,
   profile: {},
   isLoading: true,

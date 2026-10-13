@@ -55,8 +55,8 @@ export interface SyncedAppSettings {
 }
 
 const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
-  weightUnit: 'kg',
-  bodyWeightUnit: 'kg',
+  weightUnit: 'lb',
+  bodyWeightUnit: 'lb',
   workoutSoundsEnabled: true,
   themePreference: 'auto',
   profile: {},
@@ -85,12 +85,13 @@ export interface StoredAppSettingsValues {
 
 /**
  * Settings from their stored strings, with the fallbacks for keys never written or holding junk:
- * units default from `unit_system` (imperial → lb, else kg); exercise weight falls back to the
- * legacy single weight unit; body weight follows exercise weight; sounds default on; theme Auto.
+ * units default to **lb** (kg only on an install whose legacy `unit_system` says metric); exercise
+ * weight falls back to the legacy single weight unit; body weight follows exercise weight; sounds default on; theme Auto.
  */
 export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppSettings {
-  const unitSystem = raw.unitSystem === 'imperial' ? 'imperial' : 'metric';
-  const defaultWeight: WeightUnit = unitSystem === 'imperial' ? 'lb' : 'kg';
+  // Pounds unless this install explicitly chose metric: most lifters train in lb, and kg is a
+  // switch away in Settings.
+  const defaultWeight: WeightUnit = raw.unitSystem === 'metric' ? 'kg' : 'lb';
 
   let profile: UserAppProfile = {};
   if (raw.profile) {

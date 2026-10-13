@@ -30,6 +30,7 @@ describe('Biodata', () => {
   });
 
   test('Edit → Save stores valid values in kg and syncs them', async () => {
+    await useSettingsStore.getState().setBodyWeightUnit('kg');
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
     // Each field has a visible label (the read-only row shows the same text), not just a placeholder.
@@ -49,6 +50,7 @@ describe('Biodata', () => {
   });
 
   test('invalid values clear the field; age must be under 150', async () => {
+    await useSettingsStore.getState().setBodyWeightUnit('kg');
     await useSettingsStore.getState().setProfile({ weightKg: 80, age: 30 });
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
@@ -58,8 +60,7 @@ describe('Biodata', () => {
     await waitFor(async () => expect((await getAppSettings()).profile).toEqual({}));
   });
 
-  test('pounds: input and display convert', async () => {
-    await useSettingsStore.getState().setBodyWeightUnit('lb');
+  test('pounds (the default): input and display convert', async () => {
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
     fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '176');

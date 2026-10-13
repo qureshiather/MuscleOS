@@ -237,7 +237,7 @@ describe('Clear all data (D15)', () => {
     expect(useSessionsStore.getState().sessions).toEqual([]);
     expect(useTemplatesStore.getState().userTemplates).toEqual([]);
     expect(useExerciseNotesStore.getState().notes).toEqual({});
-    expect(useSettingsStore.getState().weightUnit).toBe('kg');
+    expect(useSettingsStore.getState().weightUnit).toBe('lb');
     // Device-only: nothing is offered to sync, so the account's cloud settings are untouched (H7).
     expect(sync.notifyAppSettingsSnapshot).not.toHaveBeenCalled();
     expect(sync.schedulePush).not.toHaveBeenCalled();
