@@ -122,6 +122,28 @@ describe('number pad', () => {
     key('0');
     expect(setsOf(0)[0].weightKg).toBe(90);
   });
+
+  test('re-tapping a typed or logged cell replaces its value; the next digit appends', async () => {
+    await startPush(startUrl('ppl-push', ['bench-press']));
+    press('set-weight-0-0');
+    key('1');
+    key('0');
+    key('0');
+    press('keypad-next'); // Next focuses reps fresh too
+    key('8');
+    press('keypad-done');
+    expect(setsOf(0)[0]).toMatchObject({ weightKg: 100, reps: 8, completed: true });
+
+    press('set-weight-0-0');
+    key('9');
+    expect(setsOf(0)[0].weightKg).toBe(9);
+    key('5');
+    expect(setsOf(0)[0].weightKg).toBe(95);
+
+    press('set-reps-0-0');
+    press('keypad-backspace'); // right after focusing, backspace clears
+    expect(setsOf(0)[0].reps).toBeUndefined();
+  });
 });
 
 describe('completing sets and the rest timer', () => {

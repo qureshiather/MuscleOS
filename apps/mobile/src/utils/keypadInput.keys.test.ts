@@ -31,6 +31,30 @@ describe('applyKeypadKey — digits', () => {
     expect(applyKeypadKey(s, 'reps', digit('8'), 'kg').patch).toEqual({ reps: 8, repsPrefilled: false });
   });
 
+  it('right after focusing, the first digit replaces a typed or logged value', () => {
+    const logged = set({ weightKg: 100, reps: 8, completed: true });
+    expect(applyKeypadKey(logged, 'weight', digit('9'), 'kg', true).patch).toEqual({
+      weightKg: 9,
+      weightPrefilled: false,
+    });
+    expect(applyKeypadKey(logged, 'reps', digit('6'), 'kg', true).patch).toEqual({
+      reps: 6,
+      repsPrefilled: false,
+    });
+  });
+
+  it('right after focusing, backspace clears the field; ± still nudges the value', () => {
+    const s = set({ weightKg: 100, reps: 8 });
+    expect(applyKeypadKey(s, 'reps', { kind: 'backspace' }, 'kg', true).patch).toEqual({
+      reps: undefined,
+      repsPrefilled: false,
+    });
+    expect(applyKeypadKey(s, 'reps', { kind: 'adjust', direction: 1 }, 'kg', true).patch?.reps).toBe(9);
+    expect(
+      applyKeypadKey(s, 'weight', { kind: 'adjust', direction: -1 }, 'kg', true).patch?.weightKg
+    ).toBe(99.75);
+  });
+
   it('caps digits at 4 for weight and 3 for reps', () => {
     expect(applyKeypadKey(set({ weightKg: 1000 }), 'weight', digit('5'), 'kg').patch?.weightKg).toBe(1000);
     expect(applyKeypadKey(set({ reps: 100 }), 'reps', digit('5'), 'kg').patch?.reps).toBe(100);
