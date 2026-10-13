@@ -11,7 +11,7 @@ Android needs no device list. iOS does: Apple requires each physical iPhone/iPad
 
 ## Prerequisites
 
-1. Node ≥ 20, pnpm, and repo deps installed (`pnpm install` from root).
+1. Node ≥ 24, pnpm, and repo deps installed (`pnpm install` from root).
 2. Expo account (team login: see [README](../../README.md#expo-login)).
 3. **iOS only:** paid [Apple Developer Program](https://developer.apple.com/programs/) membership ($99/year) and access to the team that owns `com.muscle-os.app`.
 4. EAS CLI (one-time):

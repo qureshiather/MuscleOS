@@ -48,12 +48,13 @@ state.
 ### Jest harness
 
 - `src/test/ui/setup.ts` (`setupFilesAfterEnv`) — global stand-ins for native modules the renderer
-  can't load: AsyncStorage (official mock), Reanimated, gesture handler, safe-area context,
+  can't load: AsyncStorage (official mock), Reanimated and react-native-worklets, gesture handler, safe-area context,
   expo-notifications, expo-audio — and the [console guard](#conventions).
 - `jest.config.js` resolves two packages the way Metro does: `react-native-draggable-flatlist` from
   its TS source (the prebuilt build triggers React's "outdated JSX transform" warning) and
   `punycode` to the npm package expo's URL polyfill depends on (not Node's deprecated core module).
-  `watchman: false` keeps local watchman warnings out of the output.
+  `watchman: false` keeps local watchman warnings out of the output. `transformIgnorePatterns`
+  also lets Babel compile `standard-navigation` (ESM-only, pulled in by expo-router).
 - `src/test/ui/render.tsx`:
   - `renderApp(routes, initialUrl)` mounts real screens from `app/` through expo-router
     (`expo-router/testing-library`) inside the app's providers (safe area + theme), without the root
@@ -98,7 +99,8 @@ restoring state a mounted screen subscribes to. When a test deliberately drives 
 (a failed sync, export, or delete), spy on the console in that test —
 `jest.spyOn(console, 'warn').mockImplementation(() => undefined)` / `vi.spyOn(...)` — assert the
 call, and restore it. Never silence the console globally; the guard's allowlist is only for
-unavoidable third-party lines, each documented where it's added (it is empty today).
+unavoidable third-party lines, each documented where it's added (today: RN 0.86's
+`InteractionManager` deprecation, triggered by react-native-draggable-flatlist).
 
 **Co-locate:** `foo.test.ts` next to `foo.ts`; screen tests under `src/test/ui/<area>/`.
 

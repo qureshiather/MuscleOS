@@ -4,7 +4,7 @@ Strength-training log (Expo React Native) with a Next.js landing site. Monorepo 
 
 ## Prerequisites
 
-- Node.js ≥ 20
+- Node.js ≥ 24 (see `.nvmrc`)
 - pnpm 9.x
 
 ## Quick start

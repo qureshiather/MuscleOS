@@ -9,6 +9,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
 require('react-native-gesture-handler/jestSetup');
 
@@ -47,5 +48,9 @@ jest.mock('expo-audio', () => ({
 }));
 
 // Fail a test on unexpected console.error/warn (act warnings, app logging, deprecations). Tests
-// that deliberately trigger logging spy on the console themselves. No allowlist is needed today.
-installConsoleGuard(afterEach);
+// that deliberately trigger logging spy on the console themselves.
+installConsoleGuard(afterEach, [
+  // react-native-draggable-flatlist 4.0.3 (latest; unreleased since 2025) still calls
+  // InteractionManager, which RN 0.86 deprecates with a warning on first use.
+  /^InteractionManager has been deprecated/,
+]);

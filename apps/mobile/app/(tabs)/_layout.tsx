@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Tabs } from 'expo-router';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
