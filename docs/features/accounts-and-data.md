@@ -41,7 +41,7 @@ Per-screen purposes: [product/overview.md](../product/overview.md#screen-map).
 ### Boot sequence
 
 Fonts (DM Sans, DM Mono) gate the first render behind a spinner; a font load error proceeds anyway.
-The native splash background is `#0a0a0b`.
+The native splash is the white logo mark (`assets/splash-icon.png`, transparent) on `#14161E` — the dark palette background, the same `brandColors.background` the font-loading screen uses, so boot has no colour jump.
 
 Then, in `_layout.tsx`:
 

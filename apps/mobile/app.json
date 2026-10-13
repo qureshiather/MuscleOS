@@ -33,9 +33,9 @@
     "scheme": "muscleos",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0a0a0b"
+      "backgroundColor": "#14161E"
     },
     "plugins": [
       "expo-router",
