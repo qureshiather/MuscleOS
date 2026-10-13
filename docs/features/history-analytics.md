@@ -49,7 +49,7 @@ and the strip shows at most **6**; with no such lift it's hidden.
 |---------|--------|
 | Name | The exercise name (alias-logged sets count toward the catalog exercise) |
 | Best | All-time best estimated 1RM, `formatE1RM()` (`88.7 kg`), captioned *Est. 1RM* |
-| Bars | One per session for the **last 8 sessions**, oldest → newest, each that session's best e1RM as a ratio of the all-time best |
+| Bars | One per session for the **last 8 sessions**, oldest → newest, each that session's best e1RM. Heights are scaled between the lowest and highest of those sessions (lowest at 20%, highest full), so a few kilos of progress is visible; equal sessions are all full |
 | Footer | `+7.5 kg · 30d` (success colour) when the best e1RM rose in the last **30 days** — today's best minus the best from sets before the window (`formatProgressGain`). Otherwise `N sessions`: there was no rise, or every session is inside the window so there's nothing to compare |
 
 Tapping a card opens that lift's [progression chart](#exercise-progression); **See all** opens
@@ -346,7 +346,7 @@ Vitest (`apps/mobile/src/…`):
   none under 14, elite has no next level; `filterPRsByName`;
   `exerciseHasHistory` qualifying sets only, completed sessions only, aliases;
   `progressHighlights` (most sessions → most recent order, 2-session minimum, cap of 6, one
-  spark bar per session over the last 8, 30-day gain / 0 / null) and `formatProgressGain`
+  spark bar per session over the last 8 scaled low → high, 30-day gain / 0 / null) and `formatProgressGain`
 - `utils/calendar.test.ts` — Monday-first headers, leading/trailing blanks, month lengths incl.
   leap February, four-row month, local-midnight day keys, marked days, sessions on a day
 - `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, ignored sets, alias
