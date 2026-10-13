@@ -18,16 +18,16 @@ beforeEach(() => {
 });
 
 describe('settingsStore.load', () => {
-  it('first launch: metric defaults, sounds on, and the defaults are written back', async () => {
+  it('first launch: pounds, sounds on, and the defaults are written back', async () => {
     await useSettingsStore.getState().load();
     expect(useSettingsStore.getState()).toMatchObject({
-      weightUnit: 'kg',
-      bodyWeightUnit: 'kg',
+      weightUnit: 'lb',
+      bodyWeightUnit: 'lb',
       workoutSoundsEnabled: true,
       profile: {},
       isLoading: false,
     });
-    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.exerciseWeightUnit)).toBe('kg');
+    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.exerciseWeightUnit)).toBe('lb');
     expect(notifyAppSettingsSnapshot).not.toHaveBeenCalled();
   });
 

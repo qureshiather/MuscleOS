@@ -38,15 +38,22 @@ const blank: StoredAppSettingsValues = {
 beforeEach(() => __resetAsyncStorage());
 
 describe('settings defaults and fallbacks', () => {
-  it('defaults to kg, kg, sounds on, theme Auto, empty biodata', () => {
+  it('defaults to lb, lb, sounds on, theme Auto, empty biodata', () => {
     expect(parseStoredAppSettings(blank)).toEqual({
-      weightUnit: 'kg',
-      bodyWeightUnit: 'kg',
+      weightUnit: 'lb',
+      bodyWeightUnit: 'lb',
       workoutSoundsEnabled: true,
       themePreference: 'auto',
       profile: {},
     });
     expect(defaultAppSettings()).toEqual(parseStoredAppSettings(blank));
+  });
+
+  it('unset units stay kg only when the legacy unit_system says metric', () => {
+    expect(parseStoredAppSettings({ ...blank, unitSystem: 'metric' })).toMatchObject({
+      weightUnit: 'kg',
+      bodyWeightUnit: 'kg',
+    });
   });
 
   it('unset units default from unit_system: imperial', () => {
@@ -72,7 +79,7 @@ describe('settings defaults and fallbacks', () => {
 
   it('junk values fall back; sounds off only for 0/false', () => {
     const s = parseStoredAppSettings({ ...blank, exerciseWeightUnit: 'stone', theme: 'blue', workoutSounds: 'maybe', profile: '{bad' });
-    expect(s).toMatchObject({ weightUnit: 'kg', themePreference: 'auto', workoutSoundsEnabled: true, profile: {} });
+    expect(s).toMatchObject({ weightUnit: 'lb', themePreference: 'auto', workoutSoundsEnabled: true, profile: {} });
     expect(parseStoredAppSettings({ ...blank, workoutSounds: '0' }).workoutSoundsEnabled).toBe(false);
     expect(parseStoredAppSettings({ ...blank, workoutSounds: 'false' }).workoutSoundsEnabled).toBe(false);
   });
@@ -119,7 +126,7 @@ describe('migrations', () => {
 
   it('remote app_settings missing themePreference (or with junk) normalise to the fallback', () => {
     expect(normalizeAppSettings({ weightUnit: 'lb' } as never).themePreference).toBe('auto');
-    expect(normalizeAppSettings({ weightUnit: 'stone' } as never).weightUnit).toBe('kg');
+    expect(normalizeAppSettings({ weightUnit: 'stone' } as never).weightUnit).toBe('lb');
     expect(normalizeAppSettings(null)).toEqual(defaultAppSettings());
   });
 
