@@ -206,7 +206,7 @@ describe('progressHighlights', () => {
     // Scaled between the window's low and high, so small gains still show.
     const rising = progressHighlights([pr('bench', [point(1, 95), point(10, 97.5), point(40, 100)])], now)[0];
     expect(rising.spark).toHaveLength(3);
-    [0.2, 0.6, 1].forEach((v, i) => expect(rising.spark[i]).toBeCloseTo(v));
+    for (const [i, v] of [0.2, 0.6, 1].entries()) expect(rising.spark[i]).toBeCloseTo(v);
   });
 
   it('gain is the best now minus the best before the last 30 days', () => {
