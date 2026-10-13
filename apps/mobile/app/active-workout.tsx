@@ -588,7 +588,14 @@ export default function ActiveWorkoutScreen() {
   const restSecondsLeft = computeRestSecondsLeft(restEndTime, Date.now());
   const headerRest = headerRestState(restAfter, restSecondsLeft);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [focusedCell, setFocusedCell] = useState<{ exIdx: number; setIdx: number; field: 'kg' | 'reps' } | null>(null);
+  // `replace`: the cell was just focused, so its value is treated as selected — the first digit
+  // replaces it (applyKeypadKey). Cleared by the first edit.
+  const [focusedCell, setFocusedCell] = useState<{
+    exIdx: number;
+    setIdx: number;
+    field: 'kg' | 'reps';
+    replace: boolean;
+  } | null>(null);
   const [keypadHeight, setKeypadHeight] = useState(0);
   const listRef = useRef<GestureFlatList<SessionExercise> | null>(null);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
@@ -1138,13 +1145,18 @@ export default function ActiveWorkoutScreen() {
   function pressKeypadKey(key: KeypadKey) {
     if (!focusedCell || !keypadSet) return;
     const { exIdx, setIdx } = focusedCell;
-    const outcome = applyKeypadKey(keypadSet, keypadField, key, weightUnit);
-    if (outcome.patch) setSetRecord(exIdx, setIdx, outcome.patch);
+    const outcome = applyKeypadKey(keypadSet, keypadField, key, weightUnit, focusedCell.replace);
+    if (outcome.patch) {
+      setSetRecord(exIdx, setIdx, outcome.patch);
+      if (focusedCell.replace) setFocusedCell({ ...focusedCell, replace: false });
+    }
     if (outcome.complete && toggleSetComplete(exIdx, setIdx) === 'completed' && workoutSoundsEnabled) {
       void playWorkoutSound('setComplete');
     }
     if (outcome.focus === null) setFocusedCell(null);
-    else if (outcome.focus) setFocusedCell({ exIdx, setIdx, field: outcome.focus === 'weight' ? 'kg' : 'reps' });
+    else if (outcome.focus) {
+      setFocusedCell({ exIdx, setIdx, field: outcome.focus === 'weight' ? 'kg' : 'reps', replace: true });
+    }
   }
 
   const listBottomPadding = keypadVisible
@@ -1478,6 +1490,12 @@ export default function ActiveWorkoutScreen() {
               {se.sets.map((set, setIdx) => {
                 const isKgFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'kg';
                 const isRepsFocused = focusedCell?.exIdx === exIdx && focusedCell?.setIdx === setIdx && focusedCell?.field === 'reps';
+                // A just-focused typed value shows as selected: the next digit replaces it.
+                const selectionFill = withAlpha(colors.primary, 0.3);
+                const kgSelected =
+                  isKgFocused && focusedCell?.replace === true && set.weightKg != null && set.weightPrefilled !== true;
+                const repsSelected =
+                  isRepsFocused && focusedCell?.replace === true && set.reps != null && set.repsPrefilled !== true;
                 const row = setRowView(session.exercises, exIdx, setIdx, {
                   restAfter,
                   restSecondsLeft,
@@ -1563,7 +1581,7 @@ export default function ActiveWorkoutScreen() {
                         </Text>
                       </View>
                       <Pressable
-                        onPress={() => setFocusedCell({ exIdx, setIdx, field: 'kg' })}
+                        onPress={() => setFocusedCell({ exIdx, setIdx, field: 'kg', replace: true })}
                         testID={`set-weight-${rowName}`}
                         style={({ pressed }) => [
                           setInputWrapStyle,
@@ -1591,6 +1609,7 @@ export default function ActiveWorkoutScreen() {
                                   ? colors.text
                                   : colors.textMuted,
                             },
+                            kgSelected && [styles.setInputSelected, { backgroundColor: selectionFill }],
                           ]}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
                           numberOfLines={1}
@@ -1599,7 +1618,7 @@ export default function ActiveWorkoutScreen() {
                         </Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => setFocusedCell({ exIdx, setIdx, field: 'reps' })}
+                        onPress={() => setFocusedCell({ exIdx, setIdx, field: 'reps', replace: true })}
                         testID={`set-reps-${rowName}`}
                         style={({ pressed }) => [
                           setInputWrapStyle,
@@ -1623,6 +1642,7 @@ export default function ActiveWorkoutScreen() {
                                   ? colors.text
                                   : colors.textMuted,
                             },
+                            repsSelected && [styles.setInputSelected, { backgroundColor: selectionFill }],
                           ]}
                           maxFontSizeMultiplier={fontScaleCap.tabular}
                           numberOfLines={1}
@@ -2794,6 +2814,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     justifyContent: 'center',
+  },
+  setInputSelected: {
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   setInput: {
     paddingHorizontal: 4,

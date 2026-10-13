@@ -183,9 +183,13 @@ function writeField(field: KeypadField, value: number | undefined, unit: WeightU
 /**
  * One key press on the set pad.
  *
- * - **Digit**: appends (whole numbers, capped at 4 weight / 3 reps digits). A prefilled
- *   suggestion is treated as selected — the first digit replaces it.
- * - **Backspace / ±**: edit the value as shown. Any edit clears the field's prefill flag.
+ * `replace` is true from the moment a cell is focused (tapped, or reached with Next) until its
+ * first edit: the value is treated as selected, like tapping into a text field that selects all.
+ *
+ * - **Digit**: appends (whole numbers, capped at 4 weight / 3 reps digits). Right after focusing,
+ *   or on a prefilled suggestion, the first digit replaces the value instead.
+ * - **Backspace**: drops the last digit; right after focusing it clears the field.
+ * - **±**: nudge the value as shown, even right after focusing. Any edit clears the prefill flag.
  * - Weight is converted from the display unit to kg on write.
  * - **Next** (weight only) moves to the same set's reps.
  * - **Done** (reps only) is disabled until reps > 0; it completes an incomplete set (starting its
@@ -195,17 +199,18 @@ export function applyKeypadKey(
   set: SetRecord,
   field: KeypadField,
   key: KeypadKey,
-  unit: WeightUnit
+  unit: WeightUnit,
+  replace = false
 ): KeypadOutcome {
   const current = keypadDisplayValue(set, field, unit);
   switch (key.kind) {
     case 'digit': {
       const maxDigits = field === 'weight' ? WEIGHT_MAX_DIGITS : REPS_MAX_DIGITS;
-      const base = keypadFieldIsPrefill(set, field) ? undefined : current;
+      const base = replace || keypadFieldIsPrefill(set, field) ? undefined : current;
       return { patch: writeField(field, keypadAppendDigit(base, key.digit, maxDigits), unit) };
     }
     case 'backspace':
-      return { patch: writeField(field, keypadBackspace(current), unit) };
+      return { patch: writeField(field, replace ? undefined : keypadBackspace(current), unit) };
     case 'adjust':
       return {
         patch: writeField(field, keypadAdjust(current, key.direction * keypadStep(field, unit)), unit),

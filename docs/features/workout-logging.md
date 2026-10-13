@@ -156,8 +156,7 @@ rows comes from the template.
 (`weightPrefilled` / `repsPrefilled`) and rendered as muted ghost text. On the number pad the
 suggestion behaves as if selected: the **first digit overwrites** it instead of appending, so a
 fresh workout never needs a backspace before typing. Any edit to the field (a digit, backspace, or
-±) or completing the set clears the flag, so re-opening a value you entered or logged edits it
-normally (backspace to change). The flags are transient editing state — they are **stripped when
+±) or completing the set clears the flag. The flags are transient editing state — they are **stripped when
 the session is saved on finish**, so stored and synced sessions never carry them.
 
 ### Entering values
@@ -165,7 +164,14 @@ the session is saved on finish**, so stored and synced sessions never carry them
 Tapping a weight or reps cell opens the **in-app number pad** (`NumericKeypad`), not the OS
 keyboard — so it never covers the sets above it, and a set completes on the **first** tap (the old
 OS keyboard stole that tap, which is why completing used to need a double tap). The focused cell is
-highlighted with an accent ring — there is no text caret, since the pad owns editing. The pad's
+highlighted with an accent ring — there is no text caret, since the pad owns editing.
+
+**Tapping a cell selects its value.** Every time a weight or reps cell is focused — tapped, or
+reached with **Next** — a typed or logged value is shown highlighted as selected, and the **first
+digit replaces it**; later digits append. **Backspace** right after focusing clears the field, and
+**−/+** nudge the value as shown. The first edit drops the selection. So changing 100 to 95 is
+always "tap, 9, 5", with no backspacing. (A prefilled suggestion behaves the same way, shown as
+ghost text instead of highlighted.) The pad's
 context bar names the exercise and field and echoes the running value, and the focused exercise is
 scrolled up so the pad never hides the row being edited.
 
@@ -465,7 +471,8 @@ the real router.
   `addSet`, `removeSet` / `removeExercise` / `replaceExercise` clearing an active rest; duplicate
   add/replace guards
 - `src/utils/keypadInput.test.ts`, `src/utils/keypadInput.keys.test.ts` — entry maths, and
-  `applyKeypadKey` (first digit overwrites a suggestion, any edit clears the flag, digit caps,
+  `applyKeypadKey` (first digit overwrites a suggestion or a just-focused value, backspace right
+  after focusing clears, any edit clears the flag, digit caps,
   lb→kg on write, ± steps, Next → reps, Done disabled until reps > 0 / completes and closes /
   only closes on a completed set) and `applyRestTimeKey` (time mode)
 - `src/utils/workoutSetView.test.ts` — `W1`/`1,2,3` numbering, the single current set,
@@ -486,7 +493,7 @@ the real router.
 **Jest UI (`src/test/ui/workout/`):**
 
 - `logging.test.tsx` — starting a built-in from route params, prefill ghost values
-  and PREVIOUS, W1/1/2/3 numbering, number-pad entry (kg and lb, suggestion overwrite, ±,
+  and PREVIOUS, W1/1/2/3 numbering, number-pad entry (kg and lb, suggestion overwrite, re-tap replaces a logged value, ±,
   Next → reps), Done completing on the first tap from the pad and the row, un-complete, Done
   disabled without reps, current/upcoming/completed labels across exercises and the done card,
   the header rest dialog (±30, Skip, recorded rest), the rest row opening the manual picker, a
