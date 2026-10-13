@@ -13,7 +13,7 @@ account, forever. There are no tiers, no paywall, no trial, no ads, and no in-ap
 
 Everything, for everyone:
 
-- 9 built-in templates (PPL, Upper/Lower, Strong Lifts 5×5), and **custom templates and folders**
+- 13 built-in templates (PPL, Upper/Lower, Strong Lifts 5×5, PHUL), and **custom templates and folders**
   — create, edit, run
 - **Empty / ad-hoc workouts**
 - Full set logging, warm-ups, rest timers, sounds, notifications
