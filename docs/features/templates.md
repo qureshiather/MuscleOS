@@ -416,7 +416,7 @@ Covered:
 - `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2, Recent newest
   first without Suggested picks, customs in Suggested / Recent, Built-in collapsed with every
   subfolder opened on first expand, Custom empty state / ordering / default-closed Archived and
-  Hidden, card Last done and count, custom cards unlocked and opening the preview, no Pro or
+  Hidden, sections keep their rows (and border) across a light → dark switch, card Last done and count, custom cards unlocked and opening the preview, no Pro or
   upgrade copy, built-in → preview params, empty workout → `/active-workout?templateId=_empty`,
   "Workout in progress" Resume / Cancel, every context-menu action (hide/unhide, Unhide folder,
   rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,

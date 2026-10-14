@@ -2,13 +2,14 @@
  * Workouts (home) tab — docs/features/templates.md#home-screen. Real screen, real stores, seeded
  * through AsyncStorage; navigation targets are stubs.
  */
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import HomeScreen from '../../../../app/(tabs)/index';
 import TemplatesRedirect from '../../../../app/templates';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
+import { defaultAppSettings, setAppSettings } from '@/storage/localStorage';
 import { routeStub } from '../render';
 import {
   DAY,
@@ -229,6 +230,31 @@ describe('sections', () => {
     renderHome();
     await ready();
     expect(within(screen.getByTestId('template-card-tpl_new')).queryByText(/Last done/)).toBeNull();
+  });
+});
+
+describe('theme switch', () => {
+  // MUS-144: dropping borderWidth on these clipping sections left Android with a stale clip that
+  // hid every template row after a light → dark switch. The border must stay in both themes.
+  it('keeps the section border and its rows when switching light → dark', async () => {
+    await seed({ templates: [customTemplate({ id: 'c1', name: 'My Split' })] });
+    renderHome();
+    await ready();
+    const borderWidths = () =>
+      ['templates-section-custom', 'templates-section-built-in'].map(
+        (id) => StyleSheet.flatten(screen.getByTestId(id).props.style).borderWidth
+      );
+    expect(borderWidths()).toEqual([1, 1]);
+
+    await act(() => setAppSettings({ ...defaultAppSettings(), themePreference: 'dark' }));
+
+    // Dark hides the border by matching it to the fill rather than removing it.
+    await waitFor(() => {
+      const custom = StyleSheet.flatten(screen.getByTestId('templates-section-custom').props.style);
+      expect(custom.borderColor).toBe(custom.backgroundColor);
+    });
+    expect(borderWidths()).toEqual([1, 1]);
+    expect(screen.getByText('My Split')).toBeTruthy();
   });
 });
 

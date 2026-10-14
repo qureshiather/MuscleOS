@@ -463,12 +463,13 @@ export default function WorkoutsScreen() {
     if (start) navigateToStart(start);
   }
 
+  // These sections clip (overflow: hidden), so the border stays in both themes and only its colour
+  // changes: dropping borderWidth on a clipping view leaves Android with a stale clip that hides
+  // every row until the next relayout (MUS-144).
   const sectionStyle = [
     styles.collapsibleSection,
-    { backgroundColor: colors.surface },
+    { backgroundColor: colors.surface, borderColor: isDark ? colors.surface : colors.border },
     !isDark && {
-      borderWidth: 1,
-      borderColor: colors.border,
       ...Platform.select({
         ios: {
           shadowColor: colors.shadow,
@@ -484,8 +485,10 @@ export default function WorkoutsScreen() {
   const nestedSectionStyle = [
     styles.collapsibleSection,
     styles.nestedSection,
-    { backgroundColor: colors.surfaceElevated },
-    !isDark && { borderWidth: 1, borderColor: colors.border },
+    {
+      backgroundColor: colors.surfaceElevated,
+      borderColor: isDark ? colors.surfaceElevated : colors.border,
+    },
   ];
 
   function closeFolderMenu() {
@@ -849,7 +852,7 @@ export default function WorkoutsScreen() {
           ) : (
             <>
               {/* Custom always shows: empty, it offers Create template. */}
-                <View style={sectionStyle}>
+                <View style={sectionStyle} testID="templates-section-custom">
                   <Pressable
                     accessibilityRole="button"
                     accessibilityState={{ expanded: customExpanded }}
@@ -974,7 +977,7 @@ export default function WorkoutsScreen() {
                   )}
                 </View>
 
-              <View style={sectionStyle}>
+              <View style={sectionStyle} testID="templates-section-built-in">
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ expanded: builtInExpanded }}
@@ -1512,6 +1515,7 @@ const styles = StyleSheet.create({
   homeSection: { marginBottom: spacing.lg },
   collapsibleSection: {
     borderRadius: 14,
+    borderWidth: 1,
     marginBottom: 10,
     overflow: 'hidden',
   },
