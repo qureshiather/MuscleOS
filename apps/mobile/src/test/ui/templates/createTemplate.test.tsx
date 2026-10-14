@@ -105,6 +105,17 @@ describe('create', () => {
     expect(await screen.findByText('Create “Zzqx Lift”')).toBeTruthy();
   });
 
+  it('+ New beside Done opens the custom-exercise builder, prefilled with the search', async () => {
+    await open();
+    await screen.findByText('New template');
+    fireEvent.press(screen.getByText('Add exercises'));
+    expect(screen.getByTestId('picker-done')).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Zercher Squat');
+    fireEvent.press(screen.getByTestId('picker-new-exercise'));
+    expect(await screen.findByText('route:create-exercise')).toBeTruthy();
+    expect(searchParams()).toMatchObject({ name: 'Zercher Squat' });
+  });
+
   it('steppers: sets stop at 1, warm-ups at 0, no maximum', async () => {
     await open();
     await screen.findByText('New template');

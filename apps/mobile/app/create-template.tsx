@@ -25,6 +25,7 @@ import type { MuscleId } from '@muscleos/types';
 import { formatMuscleLabels } from '@muscleos/types';
 import { Ionicons } from '@expo/vector-icons';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -104,6 +105,12 @@ export default function CreateTemplateScreen() {
 
   function updateExercise(id: string, patch: Partial<ResolvedTemplateExercise>) {
     setSelected((prev) => prev.map((ex) => (ex.exerciseId === id ? { ...ex, ...patch } : ex)));
+  }
+
+  /** Picker → New exercise form, prefilled with the search text when there is some. */
+  function createExercise(name: string) {
+    closePicker();
+    router.push({ pathname: '/create-exercise', params: name ? { name } : {} });
   }
 
   function closePicker() {
@@ -435,9 +442,7 @@ export default function CreateTemplateScreen() {
           >
             <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[typography.sectionTitle, { color: colors.text }]}>Add exercise</Text>
-              <Pressable onPress={closePicker} hitSlop={8}>
-                <Text style={[typography.label, { color: colors.primary }]}>Done</Text>
-              </Pressable>
+              <PickerHeaderActions onNew={() => createExercise(pickerSearch.trim())} onDone={closePicker} />
             </View>
             <TextInput
               style={[
@@ -495,13 +500,7 @@ export default function CreateTemplateScreen() {
                 pickerSearch.trim() ? (
                   <Pressable
                     style={[styles.pickerRow, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      closePicker();
-                      router.push({
-                        pathname: '/create-exercise',
-                        params: { name: pickerSearch.trim() },
-                      });
-                    }}
+                    onPress={() => createExercise(pickerSearch.trim())}
                   >
                     <Text style={[typography.bodyMedium, { color: colors.primary }]}>
                       Create “{pickerSearch.trim()}”

@@ -410,7 +410,7 @@ Covered:
   "Workout in progress" Resume / Cancel, every context-menu action (hide/unhide, Unhide folder,
   rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
   `/templates` redirect
-- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, Create
+- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, header + New routing to the exercise builder, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
   folder and plan, edit prefill and save, None clearing the folder, Template not found for unknown
   and built-in ids, double-tap saving once
