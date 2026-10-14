@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Keyboard } from 'react-native';
 import BiodataScreen from '../../../../app/biodata';
 import SettingsScreen from '../../../../app/settings';
 import AcknowledgementsScreen from '../../../../app/acknowledgements';
@@ -76,6 +77,33 @@ describe('Biodata', () => {
     fireEvent.changeText(screen.getByLabelText('Age'), '45');
     fireEvent.press(screen.getByText('Cancel'));
     expect((await getAppSettings()).profile).toEqual({ age: 30 });
+  });
+
+  test('the number keyboards get a Done key on iOS, which has no return key on them', async () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
+    renderApp({ biodata: BiodataScreen }, '/biodata');
+    fireEvent.press(await screen.findByText('Edit'));
+    expect(screen.getByLabelText('Weight (lb)').props.inputAccessoryViewID).toBe('biodata-keyboard-done');
+    expect(screen.getByLabelText('Age').props.inputAccessoryViewID).toBe('biodata-keyboard-done');
+    fireEvent.press(screen.getByText('Done'));
+    expect(dismiss).toHaveBeenCalled();
+  });
+
+  test('a tap outside the editor with the keyboard up lowers it and keeps the edits', async () => {
+    const visible = jest.spyOn(Keyboard, 'isVisible').mockReturnValue(true);
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
+    renderApp({ biodata: BiodataScreen }, '/biodata');
+    fireEvent.press(await screen.findByText('Edit'));
+    fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '190');
+    fireEvent.press(screen.getByTestId('biodata-backdrop'));
+    expect(dismiss).toHaveBeenCalled();
+    expect(screen.getByText('Save')).toBeTruthy();
+    // With the keyboard down, the same tap closes the editor without saving.
+    visible.mockReturnValue(false);
+    fireEvent.press(screen.getByTestId('biodata-backdrop'));
+    await waitFor(() => expect(screen.queryByText('Save')).toBeNull());
+    expect((await getAppSettings()).profile).toEqual({});
+    visible.mockRestore();
   });
 });
 

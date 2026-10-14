@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
@@ -10,7 +21,10 @@ import { kgToDisplay } from '@/utils/weightUnits';
 import { buildProfileFromInputs, formatBodyWeight, formatSex } from '@/utils/biodata';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { KeyboardDoneBar } from '@/components/ui/KeyboardDoneBar';
 import { fontScaleCap } from '@/theme/layout';
+
+const KEYBOARD_DONE_ID = 'biodata-keyboard-done';
 
 export default function BiodataScreen() {
   const { colors } = useTheme();
@@ -96,90 +110,106 @@ export default function BiodataScreen() {
         animationType="fade"
         onRequestClose={() => setEditorVisible(false)}
       >
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setEditorVisible(false)}
+        {/* Lifted by the keyboard so Save stays reachable; iOS number pads have no return key. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoid}
         >
+          {/* With the keyboard up, a tap outside the fields only lowers it: closing would drop the edits. */}
           <Pressable
-            style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={(e) => e.stopPropagation()}
+            testID="biodata-backdrop"
+            style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+            onPress={() => (Keyboard.isVisible() ? Keyboard.dismiss() : setEditorVisible(false))}
           >
-            <Text style={[typography.screenTitle, { fontSize: 22, color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Edit biodata</Text>
-            <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
-              Weight, age & gender
-            </Text>
-            <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.xs }]}>
-              Gender
-            </Text>
-            <View style={[styles.choiceRow, { marginBottom: spacing.md }]}>
-              {(['male', 'female'] as const).map((sex) => {
-                const selected = (sexSelection ?? profile.sex) === sex;
-                return (
-                  <Pressable
-                    key={sex}
-                    style={[
-                      styles.choiceBtn,
-                      selected
-                        ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                        : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
-                    ]}
-                    onPress={() => setSexSelection(sex)}
-                  >
-                    <Text
+            <Pressable
+              style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                Keyboard.dismiss();
+              }}
+            >
+              <Text style={[typography.screenTitle, { fontSize: 22, color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Edit biodata</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginBottom: spacing.md }]}>
+                Weight, age & gender
+              </Text>
+              <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.xs }]}>
+                Gender
+              </Text>
+              <View style={[styles.choiceRow, { marginBottom: spacing.md }]}>
+                {(['male', 'female'] as const).map((sex) => {
+                  const selected = (sexSelection ?? profile.sex) === sex;
+                  return (
+                    <Pressable
+                      key={sex}
                       style={[
-                        typography.label,
-                        { color: selected ? colors.primaryOn : colors.text, textTransform: 'capitalize' },
+                        styles.choiceBtn,
+                        selected
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
                       ]}
+                      onPress={() => setSexSelection(sex)}
                     >
-                      {sex}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            {/* Labels sit above the fields: a placeholder alone disappears once a value is in. */}
-            <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
-              {weightLabel}
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-              ]}
-              accessibilityLabel={weightLabel}
-              value={weightInput}
-              onChangeText={setWeightInput}
-              keyboardType="decimal-pad"
-            />
-            <Text style={[typography.label, styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.textMuted }]}>
-              Age
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-              ]}
-              accessibilityLabel="Age"
-              value={ageInput}
-              onChangeText={setAgeInput}
-              keyboardType="number-pad"
-            />
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.modalBtn, { borderColor: colors.border }]}
-                onPress={() => setEditorVisible(false)}
-              >
-                <Text style={[typography.button, { color: colors.textSecondary }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalBtn, { backgroundColor: colors.primary, borderWidth: 0 }]}
-                onPress={saveBiodata}
-              >
-                <Text style={[typography.button, { color: colors.primaryOn }]}>Save</Text>
-              </Pressable>
-            </View>
+                      <Text
+                        style={[
+                          typography.label,
+                          { color: selected ? colors.primaryOn : colors.text, textTransform: 'capitalize' },
+                        ]}
+                      >
+                        {sex}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {/* Labels sit above the fields: a placeholder alone disappears once a value is in. */}
+              <Text style={[typography.label, styles.fieldLabel, { color: colors.textMuted }]}>
+                {weightLabel}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                ]}
+                accessibilityLabel={weightLabel}
+                value={weightInput}
+                onChangeText={setWeightInput}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
+              />
+              <Text style={[typography.label, styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.textMuted }]}>
+                Age
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                ]}
+                accessibilityLabel="Age"
+                value={ageInput}
+                onChangeText={setAgeInput}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
+              />
+              <View style={styles.modalActions}>
+                <Pressable
+                  style={[styles.modalBtn, { borderColor: colors.border }]}
+                  onPress={() => setEditorVisible(false)}
+                >
+                  <Text style={[typography.button, { color: colors.textSecondary }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalBtn, { backgroundColor: colors.primary, borderWidth: 0 }]}
+                  onPress={saveBiodata}
+                >
+                  <Text style={[typography.button, { color: colors.primaryOn }]}>Save</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
+        <KeyboardDoneBar nativeID={KEYBOARD_DONE_ID} />
       </Modal>
     </Screen>
   );
@@ -208,6 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
   },
+  keyboardAvoid: { flex: 1 },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
