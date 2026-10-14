@@ -162,7 +162,11 @@ distinguished visually:
 | `quadriceps` / `hamstring` / `gluteal` / `calves` | `quads` / `hamstrings` / `glutes` / `calves` |
 | `adductors` | `adductors` |
 
-Front, side, and rear delts always shade together; so do lats and rhomboids. Hip abductors are
+The figure draws `deltoids` on both views, so the delts are split by view
+(`MUSCLE_DIAGRAM_VIEW`): front delts shade only the front figure's deltoids, rear delts only the
+back figure's, and side delts both. Each figure's deltoids take the least-recovered state of the
+heads on that side, so a pull day lights the rear of the shoulders and leaves the front unlit. Lats
+and rhomboids always shade together. Hip abductors are
 glute med/min, so they stay on `glutes` / `gluteal` — the diagram library has no separate
 abductor region. Adductors (inner thigh) are their own region. The per-muscle list on the
 Recovery tab is where shared-region distinction stays visible.
@@ -248,7 +252,7 @@ colour, and the rest of the body in the neutral untrained fill.
 | Fixed 36/48/72-hour buckets | Not personalized, not adaptive |
 | Ignores sleep, nutrition, age, sex, training age | `sex` affects only the diagram figure; `age` only adjusts strength standards |
 | Day-grain readiness copy | Deliberate — see [Readiness copy](#readiness-copy) |
-| Delts and lats/rhomboids collapse on the diagram | A limitation of the diagram library's regions |
+| Lats/rhomboids collapse on the diagram; delts split only by view (side delts show on both) | A limitation of the diagram library's regions |
 
 ## Tests
 
@@ -270,6 +274,7 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 - `sameRecovery()` — equal records in order; added, removed or retrained records differ
 - `recoveryBuckets()` / `recoveryBucketsCopy()` — the 36/48/72 buckets and the exact explainer copy
 - Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate;
+  `musclesOnView()` / `regionStatesByView()` keep front delts to the front figure and rear delts to the back;
   `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral;
   `withNeutralFill()` paints every part but head and hair, covering every muscle region
 - `recoveryStore` — load persists, unchanged reload skips the write, `ensureLoaded()` computes once
@@ -282,7 +287,8 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/test/ui/recovery/recovery.test.tsx`):
 
 - `getRecoveryPalette` mapping and the documented hex values; front + back figures; male/female
-  figure; three-state, two-state, all-clear and session (neutral rest) modes; no "Targeted" label
+  figure; three-state, two-state, all-clear and session (neutral rest) modes; deltoids lit per side
+  (rear delts on the back only); no "Targeted" label
 - Recovery tab: all-clear vs active subtitle, legend, three-state diagram, loading skeleton before
   the first load, In recovery rows in insertion order with day-grain readiness copy, re-focus drops
   expired muscles without a recompute, the explainer opens with the generated copy and closes

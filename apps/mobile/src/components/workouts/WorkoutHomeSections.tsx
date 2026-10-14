@@ -8,11 +8,11 @@ import { radius, spacing } from '@/theme/tokens';
 import { useDeviceMetrics } from '@/theme/layout';
 import type { WorkoutTemplate, WorkoutSession } from '@muscleos/types';
 import type { FigureGender } from '@/utils/bodyCrop';
-import type { RegionState } from '@/utils/muscleDiagramRegions';
+import type { DiagramView, RegionStates } from '@/utils/muscleDiagramRegions';
 import { MuscleZoomArt, ZoomFade } from '@/components/workouts/MuscleZoomArt';
 
 export type TemplateArt = {
-  regions: Partial<Record<Slug, RegionState>>;
+  regions: Record<DiagramView, RegionStates>;
   focus: Slug[];
 };
 export type TemplateRegions = (template: WorkoutTemplate) => TemplateArt;

@@ -77,6 +77,21 @@ describe('MuscleDiagram', () => {
     expect(bodies.map((b) => b.props.side)).toEqual(['front', 'back']);
   });
 
+  it('lights the deltoids only on the side the delt head is on (MUS-140)', () => {
+    const intensities = (bodies: ReturnType<typeof renderDiagram>['bodies']) =>
+      bodies.map((b) =>
+        (b.props.data as { slug: string; intensity?: number }[]).find((d) => d.slug === 'deltoids')?.intensity
+      );
+    // A pull day: rear delts light the back figure's shoulders, not the front's.
+    expect(intensities(renderDiagram({ muscleIds: ['lats', 'rear_delts'] }).bodies)).toEqual([undefined, 1]);
+    expect(intensities(renderDiagram({ muscleIds: ['front_delts'] }).bodies)).toEqual([1, undefined]);
+    expect(intensities(renderDiagram({ muscleIds: ['side_delts'] }).bodies)).toEqual([1, 1]);
+    // Recovery: each figure's deltoids take the state of their own side's heads.
+    expect(
+      intensities(renderDiagram({ recoveringMuscleIds: ['rear_delts'], justTrainedMuscleIds: ['rear_delts'] }).bodies)
+    ).toEqual([3, 1]);
+  });
+
   it('uses the female figure only when the profile says female (or the variant overrides)', () => {
     expect(renderDiagram({ muscleIds: [] }).body.gender).toBe('male');
     act(() => useSettingsStore.setState({ profile: { sex: 'female' } }));

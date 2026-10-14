@@ -41,7 +41,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
 import { pickRecentTemplates } from '@/utils/recentTemplates';
 import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
-import { focusRegions, regionStatesForMuscles } from '@/utils/muscleDiagramRegions';
+import { focusRegions, regionStatesByView } from '@/utils/muscleDiagramRegions';
 import type { TemplateArt } from '@/components/workouts/WorkoutHomeSections';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -206,7 +206,7 @@ export default function WorkoutsScreen() {
       if (!art) {
         const perExercise = template.exerciseIds.map((id) => getExercise(id)?.muscles ?? []);
         art = {
-          regions: regionStatesForMuscles(perExercise.flat(), recovering, justTrained),
+          regions: regionStatesByView(perExercise.flat(), recovering, justTrained),
           focus: focusRegions(perExercise),
         };
         cache.set(template.id, art);

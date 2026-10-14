@@ -137,8 +137,9 @@ the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
 - **Muscles:** every muscle of every exercise in the template, mapped onto the Recovery diagram's
   regions (`MUSCLE_ID_TO_DIAGRAM_REGION`).
 - **Colours:** each region uses the Recovery tab's colours for its current state: ready, recovering,
-  or just trained (`regionStatesForMuscles()`). A region shared by several muscles (delts, upper
-  back) takes the least-recovered state.
+  or just trained (`regionStatesByView()`). A region shared by several muscles (delts, upper
+  back) takes the least-recovered state. Delts are split by view as on the Recovery diagram: the
+  front figure's deltoids are front + side delts, the back figure's are side + rear delts.
 - **Focus:** the crop frames only the regions the template is mostly about: regions trained by
   **two or more** of its exercises (`focusRegions()`). A region only one accessory exercise trains
   stays coloured but out of frame, so Plank on leg day doesn't zoom out to the abs. When no region
@@ -378,7 +379,7 @@ Covered:
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
-  regions; focus regions drop single-exercise regions, keep chest on Push, count shared regions once per
+  regions, delts split by view; focus regions drop single-exercise regions, keep chest on Push, count shared regions once per
   exercise, and fall back to all regions when none repeats
 - `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
 - `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
