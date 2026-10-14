@@ -203,7 +203,7 @@ Rows on the Account screen: Data (`/data`), Link Google (linked accounts without
 
 **Biodata** on this tab is a single row into `/biodata` (“Weight, age, gender”). The hint (`biodataSummary`) is “Used for strength standards” until a value is saved, then a compact summary of the saved fields in display units (“176.4 lb · 30 · Male”).
 
-**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for gender, body weight and age (each field labelled, the weight with its unit, so a filled field still says what it is); Save writes them together (`buildProfileFromInputs`), converting the weight from the display unit to kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
+**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for gender, body weight and age (each field labelled, the weight with its unit, so a filled field still says what it is); The modal rises with the keyboard so Save stays visible, and on iOS — whose number keyboards have no return key — a **Done** bar above the keyboard dismisses it (`KeyboardDoneBar`); Android's number keyboard has its own check key. While the keyboard is up, a tap outside the fields only lowers it; with it down, a tap outside the modal closes it without saving. Save writes them together (`buildProfileFromInputs`), converting the weight from the display unit to kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
@@ -602,7 +602,7 @@ Covered:
   Delete account two confirms and friendly failure), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
-  validation, lb, save; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
+  validation, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:
