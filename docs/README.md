@@ -17,7 +17,7 @@ and the product assumptions baked in.
 
 | Doc | Feature area |
 |-----|--------------|
-| [features/templates.md](features/templates.md) | Workout templates — built-in vs custom, folders, CRUD, suggestions |
+| [features/templates.md](features/templates.md) | Your workouts — programs and your own templates, folders, CRUD, suggestions |
 | [features/workout-logging.md](features/workout-logging.md) | Active workout, set logging, rest timers, notifications, finish flow |
 | [features/recovery.md](features/recovery.md) | Muscle recovery model, timings, body diagram |
 | [features/exercise-library.md](features/exercise-library.md) | Exercise catalog, custom exercises, search, notes |
