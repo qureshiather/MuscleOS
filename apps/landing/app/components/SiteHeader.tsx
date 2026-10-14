@@ -1,5 +1,6 @@
-import Image from 'next/image';
 import Link from 'next/link';
+
+import { BrandMark } from './BrandMark';
 
 import { ThemeToggle } from './ThemeToggle';
 
@@ -19,15 +20,7 @@ export function SiteHeader() {
           href="/"
           className="flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <Image
-            src="/icon.png"
-            alt=""
-            width={36}
-            height={36}
-            className="brand-mark h-9 w-9 rounded-[10px]"
-            priority
-            style={{ viewTransitionName: 'brand-mark' }}
-          />
+          <BrandMark className="h-9 w-9" style={{ viewTransitionName: 'brand-mark' }} />
           <span className="font-display text-lg font-semibold tracking-tight text-ink">
             MuscleOS
           </span>

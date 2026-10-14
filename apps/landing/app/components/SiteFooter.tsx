@@ -1,6 +1,6 @@
-import Image from 'next/image';
 import Link from 'next/link';
 
+import { BrandMark } from './BrandMark';
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
 
 export function SiteFooter() {
@@ -9,7 +9,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-site flex-col gap-8 px-5 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-8">
         <div>
           <div className="flex items-center gap-2.5">
-            <Image src="/icon.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+            <BrandMark className="h-7 w-7" />
             <span className="font-display font-medium text-ink">MuscleOS</span>
           </div>
           <p className="mt-2 max-w-xs text-sm text-ink-secondary">
