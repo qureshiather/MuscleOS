@@ -9,9 +9,12 @@ import { spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
 import {
   MUSCLE_ID_TO_DIAGRAM_REGION,
-  regionStatesForMuscles,
+  musclesOnView,
+  regionStatesByView,
   regionStatesToBodyData,
   withNeutralFill,
+  type BodyDataItem,
+  type DiagramView,
 } from '@/utils/muscleDiagramRegions';
 
 /** Library figure size at `scale={1}`. */
@@ -73,23 +76,26 @@ export function MuscleDiagram({
   const isRecoveryMode = !isSessionMode && recoveringMuscleIds != null;
   const useThreeStates = isSessionMode || (isRecoveryMode && (justTrainedMuscleIds?.length ?? 0) > 0);
 
-  let data: { slug: Slug; intensity: number }[];
-  if (isSessionMode) {
-    const trained = new Set(sessionMuscleIds);
-    data = regionStatesToBodyData(regionStatesForMuscles(sessionMuscleIds, trained, trained), true);
-  } else if (isRecoveryMode) {
-    const states = regionStatesForMuscles(
-      ALL_MUSCLE_IDS,
-      new Set(recoveringMuscleIds),
-      new Set(useThreeStates ? justTrainedMuscleIds : [])
-    );
-    data = regionStatesToBodyData(states, useThreeStates);
-  } else {
-    const slugSet = new Set<Slug>(muscleIds.map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]));
-    data = Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
+  // Per view: the figure draws `deltoids` on both, but front and rear delts belong to one side.
+  function dataFor(view: DiagramView): BodyDataItem[] {
+    if (isSessionMode) {
+      const trained = new Set(sessionMuscleIds);
+      return regionStatesToBodyData(regionStatesByView(sessionMuscleIds, trained, trained)[view], true);
+    }
+    if (isRecoveryMode) {
+      const states = regionStatesByView(
+        ALL_MUSCLE_IDS,
+        new Set(recoveringMuscleIds),
+        new Set(useThreeStates ? justTrainedMuscleIds : [])
+      )[view];
+      return regionStatesToBodyData(states, useThreeStates);
+    }
+    const slugSet = new Set<Slug>(musclesOnView(muscleIds, view).map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]));
+    return Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
   }
 
-  const bodyData = withNeutralFill(data, colors.bodyDiagramFill);
+  const frontData = withNeutralFill(dataFor('front'), colors.bodyDiagramFill);
+  const backData = withNeutralFill(dataFor('back'), colors.bodyDiagramFill);
 
   const useGreen = highlightColor === 'green';
   // Each figure is 200pt wide at scale 1. Size the pair from the real row
@@ -110,7 +116,7 @@ export function MuscleDiagram({
     >
       <View style={styles.row}>
         <Body
-          data={bodyData}
+          data={frontData}
           gender={gender}
           side="front"
           scale={resolvedScale}
@@ -119,7 +125,7 @@ export function MuscleDiagram({
           defaultFill={colors.bodyDiagramFill}
         />
         <Body
-          data={bodyData}
+          data={backData}
           gender={gender}
           side="back"
           scale={resolvedScale}

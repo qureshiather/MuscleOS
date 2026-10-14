@@ -3,7 +3,8 @@ import type { Slug } from 'react-native-body-highlighter';
 
 /**
  * 18 muscle ids onto 15 diagram regions. Shared regions can't be told apart on the figure:
- * all three delts shade `deltoids`, and lats + rhomboids shade `upper-back`.
+ * lats + rhomboids shade `upper-back`. All three delts map to `deltoids`, but the figure draws
+ * that region on both views, so `MUSCLE_DIAGRAM_VIEW` keeps front and rear delts to their own side.
  */
 export const MUSCLE_ID_TO_DIAGRAM_REGION: Record<MuscleId, Slug> = {
   chest: 'chest',
@@ -26,8 +27,28 @@ export const MUSCLE_ID_TO_DIAGRAM_REGION: Record<MuscleId, Slug> = {
   calves: 'calves',
 };
 
+/** One of the two body figures. */
+export type DiagramView = 'front' | 'back';
+
+/**
+ * Muscles drawn on one view only. The library's `deltoids` region is the front of the shoulder on
+ * the front figure and the back of it on the back figure, so front delts shading it on the back
+ * view (or rear delts on the front) would light the wrong head. Side delts show on both.
+ */
+export const MUSCLE_DIAGRAM_VIEW: Partial<Record<MuscleId, DiagramView>> = {
+  front_delts: 'front',
+  rear_delts: 'back',
+};
+
+/** The muscles that shade a region on `view`: everything except muscles pinned to the other view. */
+export function musclesOnView(muscleIds: readonly MuscleId[], view: DiagramView): MuscleId[] {
+  return muscleIds.filter((id) => (MUSCLE_DIAGRAM_VIEW[id] ?? view) === view);
+}
+
 /** Recovery state of one diagram region, matching the Recovery tab's three colours. */
 export type RegionState = 'ready' | 'recovering' | 'justTrained';
+
+export type RegionStates = Partial<Record<Slug, RegionState>>;
 
 const STATE_RANK: Record<RegionState, number> = { ready: 0, recovering: 1, justTrained: 2 };
 
@@ -39,8 +60,8 @@ export function regionStatesForMuscles(
   muscleIds: readonly MuscleId[],
   recovering: ReadonlySet<MuscleId>,
   justTrained: ReadonlySet<MuscleId>
-): Partial<Record<Slug, RegionState>> {
-  const states: Partial<Record<Slug, RegionState>> = {};
+): RegionStates {
+  const states: RegionStates = {};
   for (const id of muscleIds) {
     const slug = MUSCLE_ID_TO_DIAGRAM_REGION[id];
     const state: RegionState = justTrained.has(id) ? 'justTrained' : recovering.has(id) ? 'recovering' : 'ready';
@@ -48,6 +69,18 @@ export function regionStatesForMuscles(
     if (!prev || STATE_RANK[state] > STATE_RANK[prev]) states[slug] = state;
   }
   return states;
+}
+
+/** `regionStatesForMuscles` for each view, so a region drawn on both is coloured per side. */
+export function regionStatesByView(
+  muscleIds: readonly MuscleId[],
+  recovering: ReadonlySet<MuscleId>,
+  justTrained: ReadonlySet<MuscleId>
+): Record<DiagramView, RegionStates> {
+  return {
+    front: regionStatesForMuscles(musclesOnView(muscleIds, 'front'), recovering, justTrained),
+    back: regionStatesForMuscles(musclesOnView(muscleIds, 'back'), recovering, justTrained),
+  };
 }
 
 /** Body-highlighter data: one entry per region, `intensity` indexing the colour palette (1-based). */
@@ -60,7 +93,7 @@ export type BodyDataItem = { slug: Slug; intensity: number };
  * they keep the diagram's neutral untrained fill.
  */
 export function regionStatesToBodyData(
-  states: Partial<Record<Slug, RegionState>>,
+  states: RegionStates,
   threeStates: boolean
 ): BodyDataItem[] {
   const intensity: Record<RegionState, number> = threeStates

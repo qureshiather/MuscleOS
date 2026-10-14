@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   focusRegions,
   MUSCLE_ID_TO_DIAGRAM_REGION,
+  musclesOnView,
+  regionStatesByView,
   regionStatesForMuscles,
   regionStatesToBodyData,
   NEUTRAL_FILL_SLUGS,
@@ -43,6 +45,27 @@ describe('regionStatesForMuscles', () => {
       deltoids: 'recovering',
     });
     expect(regionStatesForMuscles(['lats', 'rhomboids'], new Set(), new Set())).toEqual({ 'upper-back': 'ready' });
+  });
+});
+
+describe('musclesOnView', () => {
+  it('keeps front delts to the front figure and rear delts to the back; side delts show on both', () => {
+    const delts = ['front_delts', 'side_delts', 'rear_delts'] as const;
+    expect(musclesOnView(delts, 'front')).toEqual(['front_delts', 'side_delts']);
+    expect(musclesOnView(delts, 'back')).toEqual(['side_delts', 'rear_delts']);
+    expect(musclesOnView(['chest', 'lats'], 'front')).toEqual(['chest', 'lats']);
+  });
+});
+
+describe('regionStatesByView', () => {
+  it('colours each view\'s deltoids from its own delt heads', () => {
+    const states = regionStatesByView(['front_delts', 'rear_delts', 'lats'], new Set(['rear_delts']), new Set());
+    expect(states.front).toEqual({ deltoids: 'ready', 'upper-back': 'ready' });
+    expect(states.back).toEqual({ deltoids: 'recovering', 'upper-back': 'ready' });
+  });
+
+  it('leaves deltoids unlit on the front for a rear-delt-only workout', () => {
+    expect(regionStatesByView(['rear_delts'], new Set(), new Set()).front).toEqual({});
   });
 });
 

@@ -8,7 +8,7 @@ import { bodyFemaleBack } from 'react-native-body-highlighter/dist/assets/bodyFe
 import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
 import { cropToRegions, type FigureGender, type FigureSide } from '@/utils/bodyCrop';
-import type { RegionState } from '@/utils/muscleDiagramRegions';
+import type { DiagramView, RegionState, RegionStates } from '@/utils/muscleDiagramRegions';
 
 const FIGURES: Record<FigureGender, Record<FigureSide, BodyPart[]>> = {
   male: { front: bodyFront, back: bodyBack },
@@ -24,7 +24,8 @@ function pathsOf(part: BodyPart): string[] {
 }
 
 type MuscleZoomArtProps = {
-  regions: Partial<Record<Slug, RegionState>>;
+  /** Lit regions per view: `deltoids` is the front delt on the front figure, the rear delt on the back. */
+  regions: Record<DiagramView, RegionStates>;
   /** Regions to frame; the rest stay coloured but may fall outside the crop. Empty → all lit. */
   focus: readonly Slug[];
   gender: FigureGender;
@@ -39,7 +40,11 @@ type MuscleZoomArtProps = {
 export const MuscleZoomArt = memo(function MuscleZoomArt({ regions, focus, gender, width, height }: MuscleZoomArtProps) {
   const { colors, isDark } = useTheme();
   const { side, viewBox } = useMemo(
-    () => cropToRegions(focus.length > 0 ? focus : (Object.keys(regions) as Slug[]), gender, width / height),
+    () => cropToRegions(
+        focus.length > 0 ? focus : ([...new Set([...Object.keys(regions.front), ...Object.keys(regions.back)])] as Slug[]),
+        gender,
+        width / height
+      ),
     [regions, focus, gender, width, height]
   );
 
@@ -62,7 +67,7 @@ export const MuscleZoomArt = memo(function MuscleZoomArt({ regions, focus, gende
       </Defs>
       {FIGURES[gender][side].map((part) => {
         if (!part.slug || SKIPPED.has(part.slug)) return null;
-        const state = regions[part.slug];
+        const state = regions[side][part.slug];
         const fill = state ? `url(#zoom-${state})` : unlit;
         return pathsOf(part).map((d, i) => <Path key={`${part.slug}-${i}`} d={d} fill={fill} />);
       })}
