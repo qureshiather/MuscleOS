@@ -103,18 +103,32 @@ describe('Personal records', () => {
 });
 
 describe('Exercise progression', () => {
-  test('one bar per qualifying set oldest→newest; sets listed newest first with ~e1RM', async () => {
+  test('a line of each workout\'s best e1RM oldest→newest, with a y-axis and legend; sets listed newest first', async () => {
     await seedSessions(SESSIONS);
     renderAt(NOW, routes, '/exercise-progression?exerciseId=squat');
     expect(await screen.findByText('Progression & 1RM history')).toBeTruthy();
     expect(screen.getAllByText('116.7 kg').length).toBeGreaterThan(0);
     expect(screen.getByText('Best set: 100 kg × 5')).toBeTruthy();
 
-    const bars = screen.getAllByTestId('progression-bar');
-    expect(bars).toHaveLength(4); // two sets on Sep 10 → two adjacent bars
-    const barLabels = bars.map((b) => b.props.accessibilityLabel);
-    expect(barLabels).toEqual(['Sep 3, 93.3 kg', 'Sep 10, 105 kg', 'Sep 10, 110.8 kg', 'Sep 15, 116.7 kg']);
-    // One date axis for the range rather than a clipped date under every bar.
+    fireEvent(screen.getByTestId('progression-plot'), 'layout', { nativeEvent: { layout: { width: 300 } } });
+    const points = screen.getAllByTestId('progression-point');
+    // Sep 10 had two sets (105 and 110.8): one point, its best.
+    expect(points.map((p) => p.props.accessibilityLabel)).toEqual([
+      'Sep 3, 93.3 kg',
+      'Sep 10, 110.8 kg',
+      'Sep 15, 116.7 kg',
+    ]);
+    // Later is further right; heavier is higher.
+    const xs = points.map((p) => p.props.cx);
+    const ys = points.map((p) => p.props.cy);
+    expect(xs).toEqual([...xs].sort((a, b) => a - b));
+    expect(ys).toEqual([...ys].sort((a, b) => b - a));
+    // A labelled value axis in the user's unit that hugs the data, and a legend saying what's plotted.
+    const ticks = screen.getAllByTestId('progression-y-tick').map((t) => Number(t.props.children));
+    expect(ticks[0]).toBeGreaterThan(0);
+    expect(ticks[0]).toBeLessThanOrEqual(93.3);
+    expect(ticks.at(-1)).toBeGreaterThanOrEqual(116.7);
+    expect(screen.getByText('Best est. 1RM per workout (kg)')).toBeTruthy();
     expect(screen.getByTestId('progression-axis-start').props.children).toBe('Sep 3');
     expect(screen.getByTestId('progression-axis-end').props.children).toBe('Sep 15');
 

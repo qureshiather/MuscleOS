@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
@@ -11,65 +12,129 @@ import { Card } from '@/components/ui/Card';
 import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { formatWeight } from '@/utils/weightUnits';
-import { buildExercisePRs, formatE1RM } from '@/utils/oneRepMax';
+import { formatWeight, kgToDisplay } from '@/utils/weightUnits';
+import { buildExercisePRs, formatE1RM, type SetWithDate } from '@/utils/oneRepMax';
+import { formatTick, valueAxis } from '@/utils/chartAxis';
 import {
-  type ProgressPoint,
-  progressionPoints,
+  sessionBestPoints,
   type StrengthSummary,
   strengthAgeNote,
   strengthSummary,
 } from '@/utils/personalRecords';
 
 const CHART_HEIGHT = 180;
+/** Room for a y-axis label like `117.5`. */
+const Y_GUTTER = 40;
+/** Keeps the end dots and the top/bottom of the line inside the plot. */
+const PLOT_INSET = 6;
+const DOT_RADIUS = 4;
 
 function formatChartDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Line chart of each workout's best est. 1RM, oldest → newest, spaced by date. The y-axis is in
+ * the user's unit and hugs the data (`valueAxis`), so progress reads as a slope.
+ */
 function ProgressionChart({
   points,
   colors,
   weightUnit,
 }: {
-  points: ProgressPoint[];
+  points: SetWithDate[];
   colors: Record<string, string>;
   weightUnit: 'kg' | 'lb';
 }) {
   const chartHeight = useTextScaledSize(CHART_HEIGHT);
+  const gutter = useTextScaledSize(Y_GUTTER);
+  const [plotWidth, setPlotWidth] = useState(0);
   if (points.length === 0) return null;
+
+  const values = points.map((p) => kgToDisplay(p.estimated1RM, weightUnit));
+  const axis = valueAxis(values);
+  const times = points.map((p) => new Date(p.completedAt).getTime());
+  const t0 = times[0];
+  const span = times[times.length - 1] - t0;
+  const innerW = Math.max(0, plotWidth - PLOT_INSET * 2);
+  const innerH = chartHeight - PLOT_INSET * 2;
+  const xOf = (t: number) => PLOT_INSET + (span > 0 ? ((t - t0) / span) * innerW : innerW / 2);
+  const yOf = (v: number) => PLOT_INSET + (1 - (v - axis.min) / (axis.max - axis.min)) * innerH;
+  const coords = points.map((_, i) => ({ x: xOf(times[i]), y: yOf(values[i]) }));
+
   const firstDate = formatChartDate(points[0].completedAt);
   const lastDate = formatChartDate(points[points.length - 1].completedAt);
+  const legend = `Best est. 1RM per workout (${weightUnit})`;
 
   return (
     <View style={[styles.chartContainer, { backgroundColor: colors.surfaceElevated }]}>
-      <View style={[styles.chart, { height: chartHeight }]}>
-        {points.map((p, i) => {
-          const barH = Math.max(4, p.ratio * (chartHeight - 24));
-          return (
-            <View
-              key={`${p.completedAt}-${i}`}
-              testID="progression-bar"
-              accessibilityLabel={`${formatChartDate(p.completedAt)}, ${formatE1RM(p.estimated1RM, weightUnit)}`}
-              style={styles.barColumn}
+      <View
+        style={[styles.chartRow, { height: chartHeight }]}
+        accessible
+        accessibilityLabel={`${legend}: ${formatE1RM(points[0].estimated1RM, weightUnit)} on ${firstDate}, ${formatE1RM(points[points.length - 1].estimated1RM, weightUnit)} on ${lastDate}`}
+      >
+        <View style={{ width: gutter }}>
+          {axis.ticks.map((tick) => (
+            <Text
+              key={tick}
+              testID="progression-y-tick"
+              style={[styles.yTick, { top: yOf(tick) - 7, color: colors.textMuted }]}
             >
-              <View
-                style={[
-                  styles.bar,
-                  {
-                    height: barH,
-                    backgroundColor: colors.primary,
-                    alignSelf: 'flex-end',
-                  },
-                ]}
-              />
-            </View>
-          );
-        })}
+              {formatTick(tick)}
+            </Text>
+          ))}
+        </View>
+        <View
+          style={styles.plot}
+          testID="progression-plot"
+          onLayout={(e) => {
+            const next = Math.round(e.nativeEvent.layout.width);
+            setPlotWidth((prev) => (prev === next ? prev : next));
+          }}
+        >
+          {plotWidth > 0 && (
+            <Svg width={plotWidth} height={chartHeight}>
+              {axis.ticks.map((tick) => (
+                <Line
+                  key={tick}
+                  x1={0}
+                  x2={plotWidth}
+                  y1={yOf(tick)}
+                  y2={yOf(tick)}
+                  stroke={colors.border}
+                  strokeWidth={StyleSheet.hairlineWidth}
+                />
+              ))}
+              {coords.length > 1 && (
+                <Polyline
+                  points={coords.map((c) => `${c.x},${c.y}`).join(' ')}
+                  fill="none"
+                  stroke={colors.primary}
+                  strokeWidth={2.5}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {coords.map((c, i) => (
+                <Circle
+                  key={points[i].completedAt}
+                  testID="progression-point"
+                  accessibilityLabel={`${formatChartDate(points[i].completedAt)}, ${formatE1RM(points[i].estimated1RM, weightUnit)}`}
+                  cx={c.x}
+                  cy={c.y}
+                  r={DOT_RADIUS}
+                  fill={colors.primary}
+                  stroke={colors.surfaceElevated}
+                  strokeWidth={1.5}
+                />
+              ))}
+            </Svg>
+          )}
+        </View>
       </View>
-      {/* One axis for the whole range: a date under every bar can't fit once there are more than a few. */}
-      <View style={styles.chartAxis}>
+      {/* One axis for the whole range: a date under every point can't fit once there are more than a few. */}
+      <View style={[styles.chartAxis, { marginLeft: gutter }]}>
         <Text style={[styles.axisLabel, { color: colors.textMuted }]} testID="progression-axis-start">
           {firstDate}
         </Text>
@@ -80,9 +145,8 @@ function ProgressionChart({
         ) : null}
       </View>
       <View style={styles.chartLegend}>
-        <Text style={[styles.legendText, { color: colors.textMuted }]}>
-          Est. 1RM over time
-        </Text>
+        <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+        <Text style={[styles.legendText, { color: colors.textMuted }]}>{legend}</Text>
       </View>
     </View>
   );
@@ -186,7 +250,7 @@ export default function ExerciseProgressionScreen() {
               Est. 1RM over time
             </Text>
             <ProgressionChart
-              points={progressionPoints(pr.history, pr.bestEstimated1RM)}
+              points={sessionBestPoints(pr.history)}
               colors={colors}
               weightUnit={weightUnit}
             />
@@ -247,21 +311,19 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
-  // No fixed gap: each bar takes an equal share and its width leaves the space, so a long
-  // history narrows the bars instead of overflowing the chart.
-  chart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  barColumn: { flex: 1, alignItems: 'center', minWidth: 0 },
-  bar: {
-    width: '70%',
-    borderRadius: 4,
-    minHeight: 4,
+  chartRow: { flexDirection: 'row' },
+  plot: { flex: 1, minWidth: 0 },
+  yTick: {
+    position: 'absolute',
+    right: spacing.xs,
+    fontSize: 11,
+    lineHeight: 14,
+    fontFamily: typography.caption.fontFamily,
   },
   chartAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   axisLabel: { fontSize: 11, fontFamily: typography.caption.fontFamily },
-  chartLegend: { marginTop: spacing.sm },
+  chartLegend: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, marginTop: spacing.sm },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: 11, fontFamily: typography.caption.fontFamily },
   historySection: { marginTop: spacing.sm },
   historyRow: {
