@@ -10,6 +10,7 @@ import {
   prCardModel,
   progressionPoints,
   progressHighlights,
+  sessionBestPoints,
   PROGRESS_SPARK_SESSIONS,
   strengthAgeNote,
   strengthSummary,
@@ -49,6 +50,21 @@ describe('progressionPoints', () => {
   it('caps ratios at 1 and uses 0 when there is no best', () => {
     expect(progressionPoints([point(1, 120)], 100)[0].ratio).toBe(1);
     expect(progressionPoints([point(1, 50)], 0)[0].ratio).toBe(0);
+  });
+});
+
+describe('sessionBestPoints', () => {
+  it('keeps each workout\'s best set, oldest to newest', () => {
+    const points = sessionBestPoints([point(3, 90), point(1, 50), point(3, 100), point(1, 60), point(2, 80)]);
+    expect(points.map((p) => [p.completedAt, p.estimated1RM])).toEqual([
+      [day(1), 60],
+      [day(2), 80],
+      [day(3), 100],
+    ]);
+  });
+
+  it('is empty with no history', () => {
+    expect(sessionBestPoints([])).toEqual([]);
   });
 });
 

@@ -270,15 +270,22 @@ card's chip just uses the adjusted level and target.
 Opened from a [Progress strip](#progress-strip) card, an exercise row in an expanded
 [session card](#session-cards), a lift on the post-workout **Good work** summary
 ([workout-logging](workout-logging.md#finishing)), a Personal Records card, or **View history** in
-the [exercise detail sheet](exercise-library.md) (shown only when the exercise has history). Plots **estimated 1RM per qualifying set** over time, oldest to
-newest, as custom `View` bars (no chart library). Bar height is the ratio to the best e1RM.
+the [exercise detail sheet](exercise-library.md) (shown only when the exercise has history). Plots
+**each workout's best estimated 1RM** over time as a line chart (`react-native-svg`, no chart
+library), oldest to newest.
 
-**One bar per qualifying set, not per session** — several sets on one day give several adjacent
-bars, and days without qualifying sets simply have no bar rather than a zero or a gap. There is
-**no time-range selector**; the full history is always shown. Bars share the width equally, so a
-long history narrows them rather than overflowing. A single date axis under the chart shows the
-first and last dates (one date when they're the same day); each bar's accessibility label carries
-its date and e1RM.
+**One point per session, not per set** (`sessionBestPoints()`): several sets in one workout give
+one point, that workout's highest e1RM. Points are spaced by date, so a long gap between workouts
+shows as a longer segment; one session draws a single centred dot with no line. There is **no
+time-range selector**; the full history is always shown.
+
+The **y-axis** is labelled in the user's weight unit and hugs the data rather than starting at zero
+(`valueAxis()` in `src/utils/chartAxis.ts`): round ticks on a 1 / 2 / 2.5 / 5 × 10ⁿ step, about four
+of them, each with a faint gridline, so a 107 → 117 lb climb reads as a slope. A flat series gets a
+small band (±5%, at least 1) so its line sits mid-chart. A single date axis under the chart shows
+the first and last dates (one date when they're the same day). A legend under it says what's
+plotted: **Best est. 1RM per workout (lb)**. Each point's accessibility label carries its date and
+e1RM.
 
 Above the chart, a card shows the best e1RM (one decimal) and best set, and — with bodyweight and
 sex on the profile, for an exercise with standards — a strength card: **Strength level: Novice**
@@ -340,7 +347,10 @@ Vitest (`apps/mobile/src/…`):
 - `utils/oneRepMax.test.ts` — Epley at 1 and 5 reps, zero/negative cases, no high-rep ceiling, no
   rounding; `formatE1RM` one decimal in kg and lb; `buildExercisePRs` qualifying sets, best set
   (85×5 over 90×1), descending order, tie → newest, alias merge, history newest first
+- `utils/chartAxis.test.ts` — `valueAxis` hugs the data on round steps (the 107.7–117.2 lb case →
+  105–120), flat-series band, empty fallback; `formatTick` drops float noise
 - `utils/personalRecords.test.ts` — `progressionPoints` oldest-first with capped ratios;
+  `sessionBestPoints` one best set per session, oldest first;
   `prCardModel` last-10 bars oldest→newest, no bars under 2 sets, strength chip gated on
   bodyweight + sex and standards (none for pull-up), age-adjusted level and `strengthAgeNote`,
   none under 14, elite has no next level; `filterPRsByName`;
@@ -382,5 +392,6 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the
   2-set condition, search and no-match copy, Biodata hint, strength chips (none for pull-up), card
-  → progression; progression per-set bars oldest→newest, sets list, strength card (and its
+  → progression; progression line one point per workout (its best) oldest→newest by date, y-axis
+  ticks hugging the data, unit legend, sets list, strength card (and its
   age-adjusted level, target and note), alias id, unknown id

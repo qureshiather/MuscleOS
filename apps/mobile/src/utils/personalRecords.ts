@@ -29,6 +29,19 @@ export function progressionPoints(history: readonly SetWithDate[], best1RM: numb
     .map((p) => ({ ...p, ratio: best1RM > 0 ? Math.min(1, p.estimated1RM / best1RM) : 0 }));
 }
 
+/**
+ * The progression line: each workout's best set, **oldest to newest**. Sets from one session share
+ * its `completedAt`, so that's the grouping key; an e1RM tie keeps the first set seen.
+ */
+export function sessionBestPoints(history: readonly SetWithDate[]): SetWithDate[] {
+  const best = new Map<string, SetWithDate>();
+  for (const p of history) {
+    const current = best.get(p.completedAt);
+    if (!current || p.estimated1RM > current.estimated1RM) best.set(p.completedAt, p);
+  }
+  return [...best.values()].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
+}
+
 export type StrengthSummary = {
   level: StrengthLevel;
   label: string;
