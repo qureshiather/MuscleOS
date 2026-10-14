@@ -158,12 +158,60 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
 
 export const BUILT_IN_TEMPLATE_MAP = new Map(BUILT_IN_TEMPLATES.map((t) => [t.id, t]));
 
-/** Soft-hide: the template itself, or its whole built-in folder. */
-export function isBuiltInHidden(
-  template: Pick<WorkoutTemplate, 'id' | 'folderId'>,
-  hiddenTemplateIds: readonly string[],
-  hiddenFolderIds: readonly string[]
-): boolean {
-  if (hiddenTemplateIds.includes(template.id)) return true;
-  return Boolean(template.folderId && hiddenFolderIds.includes(template.folderId));
+/**
+ * A built-in program: one shipped folder of templates plus the facts the Programs screen shows.
+ * At most one program is in Your workouts at a time (`activeProgramId` in app settings).
+ */
+export interface BuiltInProgram {
+  /** The built-in folder id (`builtin_ppl`). */
+  id: string;
+  name: string;
+  summary: string;
+  daysPerWeek: string;
+  level: 'Beginner' | 'Intermediate';
+}
+
+/** Programs in the order the Programs screen lists them. */
+export const BUILT_IN_PROGRAMS: BuiltInProgram[] = [
+  {
+    id: 'builtin_sl',
+    name: 'Strong Lifts 5x5',
+    summary: 'Three big lifts, five sets of five. Alternate Workout A and B.',
+    daysPerWeek: '3',
+    level: 'Beginner',
+  },
+  {
+    id: 'builtin_ppl',
+    name: 'Push Pull Legs',
+    summary: 'Split by movement. Run it once or twice a week.',
+    daysPerWeek: '3–6',
+    level: 'Beginner',
+  },
+  {
+    id: 'builtin_ul',
+    name: 'Upper Lower Splits',
+    summary: 'Two upper and two lower days, each pair with a different focus.',
+    daysPerWeek: '4',
+    level: 'Intermediate',
+  },
+  {
+    id: 'builtin_phul',
+    name: 'PHUL',
+    summary: 'Power Hypertrophy Upper Lower: heavy power days, then lighter volume days.',
+    daysPerWeek: '4',
+    level: 'Intermediate',
+  },
+];
+
+export function isBuiltInProgramId(id: string): boolean {
+  return BUILT_IN_PROGRAMS.some((p) => p.id === id);
+}
+
+export function builtInProgram(id: string | null | undefined): BuiltInProgram | undefined {
+  return id == null ? undefined : BUILT_IN_PROGRAMS.find((p) => p.id === id);
+}
+
+/** A program's templates, in their shipped order. */
+export function programTemplates(programId: string): WorkoutTemplate[] {
+  return BUILT_IN_TEMPLATES.filter((t) => t.folderId === programId);
 }

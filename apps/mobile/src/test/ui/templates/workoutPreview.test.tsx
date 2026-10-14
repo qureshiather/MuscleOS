@@ -31,6 +31,7 @@ const routes = {
   'workout-preview': WorkoutPreviewScreen,
   'active-workout': routeStub('active-workout'),
   'create-template': CreateTemplateScreen,
+  program: routeStub('program'),
 };
 
 const SL_A = '/workout-preview?templateId=sl-a&exerciseIds=squat,bench-press,barbell-row&sets=5,5,5';
@@ -138,6 +139,21 @@ it('the header Start button does the same', async () => {
     templateId: 'tpl_x',
     exerciseIds: 'squat,bench-press',
     warmUpSets: '1,0',
+  });
+});
+
+describe('program link', () => {
+  it('a program template links to its program', async () => {
+    renderAtNow(routes, SL_A);
+    fireEvent.press(await screen.findByTestId('preview-program-link'));
+    expect(await screen.findByText('route:program')).toBeTruthy();
+    expect(searchParams()).toEqual({ id: 'builtin_sl' });
+  });
+
+  it('a custom template or unknown id has no program link', async () => {
+    renderAtNow(routes, '/workout-preview?templateId=tpl_x&exerciseIds=squat');
+    await screen.findByText('Workout');
+    expect(screen.queryByTestId('preview-program-link')).toBeNull();
   });
 });
 

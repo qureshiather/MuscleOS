@@ -45,8 +45,6 @@ beforeEach(async () => {
   useTemplatesStore.setState({
     userTemplates: [],
     folders: [],
-    hiddenBuiltInIds: [],
-    hiddenBuiltInFolderIds: [],
     isLoading: false,
   });
   // A guest: no account, nothing bought.

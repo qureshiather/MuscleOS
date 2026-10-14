@@ -76,6 +76,17 @@ describe('map merges', () => {
     expect(merged.profile).toEqual({ weightKg: 80, sex: 'female' });
   });
 
+  it('keeps a pending local program choice, including "no program", over the remote one', () => {
+    const remote = { ...defaultAppSettings(), activeProgramId: 'builtin_ppl' };
+    expect(
+      mergeAppSettingsPreferLocal({ ...defaultAppSettings(), activeProgramId: null }, remote).activeProgramId
+    ).toBeNull();
+    expect(
+      mergeAppSettingsPreferLocal({ ...defaultAppSettings(), activeProgramId: 'builtin_sl' }, remote)
+        .activeProgramId
+    ).toBe('builtin_sl');
+  });
+
   it('treats null, blank strings, empty arrays and objects as empty', () => {
     for (const v of [null, undefined, '', '  ', [], {}]) expect(isEmptyValue(v)).toBe(true);
     for (const v of [0, false, 'x', [1], { a: 1 }]) expect(isEmptyValue(v)).toBe(false);

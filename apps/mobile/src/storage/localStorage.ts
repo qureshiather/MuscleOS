@@ -12,6 +12,7 @@ import type { WeightUnit } from '@/utils/weightUnits';
 import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
+import { isBuiltInProgramId } from '@/data/builtInTemplates';
 
 export const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
@@ -21,6 +22,7 @@ export const APP_SETTINGS_KEYS = {
   bodyWeightUnit: 'muscleos_body_weight_unit',
   workoutSounds: 'muscleos_workout_sounds',
   theme: 'muscleos_theme',
+  activeProgram: 'muscleos_active_program',
 } as const;
 
 export type ThemePreference = 'auto' | 'dark' | 'light';
@@ -45,13 +47,15 @@ export function normalizeProfile(raw: unknown): UserAppProfile {
   return profile;
 }
 
-/** Synced snapshot: units, sounds, theme, and biodata. */
+/** Synced snapshot: units, sounds, theme, biodata, and the program in Your workouts. */
 export interface SyncedAppSettings {
   weightUnit: WeightUnit;
   bodyWeightUnit: WeightUnit;
   workoutSoundsEnabled: boolean;
   themePreference: ThemePreference;
   profile: UserAppProfile;
+  /** Built-in program (folder id) in Your workouts; null = no program. */
+  activeProgramId: string | null;
 }
 
 const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
@@ -60,11 +64,17 @@ const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
   workoutSoundsEnabled: true,
   themePreference: 'auto',
   profile: {},
+  activeProgramId: null,
 };
 
 function parseWeightUnit(s: string | null): WeightUnit | null {
   if (s === 'kg' || s === 'lb') return s;
   return null;
+}
+
+/** A stored program id, or null when it's blank or isn't a shipped program. */
+export function parseActiveProgramId(s: string | null | undefined): string | null {
+  return s != null && isBuiltInProgramId(s) ? s : null;
 }
 
 export function parseThemePreference(s: string | null | undefined): ThemePreference | null {
@@ -81,6 +91,7 @@ export interface StoredAppSettingsValues {
   bodyWeightUnit: string | null;
   workoutSounds: string | null;
   theme: string | null;
+  activeProgram: string | null;
 }
 
 /**
@@ -115,6 +126,7 @@ export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppS
     workoutSoundsEnabled,
     themePreference: parseThemePreference(raw.theme) ?? 'auto',
     profile,
+    activeProgramId: parseActiveProgramId(raw.activeProgram),
   };
 }
 
@@ -127,6 +139,7 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     bodyWeightUnit,
     workoutSounds,
     theme,
+    activeProgram,
   ] = await Promise.all([
     AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.profile),
@@ -135,6 +148,7 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     AsyncStorage.getItem(APP_SETTINGS_KEYS.bodyWeightUnit),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.theme),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.activeProgram),
   ]);
   return {
     unitSystem,
@@ -144,6 +158,7 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     bodyWeightUnit,
     workoutSounds,
     theme,
+    activeProgram,
   };
 }
 
@@ -190,6 +205,7 @@ export async function setAppSettings(settings: SyncedAppSettings): Promise<void>
     [APP_SETTINGS_KEYS.workoutSounds, settings.workoutSoundsEnabled ? '1' : '0'],
     [APP_SETTINGS_KEYS.theme, themePreference],
     [APP_SETTINGS_KEYS.profile, JSON.stringify(settings.profile ?? {})],
+    [APP_SETTINGS_KEYS.activeProgram, parseActiveProgramId(settings.activeProgramId) ?? ''],
   ]);
   emitThemeStorageChanged();
 }
@@ -211,6 +227,10 @@ export function normalizeAppSettings(
     themePreference:
       parseThemePreference(base.themePreference) ?? fallback.themePreference,
     profile: normalizeProfile(base.profile),
+    activeProgramId:
+      base.activeProgramId === undefined
+        ? fallback.activeProgramId
+        : parseActiveProgramId(base.activeProgramId),
   };
 }
 
@@ -276,34 +296,6 @@ export async function getTemplateFolders(): Promise<TemplateFolder[]> {
 
 export async function setTemplateFolders(folders: TemplateFolder[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify(folders));
-}
-
-async function getStringIdList(key: string): Promise<string[]> {
-  const raw = await AsyncStorage.getItem(key);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id): id is string => typeof id === 'string');
-  } catch {
-    return [];
-  }
-}
-
-export async function getHiddenBuiltInTemplateIds(): Promise<string[]> {
-  return getStringIdList(STORAGE_KEYS.hiddenBuiltInTemplateIds);
-}
-
-export async function setHiddenBuiltInTemplateIds(ids: string[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInTemplateIds, JSON.stringify(ids));
-}
-
-export async function getHiddenBuiltInFolderIds(): Promise<string[]> {
-  return getStringIdList(STORAGE_KEYS.hiddenBuiltInFolderIds);
-}
-
-export async function setHiddenBuiltInFolderIds(ids: string[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInFolderIds, JSON.stringify(ids));
 }
 
 export async function getSessions(): Promise<WorkoutSession[]> {
@@ -489,8 +481,6 @@ export async function setRecovery(recovery: MuscleRecovery[]): Promise<void> {
 export const CLEAR_ALL_DATA_KEYS = [
   STORAGE_KEYS.templates,
   STORAGE_KEYS.templateFolders,
-  STORAGE_KEYS.hiddenBuiltInTemplateIds,
-  STORAGE_KEYS.hiddenBuiltInFolderIds,
   STORAGE_KEYS.sessions,
   STORAGE_KEYS.recovery,
   STORAGE_KEYS.exercisePrevious,
@@ -507,6 +497,7 @@ export const CLEAR_ALL_DATA_KEYS = [
   APP_SETTINGS_KEYS.bodyWeightUnit,
   APP_SETTINGS_KEYS.workoutSounds,
   APP_SETTINGS_KEYS.theme,
+  APP_SETTINGS_KEYS.activeProgram,
 ] as const;
 
 /** App keys Clear all data leaves in place (Delete account removes the first three too). */

@@ -1,10 +1,6 @@
 export const STORAGE_KEYS = {
   templates: 'muscleos_templates',
   templateFolders: 'muscleos_template_folders',
-  /** Built-in template IDs soft-hidden on the home screen */
-  hiddenBuiltInTemplateIds: 'muscleos_hidden_builtin_template_ids',
-  /** Built-in folder IDs soft-hidden on the home screen (hides every template in the folder) */
-  hiddenBuiltInFolderIds: 'muscleos_hidden_builtin_folder_ids',
   sessions: 'muscleos_sessions',
   /** In-progress workout, so it survives the OS killing the app mid-session */
   activeWorkout: 'muscleos_active_workout',
@@ -31,11 +27,14 @@ export const STORAGE_KEYS = {
 /**
  * Keys for data the app no longer keeps, removed on launch by `removeLegacyStorageKeys()` so they
  * don't linger on upgraded installs: the removed Basic/Pro subscription (MuscleOS is free), the
- * unused health/macro store, and the height unit (height is no longer collected).
+ * unused health/macro store, the height unit (height is no longer collected), and the built-in
+ * hide lists (built-ins now reach Your workouts only as the one chosen program).
  */
 export const LEGACY_STORAGE_KEYS = [
   'muscleos_subscription',
   'muscleos_dev_pro_override',
   'muscleos_health',
   'muscleos_height_unit',
+  'muscleos_hidden_builtin_template_ids',
+  'muscleos_hidden_builtin_folder_ids',
 ] as const;

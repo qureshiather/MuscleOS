@@ -5,6 +5,7 @@ import {
   APP_SETTINGS_KEYS,
   getAppSettings,
   legacyUnitMigration,
+  parseActiveProgramId,
   parseStoredAppSettings,
   readStoredAppSettingsValues,
   setAppSettings,
@@ -25,12 +26,16 @@ export interface SettingsState {
   /** Beeps during active workout (rest countdown, set done, workout finished) */
   workoutSoundsEnabled: boolean;
   profile: UserAppProfile;
+  /** The built-in program in Your workouts (a built-in folder id); null = no program. */
+  activeProgramId: string | null;
   isLoading: boolean;
   load: () => Promise<void>;
   setWeightUnit: (unit: WeightUnit) => Promise<void>;
   setBodyWeightUnit: (unit: WeightUnit) => Promise<void>;
   setWorkoutSoundsEnabled: (enabled: boolean) => Promise<void>;
   setProfile: (profile: UserAppProfile) => Promise<void>;
+  /** Put a program in Your workouts (replacing any other), or pass null to remove it. */
+  setActiveProgram: (programId: string | null) => Promise<void>;
 }
 
 let settingsWrites: Promise<unknown> = Promise.resolve();
@@ -56,6 +61,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   bodyWeightUnit: 'lb',
   workoutSoundsEnabled: true,
   profile: {},
+  activeProgramId: null,
   isLoading: true,
 
   load: async () => {
@@ -75,6 +81,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         bodyWeightUnit: settings.bodyWeightUnit,
         workoutSoundsEnabled: settings.workoutSoundsEnabled,
         profile: settings.profile,
+        activeProgramId: settings.activeProgramId,
         isLoading: false,
       });
     } catch {
@@ -100,5 +107,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setProfile: async (profile) => {
     set({ profile });
     await persistAndNotify({ profile });
+  },
+
+  setActiveProgram: async (programId) => {
+    const activeProgramId = parseActiveProgramId(programId);
+    set({ activeProgramId });
+    await persistAndNotify({ activeProgramId });
   },
 }));

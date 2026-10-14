@@ -12,15 +12,10 @@ export const SUGGESTED_TEMPLATES_LIMIT = 2;
 /** Collapsible group ids that aren't real folders. */
 export const ARCHIVED_SECTION = '_archived';
 export const HIDDEN_CUSTOM_SECTION = '_hidden_custom';
-export const HIDDEN_BUILT_IN_SECTION = '_hidden_builtin';
 
-/** Real folders start open; the Archived and both Hidden groups start closed. */
+/** Real folders start open; the Archived and Hidden groups start closed. */
 export function defaultFolderExpanded(folderId: string): boolean {
-  return (
-    folderId !== ARCHIVED_SECTION &&
-    folderId !== HIDDEN_CUSTOM_SECTION &&
-    folderId !== HIDDEN_BUILT_IN_SECTION
-  );
+  return folderId !== ARCHIVED_SECTION && folderId !== HIDDEN_CUSTOM_SECTION;
 }
 
 /** Most recent `completedAt` per template id; sessions without one are ignored. */
@@ -37,10 +32,10 @@ export function lastDoneByTemplate(
   return map;
 }
 
-/** Home "Suggested": `recommendTemplates` over the visible templates, capped at 2. */
+/** Home "Suggested": `recommendTemplates` over Your workouts, capped at 2. */
 export function suggestHomeTemplates(args: {
+  /** Your workouts (`yourWorkoutTemplates()`): the chosen program's templates and visible customs. */
   templates: readonly WorkoutTemplate[];
-  isHidden: (template: WorkoutTemplate) => boolean;
   recoveringMuscleIds: ReadonlySet<MuscleId>;
   recentlyWorkedMuscleIds: ReadonlySet<MuscleId>;
   lastDoneByTemplate: Record<string, string>;
@@ -48,7 +43,7 @@ export function suggestHomeTemplates(args: {
   nowMs?: number;
 }): RecommendedTemplate[] {
   return recommendTemplates({
-    templates: args.templates.filter((t) => !args.isHidden(t)),
+    templates: [...args.templates],
     recoveringMuscleIds: args.recoveringMuscleIds,
     recentlyWorkedMuscleIds: args.recentlyWorkedMuscleIds,
     lastDoneByTemplate: args.lastDoneByTemplate,

@@ -33,18 +33,20 @@ const blank: StoredAppSettingsValues = {
   bodyWeightUnit: null,
   workoutSounds: null,
   theme: null,
+  activeProgram: null,
 };
 
 beforeEach(() => __resetAsyncStorage());
 
 describe('settings defaults and fallbacks', () => {
-  it('defaults to lb, lb, sounds on, theme Auto, empty biodata', () => {
+  it('defaults to lb, lb, sounds on, theme Auto, empty biodata, no program', () => {
     expect(parseStoredAppSettings(blank)).toEqual({
       weightUnit: 'lb',
       bodyWeightUnit: 'lb',
       workoutSoundsEnabled: true,
       themePreference: 'auto',
       profile: {},
+      activeProgramId: null,
     });
     expect(defaultAppSettings()).toEqual(parseStoredAppSettings(blank));
   });
@@ -91,11 +93,30 @@ describe('settings defaults and fallbacks', () => {
       workoutSoundsEnabled: false,
       themePreference: 'dark' as const,
       profile: { weightKg: 60, sex: 'female' as const },
+      activeProgramId: 'builtin_ppl',
     };
     await setAppSettings(settings);
     expect(await getAppSettings()).toEqual(settings);
     expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds)).toBe('0');
     expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem)).toBeNull();
+  });
+
+  it('starts with no program; a stored program reads back, and a blank or unknown id means none', async () => {
+    expect(parseStoredAppSettings(blank).activeProgramId).toBeNull();
+    expect(parseStoredAppSettings({ ...blank, activeProgram: 'builtin_sl' }).activeProgramId).toBe('builtin_sl');
+    expect(parseStoredAppSettings({ ...blank, activeProgram: '' }).activeProgramId).toBeNull();
+    expect(parseStoredAppSettings({ ...blank, activeProgram: 'builtin_gone' }).activeProgramId).toBeNull();
+    await setAppSettings({ ...defaultAppSettings(), activeProgramId: null });
+    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.activeProgram)).toBe('');
+    expect((await getAppSettings()).activeProgramId).toBeNull();
+  });
+
+  it('remote settings keep a chosen program, take an explicit none, and default a missing one', () => {
+    const base = defaultAppSettings();
+    expect(normalizeAppSettings({ activeProgramId: 'builtin_ul' }).activeProgramId).toBe('builtin_ul');
+    expect(normalizeAppSettings({ activeProgramId: null }, { ...base, activeProgramId: 'builtin_ul' }).activeProgramId).toBeNull();
+    // An older build's payload has no field: keep the fallback rather than clearing it.
+    expect(normalizeAppSettings({ weightUnit: 'kg' }, { ...base, activeProgramId: 'builtin_ul' }).activeProgramId).toBe('builtin_ul');
   });
 
   it('notifies theme listeners on every settings write and on Clear all data', async () => {
@@ -130,12 +151,14 @@ describe('migrations', () => {
     expect(normalizeAppSettings(null)).toEqual(defaultAppSettings());
   });
 
-  it('removes keys left by earlier builds (subscription, health, height unit), leaving everything else', async () => {
+  it('removes keys left by earlier builds (subscription, health, height unit, built-in hide lists), leaving everything else', async () => {
     expect(LEGACY_STORAGE_KEYS).toEqual([
       'muscleos_subscription',
       'muscleos_dev_pro_override',
       'muscleos_health',
       'muscleos_height_unit',
+      'muscleos_hidden_builtin_template_ids',
+      'muscleos_hidden_builtin_folder_ids',
     ]);
     for (const key of LEGACY_STORAGE_KEYS) await AsyncStorage.setItem(key, 'x');
     await AsyncStorage.setItem(STORAGE_KEYS.sessions, '[]');
@@ -229,10 +252,9 @@ describe('buildExportData', () => {
     expect(data.customExercises?.map((e) => e.id)).toEqual(['c1']);
   });
 
-  it('omits settings, biodata, hidden built-ins, previous, the active workout and the catalog', async () => {
-    await setAppSettings({ ...defaultAppSettings(), profile: { sex: 'male' } });
+  it('omits settings (the chosen program included), biodata, previous, the active workout and the catalog', async () => {
+    await setAppSettings({ ...defaultAppSettings(), profile: { sex: 'male' }, activeProgramId: 'builtin_ppl' });
     await AsyncStorage.setItem(STORAGE_KEYS.exercisePrevious, JSON.stringify({ squat: { weightKg: 100 } }));
-    await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInTemplateIds, JSON.stringify(['ppl-push']));
     await AsyncStorage.setItem(STORAGE_KEYS.activeWorkout, JSON.stringify({ session: { exercises: [] } }));
     await AsyncStorage.setItem(STORAGE_KEYS.catalogExercises, JSON.stringify([{ id: 'x' }]));
     const data = (await buildExportData()) as unknown as Record<string, unknown>;
@@ -245,6 +267,6 @@ describe('buildExportData', () => {
     expect(data.customExercises).toBeUndefined();
     expect(JSON.stringify(data)).not.toContain('weightKg');
     expect(JSON.stringify(data)).not.toContain('"sex"');
-    expect(JSON.stringify(data)).not.toContain('ppl-push');
+    expect(JSON.stringify(data)).not.toContain('builtin_ppl');
   });
 });

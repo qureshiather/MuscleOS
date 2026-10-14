@@ -1,13 +1,14 @@
 /**
- * Workouts (home) tab — docs/features/templates.md#home-screen. Real screen, real stores, seeded
+ * Workouts (home) tab — docs/features/templates.md#home-screen and #your-workouts. Real screen, real stores, seeded
  * through AsyncStorage; navigation targets are stubs.
  */
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { act, fireEvent, screen, waitFor, within } from 'expo-router/testing-library';
 import HomeScreen from '../../../../app/(tabs)/index';
 import TemplatesRedirect from '../../../../app/templates';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useTemplatesStore } from '@/store/templatesStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { defaultAppSettings, setAppSettings } from '@/storage/localStorage';
 import { routeStub } from '../render';
@@ -43,6 +44,8 @@ const routes = {
   'workout-preview': routeStub('workout-preview'),
   'active-workout': routeStub('active-workout'),
   'create-template': routeStub('create-template'),
+  programs: routeStub('programs'),
+  program: routeStub('program'),
 };
 
 function renderHome() {
@@ -51,7 +54,8 @@ function renderHome() {
 
 /** Waits for the template list (not the skeleton) and for sessions, which load on focus. */
 async function ready() {
-  await screen.findByLabelText('Built-in');
+  await waitFor(() => expect(useTemplatesStore.getState().isLoading).toBe(false));
+  await screen.findByText('Your workouts');
   await waitFor(() => expect(useSessionsStore.getState().isLoading).toBe(false));
 }
 
@@ -73,8 +77,9 @@ afterEach(() => {
 });
 
 describe('sections', () => {
-  it('renders the header, Suggested (max 2), Recent (without Suggested picks), and both template sections', async () => {
+  it('renders the header, Suggested (max 2, from Your workouts), Recent (without Suggested picks), and Your workouts', async () => {
     await seed({
+      activeProgramId: 'builtin_ul',
       sessions: [
         completedSession('ppl-push', NOW - 9 * DAY),
         completedSession('ppl-pull', NOW - 8 * DAY),
@@ -99,6 +104,8 @@ describe('sections', () => {
     expect(recent.length).toBeGreaterThan(0);
     expect(recent.length).toBeLessThanOrEqual(6);
     const suggestedIds = suggested.map((n) => n.props.testID.replace('suggested-card-', ''));
+    // Only the chosen program's templates (there are no custom ones) can be suggested.
+    for (const id of suggestedIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b', 'ul-lower-b']).toContain(id);
     const recentIds = recent.map((n) => n.props.testID.replace('recent-card-', ''));
     for (const id of suggestedIds) expect(recentIds).not.toContain(id);
     // Newest first.
@@ -106,9 +113,8 @@ describe('sections', () => {
       ['ul-upper-b', 'sl-b', 'sl-a'].find((id) => !suggestedIds.includes(id))
     );
 
-    expect(screen.getByText('All templates')).toBeTruthy();
-    expect(screen.getByLabelText('Custom')).toBeTruthy();
-    expect(screen.getByLabelText('Built-in')).toBeTruthy();
+    expect(screen.getByText('Upper Lower Splits')).toBeTruthy();
+    expect(screen.queryByTestId('pick-a-program')).toBeNull();
   });
 
   it('hides Recent with no completed sessions', async () => {
@@ -117,26 +123,88 @@ describe('sections', () => {
     expect(screen.queryByText('Recent')).toBeNull();
   });
 
-  it('Built-in starts collapsed; the first expand opens every subfolder', async () => {
+  it('starts with no program: no built-in is listed or suggested, and a Pick a program grid shows', async () => {
+    await seed({ sessions: [completedSession('ppl-push', NOW - 9 * DAY)] });
     renderHome();
     await ready();
-    expect(expanded('Built-in')).toBe(false);
-    expect(screen.queryByLabelText('Push Pull Legs')).toBeNull();
-    fireEvent.press(screen.getByLabelText('Built-in'));
-    for (const folder of ['Push Pull Legs', 'Upper Lower Splits', 'Strong Lifts 5x5']) {
-      expect(expanded(folder)).toBe(true);
+    expect(useSettingsStore.getState().activeProgramId).toBeNull();
+    expect(screen.queryByText('Suggested')).toBeNull();
+    expect(screen.queryByTestId('template-card-ppl-push')).toBeNull();
+    for (const id of ['builtin_sl', 'builtin_ppl', 'builtin_ul', 'builtin_phul']) {
+      expect(screen.getByTestId(`program-card-${id}`)).toBeTruthy();
     }
-    expect(screen.getByTestId('template-card-ppl-push')).toBeTruthy();
-    expect(screen.getByTestId('template-card-sl-b')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('program-card-builtin_phul'));
+    expect(await screen.findByText('route:program')).toBeTruthy();
+    expect(searchParams()).toEqual({ id: 'builtin_phul' });
   });
 
-  it('with no customs, Custom shows its empty state, expanded by default', async () => {
+  it('with no program and no templates, Build a template opens create-template', async () => {
     renderHome();
     await ready();
-    expect(expanded('Custom')).toBe(true);
-    expect(screen.getByText('No templates yet.')).toBeTruthy();
-    fireEvent.press(screen.getByText('Create template'));
+    expect(screen.queryByTestId('templates-section-custom')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Build your own template'));
     expect(await screen.findByText('route:create-template')).toBeTruthy();
+  });
+
+  it('See all opens Programs', async () => {
+    renderHome();
+    await ready();
+    fireEvent.press(screen.getByText('See all'));
+    expect(await screen.findByText('route:programs')).toBeTruthy();
+  });
+
+  it('with templates but no program, only a quiet Browse programs link sits below My templates', async () => {
+    await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
+    renderHome();
+    await ready();
+    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.getByText('My templates')).toBeTruthy();
+    expect(screen.getByText('Want a plan?', { exact: false })).toBeTruthy();
+    expect(screen.queryByTestId('build-own-template-row')).toBeNull();
+    fireEvent.press(screen.getByTestId('add-program-row'));
+    expect(await screen.findByText('route:programs')).toBeTruthy();
+  });
+
+  it('the chosen program lists its templates (no menus) above My templates; Change opens Programs', async () => {
+    await seed({
+      activeProgramId: 'builtin_sl',
+      templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })],
+    });
+    renderHome();
+    await ready();
+    const program = screen.getByTestId('your-workouts-program');
+    expect(within(program).getByText('Strong Lifts 5x5')).toBeTruthy();
+    expect(within(program).getByTestId('template-card-sl-a')).toBeTruthy();
+    expect(within(program).getByTestId('template-card-sl-b')).toBeTruthy();
+    expect(screen.queryByTestId('template-card-ppl-push')).toBeNull();
+    expect(screen.queryByLabelText('Options for Workout A')).toBeNull();
+    expect(screen.getByLabelText('Options for Chest day')).toBeTruthy();
+    expect(screen.queryByTestId('add-program-row')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Change program'));
+    expect(await screen.findByText('route:programs')).toBeTruthy();
+  });
+
+  it('the program section starts open and its chevron collapses and reopens it', async () => {
+    await seed({ activeProgramId: 'builtin_sl' });
+    renderHome();
+    await ready();
+    const toggle = () => screen.getByTestId('your-workouts-program-toggle');
+    expect(toggle().props.accessibilityState?.expanded).toBe(true);
+    fireEvent.press(toggle());
+    expect(screen.queryByTestId('template-card-sl-a')).toBeNull();
+    expect(screen.getByText('Strong Lifts 5x5')).toBeTruthy();
+    expect(toggle().props.accessibilityState?.expanded).toBe(false);
+    fireEvent.press(toggle());
+    expect(screen.getByTestId('template-card-sl-a')).toBeTruthy();
+  });
+
+  it('tapping the program name opens its overview', async () => {
+    await seed({ activeProgramId: 'builtin_sl' });
+    renderHome();
+    await ready();
+    fireEvent.press(screen.getByLabelText('About Strong Lifts 5x5'));
+    expect(await screen.findByText('route:program')).toBeTruthy();
+    expect(searchParams()).toEqual({ id: 'builtin_sl' });
   });
 
   it('orders custom content: uncategorized → pinned → normal folders → Archived → Hidden; groups start closed', async () => {
@@ -233,20 +301,63 @@ describe('sections', () => {
   });
 });
 
+describe('Your workouts states', () => {
+  it('fresh user: Pick a program grid and Build a template, no program, My templates or Browse programs', async () => {
+    renderHome();
+    await ready();
+    expect(screen.getByTestId('pick-a-program')).toBeTruthy();
+    expect(screen.getByTestId('build-own-template-row')).toBeTruthy();
+    expect(screen.queryByTestId('your-workouts-program')).toBeNull();
+    expect(screen.queryByTestId('templates-section-custom')).toBeNull();
+    expect(screen.queryByTestId('add-program-row')).toBeNull();
+    expect(screen.queryByText('Suggested')).toBeNull();
+  });
+
+  it('program with no templates: the program, then Build a template; no grid or Browse programs', async () => {
+    await seed({ activeProgramId: 'builtin_ppl' });
+    renderHome();
+    await ready();
+    expect(within(screen.getByTestId('your-workouts-program')).getByText('Push Pull Legs')).toBeTruthy();
+    expect(screen.getByTestId('template-card-ppl-push')).toBeTruthy();
+    expect(screen.getByText('Suggested')).toBeTruthy();
+    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('templates-section-custom')).toBeNull();
+    expect(screen.queryByTestId('add-program-row')).toBeNull();
+    fireEvent.press(screen.getByTestId('build-own-template-row'));
+    expect(await screen.findByText('route:create-template')).toBeTruthy();
+  });
+
+  it('program with templates: the program, then My templates; no grid, Build a template or Browse programs', async () => {
+    await seed({
+      activeProgramId: 'builtin_ppl',
+      templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })],
+    });
+    renderHome();
+    await ready();
+    expect(screen.getByTestId('your-workouts-program')).toBeTruthy();
+    expect(within(screen.getByTestId('templates-section-custom')).getByText('Chest day')).toBeTruthy();
+    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('build-own-template-row')).toBeNull();
+    expect(screen.queryByTestId('add-program-row')).toBeNull();
+  });
+});
+
 describe('theme switch', () => {
   // MUS-144: dropping borderWidth on these clipping sections left Android with a stale clip that
   // hid every template row after a light → dark switch. The border must stay in both themes.
   it('keeps the section border and its rows when switching light → dark', async () => {
-    await seed({ templates: [customTemplate({ id: 'c1', name: 'My Split' })] });
+    await seed({ activeProgramId: 'builtin_ppl', templates: [customTemplate({ id: 'c1', name: 'My Split' })] });
     renderHome();
     await ready();
     const borderWidths = () =>
-      ['templates-section-custom', 'templates-section-built-in'].map(
+      ['templates-section-custom', 'your-workouts-program'].map(
         (id) => StyleSheet.flatten(screen.getByTestId(id).props.style).borderWidth
       );
     expect(borderWidths()).toEqual([1, 1]);
 
-    await act(() => setAppSettings({ ...defaultAppSettings(), themePreference: 'dark' }));
+    await act(() =>
+      setAppSettings({ ...defaultAppSettings(), themePreference: 'dark', activeProgramId: 'builtin_ppl' })
+    );
 
     // Dark hides the border by matching it to the fill rather than removing it.
     await waitFor(() => {
@@ -259,10 +370,10 @@ describe('theme switch', () => {
 });
 
 describe('starting', () => {
-  it('tapping a built-in opens the preview with the template plan', async () => {
+  it('tapping a program template opens the preview with the template plan', async () => {
+    await seed({ activeProgramId: 'builtin_sl' });
     renderHome();
     await ready();
-    fireEvent.press(screen.getByLabelText('Built-in'));
     fireEvent.press(screen.getByTestId('template-card-sl-a'));
     expect(await screen.findByText('route:workout-preview')).toBeTruthy();
     expect(pathname()).toBe('/workout-preview');
@@ -312,9 +423,9 @@ describe('starting', () => {
 
   it('with a session in progress, a card shows "Workout in progress"; Resume goes to the workout', async () => {
     startActiveSession();
+    await seed({ activeProgramId: 'builtin_ppl' });
     renderHome();
     await ready();
-    fireEvent.press(screen.getByLabelText('Built-in'));
     fireEvent.press(screen.getByTestId('template-card-ppl-pull'));
     expect(screen.getByText('Workout in progress')).toBeTruthy();
     expect(
@@ -327,9 +438,9 @@ describe('starting', () => {
 
   it('Cancel workout discards the session and continues to the tapped template', async () => {
     startActiveSession();
+    await seed({ activeProgramId: 'builtin_ppl' });
     renderHome();
     await ready();
-    fireEvent.press(screen.getByLabelText('Built-in'));
     fireEvent.press(screen.getByTestId('template-card-ppl-pull'));
     fireEvent.press(screen.getByTestId('resume-workout-cancel'));
     expect(await screen.findByText('route:workout-preview')).toBeTruthy();
@@ -347,51 +458,20 @@ describe('starting', () => {
 });
 
 describe('context menus', () => {
-  it('a built-in menu has only Hide; hiding moves it to the Built-in Hidden group', async () => {
+  it('hiding a custom moves it to Hidden (with a count) and out of Suggested; Unhide restores it', async () => {
+    await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
-    fireEvent.press(screen.getByLabelText('Built-in'));
-    openMenu('Push');
-    expect(screen.getByTestId('template-menu-hide')).toBeTruthy();
-    for (const k of ['rename', 'move', 'edit', 'delete']) {
-      expect(screen.queryByTestId(`template-menu-${k}`)).toBeNull();
-    }
+    openMenu('Chest day');
     fireEvent.press(screen.getByTestId('template-menu-hide'));
-    await waitFor(() => expect(useTemplatesStore.getState().hiddenBuiltInIds).toEqual(['ppl-push']));
-    expect(screen.queryByTestId('template-card-ppl-push')).toBeNull();
+    await waitFor(() => expect(useTemplatesStore.getState().userTemplates[0].hidden).toBe(true));
+    expect(screen.queryByTestId('template-card-tpl_c')).toBeNull();
+    expect(screen.queryByTestId('suggested-card-tpl_c')).toBeNull();
+    expect(screen.getByText('Hidden (1)')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Hidden'));
-    expect(screen.getByTestId('template-card-ppl-push')).toBeTruthy();
-    openMenu('Push');
+    openMenu('Chest day');
     fireEvent.press(screen.getByTestId('template-menu-unhide'));
-    await waitFor(() => expect(useTemplatesStore.getState().hiddenBuiltInIds).toEqual([]));
-  });
-
-  it('a template inside a hidden built-in folder offers Unhide folder, which restores the folder', async () => {
-    await seed({ hiddenBuiltInFolderIds: ['builtin_sl'] });
-    renderHome();
-    await ready();
-    fireEvent.press(screen.getByLabelText('Built-in'));
-    expect(screen.queryByLabelText('Strong Lifts 5x5')).toBeNull();
-    fireEvent.press(screen.getByLabelText('Hidden'));
-    openMenu('Workout A');
-    expect(screen.queryByTestId('template-menu-unhide')).toBeNull();
-    expect(screen.getByText('Unhide folder')).toBeTruthy();
-    fireEvent.press(screen.getByTestId('template-menu-unhide-folder'));
-    await waitFor(() => expect(useTemplatesStore.getState().hiddenBuiltInFolderIds).toEqual([]));
-    expect(screen.queryByLabelText('Hidden')).toBeNull();
-  });
-
-  it('a built-in folder menu offers Hide, which hides every template in it', async () => {
-    renderHome();
-    await ready();
-    fireEvent.press(screen.getByLabelText('Built-in'));
-    fireEvent.press(screen.getByLabelText('Options for Push Pull Legs'));
-    expect(screen.queryByText('Rename')).toBeNull();
-    fireEvent.press(screen.getByText('Hide'));
-    await waitFor(() =>
-      expect(useTemplatesStore.getState().hiddenBuiltInFolderIds).toEqual(['builtin_ppl'])
-    );
-    expect(screen.queryByTestId('template-card-ppl-push')).toBeNull();
+    await waitFor(() => expect(useTemplatesStore.getState().userTemplates[0].hidden).toBeUndefined());
   });
 
   it('a custom menu has Rename, Move, Edit, Hide, Delete', async () => {
@@ -506,17 +586,6 @@ describe('folders', () => {
     ],
   };
 
-  type AlertButtons = { text: string; onPress?: () => unknown }[];
-  function lastAlert(spy: jest.SpyInstance) {
-    const [title, message, buttons] = spy.mock.calls.at(-1) as [string, string, AlertButtons];
-    // Alert handlers update the store and screen, so run them inside act.
-    const press = (text: string) =>
-      act(async () => {
-        await buttons.find((b) => b.text === text)?.onPress?.();
-      });
-    return { title, message, buttons, press };
-  }
-
   it('custom folder menu: Rename, Pin to top, Archive, Delete', async () => {
     await seed(folderSeed);
     renderHome();
@@ -532,18 +601,21 @@ describe('folders', () => {
     expect(screen.getByLabelText('Archived')).toBeTruthy();
   });
 
-  it('delete prompt counts hidden templates; Remove from folder keeps them', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  it('delete prompt (themed) counts hidden templates; Keep templates keeps them', async () => {
     await seed(folderSeed);
     renderHome();
     await ready();
     fireEvent.press(screen.getByLabelText('Options for Folder A'));
     fireEvent.press(screen.getByText('Delete'));
-    const a = lastAlert(alert);
-    expect(a.title).toBe('Delete folder');
-    expect(a.message).toBe('"Folder A" has 2 templates. Remove them from the folder or delete them?');
-    expect(a.buttons.map((b) => b.text)).toEqual(['Cancel', 'Remove from folder', 'Delete folder and templates']);
-    await a.press('Remove from folder');
+    expect(screen.getByText('Delete folder')).toBeTruthy();
+    expect(
+      screen.getByText('"Folder A" has 2 templates. Keep them outside the folder, or delete them too?')
+    ).toBeTruthy();
+    expect(screen.getByTestId('delete-folder-cancel')).toBeTruthy();
+    expect(screen.getByText('Delete folder and templates')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('delete-folder-keep-templates'));
+    });
     await waitFor(async () => {
       const stored = await storedTemplates();
       expect(stored.map((t) => t.id)).toEqual(['tpl_1', 'tpl_2', 'tpl_out']);
@@ -553,28 +625,40 @@ describe('folders', () => {
   });
 
   it('Delete folder and templates also deletes hidden templates in it', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await seed(folderSeed);
     renderHome();
     await ready();
     fireEvent.press(screen.getByLabelText('Options for Folder A'));
     fireEvent.press(screen.getByText('Delete'));
-    await lastAlert(alert).press('Delete folder and templates');
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('delete-folder-confirm'));
+    });
     await waitFor(async () => expect((await storedTemplates()).map((t) => t.id)).toEqual(['tpl_out']));
     expect(useTemplatesStore.getState().folders).toEqual([]);
   });
 
+  it('Cancel keeps the folder and its templates', async () => {
+    await seed(folderSeed);
+    renderHome();
+    await ready();
+    fireEvent.press(screen.getByLabelText('Options for Folder A'));
+    fireEvent.press(screen.getByText('Delete'));
+    fireEvent.press(screen.getByTestId('delete-folder-cancel'));
+    expect(screen.queryByText('Delete folder and templates')).toBeNull();
+    expect(useTemplatesStore.getState().folders).toHaveLength(1);
+  });
+
   it('an empty folder gets a plain Delete confirm', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await seed({ folders: [{ id: 'f_e', name: 'Empty' }] });
     renderHome();
     await ready();
     fireEvent.press(screen.getByLabelText('Options for Empty'));
     fireEvent.press(screen.getByText('Delete'));
-    const a = lastAlert(alert);
-    expect(a.message).toBe('Delete "Empty"?');
-    expect(a.buttons.map((b) => b.text)).toEqual(['Cancel', 'Delete']);
-    await a.press('Delete');
+    expect(screen.getByText('Delete "Empty"?')).toBeTruthy();
+    expect(screen.queryByTestId('delete-folder-keep-templates')).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('delete-folder-confirm'));
+    });
     await waitFor(() => expect(useTemplatesStore.getState().folders).toEqual([]));
   });
 

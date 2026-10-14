@@ -5,11 +5,11 @@ import {
   allTemplates,
   deleteFolderCascade,
   folderDeletePlan,
-  groupHomeTemplates,
+  groupYourWorkouts,
   isTemplateHidden,
   templateMenuActions,
   templatesInFolder,
-  toggleHiddenId,
+  yourWorkoutTemplates,
 } from './templatesLogic';
 
 const custom = (over: Partial<WorkoutTemplate> = {}): WorkoutTemplate => ({
@@ -30,32 +30,17 @@ describe('allTemplates', () => {
   });
 });
 
-describe('toggleHiddenId', () => {
-  it('adds an id when hiding and removes it when unhiding', () => {
-    expect(toggleHiddenId([], 'ppl-push', true)).toEqual(['ppl-push']);
-    expect(toggleHiddenId(['ppl-push'], 'ppl-push', false)).toEqual([]);
-  });
-
-  it('does not duplicate an already-hidden id', () => {
-    expect(toggleHiddenId(['ppl-push'], 'ppl-push', true)).toEqual(['ppl-push']);
-  });
-});
-
 describe('isTemplateHidden', () => {
-  it('hides a built-in when its id is in the hidden list', () => {
-    const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
-    expect(isTemplateHidden(push, ['ppl-push'], [])).toBe(true);
-    expect(isTemplateHidden(push, [], [])).toBe(false);
-  });
-
-  it('hides a built-in when its whole folder is hidden', () => {
-    const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
-    expect(isTemplateHidden(push, [], ['builtin_ppl'])).toBe(true);
-  });
-
   it('hides a custom template only via its own hidden flag', () => {
-    expect(isTemplateHidden(custom({ hidden: true }), [], [])).toBe(true);
-    expect(isTemplateHidden(custom({ hidden: false }), ['tpl_1'], [])).toBe(false);
+    expect(isTemplateHidden(custom({ hidden: true }))).toBe(true);
+    expect(isTemplateHidden(custom({ hidden: false }))).toBe(false);
+    expect(isTemplateHidden(custom())).toBe(false);
+  });
+
+  it('never hides a built-in — they leave Your workouts with their program', () => {
+    const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
+    expect(isTemplateHidden(push)).toBe(false);
+    expect(isTemplateHidden({ ...push, hidden: true })).toBe(false);
   });
 });
 
@@ -106,7 +91,7 @@ describe('templatesInFolder / folderDeletePlan', () => {
     expect(plan.templateIds).toEqual(['t1', 't2']);
     expect(plan.title).toBe('Delete folder');
     expect(plan.message).toBe(
-      '"Push days" has 2 templates. Remove them from the folder or delete them?'
+      '"Push days" has 2 templates. Keep them outside the folder, or delete them too?'
     );
   });
 
@@ -115,7 +100,7 @@ describe('templatesInFolder / folderDeletePlan', () => {
       custom({ id: 'h', folderId: 'f9', hidden: true }),
     ]);
     expect(plan.templateIds).toEqual(['h']);
-    expect(plan.message).toBe('"Solo" has 1 template. Remove them from the folder or delete them?');
+    expect(plan.message).toBe('"Solo" has 1 template. Keep it outside the folder, or delete it too?');
   });
 
   it('asks a plain confirm for an empty folder', () => {
@@ -129,47 +114,23 @@ describe('templateMenuActions', () => {
   const keys = (a: ReturnType<typeof templateMenuActions>) => a.map((x) => x.key);
   const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
 
-  it('built-ins only offer Hide (no rename / move / edit / delete)', () => {
-    const actions = templateMenuActions(push, { isHidden: false, hiddenFolderIds: [] });
-    expect(actions).toEqual([{ key: 'hide', label: 'Hide' }]);
-  });
-
-  it('an individually hidden built-in offers Unhide', () => {
-    const actions = templateMenuActions(push, { isHidden: true, hiddenFolderIds: [] });
-    expect(actions).toEqual([{ key: 'unhide', label: 'Unhide' }]);
-  });
-
-  it('a built-in hidden by its folder offers Unhide folder instead of a no-op Unhide', () => {
-    const actions = templateMenuActions(push, {
-      isHidden: true,
-      hiddenFolderIds: ['builtin_ppl'],
-    });
-    expect(actions).toEqual([
-      { key: 'unhide-folder', label: 'Unhide folder' },
-    ]);
+  it('program templates have no menu', () => {
+    expect(templateMenuActions(push, { isHidden: false })).toEqual([]);
   });
 
   it('customs offer Rename, Move, Edit, Hide, Delete in order', () => {
-    const actions = templateMenuActions(custom(), { isHidden: false, hiddenFolderIds: [] });
+    const actions = templateMenuActions(custom(), { isHidden: false });
     expect(keys(actions)).toEqual(['rename', 'move', 'edit', 'hide', 'delete']);
     expect(actions.map((a) => a.label)).toEqual(['Rename', 'Move', 'Edit', 'Hide', 'Delete']);
   });
 
   it('a hidden custom offers Unhide in place of Hide', () => {
-    const actions = templateMenuActions(custom({ hidden: true }), { isHidden: true, hiddenFolderIds: [] });
+    const actions = templateMenuActions(custom({ hidden: true }), { isHidden: true });
     expect(keys(actions)).toEqual(['rename', 'move', 'edit', 'unhide', 'delete']);
-  });
-
-  it('a hidden custom never gets Unhide folder, even if its folder id is in the built-in list', () => {
-    const actions = templateMenuActions(custom({ folderId: 'builtin_ppl', hidden: true }), {
-      isHidden: true,
-      hiddenFolderIds: ['builtin_ppl'],
-    });
-    expect(keys(actions)).toContain('unhide');
   });
 });
 
-describe('groupHomeTemplates', () => {
+describe('groupYourWorkouts', () => {
   const folders: TemplateFolder[] = [
     { id: 'normal', name: 'Normal' },
     { id: 'pinned', name: 'Pinned', favorite: true },
@@ -188,18 +149,11 @@ describe('groupHomeTemplates', () => {
     custom({ id: 'pa1', folderId: 'pinned-archived' }),
     custom({ id: 'h1', folderId: 'all-hidden', hidden: true }),
   ];
-
-  function groupWith(hiddenIds: string[] = [], hiddenFolderIds: string[] = []) {
-    return groupHomeTemplates({
-      templates: allTemplates(mine),
-      folders,
-      isHidden: (t) => isTemplateHidden(t, hiddenIds, hiddenFolderIds),
-      hiddenBuiltInFolderIds: hiddenFolderIds,
-    });
-  }
+  const group = (activeProgramId: string | null = null) =>
+    groupYourWorkouts({ userTemplates: mine, folders, activeProgramId });
 
   it('custom: uncategorized, then pinned, normal, archived folders; all-hidden folders left out', () => {
-    const { custom: c } = groupWith();
+    const { custom: c } = group();
     expect(c.uncategorized.map((t) => t.id)).toEqual(['loose']);
     expect(c.pinnedFolders.map((g) => g.folder.id)).toEqual(['pinned']);
     expect(c.normalFolders.map((g) => g.folder.id)).toEqual(['normal', 'empty']);
@@ -210,40 +164,38 @@ describe('groupHomeTemplates', () => {
   });
 
   it('custom: hidden templates (in or out of folders) go to the Hidden group', () => {
-    const { custom: c } = groupWith();
+    const { custom: c } = group();
     expect(c.hidden.map((t) => t.id)).toEqual(['loose-hidden', 'n2-hidden', 'h1']);
     expect(c.visibleCount).toBe(5);
   });
 
-  it('built-in: every shipped folder with its templates by default; nothing hidden', () => {
-    const { builtIn: b } = groupWith();
-    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ppl', 'builtin_ul', 'builtin_sl', 'builtin_phul']);
-    expect(b.folders[0].templates.map((t) => t.id)).toEqual(['ppl-push', 'ppl-pull', 'ppl-legs']);
-    expect(b.uncategorized).toEqual([]);
-    expect(b.hiddenFolders).toEqual([]);
-    expect(b.hiddenLoose).toEqual([]);
-    expect(b.visibleCount).toBe(13);
-    expect(b.hiddenCount).toBe(0);
+  it('no program by default: no built-in appears', () => {
+    expect(group().program).toBeNull();
   });
 
-  it('built-in: a hidden folder moves whole into Hidden; a loose hidden template is listed alone', () => {
-    const { builtIn: b } = groupWith(['ul-upper-a'], ['builtin_ppl']);
-    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ul', 'builtin_sl', 'builtin_phul']);
-    expect(b.folders[0].templates.map((t) => t.id)).not.toContain('ul-upper-a');
-    expect(b.hiddenFolders.map((g) => g.folder.id)).toEqual(['builtin_ppl']);
-    expect(b.hiddenFolders[0].templates.map((t) => t.id)).toEqual([
-      'ppl-push',
-      'ppl-pull',
-      'ppl-legs',
-    ]);
-    expect(b.hiddenLoose.map((t) => t.id)).toEqual(['ul-upper-a']);
-    expect(b.hiddenCount).toBe(4);
+  it('the chosen program brings exactly its templates, in shipped order', () => {
+    const { program } = group('builtin_ppl');
+    expect(program?.program.name).toBe('Push Pull Legs');
+    expect(program?.templates.map((t) => t.id)).toEqual(['ppl-push', 'ppl-pull', 'ppl-legs']);
   });
 
-  it('built-in: a folder whose templates are all individually hidden is left out', () => {
-    const { builtIn: b } = groupWith(['sl-a', 'sl-b']);
-    expect(b.folders.map((g) => g.folder.id)).toEqual(['builtin_ppl', 'builtin_ul', 'builtin_phul']);
-    expect(b.hiddenFolders).toEqual([]);
-    expect(b.hiddenLoose.map((t) => t.id)).toEqual(['sl-a', 'sl-b']);
+  it('an unknown program id means no program', () => {
+    expect(group('builtin_gone').program).toBeNull();
+  });
+});
+
+describe('yourWorkoutTemplates', () => {
+  const mine = [custom({ id: 'mine' }), custom({ id: 'gone', hidden: true })];
+
+  it('is just your visible templates with no program', () => {
+    const ids = yourWorkoutTemplates({ userTemplates: mine, activeProgramId: null }).map((t) => t.id);
+    expect(ids).toEqual(['mine']);
+  });
+
+  it('adds the chosen program, and only that program', () => {
+    const ids = yourWorkoutTemplates({ userTemplates: mine, activeProgramId: 'builtin_sl' }).map(
+      (t) => t.id
+    );
+    expect(ids).toEqual(['sl-a', 'sl-b', 'mine']);
   });
 });

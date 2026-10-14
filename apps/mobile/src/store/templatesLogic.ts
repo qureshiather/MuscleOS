@@ -1,10 +1,15 @@
 import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
-import { BUILT_IN_FOLDERS, BUILT_IN_TEMPLATES, isBuiltInHidden } from '@/data/builtInTemplates';
+import {
+  BUILT_IN_TEMPLATES,
+  builtInProgram,
+  programTemplates,
+  type BuiltInProgram,
+} from '@/data/builtInTemplates';
 
 /**
  * Pure reducers for the templates store (docs/features/templates.md). Built-in templates are
- * immutable and always listed first; hiding is soft and folder deletion never deletes the
- * templates inside it. Keeping this logic RN-free lets it be unit-tested.
+ * immutable and always listed first; they reach Your workouts only as the one chosen program.
+ * Hiding a custom template is soft, and folder deletion never deletes the templates inside it. Keeping this logic RN-free lets it be unit-tested.
  */
 
 /** All templates = built-in + user, built-ins first. */
@@ -12,24 +17,9 @@ export function allTemplates(userTemplates: readonly WorkoutTemplate[]): Workout
   return [...BUILT_IN_TEMPLATES, ...userTemplates];
 }
 
-/** Add or remove an id from a soft-hidden list, keeping it de-duplicated. */
-export function toggleHiddenId(ids: readonly string[], id: string, hidden: boolean): string[] {
-  const set = new Set(ids);
-  if (hidden) set.add(id);
-  else set.delete(id);
-  return [...set];
-}
-
-/** Whether a template is hidden: soft-hidden built-in (by id or folder), or a custom `hidden` flag. */
-export function isTemplateHidden(
-  template: WorkoutTemplate,
-  hiddenBuiltInIds: readonly string[],
-  hiddenBuiltInFolderIds: readonly string[]
-): boolean {
-  if (template.isBuiltIn) {
-    return isBuiltInHidden(template, hiddenBuiltInIds, hiddenBuiltInFolderIds);
-  }
-  return template.hidden === true;
+/** Only custom templates can be hidden; built-ins leave Your workouts with their program. */
+export function isTemplateHidden(template: Pick<WorkoutTemplate, 'isBuiltIn' | 'hidden'>): boolean {
+  return template.isBuiltIn !== true && template.hidden === true;
 }
 
 /**
@@ -72,7 +62,9 @@ export function folderDeletePlan(
     message:
       n === 0
         ? `Delete "${folder.name}"?`
-        : `"${folder.name}" has ${n} template${n === 1 ? '' : 's'}. Remove them from the folder or delete them?`,
+        : n === 1
+          ? `"${folder.name}" has 1 template. Keep it outside the folder, or delete it too?`
+          : `"${folder.name}" has ${n} templates. Keep them outside the folder, or delete them too?`,
   };
 }
 
@@ -82,7 +74,6 @@ export type TemplateMenuActionKey =
   | 'edit'
   | 'hide'
   | 'unhide'
-  | 'unhide-folder'
   | 'delete';
 
 export type TemplateMenuAction = {
@@ -91,39 +82,30 @@ export type TemplateMenuAction = {
 };
 
 /**
- * The template card's context menu (docs/features/templates.md#context-menus). Built-ins only get
- * Hide / Unhide; customs get Rename, Move, Edit, Hide / Unhide, and Delete.
- *
- * A built-in hidden because its **whole folder** is hidden can't be unhidden on its own (the
- * folder would keep hiding it), so its menu offers **Unhide folder** instead.
+ * The template card's context menu (docs/features/templates.md#context-menus). Custom templates
+ * get Rename, Move, Edit, Hide / Unhide, and Delete. Program templates have no menu: a program
+ * joins and leaves Your workouts as a whole.
  */
 export function templateMenuActions(
-  template: Pick<WorkoutTemplate, 'isBuiltIn' | 'folderId'>,
-  opts: { isHidden: boolean; hiddenFolderIds: readonly string[] }
+  template: Pick<WorkoutTemplate, 'isBuiltIn'>,
+  opts: { isHidden: boolean }
 ): TemplateMenuAction[] {
+  if (template.isBuiltIn) return [];
   const item = (key: TemplateMenuActionKey, label: string): TemplateMenuAction => ({ key, label });
-  const hiddenByFolder =
-    template.isBuiltIn === true &&
-    template.folderId != null &&
-    opts.hiddenFolderIds.includes(template.folderId);
-  const visibility = !opts.isHidden
-    ? item('hide', 'Hide')
-    : hiddenByFolder
-      ? item('unhide-folder', 'Unhide folder')
-      : item('unhide', 'Unhide');
-  if (template.isBuiltIn) return [visibility];
   return [
     item('rename', 'Rename'),
     item('move', 'Move'),
     item('edit', 'Edit'),
-    visibility,
+    opts.isHidden ? item('unhide', 'Unhide') : item('hide', 'Hide'),
     item('delete', 'Delete'),
   ];
 }
 
 export type FolderGroup = { folder: TemplateFolder; templates: WorkoutTemplate[] };
 
-export type HomeTemplateGroups = {
+export type YourWorkouts = {
+  /** The chosen program and its templates, or null when no program is chosen. */
+  program: { program: BuiltInProgram; templates: WorkoutTemplate[] } | null;
   custom: {
     /** Visible custom templates with no folder. */
     uncategorized: WorkoutTemplate[];
@@ -135,77 +117,52 @@ export type HomeTemplateGroups = {
     hidden: WorkoutTemplate[];
     visibleCount: number;
   };
-  builtIn: {
-    uncategorized: WorkoutTemplate[];
-    /** Built-in folders with at least one visible template. */
-    folders: FolderGroup[];
-    /** Built-in folders hidden as a whole, listed with every template in them. */
-    hiddenFolders: FolderGroup[];
-    /** Hidden built-ins that aren't inside a hidden folder. */
-    hiddenLoose: WorkoutTemplate[];
-    visibleCount: number;
-    hiddenCount: number;
-  };
 };
 
 /**
- * Splits the home list into the Custom and Built-in sections
- * (docs/features/templates.md#home-screen). A folder whose templates are **all hidden** is left
- * out (they show under Hidden instead); an empty custom folder still shows.
+ * Your workouts (docs/features/templates.md#your-workouts): at most one built-in program, then
+ * your custom templates grouped into folders. A folder whose templates are **all hidden** is
+ * left out (they show under Hidden instead); an empty custom folder still shows.
  */
-export function groupHomeTemplates(args: {
-  templates: readonly WorkoutTemplate[];
+export function groupYourWorkouts(args: {
+  userTemplates: readonly WorkoutTemplate[];
   folders: readonly TemplateFolder[];
-  isHidden: (template: WorkoutTemplate) => boolean;
-  hiddenBuiltInFolderIds: readonly string[];
-  builtInFolders?: readonly TemplateFolder[];
-}): HomeTemplateGroups {
-  const { templates, folders, isHidden, hiddenBuiltInFolderIds } = args;
-  const builtInFolders = args.builtInFolders ?? BUILT_IN_FOLDERS;
-  const custom: WorkoutTemplate[] = [];
-  const hiddenCustom: WorkoutTemplate[] = [];
-  const builtIn: WorkoutTemplate[] = [];
-  const hiddenBuiltIn: WorkoutTemplate[] = [];
-  for (const t of templates) {
-    const hidden = isHidden(t);
-    if (t.isBuiltIn) (hidden ? hiddenBuiltIn : builtIn).push(t);
-    else (hidden ? hiddenCustom : custom).push(t);
-  }
+  activeProgramId: string | null;
+}): YourWorkouts {
+  const { userTemplates, folders } = args;
+  const custom = userTemplates.filter((t) => !isTemplateHidden(t));
+  const hidden = userTemplates.filter((t) => isTemplateHidden(t));
 
   const onlyHidden = (folderId: string) =>
-    !custom.some((t) => t.folderId === folderId) &&
-    hiddenCustom.some((t) => t.folderId === folderId);
+    !custom.some((t) => t.folderId === folderId) && hidden.some((t) => t.folderId === folderId);
   const group = (folder: TemplateFolder): FolderGroup => ({
     folder,
     templates: custom.filter((t) => t.folderId === folder.id),
   });
   const shown = folders.filter((f) => !onlyHidden(f.id));
+  const program = builtInProgram(args.activeProgramId);
 
   return {
+    program: program ? { program, templates: programTemplates(program.id) } : null,
     custom: {
       uncategorized: custom.filter((t) => !t.folderId),
       pinnedFolders: shown.filter((f) => !f.archived && f.favorite).map(group),
       normalFolders: shown.filter((f) => !f.archived && !f.favorite).map(group),
       archivedFolders: shown.filter((f) => f.archived).map(group),
-      hidden: hiddenCustom,
+      hidden,
       visibleCount: custom.length,
     },
-    builtIn: {
-      uncategorized: builtIn.filter((t) => !t.folderId),
-      folders: builtInFolders
-        .map((folder) => ({ folder, templates: builtIn.filter((t) => t.folderId === folder.id) }))
-        .filter((g) => g.templates.length > 0),
-      hiddenFolders: builtInFolders
-        .filter((f) => hiddenBuiltInFolderIds.includes(f.id))
-        .map((folder) => ({
-          folder,
-          templates: templates.filter((t) => t.isBuiltIn && t.folderId === folder.id),
-        })),
-      hiddenLoose: hiddenBuiltIn.filter(
-        (t) => !t.folderId || !hiddenBuiltInFolderIds.includes(t.folderId)
-      ),
-      visibleCount: builtIn.length,
-      hiddenCount: hiddenBuiltIn.length,
-    },
   };
+}
+
+/** Every template in Your workouts — the program's, then visible custom ones. Suggested picks from these. */
+export function yourWorkoutTemplates(args: {
+  userTemplates: readonly WorkoutTemplate[];
+  activeProgramId: string | null;
+}): WorkoutTemplate[] {
+  const program = builtInProgram(args.activeProgramId);
+  return [
+    ...(program ? programTemplates(program.id) : []),
+    ...args.userTemplates.filter((t) => !isTemplateHidden(t)),
+  ];
 }

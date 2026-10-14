@@ -134,6 +134,7 @@ describe('snapshotItems (account-link upload)', () => {
     workoutSoundsEnabled: true,
     themePreference: 'auto' as const,
     profile: {},
+    activeProgramId: null,
   };
 
   it('uploads every row; sessions keep their own clock, the rest are stamped now', () => {

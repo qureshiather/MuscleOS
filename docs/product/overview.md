@@ -9,7 +9,7 @@ marketing site.
 
 The app is built around a single loop:
 
-1. **Pick a workout** — a built-in program, one of your own templates, or nothing at all
+1. **Pick a workout** — a day from the program you follow, one of your own templates, or nothing at all
 2. **Log sets** — weight and reps per set, with a rest timer between them
 3. **Finish** — the session is saved, the muscles you trained enter recovery
 4. **Come back** — the app shows what you lifted last time and suggests what's ready to train
@@ -60,7 +60,7 @@ understand about the app's data model.
 | Where it lives | Compiled into the app (templates) or the shared catalog (exercises) | Your device, and your account if linked |
 | Who can see it | Everyone | Only you |
 | Can you edit it? | **No** | **Yes** |
-| Can you delete it? | No — you can **hide** it | Yes |
+| Can you delete it? | No — a built-in program is **added to or removed from** Your workouts as a whole | Yes (or hide it) |
 | Identified by | `isBuiltIn: true` (templates); catalog id (exercises) | `tpl_*` / `custom_*` ids |
 
 Built-in content is immutable because it is shipped code, shared by every user, and referenced
@@ -68,8 +68,10 @@ by ids that must stay stable. Editing a built-in template would fork it per-devi
 that guarantee. Instead, the app lets you **run a built-in template, change the session as you
 go, and save the result as a new custom template** — the original stays pristine.
 
-Hiding rather than deleting built-ins keeps ids resolvable: a session logged two years ago
-still renders its exercise names even if you've since hidden that program.
+Built-in templates reach the Workouts tab only through **Your workouts**: your custom templates
+plus at most one built-in program you chose (none by default). Removing or switching a program
+never deletes it, so ids stay resolvable: a session logged two years ago still renders its
+exercise names after you've moved to another program.
 
 Details: [templates.md](../features/templates.md), [exercise-library.md](../features/exercise-library.md).
 
@@ -84,7 +86,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 |-----|-------|---------|------|
 | **Exercises** | `/(tabs)/exercises` | Browse and search the ~400-exercise catalog; muscle maps, instructions, personal notes | [exercise-library.md](../features/exercise-library.md) |
 | **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
-| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from the template library | [templates.md](../features/templates.md) |
+| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from Your workouts (your templates plus at most one program) | [templates.md](../features/templates.md) |
 | **History** | `/(tabs)/history` | Reverse-chronological list of finished sessions with duration, volume, and every completed set | [history-analytics.md](../features/history-analytics.md) |
 | **Profile** | `/(tabs)/profile` | Account, settings, then biodata — each row opens its own screen | [accounts-and-data.md](../features/accounts-and-data.md) |
 
@@ -92,6 +94,8 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 
 | Screen | Route | Purpose | Spec |
 |--------|-------|---------|------|
+| Programs | `/programs` | Choose one built-in program or No program; the current choice is marked | [templates.md](../features/templates.md#programs) |
+| Program | `/program?id=` | A program overview: each workout and its exercises, muscles trained, with Add / Switch / Remove | [templates.md](../features/templates.md#programs) |
 | Workout preview | `/workout-preview` | Review a template's exercises and last-session numbers before starting | [templates.md](../features/templates.md#workout-preview) |
 | Active workout | `/active-workout` | The set-logging screen and rest timer | [workout-logging.md](../features/workout-logging.md) |
 | Create / edit template | `/create-template` | Name a template and choose and order its exercises | [templates.md](../features/templates.md#creating-and-editing) |

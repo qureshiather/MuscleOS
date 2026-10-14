@@ -3,8 +3,11 @@ import { CATALOG_SEED } from './catalogSeed';
 import { resolveTemplateExercises } from '@/utils/templateExercises';
 import {
   BUILT_IN_FOLDERS,
+  BUILT_IN_PROGRAMS,
   BUILT_IN_TEMPLATES,
-  isBuiltInHidden,
+  builtInProgram,
+  isBuiltInProgramId,
+  programTemplates,
 } from './builtInTemplates';
 
 describe('built-in templates', () => {
@@ -31,20 +34,26 @@ describe('built-in templates', () => {
     ]);
   });
 
-  it('hides a whole folder without requiring each template id', () => {
-    const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
-    const pull = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-pull')!;
-    const workoutA = BUILT_IN_TEMPLATES.find((t) => t.id === 'sl-a')!;
-
-    expect(isBuiltInHidden(push, [], ['builtin_ppl'])).toBe(true);
-    expect(isBuiltInHidden(pull, [], ['builtin_ppl'])).toBe(true);
-    expect(isBuiltInHidden(workoutA, [], ['builtin_ppl'])).toBe(false);
+  it('describes every built-in folder as a program, and nothing else', () => {
+    expect(BUILT_IN_PROGRAMS.map((p) => p.id).sort()).toEqual(BUILT_IN_FOLDERS.map((f) => f.id).sort());
+    for (const p of BUILT_IN_PROGRAMS) {
+      expect(p.name).toBe(BUILT_IN_FOLDERS.find((f) => f.id === p.id)?.name);
+      expect(programTemplates(p.id).length).toBeGreaterThan(0);
+    }
+    expect(BUILT_IN_PROGRAMS.map((p) => p.id)).toEqual([
+      'builtin_sl',
+      'builtin_ppl',
+      'builtin_ul',
+      'builtin_phul',
+    ]);
   });
 
-  it('keeps individually hidden templates hidden after a folder is shown again', () => {
-    const push = BUILT_IN_TEMPLATES.find((t) => t.id === 'ppl-push')!;
-    expect(isBuiltInHidden(push, ['ppl-push'], [])).toBe(true);
-    expect(isBuiltInHidden(push, ['ppl-push'], ['builtin_ppl'])).toBe(true);
+  it('resolves program ids, rejecting unknown ones', () => {
+    expect(isBuiltInProgramId('builtin_phul')).toBe(true);
+    expect(isBuiltInProgramId('ppl-push')).toBe(false);
+    expect(builtInProgram('builtin_sl')?.daysPerWeek).toBe('3');
+    expect(builtInProgram(null)).toBeUndefined();
+    expect(programTemplates('builtin_sl').map((t) => t.id)).toEqual(['sl-a', 'sl-b']);
   });
 
   it('only references catalog exercise ids', () => {

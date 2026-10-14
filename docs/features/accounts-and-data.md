@@ -30,7 +30,7 @@ custom (`TabBarWithResumePill`) so it can host the resume-workout pill. It is si
 system bottom inset (home indicator, Android nav bar) replaces the bottom padding rather than adding to it.
 
 **Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/acknowledgements`, `/biodata`, `/data`, `/create-template`,
-`/create-exercise`, `/workout-preview`, `/active-workout`, `/history-monthly`,
+`/create-exercise`, `/programs`, `/program`, `/workout-preview`, `/active-workout`, `/history-monthly`,
 `/exercise-progression`, `/personal-records`. `/templates` is a legacy redirect to the tabs.
 
 `/active-workout` is the only screen with distinct presentation: **`slide_from_bottom`** with a
@@ -224,6 +224,7 @@ round-tripping through the synced copy.
 | Body weight unit | `kg` / `lb` | `lb` | Display only |
 | Exercise weight unit | `kg` / `lb` | `lb` | Display only — set logging, PRs, volume |
 | Workout sounds | on / off | **on** | Rest tick, rest end, set complete, workout complete, and the rest notification sound |
+| Program in Your workouts | a built-in program id, or none | **none** | Chosen on the Programs screen, not in Settings ([templates](templates.md#programs)) |
 
 The two unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
 **Pounds is the default**, since most lifters train in lb; kilograms is one switch away. It only
@@ -293,8 +294,10 @@ Via `sync_records` and the `upsert_sync_records` RPC:
 
 `session` · `template` · `template_folder` · `exercise_previous` · `exercise_note` · `app_settings`
 
-`app_settings` is one snapshot: exercise-weight and body-weight units, workout sounds, theme, and
-biodata (`SyncedAppSettings`). A snapshot from an older build may still carry `heightUnit` or
+`app_settings` is one snapshot: exercise-weight and body-weight units, workout sounds, theme,
+biodata, and the program in Your workouts (`SyncedAppSettings.activeProgramId`, `null` for none).
+When the local copy is dirty its program choice wins, `null` included, so removing a program on
+one device isn't undone by the other's older choice. A snapshot from an older build may still carry `heightUnit` or
 `heightCm`; they're ignored. `muscleos_unit_system` and the legacy single weight unit
 are **not** in it — they only seed defaults on the device that has them.
 
@@ -376,13 +379,12 @@ Worth being precise about, because users will assume an account means everything
 |------|-------------|
 | Recovery state | `muscleos_recovery` — derived; recomputed after merge |
 | In-progress workout | `muscleos_active_workout` — device session state |
-| Hidden built-in template / folder ids | `muscleos_hidden_builtin_*` — **UI preference lost on a new device** |
 | Catalog cache and watermark | `muscleos_catalog_*` — re-pulled |
 | Sync outbox and meta | `muscleos_sync_outbox`, `muscleos_sync_meta` |
 | Exact-alarm prompt flag | `muscleos_exact_alarm_prompt_shown` |
 | Apple authorization code | `muscleos_apple_authorization_code` — used only to revoke Sign in with Apple on delete |
 
-Of these, hidden built-in ids are the only genuine user intent that doesn't survive a device change.
+None of these is a choice you made: everything you chose (including the program in Your workouts) syncs.
 
 ## Storage
 
@@ -397,9 +399,8 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_exercise_notes` | Per-exercise notes | ● |
 | `muscleos_custom_exercises` | Custom exercises | ● (`user_exercises`) |
 | `muscleos_retired_custom_exercises` | Deleted custom exercises, kept so past sessions still resolve them | ○ |
-| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds` | Biodata and settings | ● (as `app_settings`) |
+| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds`, `muscleos_active_program` | Biodata and settings (the active program is a built-in folder id, `''` for none) | ● (as `app_settings`) |
 | `muscleos_unit_system`, `muscleos_weight_unit` (legacy) | Default unit system; older single weight unit | ○ |
-| `muscleos_hidden_builtin_template_ids`, `..._folder_ids` | Hidden built-ins | ○ |
 | `muscleos_recovery` | Derived recovery cache | ○ |
 | `muscleos_active_workout` | In-progress session + rest state + `lastActivityAt` | ○ |
 | `muscleos_catalog_exercises`, `muscleos_catalog_watermark`, `muscleos_catalog_seed_applied_at` | Catalog cache | ○ |
@@ -419,8 +420,8 @@ on read:
 | Legacy lb preference → `unit_system: imperial` (only if `unit_system` was never written) | `legacyUnitMigration()` in `settingsStore.load`; `parseStoredAppSettings()` also reads the legacy weight unit |
 | Unset unit keys → resolved values written back | `settingsNeedPersist()` in `settingsStore.load` |
 | Sync meta without an owner → adopted by the next signed-in sync | `syncOwnerAction()` |
-| Remote `app_settings` missing `themePreference` | `normalizeAppSettings()` |
-| Keys for removed data → deleted on launch: `muscleos_subscription` and `muscleos_dev_pro_override` (the Pro tier), `muscleos_health` (an unused macro store), `muscleos_height_unit` (height is no longer collected) | `LEGACY_STORAGE_KEYS`, `removeLegacyStorageKeys()` |
+| Remote `app_settings` missing `themePreference` or `activeProgramId` (an older build) | `normalizeAppSettings()` keeps the local value |
+| Keys for removed data → deleted on launch: `muscleos_subscription` and `muscleos_dev_pro_override` (the Pro tier), `muscleos_health` (an unused macro store), `muscleos_height_unit` (height is no longer collected), `muscleos_hidden_builtin_template_ids` and `..._folder_ids` (built-ins now reach the Workouts tab only as the one chosen program) | `LEGACY_STORAGE_KEYS`, `removeLegacyStorageKeys()` |
 
 Export carries an explicit `version: 1`.
 
@@ -469,8 +470,8 @@ The file is dated by the device's **local** calendar day (`exportFilename()`).
 template folders, the stored finished-session list, recovery, exercise notes, and custom
 exercises.
 
-**Not included:** app settings (units, theme, sounds), biodata (`UserAppProfile`), hidden built-in
-ids, the exercise-previous map, the active in-progress workout, and the catalog cache.
+**Not included:** app settings (units, theme, sounds, the chosen program), biodata
+(`UserAppProfile`), the exercise-previous map, the active in-progress workout, and the catalog cache.
 
 > The export is therefore **not a complete backup** — it omits settings, biodata, and the previous
 > map. Account sync is the backup; the file is for portability and for **Import data** below.
@@ -526,7 +527,6 @@ Base image: Node 24.21.0, pnpm 9.14.2, Expo SDK 57. EAS profiles and building:
 | Export is portability, not backup | Omits settings and biodata; Import only adds rows |
 | Clear all data is device-only | Nothing is pushed; the account's cloud copy is untouched |
 | Signing into another account merges this device into it | Old account's queued changes are dropped, never pushed to the new one |
-| Hidden built-in ids are device-local | The only user intent lost on a new device |
 
 ## Not implemented
 
