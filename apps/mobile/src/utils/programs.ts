@@ -1,6 +1,6 @@
 import type { Exercise, MuscleId, WorkoutTemplate } from '@muscleos/types';
 import { builtInProgram, programTemplates, type BuiltInProgram } from '@/data/builtInTemplates';
-import { formatTemplateSetLabel, resolveTemplateExercises } from '@/utils/templateExercises';
+import { resolveTemplateExercises } from '@/utils/templateExercises';
 
 /**
  * Rules behind the Programs screens (docs/features/templates.md#programs). At most one program is
@@ -60,31 +60,47 @@ export function programMeta(program: BuiltInProgram): string {
 
 export type ProgramDay = {
   template: WorkoutTemplate;
-  exercises: { exerciseId: string; name: string; sets: string }[];
+  /** Each exercise with its working sets and the first muscle it lists (its pill on the card). */
+  exercises: { exerciseId: string; name: string; sets: number; muscle?: MuscleId }[];
+  /** Every muscle the workout trains, de-duplicated in first-seen order (its mini diagram). */
+  muscleIds: MuscleId[];
+  totalSets: number;
 };
 
 /**
- * What the program page shows: each workout with its exercises and set prescription
- * (`4 sets`), and every muscle the program trains, de-duplicated in first-seen order.
+ * What the program page shows: each workout with its exercises, working sets and muscles, and the
+ * working sets across one pass through every workout (`totalSets`).
  */
 export function programOverview(
   programId: string,
   getExercise: (id: string) => Pick<Exercise, 'name' | 'muscles'> | undefined
-): { days: ProgramDay[]; muscleIds: MuscleId[] } {
-  const muscles = new Set<MuscleId>();
-  const days = programTemplates(programId).map((template) => ({
-    template,
-    exercises: resolveTemplateExercises(template).map((e) => {
+): { days: ProgramDay[]; totalSets: number } {
+  const days = programTemplates(programId).map((template) => {
+    const muscles = new Set<MuscleId>();
+    const exercises = resolveTemplateExercises(template).map((e) => {
       const exercise = getExercise(e.exerciseId);
       for (const m of exercise?.muscles ?? []) muscles.add(m);
       return {
         exerciseId: e.exerciseId,
         name: exercise?.name ?? e.exerciseId,
-        sets: formatTemplateSetLabel(e.sets, e.warmUpSets),
+        sets: e.sets,
+        muscle: exercise?.muscles[0],
       };
-    }),
-  }));
-  return { days, muscleIds: [...muscles] };
+    });
+    return {
+      template,
+      exercises,
+      muscleIds: [...muscles],
+      totalSets: exercises.reduce((n, e) => n + e.sets, 0),
+    };
+  });
+  return { days, totalSets: days.reduce((n, d) => n + d.totalSets, 0) };
+}
+
+/** `6 exercises · 18 sets` under a workout's name. */
+export function programDayMeta(day: Pick<ProgramDay, 'exercises' | 'totalSets'>): string {
+  const n = day.exercises.length;
+  return `${n} exercise${n === 1 ? '' : 's'} · ${day.totalSets} set${day.totalSets === 1 ? '' : 's'}`;
 }
 
 /** The built-in program a template belongs to, for the preview's "Part of …" link. Customs have none. */

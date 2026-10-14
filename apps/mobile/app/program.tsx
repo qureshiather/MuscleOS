@@ -2,18 +2,25 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { WorkoutTemplate } from '@muscleos/types';
+import { muscleLabel } from '@muscleos/types';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen, ScreenFooter } from '@/components/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { builtInProgram, programTemplates } from '@/data/builtInTemplates';
+import { builtInProgram } from '@/data/builtInTemplates';
 import { useSettingsStore } from '@/store/settingsStore';
 import { encodeStartParams } from '@/store/activeWorkoutLogic';
 import { resolveTemplateExercises } from '@/utils/templateExercises';
-import { programAction, programActionHint, programOverview } from '@/utils/programs';
+import {
+  programAction,
+  programActionHint,
+  programDayMeta,
+  programOverview,
+  type ProgramDay,
+} from '@/utils/programs';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
-import { formatMuscleLabels } from '@muscleos/types';
+import { fontScaleCap } from '@/theme/layout';
 import { fontFamily, typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 
@@ -38,10 +45,13 @@ export default function ProgramScreen() {
     );
   }
 
-  const templates = programTemplates(program.id);
   const overview = programOverview(program.id, getExercise);
   const action = programAction(program.id, activeProgramId);
-  const setsRange = setRange(templates);
+  const facts: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+    { icon: 'calendar-outline', label: `${program.daysPerWeek} days/wk` },
+    { icon: 'barbell-outline', label: `${overview.days.length} workouts` },
+    { icon: 'layers-outline', label: `${overview.totalSets} sets/cycle` },
+  ];
 
   function openPreview(template: WorkoutTemplate) {
     router.push({
@@ -57,61 +67,57 @@ export default function ProgramScreen() {
 
   return (
     <Screen kind="chrome">
-      <ScreenHeader title={program.name} onBack={() => router.back()} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[typography.body, { color: colors.textSecondary }]}>{program.summary}</Text>
-
-        <View style={styles.facts}>
-          <Fact value={program.daysPerWeek} label="days/wk" />
-          <Fact value={String(templates.length)} label="workouts" />
-          <Fact value={setsRange} label="sets each" />
+      <Pressable
+        onPress={() => router.back()}
+        style={styles.backRow}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+      >
+        <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        <Text style={[typography.label, { color: colors.primary }]}>Back</Text>
+      </Pressable>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <View style={styles.eyebrowRow}>
+            <Text style={[styles.eyebrow, { color: colors.primary }]}>Program</Text>
+            <View style={[styles.levelTag, { borderColor: colors.border }]}>
+              <Text style={[styles.tagText, { color: colors.textSecondary }]}>{program.level}</Text>
+            </View>
+            {action.kind === 'remove' ? (
+              <View style={styles.activeTag}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                <Text style={[styles.tagText, { color: colors.success }]}>In your workouts</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text
+            style={[typography.screenTitle, { color: colors.text }]}
+            maxFontSizeMultiplier={fontScaleCap.title}
+          >
+            {program.name}
+          </Text>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>{program.summary}</Text>
         </View>
 
-        <Text style={[typography.caption, styles.label, { color: colors.textMuted }]}>Workouts</Text>
-        {overview.days.map(({ template: t, exercises }) => (
-          <Pressable
-            key={t.id}
-            accessibilityRole="button"
-            accessibilityLabel={`Preview ${t.name}`}
-            testID={`program-day-${t.id}`}
-            onPress={() => openPreview(t)}
-            style={({ pressed }) => [
-              styles.day,
-              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <View style={styles.dayHeader}>
-              <View style={styles.rowMain}>
-                <Text style={[typography.bodyMedium, { color: colors.text }]}>{t.name}</Text>
-                {t.description ? (
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>{t.description}</Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        <View style={styles.facts}>
+          {facts.map((f) => (
+            <View key={f.icon} style={[styles.fact, { backgroundColor: colors.surfaceElevated }]}>
+              <Ionicons name={f.icon} size={13} color={colors.textSecondary} />
+              <Text
+                style={[styles.mono, { color: colors.textSecondary }]}
+                maxFontSizeMultiplier={fontScaleCap.chrome}
+              >
+                {f.label}
+              </Text>
             </View>
-            <View style={[styles.exercises, { borderTopColor: colors.border }]}>
-              {exercises.map((e) => (
-                <View key={e.exerciseId} style={styles.exerciseRow}>
-                  <Text style={[typography.caption, styles.exerciseName, { color: colors.text }]} numberOfLines={1}>
-                    {e.name}
-                  </Text>
-                  <Text style={[typography.caption, { color: colors.textMuted }]}>{e.sets}</Text>
-                </View>
-              ))}
-            </View>
-          </Pressable>
+          ))}
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Workouts</Text>
+        {overview.days.map((day, i) => (
+          <DayCard key={day.template.id} day={day} index={i} onPress={() => openPreview(day.template)} />
         ))}
-        {overview.muscleIds.length > 0 && (
-          <View style={[styles.muscles, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.caption, styles.label, styles.musclesLabel, { color: colors.textMuted }]}>
-              Muscles trained
-            </Text>
-            <MuscleDiagram muscleIds={overview.muscleIds} size={0.5} />
-            <Text style={[typography.caption, styles.muscleNames, { color: colors.textSecondary }]}>
-              {formatMuscleLabels(overview.muscleIds)}
-            </Text>
-          </View>
-        )}
       </ScrollView>
       <ScreenFooter>
         <PrimaryButton
@@ -125,44 +131,112 @@ export default function ProgramScreen() {
       </ScreenFooter>
     </Screen>
   );
-
 }
 
-function Fact({ value, label }: { value: string; label: string }) {
+/** A workout: day number, name, size, its own muscle diagram, then one row per exercise. */
+function DayCard({ day, index, onPress }: { day: ProgramDay; index: number; onPress: () => void }) {
   const { colors } = useTheme();
+  const t = day.template;
   return (
-    <View style={[styles.fact, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.factValue, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.factLabel, { color: colors.textMuted }]}>{label}</Text>
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Preview ${t.name}`}
+      testID={`program-day-${t.id}`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.day,
+        { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+      ]}
+    >
+      <View style={styles.dayHeader}>
+        <View style={styles.dayTitle}>
+          <Text style={[styles.dayTag, { color: colors.primary }]}>{`DAY ${index + 1}`}</Text>
+          <Text style={[styles.dayName, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>
+            {t.name}
+          </Text>
+          <Text style={[styles.mono, { color: colors.textSecondary }]}>{programDayMeta(day)}</Text>
+        </View>
+        {day.muscleIds.length > 0 ? (
+          <View style={styles.diagram} importantForAccessibility="no-hide-descendants">
+            <MuscleDiagram muscleIds={day.muscleIds} size={0.28} />
+          </View>
+        ) : null}
+      </View>
+      {t.description ? (
+        <Text style={[typography.caption, { color: colors.textMuted }]}>{t.description}</Text>
+      ) : null}
+      <View style={[styles.exercises, { borderTopColor: colors.border }]}>
+        {day.exercises.map((e) => (
+          <View key={e.exerciseId} style={styles.exerciseRow}>
+            <Text style={[typography.label, styles.exerciseName, { color: colors.text }]} numberOfLines={1}>
+              {e.name}
+            </Text>
+            {e.muscle ? (
+              <View style={[styles.musclePill, { backgroundColor: colors.primarySurface }]}>
+                <Text style={[styles.musclePillText, { color: colors.primary }]} numberOfLines={1}>
+                  {muscleLabel(e.muscle)}
+                </Text>
+              </View>
+            ) : null}
+            <Text
+              style={[styles.mono, styles.sets, { color: colors.textMuted }]}
+              maxFontSizeMultiplier={fontScaleCap.tabular}
+            >
+              {`${e.sets}×`}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </Pressable>
   );
 }
 
-/** `3–4` across a program's exercises, or `5` when they all match. */
-function setRange(templates: readonly WorkoutTemplate[]): string {
-  const sets = templates.flatMap((t) => resolveTemplateExercises(t).map((e) => e.sets));
-  if (sets.length === 0) return '—';
-  const min = Math.min(...sets);
-  const max = Math.max(...sets);
-  return min === max ? String(min) : `${min}–${max}`;
-}
-
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   missing: { padding: spacing.lg },
-  facts: { flexDirection: 'row', gap: spacing.sm },
-  fact: { flex: 1, borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
-  factValue: { fontFamily: fontFamily.sansBold, fontSize: 20 },
-  factLabel: { fontFamily: fontFamily.sansMedium, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 },
-  label: { fontFamily: fontFamily.sansMedium, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: -spacing.sm },
-  rowMain: { flex: 1, minWidth: 0, gap: 2 },
-  muscles: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center' },
-  musclesLabel: { alignSelf: 'flex-start', marginBottom: spacing.sm },
-  muscleNames: { marginTop: spacing.sm, textAlign: 'center' },
-  day: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 2,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  content: { padding: spacing.lg + 4, gap: spacing.md, paddingBottom: spacing.xxl },
+  hero: { gap: spacing.sm, marginBottom: spacing.xs },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
+  eyebrow: { fontFamily: fontFamily.monoMedium, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase' },
+  levelTag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  activeTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  tagText: { fontFamily: fontFamily.sansSemiBold, fontSize: 11 },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  fact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
+  },
+  mono: { fontFamily: fontFamily.mono, fontSize: 13 },
+  sectionLabel: {
+    ...typography.caption,
+    fontFamily: typography.label.fontFamily,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginTop: spacing.md,
+    paddingHorizontal: 2,
+  },
+  day: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   dayHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  exercises: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.sm, gap: 6 },
+  dayTitle: { flex: 1, minWidth: 0, gap: 2 },
+  dayTag: { fontFamily: fontFamily.monoMedium, fontSize: 11, letterSpacing: 1.2 },
+  dayName: { fontFamily: fontFamily.sansBold, fontSize: 20, lineHeight: 26 },
+  diagram: { width: 128 },
+  exercises: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, gap: spacing.sm + 2 },
   exerciseRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   exerciseName: { flex: 1, minWidth: 0 },
+  musclePill: { borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 2, maxWidth: 120 },
+  musclePillText: { fontFamily: fontFamily.sansSemiBold, fontSize: 11 },
+  sets: { width: 28, textAlign: 'right' },
   hint: { textAlign: 'center', marginTop: spacing.sm },
 });

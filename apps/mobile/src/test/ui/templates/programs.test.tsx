@@ -96,16 +96,21 @@ describe('Programs', () => {
 });
 
 describe('program detail', () => {
-  it('shows the facts, muscles trained, and every workout with its exercises; a workout opens its preview', async () => {
+  it('shows the facts and every workout with its exercises; a workout opens its preview', async () => {
     renderAtNow(routes, '/program?id=builtin_sl');
     expect(await screen.findByText('Strong Lifts 5x5')).toBeTruthy();
-    expect(screen.getByText('Muscles trained')).toBeTruthy();
+    expect(screen.getByText('Beginner')).toBeTruthy();
+    expect(screen.queryByText('In your workouts')).toBeNull();
+    expect(screen.getByText('3 days/wk')).toBeTruthy();
+    expect(screen.getByText('2 workouts')).toBeTruthy();
+    expect(screen.getByText('30 sets/cycle')).toBeTruthy();
+    expect(screen.getByText('DAY 1')).toBeTruthy();
     expect(screen.getByTestId('program-day-sl-a')).toBeTruthy();
+    expect(screen.getByText('5 sets of 5 reps. Alternating with B.')).toBeTruthy();
+    expect(screen.getAllByText('3 exercises · 15 sets').length).toBe(2);
     expect(screen.getAllByText('Barbell Squat').length).toBe(2);
-    expect(screen.getAllByText('5 sets').length).toBe(6);
-    expect(screen.getByText('days/wk')).toBeTruthy();
-    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
-    expect(screen.getByText('5')).toBeTruthy();
+    expect(screen.getAllByText('5×').length).toBe(6);
+    expect(screen.getAllByText('Quads').length).toBe(2);
     fireEvent.press(screen.getByLabelText('Preview Workout B'));
     expect(await screen.findByText('route:workout-preview')).toBeTruthy();
     expect(searchParams()).toEqual({
@@ -137,6 +142,7 @@ describe('program detail', () => {
   it('on the chosen program, Remove from your workouts goes back to no program', async () => {
     await seed({ activeProgramId: 'builtin_sl' });
     renderAtNow(routes, '/program?id=builtin_sl');
+    expect(await screen.findByText('In your workouts')).toBeTruthy();
     fireEvent.press(await screen.findByText('Remove from your workouts'));
     expect(await screen.findByText('route:workouts')).toBeTruthy();
     expect(useSettingsStore.getState().activeProgramId).toBeNull();
