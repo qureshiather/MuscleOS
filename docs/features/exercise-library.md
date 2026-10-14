@@ -401,6 +401,11 @@ Two implementations: the template builder filters `searchExercises` inline, and 
 workout's add and replace flows share `pickerResults()` (`src/utils/exercisePicker.ts`). Both
 search the catalog plus customs and leave out exercises already selected.
 
+Both sheets' headers carry **+ New** beside **Done** (`PickerHeaderActions`): it opens the
+**New exercise** form, prefilled with the search text when there is some (blank otherwise) — the
+same route as the Create "<query>" row, so from the active workout saving drops the new exercise
+in (or swaps it in for Replace).
+
 There is **no recently-used or most-used ordering** in any picker.
 
 ## Assumptions

@@ -51,6 +51,7 @@ import { type ShareCardModel, shareCardModel } from '@/utils/shareCard';
 import { ShareWorkoutSheet } from '@/components/share/ShareWorkoutSheet';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { Ionicons } from '@expo/vector-icons';
+import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
 import { pickerFooter, pickerResults } from '@/utils/exercisePicker';
 import { NumericKeypad } from '@/components/NumericKeypad';
@@ -697,8 +698,8 @@ export default function ActiveWorkoutScreen() {
    * (replace) — see create-exercise.tsx.
    */
   const createExerciseFromSearch = () => {
+    // Blank from the header's + New; the search text when it has some.
     const name = addExerciseSearch.trim();
-    if (!name) return;
     const picker = exercisePicker;
     closeExercisePicker();
     router.push({
@@ -2407,9 +2408,7 @@ export default function ActiveWorkoutScreen() {
                   </Text>
                 ) : null}
               </View>
-              <Pressable onPress={closeExercisePicker}>
-                <Text style={[styles.addExerciseModalClose, { color: colors.primary }]}>Done</Text>
-              </Pressable>
+              <PickerHeaderActions onNew={createExerciseFromSearch} onDone={closeExercisePicker} />
             </View>
             <TextInput
               style={[
@@ -3210,7 +3209,6 @@ const styles = StyleSheet.create({
   },
   addExerciseModalTitle: { fontSize: 20, fontWeight: '700' },
   addExerciseModalHint: { ...typography.caption, fontSize: 13, lineHeight: 18 },
-  addExerciseModalClose: { fontSize: 16, fontWeight: '600' },
   addExerciseSearch: {
     marginHorizontal: 20,
     marginTop: 12,

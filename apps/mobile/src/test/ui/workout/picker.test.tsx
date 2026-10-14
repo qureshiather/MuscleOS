@@ -68,6 +68,23 @@ test('a search with no matches shows "No matching exercises" and the Create row'
   expect(screen.getByText('Create “zzqqxx”')).toBeTruthy();
 });
 
+test('+ New beside Done opens a blank custom-exercise builder that adds to the workout', async () => {
+  const r = await openPickerWith([]);
+  expect(screen.getByTestId('picker-done')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('picker-new-exercise'));
+  await waitFor(() => expect(r.getPathname()).toBe('/create-exercise'));
+  expect(r.getSearchParams()).toMatchObject({ origin: 'active-workout', workoutMode: 'add' });
+  expect(r.getSearchParams().name ?? '').toBe('');
+});
+
+test('+ New prefills the search text', async () => {
+  const r = await openPickerWith([]);
+  search('Zercher Squat');
+  fireEvent.press(screen.getByTestId('picker-new-exercise'));
+  await waitFor(() => expect(r.getPathname()).toBe('/create-exercise'));
+  expect(r.getSearchParams()).toMatchObject({ name: 'Zercher Squat' });
+});
+
 test('Create routes to the custom-exercise builder pre-filled with the query', async () => {
   const r = await openPickerWith([]);
   search('Zercher Squat');

@@ -348,7 +348,7 @@ built-in template. Saving the changed session as a new template is how a built-i
 The exercise picker (`pickerResults`) searches the full catalog plus your customs, **leaving out
 every exercise already in the workout** — in both Add and Replace mode — so a workout never holds
 the same exercise twice (the store's `addExercise` / `replaceExercise` refuse a duplicate too).
-Whenever the search box has text the picker also offers **Create "<query>"**, so a missing movement can be added even when the search has partial matches.
+Whenever the search box has text the picker also offers **Create "<query>"**, so a missing movement can be added even when the search has partial matches. The header's **+ New** (beside Done) opens the same form at any time, blank when the search is empty.
 When a search with text finds nothing, "No matching exercises" shows above the Create row; an
 empty search shows neither. It routes to `/create-exercise` pre-filled with
 the query; saving returns to the workout and drops the new exercise straight in — added to the end
@@ -515,7 +515,8 @@ the real router.
   and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
   Discard)
 - `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with
-  and without matches, "No matching exercises", routing to `/create-exercise`
+  and without matches, "No matching exercises", routing to `/create-exercise` (Create row and
+  header + New, blank or prefilled)
 - `deepLinks.test.tsx` — starting from route params for a built-in (own plan, or the link's),
   `_empty`, an unknown id, and a custom template once templates load; a running workout untouched;
   Add Exercise on a built-in workout opening the picker with no alert; the preview for a custom
