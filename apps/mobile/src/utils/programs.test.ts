@@ -8,6 +8,7 @@ import {
   programActionHint,
   programMeta,
   programForTemplate,
+  programDayMeta,
   programOverview,
 } from './programs';
 
@@ -78,18 +79,39 @@ describe('programOverview', () => {
   };
   const overview = programOverview('builtin_sl', (id) => names[id]);
 
-  it('lists every workout with its exercises and set prescription', () => {
+  it('lists every workout with its exercises, working sets and first-listed muscle', () => {
     expect(overview.days.map((d) => d.template.id)).toEqual(['sl-a', 'sl-b']);
     expect(overview.days[0].exercises).toEqual([
-      { exerciseId: 'squat', name: 'Squat', sets: '5 sets' },
-      { exerciseId: 'bench-press', name: 'Bench Press', sets: '5 sets' },
-      { exerciseId: 'barbell-row', name: 'Barbell Row', sets: '5 sets' },
+      { exerciseId: 'squat', name: 'Squat', sets: 5, muscle: 'quads' },
+      { exerciseId: 'bench-press', name: 'Bench Press', sets: 5, muscle: 'chest' },
+      { exerciseId: 'barbell-row', name: 'Barbell Row', sets: 5, muscle: 'lats' },
     ]);
   });
 
-  it('falls back to the id for an unknown exercise and collects each muscle once', () => {
-    expect(overview.days[1].exercises[1]).toEqual({ exerciseId: 'overhead-press', name: 'overhead-press', sets: '5 sets' });
-    expect(overview.muscleIds).toEqual(['quads', 'glutes', 'chest', 'triceps', 'lats']);
+  it('collects each workout\'s muscles once, in first-seen order', () => {
+    expect(overview.days[0].muscleIds).toEqual(['quads', 'glutes', 'chest', 'triceps', 'lats']);
+  });
+
+  it('falls back to the id and no muscle for an unknown exercise', () => {
+    expect(overview.days[1].exercises[1]).toEqual({
+      exerciseId: 'overhead-press',
+      name: 'overhead-press',
+      sets: 5,
+      muscle: undefined,
+    });
+  });
+
+  it('totals working sets per workout and across one pass of the program', () => {
+    expect(overview.days.map((d) => d.totalSets)).toEqual([15, 15]);
+    expect(overview.totalSets).toBe(30);
+    expect(programOverview('builtin_phul', () => undefined).totalSets).toBe(85);
+  });
+});
+
+describe('programDayMeta', () => {
+  it('counts exercises and sets, singular when one', () => {
+    expect(programDayMeta({ exercises: new Array(6), totalSets: 18 })).toBe('6 exercises · 18 sets');
+    expect(programDayMeta({ exercises: new Array(1), totalSets: 1 })).toBe('1 exercise · 1 set');
   });
 });
 

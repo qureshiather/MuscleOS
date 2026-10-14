@@ -254,11 +254,15 @@ programs follow in shipped order, and No program goes last while a program is ch
   empty workout** (→ `/active-workout?templateId=_empty`). Unselected, it reads "Skip the plan.
   Train from your own templates, or start empty and add exercises as you go."
 
-`/program` is the program's overview: its summary, three facts (days/wk, workouts, and the
-working-set range across its exercises — `5` for Strong Lifts, `3–4` for PHUL), then one card per
-workout with its description and every exercise with its set prescription (`4 sets`), then a
-**Muscles trained** diagram and list covering the whole program (`programOverview()`). Tapping a
-workout opens its [workout preview](#workout-preview), so a day can be tried without choosing the
+`/program` is the program's overview (`programOverview()` in `src/utils/programs.ts`). A **Back**
+link sits above a header with a **PROGRAM** eyebrow, the level tag (plus **In your workouts** with a
+check when it's the chosen program), the name and the summary. Three fact chips follow: `N days/wk`,
+`N workouts` and `N sets/cycle`, the working sets in one pass through every workout (30 for Strong
+Lifts, 85 for PHUL). Under **Workouts**, one card per workout in shipped order shows `DAY n`, its
+name, `N exercises · N sets` (`programDayMeta()`), its description, and a small front/back
+diagram of every muscle it trains. Below a divider, each exercise gets a row with its name, a pill
+for the first muscle it lists, and its working sets as `3×`. Tapping a workout opens its
+[workout preview](#workout-preview), so a day can be tried without choosing the
 program. The footer button depends on Your workouts
 (`programAction()` / `programActionHint()` in `src/utils/programs.ts`):
 
@@ -473,12 +477,13 @@ Covered:
   `/templates` redirect
 - `src/utils/programs.test.ts` — the Add / Switch to / Remove button and hint for each
   situation, an unknown chosen id treated as none, list order with No program first or last,
-  `N days/wk · N workouts`, and the overview (each workout's exercises and sets, unknown
-  exercises by id, muscles collected once)
+  `N days/wk · N workouts`, and the overview (each workout's exercises, working sets and
+  first-listed muscle, unknown exercises by id with no muscle, each workout's muscles collected
+  once, sets per workout and per cycle) and `N exercises · N sets`
 - `src/test/ui/templates/programs.test.tsx` (Jest) — Programs order, levels and sizes, the chosen
   program first and marked with No program last; No program selected by default with Build a
   template / Start empty workout, choosing it clears the program and stays; card → `/program?id=`;
-  program detail facts, muscles trained, each workout's exercises, a workout → preview params, Add / Switch / Remove updating and persisting `activeProgramId` and returning to Workouts,
+  program detail level tag, In your workouts on the chosen one, fact chips, each workout's day number, size, description, exercises with muscle pills and `N×`, a workout → preview params, Add / Switch / Remove updating and persisting `activeProgramId` and returning to Workouts,
   Program not found
 - `src/storage/localStorage.settings.test.ts`, `src/sync/mergePolicy.test.ts` — the program setting
   defaults to none, round-trips, rejects blank/unknown ids, survives an older build's payload, and a
