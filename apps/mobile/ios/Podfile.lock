@@ -54,8 +54,6 @@ PODS:
     - ExpoModulesCore
   - ExpoAudio (57.0.5):
     - ExpoModulesCore
-  - ExpoCrypto (57.0.4):
-    - ExpoModulesCore
   - ExpoDocumentPicker (57.0.3):
     - ExpoModulesCore
   - ExpoDomWebView (57.0.1):
@@ -2424,7 +2422,6 @@ DEPENDENCIES:
   - "ExpoAppleAuthentication (from `../../../node_modules/.pnpm/expo-apple-authentication@57.0.2_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-n_7e2tw6yo42bmldnmkgfynfvmbi/node_modules/expo-apple-authentication/ios`)"
   - "ExpoAsset (from `../../../node_modules/.pnpm/expo-asset@57.0.19_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jest-pre_vutxuy5qq5rbvrtuym7dnzmbwa/node_modules/expo-asset/ios`)"
   - "ExpoAudio (from `../../../node_modules/.pnpm/expo-audio@57.0.5_expo-asset@57.0.19_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@rea_u6ugajkgf4sqekdrlgz3mjboia/node_modules/expo-audio/ios`)"
-  - "ExpoCrypto (from `../../../node_modules/.pnpm/expo-crypto@57.0.4_expo@57.0.28/node_modules/expo-crypto/ios`)"
   - "ExpoDocumentPicker (from `../../../node_modules/.pnpm/expo-document-picker@57.0.3_expo@57.0.28/node_modules/expo-document-picker/ios`)"
   - "ExpoDomWebView (from `../../../node_modules/.pnpm/@expo+dom-webview@57.0.1_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+je_k2ohgzn7bzd7tmjsfjihpkulru/node_modules/@expo/dom-webview/ios`)"
   - "ExpoFileSystem (from `../../../node_modules/.pnpm/expo-file-system@57.0.7_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jes_w4ccitr7k6w76vhzb3h3nzvdvq/node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)"
@@ -2559,8 +2556,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-asset@57.0.19_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jest-pre_vutxuy5qq5rbvrtuym7dnzmbwa/node_modules/expo-asset/ios"
   ExpoAudio:
     :path: "../../../node_modules/.pnpm/expo-audio@57.0.5_expo-asset@57.0.19_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@rea_u6ugajkgf4sqekdrlgz3mjboia/node_modules/expo-audio/ios"
-  ExpoCrypto:
-    :path: "../../../node_modules/.pnpm/expo-crypto@57.0.4_expo@57.0.28/node_modules/expo-crypto/ios"
   ExpoDocumentPicker:
     :path: "../../../node_modules/.pnpm/expo-document-picker@57.0.3_expo@57.0.28/node_modules/expo-document-picker/ios"
   ExpoDomWebView:
@@ -2783,7 +2778,6 @@ SPEC CHECKSUMS:
   ExpoAppleAuthentication: 16c2955d33ec7315e5a99d17fb5d62ed33cdb5b9
   ExpoAsset: 78dbecc7bc9f60d839fb37ba8b10317b64779685
   ExpoAudio: edc9230b788be6f65238a53907d5c176b57a7ce0
-  ExpoCrypto: 20c5dfad9f2c0b7831591fb75397d0c248cf7f8b
   ExpoDocumentPicker: 3cb0c283969538c03ced2b405e519c91abf39f8e
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: 28778f942725170102f7c6cf4dee05a526ddacd0
