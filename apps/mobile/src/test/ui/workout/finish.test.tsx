@@ -62,7 +62,7 @@ describe('finish modal options', () => {
     press('finish-workout');
     expect(screen.getByText('Workout summary')).toBeTruthy();
     expect(optionLabels()).toEqual(['Save values', 'Discard workout']);
-    expect(screen.queryByText('You changed the exercises in this workout.')).toBeNull();
+    expect(screen.queryByText('You changed this workout from its template.')).toBeNull();
     press('finish-back');
     expect(screen.queryByText('Workout summary')).toBeNull();
     expect(session()).not.toBeNull();
@@ -100,7 +100,7 @@ describe('finish modal options', () => {
     await start(startUrl('tpl_mine', ['bench-press']));
     logSet();
     press('finish-workout');
-    expect(screen.getByText('You changed the exercises in this workout.')).toBeTruthy();
+    expect(screen.getByText('You changed this workout from its template.')).toBeTruthy();
     expect(optionLabels()).toEqual([
       'Save as new template',
       'Overwrite this template',
@@ -117,6 +117,26 @@ describe('finish modal options', () => {
       'Save as new template',
       'Discard workout',
     ]);
+  });
+
+  test('a rest changed mid-workout offers Overwrite, which saves it to the template (MUS-143)', async () => {
+    useTemplatesStore.setState({
+      userTemplates: [
+        { id: 'tpl_arnold', name: 'Arnold', exerciseIds: ['bench-press'], exercises: [{ exerciseId: 'bench-press', restBetweenSetsSeconds: 90 }] },
+      ],
+    });
+    await start(`${startUrl('tpl_arnold', ['bench-press'])}&rest=90`);
+    expect(session()?.exercises[0].restBetweenSetsSeconds).toBe(90);
+    act(() => useActiveWorkoutStore.getState().setExerciseRestBetweenSets(0, 60));
+    // Nothing is written to the template mid-workout.
+    expect(useTemplatesStore.getState().userTemplates[0].exercises?.[0].restBetweenSetsSeconds).toBe(90);
+    logSet();
+    press('finish-workout');
+    expect(screen.getByText('You changed this workout from its template.')).toBeTruthy();
+    press('finish-option-overwrite');
+    await waitFor(() =>
+      expect(useTemplatesStore.getState().userTemplates[0].exercises?.[0].restBetweenSetsSeconds).toBe(60)
+    );
   });
 
   test('unchanged custom: Save values · Discard workout', async () => {

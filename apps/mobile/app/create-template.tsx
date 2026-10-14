@@ -32,10 +32,14 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { searchExercises } from '@/utils/exerciseSearch';
 import type { ThemeColors } from '@/theme/palette';
 import {
+  DEFAULT_REST_SECONDS,
   DEFAULT_SETS_PER_EXERCISE,
+  formatTemplateRestLabel,
   resolveTemplateExercises,
+  storedRestSeconds,
   type ResolvedTemplateExercise,
 } from '@/utils/templateExercises';
+import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
 import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
 
 export default function CreateTemplateScreen() {
@@ -78,6 +82,9 @@ export default function CreateTemplateScreen() {
   const [selected, setSelected] = useState<ResolvedTemplateExercise[]>([]);
   const [folderId, setFolderId] = useState<string | undefined>(undefined);
   const [showPicker, setShowPicker] = useState(false);
+  /** Exercise whose rest timers are being edited. */
+  const [restExerciseId, setRestExerciseId] = useState<string | null>(null);
+  const restExercise = selected.find((ex) => ex.exerciseId === restExerciseId);
   const [pickerSearch, setPickerSearch] = useState('');
   const [pickerKeyboardHeight, setPickerKeyboardHeight] = useState(0);
   const pickerKeyboardSubRef = useRef<{ remove: () => void } | null>(null);
@@ -105,6 +112,16 @@ export default function CreateTemplateScreen() {
 
   function updateExercise(id: string, patch: Partial<ResolvedTemplateExercise>) {
     setSelected((prev) => prev.map((ex) => (ex.exerciseId === id ? { ...ex, ...patch } : ex)));
+  }
+
+  /** Defaults stay implicit (omitted), so a later change to the app default still applies. */
+  function saveRest(id: string, work: number, warmUp: number) {
+    const w = storedRestSeconds(work);
+    const r = storedRestSeconds(warmUp);
+    updateExercise(id, {
+      restBetweenSetsSeconds: w === DEFAULT_REST_SECONDS ? undefined : w,
+      warmUpRestSeconds: r > 0 ? r : undefined,
+    });
   }
 
   /** Picker → New exercise form, prefilled with the search text when there is some. */
@@ -403,6 +420,29 @@ export default function CreateTemplateScreen() {
                       colors={colors}
                       onChange={(warmUpSets) => updateExercise(item.exerciseId, { warmUpSets })}
                     />
+                    <View style={styles.stepper}>
+                      <Text
+                        style={[typography.caption, { color: colors.textMuted }]}
+                        maxFontSizeMultiplier={fontScaleCap.chrome}
+                      >
+                        Rest
+                      </Text>
+                      <Pressable
+                        onPress={() => setRestExerciseId(item.exerciseId)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rest timers for ${ex?.name ?? item.exerciseId}: ${formatTemplateRestLabel(item)}`}
+                        testID={`template-rest-${item.exerciseId}`}
+                        style={[styles.restPill, { borderColor: colors.border }]}
+                      >
+                        <Ionicons name="timer-outline" size={14} color={colors.primary} />
+                        <Text
+                          style={[typography.data, { color: colors.text }]}
+                          maxFontSizeMultiplier={fontScaleCap.tabular}
+                        >
+                          {formatTemplateRestLabel(item)}
+                        </Text>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
                 <Pressable
@@ -418,6 +458,20 @@ export default function CreateTemplateScreen() {
             </ScaleDecorator>
           );
         }}
+      />
+
+      <RestTimersDialog
+        exerciseName={restExercise ? (getExercise(restExercise.exerciseId)?.name ?? restExercise.exerciseId) : null}
+        initial={{
+          work: restExercise?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
+          warmUp: restExercise?.warmUpRestSeconds ?? 0,
+        }}
+        hint="Starts after every set of this exercise when you work out from this template. 0:00 means no timer."
+        onSave={(work, warmUp) => {
+          if (restExerciseId) saveRest(restExerciseId, work, warmUp);
+          setRestExerciseId(null);
+        }}
+        onClose={() => setRestExerciseId(null)}
       />
 
       <Modal visible={showPicker} animationType="slide" transparent onRequestClose={closePicker}>
@@ -645,6 +699,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  restPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: touch.min - 8,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
   },
   stepperValue: {
     minWidth: 22,

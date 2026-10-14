@@ -1,6 +1,10 @@
 import type { WorkoutTemplate } from '@muscleos/types';
 import { formatWeight, type WeightUnit } from '@/utils/weightUnits';
-import { resolveTemplateExercises, type ResolvedTemplateExercise } from '@/utils/templateExercises';
+import {
+  DEFAULT_REST_SECONDS,
+  resolveTemplateExercises,
+  type ResolvedTemplateExercise,
+} from '@/utils/templateExercises';
 import type { StartWorkoutParams } from '@/store/activeWorkoutLogic';
 import { startPlanFromParams } from '@/utils/workoutStart';
 
@@ -8,11 +12,24 @@ import { startPlanFromParams } from '@/utils/workoutStart';
  * Workout preview helpers (docs/features/templates.md#workout-preview).
  */
 
-/** Seconds as `m:ss` — the preview's rest badge shows the app default (120 → `2:00`). */
+/** Seconds as `m:ss` (120 → `2:00`). */
 export function formatRestDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * The card's rest badge: the slot's work-set rest (app default 2:00 when the template doesn't set
+ * one), plus the warm-up rest when there is one. `0:00` means no timer.
+ */
+export function formatPreviewRest(
+  ex: Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> | undefined
+): string {
+  const work = ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+  const warmUp = ex?.warmUpRestSeconds ?? 0;
+  const workLine = work > 0 ? `${formatRestDuration(work)} rest between sets` : 'No rest timer';
+  return warmUp > 0 ? `${workLine} · ${formatRestDuration(warmUp)} after warm-ups` : workLine;
 }
 
 /**

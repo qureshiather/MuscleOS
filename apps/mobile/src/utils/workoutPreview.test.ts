@@ -6,6 +6,7 @@ import {
   formatRestDuration,
   previewEntryState,
   previewPlan,
+  formatPreviewRest,
 } from './workoutPreview';
 
 describe('formatRestDuration', () => {
@@ -102,5 +103,14 @@ describe('canEditFromPreview', () => {
     expect(canEditFromPreview({})).toBe(true);
     expect(canEditFromPreview({ isBuiltIn: true })).toBe(false);
     expect(canEditFromPreview(undefined)).toBe(false);
+  });
+});
+
+describe('formatPreviewRest', () => {
+  it('shows the template\'s rests, falling back to the 2:00 default', () => {
+    expect(formatPreviewRest(undefined)).toBe('2:00 rest between sets');
+    expect(formatPreviewRest({ restBetweenSetsSeconds: 90 })).toBe('1:30 rest between sets');
+    expect(formatPreviewRest({ restBetweenSetsSeconds: 0 })).toBe('No rest timer');
+    expect(formatPreviewRest({ warmUpRestSeconds: 45 })).toBe('2:00 rest between sets · 0:45 after warm-ups');
   });
 });

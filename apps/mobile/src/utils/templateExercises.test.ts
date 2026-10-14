@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorkoutTemplate } from '@muscleos/types';
 import {
   DEFAULT_SETS_PER_EXERCISE,
+  formatTemplateRestLabel,
   formatTemplateSetLabel,
   normalizeWorkoutTemplate,
   resolveTemplateExercises,
@@ -143,5 +144,50 @@ describe('formatTemplateSetLabel', () => {
     expect(formatTemplateSetLabel(1, 0)).toBe('1 set');
     expect(formatTemplateSetLabel(5, 1)).toBe('1 warm-up · 5 sets');
     expect(formatTemplateSetLabel(3, 2)).toBe('2 warm-ups · 3 sets');
+  });
+});
+
+describe('template rests (MUS-143)', () => {
+  it('resolves a slot\'s rests, clamped, and leaves unset rests implicit', () => {
+    const plan = resolveTemplateExercises(
+      base({
+        exercises: [
+          { exerciseId: 'bench-press', restBetweenSetsSeconds: 90, warmUpRestSeconds: 45 },
+          { exerciseId: 'ohp', restBetweenSetsSeconds: 99_999 },
+        ],
+      })
+    );
+    expect(plan[0]).toMatchObject({ restBetweenSetsSeconds: 90, warmUpRestSeconds: 45 });
+    expect(plan[1].restBetweenSetsSeconds).toBe(900);
+    expect(plan[1].warmUpRestSeconds).toBeUndefined();
+  });
+
+  it('keeps an explicit 0:00 work rest (no timer) but drops the defaults when saving', () => {
+    const saved = serializeTemplateExercises([
+      { exerciseId: 'a', sets: 3, warmUpSets: 0, restBetweenSetsSeconds: 0 },
+      { exerciseId: 'b', sets: 3, warmUpSets: 0, restBetweenSetsSeconds: 120, warmUpRestSeconds: 0 },
+    ]);
+    expect(saved.exercises).toEqual([{ exerciseId: 'a', restBetweenSetsSeconds: 0 }, { exerciseId: 'b' }]);
+  });
+
+  it('survives normalizing (every custom-template write)', () => {
+    const t = base({ exercises: [{ exerciseId: 'bench-press', restBetweenSetsSeconds: 150 }, { exerciseId: 'ohp' }] });
+    expect(normalizeWorkoutTemplate(t).exercises?.[0]).toEqual({ exerciseId: 'bench-press', restBetweenSetsSeconds: 150 });
+  });
+
+  it('carries a session\'s rests into Save as template / Overwrite', () => {
+    const plan = templateExercisesFromSession([
+      { exerciseId: 'a', sets: [{}, {}], restBetweenSetsSeconds: 60, warmUpRestSeconds: 30 },
+      { exerciseId: 'b', sets: [{}] },
+    ]);
+    expect(plan[0]).toMatchObject({ restBetweenSetsSeconds: 60, warmUpRestSeconds: 30 });
+    expect(plan[1].restBetweenSetsSeconds).toBeUndefined();
+  });
+
+  it('labels the rest pill: work rest, Off for 0:00, and the warm-up rest when set', () => {
+    expect(formatTemplateRestLabel({})).toBe('2:00');
+    expect(formatTemplateRestLabel({ restBetweenSetsSeconds: 90 })).toBe('1:30');
+    expect(formatTemplateRestLabel({ restBetweenSetsSeconds: 0 })).toBe('Off');
+    expect(formatTemplateRestLabel({ warmUpRestSeconds: 45 })).toBe('2:00 · warm-up 0:45');
   });
 });

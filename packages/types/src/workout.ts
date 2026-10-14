@@ -14,6 +14,10 @@ export interface TemplateExercise {
   sets?: number;
   /** Warm-up sets prepended at start. Omit → 0. */
   warmUpSets?: number;
+  /** Rest after every working set, in seconds; copied to the session. Omit → app default (120). 0 → no rest. */
+  restBetweenSetsSeconds?: number;
+  /** Rest after every warm-up set, in seconds; copied to the session. Omit or 0 → no timer. */
+  warmUpRestSeconds?: number;
 }
 
 export interface WorkoutTemplate {

@@ -165,6 +165,49 @@ describe('create', () => {
   });
 });
 
+describe('rest timers (MUS-143)', () => {
+  it('each exercise shows its rest (2:00 by default) and saves rests set with the time pad', async () => {
+    await open();
+    await screen.findByText('New template');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. Push A'), 'Push A');
+    await addExercise('Bench Press');
+    await addExercise('Barbell Squat');
+    expect(screen.getByTestId('template-rest-squat').props.accessibilityLabel).toMatch(/: 2:00$/);
+
+    fireEvent.press(screen.getByTestId('template-rest-squat'));
+    expect(await screen.findByTestId('rest-timers-save')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('rest-time-work'));
+    for (const d of ['3', '0', '0']) fireEvent.press(screen.getByTestId(`keypad-key-${d}`));
+    fireEvent.press(screen.getByTestId('rest-time-warmUp'));
+    for (const d of ['4', '5']) fireEvent.press(screen.getByTestId(`keypad-key-${d}`));
+    fireEvent.press(screen.getByTestId('rest-timers-save'));
+    await waitFor(() => expect(screen.getByText('3:00 · warm-up 0:45')).toBeTruthy());
+
+    fireEvent.press(screen.getByText('Save template'));
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    const [saved] = await storedTemplates();
+    expect(saved.exercises).toEqual([
+      { exerciseId: 'bench-press' },
+      { exerciseId: 'squat', restBetweenSetsSeconds: 180, warmUpRestSeconds: 45 },
+    ]);
+  });
+
+  it('editing prefills a saved rest', async () => {
+    await seed({
+      templates: [
+        customTemplate({
+          id: 'tpl_r',
+          name: 'Legs',
+          exerciseIds: ['squat'],
+          exercises: [{ exerciseId: 'squat', restBetweenSetsSeconds: 0 }],
+        }),
+      ],
+    });
+    await open('?templateId=tpl_r');
+    expect(await screen.findByText('Off')).toBeTruthy();
+  });
+});
+
 describe('edit', () => {
   const existing = customTemplate({
     id: 'tpl_e',

@@ -13,6 +13,7 @@ import {
   templateStructureChanged,
   type FinishActionId,
 } from './workoutFinish';
+import { resolveTemplateExercises, templateExercisesFromSession } from './templateExercises';
 
 const ids = (opts: { id: FinishActionId }[]) => opts.map((o) => o.id);
 
@@ -64,6 +65,40 @@ describe('templateStructureChanged', () => {
     expect(templateStructureChanged([slot('a', 3), slot('c', 3)], [slot('a', 3), slot('b', 3)])).toBe(
       true
     );
+  });
+
+  describe('rests (MUS-143)', () => {
+    // As the finish screen calls it: the session's plan against the template's.
+    const template = {
+      exerciseIds: ['a'],
+      exercises: [{ exerciseId: 'a', restBetweenSetsSeconds: 90 }],
+    };
+    const changed = (rest: { restBetweenSetsSeconds?: number; warmUpRestSeconds?: number }) =>
+      templateStructureChanged(
+        templateExercisesFromSession([{ exerciseId: 'a', sets: [{}, {}, {}], ...rest }]),
+        resolveTemplateExercises(template)
+      );
+
+    it('a rest changed mid-workout counts as a template change, so Overwrite is offered', () => {
+      expect(changed({ restBetweenSetsSeconds: 90 })).toBe(false);
+      expect(changed({ restBetweenSetsSeconds: 60 })).toBe(true);
+      expect(changed({ restBetweenSetsSeconds: 90, warmUpRestSeconds: 30 })).toBe(true);
+      expect(
+        finishSaveOptions({ isEmpty: false, isBuiltIn: false, listChanged: changed({ restBetweenSetsSeconds: 60 }) }).map(
+          (o) => o.id
+        )
+      ).toContain('overwrite');
+    });
+
+    it('a rest set to the default matches a template that leaves it unset', () => {
+      const plain = { exerciseIds: ['a'] };
+      expect(
+        templateStructureChanged(
+          templateExercisesFromSession([{ exerciseId: 'a', sets: [{}, {}, {}], restBetweenSetsSeconds: 120, warmUpRestSeconds: 0 }]),
+          resolveTemplateExercises(plain)
+        )
+      ).toBe(false);
+    });
   });
 });
 

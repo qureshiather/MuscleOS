@@ -374,6 +374,20 @@ describe('starting a workout', () => {
   });
 });
 
+describe('starting a workout with template rests', () => {
+  it('copies each slot\'s rests onto the session', async () => {
+    const { useActiveWorkoutStore } = await load();
+    await useActiveWorkoutStore.getState().startWorkout('tpl_1', [
+      { exerciseId: 'bench-press', restBetweenSetsSeconds: 90, warmUpRestSeconds: 45 },
+      { exerciseId: 'ohp' },
+    ]);
+    const [bench, ohp] = useActiveWorkoutStore.getState().session?.exercises ?? [];
+    expect(bench).toMatchObject({ restBetweenSetsSeconds: 90, warmUpRestSeconds: 45 });
+    expect(ohp.restBetweenSetsSeconds).toBeUndefined();
+    expect(ohp.warmUpRestSeconds).toBeUndefined();
+  });
+});
+
 describe('set actions', () => {
   async function started(plan = [{ exerciseId: 'bench-press', sets: 3 }]) {
     const loaded = await load();
