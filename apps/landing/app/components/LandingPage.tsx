@@ -8,7 +8,7 @@ import { StoreButtons } from './StoreButtons';
 const PROBLEMS = [
   {
     pain: 'Start quickly',
-    fix: 'Choose a built-in template and begin logging.',
+    fix: 'Follow Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL, or tap Empty workout and begin logging.',
   },
   {
     pain: 'Use your own workouts',
@@ -25,14 +25,27 @@ const FEATURES = [
     id: 'workouts',
     label: 'Workouts',
     title: 'Log your workouts',
-    body: 'Start with a built-in Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL workout. Enter your weight and reps, see what you lifted last time, and rest between sets with a timer.',
+    body: 'Enter your weight and reps, see what you lifted last time, and rest between sets with a timer. Change exercises mid-session and save the result as a template.',
     points: [
-      'Built-in PPL, Upper/Lower, Strong Lifts & PHUL',
       'Set logging with rest timers',
       'See what you lifted last time',
+      'Setup notes on every exercise',
     ],
     src: '/screens/active-workout.png',
     alt: 'MuscleOS active workout — logging sets with a rest timer running',
+  },
+  {
+    id: 'programs',
+    label: 'Programs',
+    title: 'Follow a program, or don’t',
+    body: 'Pick one program and its workouts sit next to your own templates on the Workouts tab. See every workout and exercise before you commit, switch whenever you like, or skip programs and build your own.',
+    points: [
+      'Push Pull Legs, Upper/Lower, Strong Lifts 5×5 & PHUL',
+      'One program at a time, or none',
+      'Switch or remove it any time',
+    ],
+    src: '/screens/program.png',
+    alt: 'MuscleOS program overview — Push Pull Legs with its workouts and exercises',
   },
   {
     id: 'exercises',
@@ -76,8 +89,8 @@ const FEATURES = [
 ] as const;
 
 const INCLUDED_POINTS = [
-  'Built-in PPL, Upper/Lower, Strong Lifts & PHUL',
-  'Custom workout templates & folders',
+  'Programs: PPL, Upper/Lower, Strong Lifts & PHUL',
+  'Your own templates, folders & rest timers',
   'Empty workouts & mid-session edits',
   'Set logging & rest timers',
   'Exercise library & custom exercises',
@@ -156,7 +169,7 @@ export function LandingPage() {
                 Features
               </p>
               <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-                Workouts, recovery, exercises, and history.
+                Workouts, programs, recovery, exercises, and history.
               </h2>
               <p className="mt-4 text-lg text-ink-secondary">
                 The main parts of MuscleOS.

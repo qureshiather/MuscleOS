@@ -27,6 +27,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { encodeStartParams } from '@/store/activeWorkoutLogic';
 import { formatTemplateSetLabel } from '@/utils/templateExercises';
 import { fontScaleCap } from '@/theme/layout';
+import { programForTemplate } from '@/utils/programs';
 
 export default function WorkoutPreviewScreen() {
   const { colors } = useTheme();
@@ -63,6 +64,7 @@ export default function WorkoutPreviewScreen() {
   const exerciseIds = plan.map((p) => p.exerciseId);
 
   const templateName = template?.name ?? 'Workout';
+  const program = programForTemplate(template);
 
   const getExercise = useExercisesStore((s) => s.getExercise);
   const workoutMuscleIds: MuscleId[] = Array.from(
@@ -142,6 +144,23 @@ export default function WorkoutPreviewScreen() {
             </Pressable>
           </View>
         </View>
+        {program ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`Part of ${program.name}. View program`}
+            testID="preview-program-link"
+            hitSlop={8}
+            onPress={() => router.push({ pathname: '/program', params: { id: program.id } })}
+            style={({ pressed }) => [styles.programLink, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>Part of </Text>
+            <Text style={[typography.caption, styles.programLinkName, { color: colors.primary }]}>
+              {program.name}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView
@@ -249,6 +268,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   templateTitle: { flex: 1, fontSize: 24, minWidth: 0 },
+  programLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, marginTop: spacing.sm },
+  programLinkName: { fontFamily: typography.label.fontFamily },
   scroll: { flex: 1 },
   scrollContent: { padding: spacing.lg + 4, paddingBottom: spacing.xxl },
   sectionLabel: {

@@ -21,6 +21,10 @@ type ConfirmDialogProps = {
   onDismiss?: () => void;
   confirmTestID?: string;
   cancelTestID?: string;
+  /** A third, neutral choice shown between cancel and confirm (outline). */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  secondaryTestID?: string;
 };
 
 /** Centered confirm card — used instead of system `Alert.alert` for in-app decisions.
@@ -41,6 +45,9 @@ export function ConfirmDialog({
   onDismiss,
   confirmTestID,
   cancelTestID,
+  secondaryLabel,
+  onSecondary,
+  secondaryTestID,
 }: ConfirmDialogProps) {
   const { colors } = useTheme();
   const destructiveSide =
@@ -101,6 +108,16 @@ export function ConfirmDialog({
                 testID={cancelTestID}
                 accessibilityRole="button"
                 accessibilityLabel={cancelLabel}
+              />
+            ) : null}
+            {secondaryLabel && onSecondary ? (
+              <PrimaryButton
+                label={secondaryLabel}
+                variant="outline"
+                onPress={onSecondary}
+                testID={secondaryTestID}
+                accessibilityRole="button"
+                accessibilityLabel={secondaryLabel}
               />
             ) : null}
             <PrimaryButton

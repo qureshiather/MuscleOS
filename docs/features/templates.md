@@ -8,9 +8,10 @@ target weights or reps — they prescribe structure, not load.
 |--|--|
 | Home screen | `apps/mobile/app/(tabs)/index.tsx` (tab title **Workouts**) |
 | Create / edit | `apps/mobile/app/create-template.tsx` |
+| Programs | `apps/mobile/app/programs.tsx`, `apps/mobile/app/program.tsx`, `src/utils/programs.ts` |
 | Preview | `apps/mobile/app/workout-preview.tsx` |
-| Store | `apps/mobile/src/store/templatesStore.ts`, `src/utils/templateExercises.ts` |
-| Built-in content | `apps/mobile/src/data/builtInTemplates.ts` |
+| Store | `apps/mobile/src/store/templatesStore.ts`, `src/store/templatesLogic.ts`, `src/utils/templateExercises.ts`; the chosen program is `activeProgramId` in `src/store/settingsStore.ts` |
+| Built-in content | `apps/mobile/src/data/builtInTemplates.ts` (templates, folders, `BUILT_IN_PROGRAMS`) |
 | Suggestions | `apps/mobile/src/utils/recommendTemplates.ts` |
 | Home headline | `apps/mobile/src/utils/homeStats.ts` |
 
@@ -38,7 +39,7 @@ interface WorkoutTemplate {
   defaultSets?: number;           // legacy template-wide default; unused once exercises is present
   isBuiltIn?: boolean;
   folderId?: string;
-  hidden?: boolean;               // custom templates only
+  hidden?: boolean;               // custom templates only; ignored on built-ins
 }
 
 interface TemplateFolder {
@@ -73,9 +74,9 @@ The core distinction, and the reason for most of the behaviour on this screen. S
 | Source | `BUILT_IN_TEMPLATES` constant, compiled in | AsyncStorage `muscleos_templates` |
 | Ids | Fixed and stable (`ppl-push`, `sl-a`) | `tpl_<timestamp>_<random>` |
 | `isBuiltIn` | `true` | `false` |
-| Rename / edit / move / delete | **Not possible** — no UI path exists | Yes |
-| Hide | Yes — id added to a local hidden list (local-only, not synced) | Yes — `hidden: true` on the record (synced with it) |
-| Cloud sync | N/A (shipped code) | Yes, when an account is linked — the whole record, including `hidden` and `folderId` |
+| On the Workouts tab | Only as the days of the **one program** you chose ([Your workouts](#your-workouts)) | Always (hidden ones under **Hidden**) |
+| Rename / edit / move / delete / hide | **Not possible** — no menu; the program is added or removed as a whole | Yes — hiding sets `hidden: true` on the record (synced with it) |
+| Cloud sync | N/A (shipped code); the chosen program id syncs in app settings | Yes, when an account is linked — the whole record, including `hidden` and `folderId` |
 
 `allTemplates()` returns `[...BUILT_IN_TEMPLATES, ...userTemplates]` — built-ins always first.
 
@@ -88,15 +89,19 @@ That is the intended escape hatch: run the built-in, change the session as you g
 result as a **new** custom template. There is no "duplicate template" action; saving from a
 finished session is the way to fork one.
 
-**Hidden, not deleted.** Built-ins can't be removed because their ids are referenced by past
-sessions and by the shipped constant. Hiding removes them from the lists while keeping ids
-resolvable. Built-in hidden state (hidden template ids and hidden folder ids) is stored locally
-and is **not** synced; a custom template's `hidden` flag is part of its record and syncs with it.
+**Removed from the list, never deleted.** Built-ins can't be deleted because their ids are
+referenced by past sessions and by the shipped constant. Removing or switching a program only
+changes which one Your workouts shows; every built-in id keeps resolving (Recent, History, the
+preview). Built-ins can't be hidden one by one. A custom template's `hidden` flag is part of its
+record and syncs with it.
 
 ## Shipped built-in templates
 
 Four folders, thirteen templates (asserted, and validated against the exercise catalog, in
-`src/data/builtInTemplates.test.ts`).
+`src/data/builtInTemplates.test.ts`). Each folder is a **program** (`BUILT_IN_PROGRAMS`), which adds
+what the Programs screen shows: a one-line summary, days per week and a level. The Programs screen
+lists them in this order: Strong Lifts 5x5 (3 days/wk, Beginner), Push Pull Legs (3–6, Beginner),
+Upper Lower Splits (4, Intermediate), PHUL (4, Intermediate).
 
 | Folder | Templates | Exercises each |
 |--------|-----------|---------------:|
@@ -124,13 +129,16 @@ Renders top to bottom:
 shown instead ([workout-logging](workout-logging.md#starting)).
 
 **3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid, chosen by
-[recommendTemplates](#suggested-templates) over the visible templates, built-in and custom
-(`suggestHomeTemplates()` in `src/utils/workoutsHome.ts`). Each is a
+[recommendTemplates](#suggested-templates) over [Your workouts](#your-workouts) only — the chosen
+program's templates and your visible custom ones (`yourWorkoutTemplates()` in
+`src/store/templatesLogic.ts`, fed to `suggestHomeTemplates()` in `src/utils/workoutsHome.ts`). It
+never suggests a hidden template or a program you aren't following. Each is a
 [muscle art card](#muscle-art-cards) with the name and exercise count.
 
 **4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
 most recent first, deduplicated by template and **excluding anything already in Suggested** and
-hidden templates; sessions whose template was deleted, and empty workouts, are skipped
+hidden templates. Recent isn't limited to Your workouts: a day from a program you've since
+switched away from still shows; sessions whose template was deleted, and empty workouts, are skipped
 (`pickRecentTemplates()` in `src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
 relative completion time.
 
@@ -157,25 +165,8 @@ the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
   (`cropToRegions()`). With no resolvable muscles it falls back to a front shoulders-to-waist crop.
 - **Figure:** the same male or female figure as the Recovery tab, from the profile's sex.
 
-**5. "All templates" header.** A new-folder button and a **New** button.
-
-**6. Custom section** (collapsible, **expanded** by default, always shown). Contents in order
-(`groupHomeTemplates()` in `src/store/templatesLogic.ts`): uncategorized templates → favourite
-(pinned) folders → normal folders → an **Archived** group (archived folders, pinned or not) → a
-**Hidden** group (every hidden custom template, in a folder or not). An empty folder still shows,
-with "No templates in this folder."
-
-- **Empty state** (no custom templates): "No templates yet." and a **Create template** link to
-  `/create-template`.
-
-**7. Built-in section** (collapsible, **collapsed** by default). On first expand, all built-in
-subfolders open. Contents: folders with at least one visible template, then a nested **Hidden**
-group holding hidden built-in folders (with every template in them) and individually hidden
-built-ins.
-
-Folders whose every template is hidden are themselves omitted from the lists. Real folders
-default to expanded; the Archived and both Hidden groups default to collapsed
-(`defaultFolderExpanded()`).
+**5. Your workouts.** Header **Your workouts** with a new-folder button and a **New** button, then
+the [Your workouts](#your-workouts) list.
 
 ### Template cards
 
@@ -183,26 +174,16 @@ Each card shows the name, optional description, `Last done: <relative>` when a c
 exists for it (the most recent one — `lastDoneByTemplate()`), and `<N> exercises`.
 
 Tapping a card opens **`/workout-preview`**, not the workout directly, passing the template id and
-its set plan. The routing decision is `decideTemplateStart()` in `src/utils/workoutsHome.ts`: an
+its set plan. Cards in the program section have no menu. The routing decision is `decideTemplateStart()` in `src/utils/workoutsHome.ts`: an
 in-progress session → the "Workout in progress" dialog
 ([workout-logging](workout-logging.md#starting)); otherwise preview (built-in and custom templates
 alike) or `/active-workout` (empty).
 
 ### Context menus
 
-Items come from `templateMenuActions()` in `src/store/templatesLogic.ts`.
-
-| Action | Built-in | Custom |
-|--------|:--------:|:------:|
-| Rename | — | ● |
-| Move | — | ● |
-| Edit | — | ● |
-| Hide / Unhide | ● | ● |
-| Delete | — | ● (themed confirm) |
-
-A built-in that is hidden
-because its **whole folder** is hidden shows **Unhide folder** instead of Unhide — it unhides the
-folder (unhiding the single template would leave it hidden by the folder).
+Items come from `templateMenuActions()` in `src/store/templatesLogic.ts`. Only custom templates
+have a menu: **Rename**, **Move**, **Edit**, **Hide** / **Unhide**, **Delete** (themed confirm).
+Program templates have none — a program joins and leaves Your workouts as a whole.
 
 - **Rename** opens "Rename template" with the current name; **Save** stores the trimmed name and
   is disabled while blank.
@@ -215,20 +196,81 @@ folder (unhiding the single template would leave it hidden by the folder).
   tap the overlay) dismisses; **Delete** removes it.
 
 **Folder menus.** Custom folders: **Rename** ("Rename folder"), **Pin to top** / **Unpin from
-top**, **Archive** / **Unarchive**, and **Delete**. Built-in folders: **Hide** / **Unhide** only,
-which hides every template in them.
+top**, **Archive** / **Unarchive**, and **Delete**. The program section has no folder menu, only
+**Change**.
 
 Deleting a custom folder (`folderDeletePlan()`) counts every template filed in it, **hidden ones
-included**:
+included**, and asks in the themed dialog (title **Delete folder**; tapping the overlay cancels):
 
-| Templates in folder | Prompt (title **Delete folder**) | Buttons |
+| Templates in folder | Message | Buttons |
 |---|---|---|
 | 0 | `Delete "{name}"?` | Cancel · Delete |
-| 1+ | `"{name}" has N template(s). Remove them from the folder or delete them?` | Cancel · Remove from folder · Delete folder and templates |
+| 1 | `"{name}" has 1 template. Keep it outside the folder, or delete it too?` | Cancel · Keep template · Delete folder and templates |
+| 2+ | `"{name}" has N templates. Keep them outside the folder, or delete them too?` | Cancel · Keep templates · Delete folder and templates |
 
-**Remove from folder** deletes the folder and clears `folderId` on its templates (only those
+**Keep template(s)** deletes the folder and clears `folderId` on its templates (only those
 templates are re-synced). **Delete folder and templates** deletes the folder and every template
 in it, hidden ones included.
+
+## Your workouts
+
+The Workouts tab lists one set of templates: **your custom templates plus at most one built-in
+program**. Everyone starts with **no program**. It's the same set Suggested picks from. The rules
+are `groupYourWorkouts()` / `yourWorkoutTemplates()` in `src/store/templatesLogic.ts`.
+
+Top to bottom, below the header:
+
+1. **The program**, depending on whether one is chosen and whether you have custom templates:
+
+   | Program chosen? | Custom templates or folders? | Shows |
+   |---|---|---|
+   | Yes | either | A section headed with a collapse chevron, the program's name (tap → its overview at `/program?id=`) and a **Change** link (→ `/programs`), listing its templates in shipped order. It starts open; collapsing hides the templates for this visit, like a folder. Program cards have no menu. |
+   | No | Yes | Nothing here; a quiet **Want a plan? Browse programs ›** link sits under My templates (→ `/programs`) |
+   | No | No | **Pick a program** with **See all** (→ `/programs`) and a 2×2 grid of program cards (name, `N days/wk · Level`), each → `/program?id=` |
+
+2. **My templates** (only when you have any custom template or folder, hidden or empty ones
+   included). Contents in order: uncategorized templates → favourite (pinned) folders → normal
+   folders → an **Archived** group (archived folders, pinned or not) → a **Hidden (N)** group
+   (every hidden custom template, in a folder or not). An empty folder still shows, with
+   "No templates in this folder." With no custom templates or folders, a quiet "Prefer your own?
+   **Build a template** ›" link (→ `/create-template`) takes its place. Nothing on this tab uses
+   dashed or outlined placeholder boxes.
+
+Folders whose every template is hidden are omitted (their templates show under Hidden). Real
+folders default to expanded; Archived and Hidden default to collapsed (`defaultFolderExpanded()`).
+
+## Programs
+
+`/programs` lists **No program** and every built-in program. Whatever is chosen comes first, the
+programs follow in shipped order, and No program goes last while a program is chosen
+(`orderPrograms()`).
+
+- **Program cards:** name, a level chip (or **In your workouts** with a check on the chosen one),
+  the summary, and `N days/wk · N workouts` (`programMeta()`). A card opens
+  `/program?id=<folder id>`.
+- **No program:** tapping it clears the program and stays on Programs. While it's selected (the
+  default) it reads "Great. Make your own templates, or just start a workout and add exercises as
+  you go." with **Selected**, and offers **Build a template** (→ `/create-template`) and **Start
+  empty workout** (→ `/active-workout?templateId=_empty`). Unselected, it reads "Skip the plan.
+  Train from your own templates, or start empty and add exercises as you go."
+
+`/program` is the program's overview: its summary, three facts (days/wk, workouts, and the
+working-set range across its exercises — `5` for Strong Lifts, `3–4` for PHUL), then one card per
+workout with its description and every exercise with its set prescription (`4 sets`), then a
+**Muscles trained** diagram and list covering the whole program (`programOverview()`). Tapping a
+workout opens its [workout preview](#workout-preview), so a day can be tried without choosing the
+program. The footer button depends on Your workouts
+(`programAction()` / `programActionHint()` in `src/utils/programs.ts`):
+
+| Situation | Button | Hint |
+|---|---|---|
+| No program chosen | **Add to your workouts** | Its workouts join your templates on the Workouts tab. |
+| Another program chosen | **Switch to {name}** | Replaces {other} in Your workouts. Your templates and history stay. |
+| This program chosen | **Remove from your workouts** (outline) | Your templates and history stay. |
+
+The button sets or clears `activeProgramId` (`setActiveProgram()` in `settingsStore`, persisted as
+`muscleos_active_program` and synced with app settings) and returns to the Workouts tab. An unknown
+id shows **Program not found**.
 
 ## Creating and editing
 
@@ -283,9 +325,11 @@ There is no maximum name length and no cap on exercise count. The name is saved 
 what you're in for and what you lifted last time.
 
 The header shows the template name (or "Workout" for an id it can't resolve) with a **Start**
-button, and, for your own templates only, an **Edit** button (`canEditFromPreview()`) that opens
+button and, for your own templates only, an **Edit** button (`canEditFromPreview()`) that opens
 `/create-template?templateId=<id>`. Saving there returns to the preview, which now shows the edited
-template. Built-ins (and unresolved ids) have no Edit button. Below: a **Muscles used** diagram, `<N> exercises · review, then start`, and one card per
+template. Built-ins (and unresolved ids) have no Edit button. Under the title, a built-in template shows
+**Part of {program} ›**, linking to `/program?id=` (`programForTemplate()` in
+`src/utils/programs.ts`), whether or not that program is in Your workouts. Below: a **Muscles used** diagram, `<N> exercises · review, then start`, and one card per
 exercise with its two-digit index, name, muscle labels, the template's set prescription
 (`3 sets` or `2 warm-ups · 5 sets`), **Previous** (`Previous: <weight> × <reps>` in the display
 unit, from the best weighted set in the most recent qualifying session; reps are dropped when
@@ -307,8 +351,8 @@ passing the template id and the same set plan.
 
 `recommendTemplates()` picks up to 2 templates for the home screen. Inputs: currently recovering
 muscles, muscles worked in the last **7 days** (`recentlyWorkedMuscleIds()` — like recovery, only
-exercises with a completed set count), the visible templates (built-in and custom), and when each
-template was last done.
+exercises with a completed set count), [Your workouts](#your-workouts) (the chosen program's
+templates and visible custom ones), and when each template was last done.
 
 Constants:
 
@@ -359,19 +403,21 @@ Copy, in priority order:
 |------------|------|
 | A template is an ordered exercise list **plus set structure and rests** | Working sets default to 3, warm-ups to 0, rests to the app defaults; no target weight, reps, or supersets |
 | Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot, PHUL 3–4 |
-| Built-in templates are **immutable**; hide, don't delete | Keeps ids stable for historical sessions |
+| Built-in templates are **immutable**; never deleted or hidden | Keeps ids stable for historical sessions; a program leaves Your workouts as a whole |
+| At most **one** program in Your workouts, **none** by default | Programs are opt-in; custom templates are always there |
 | Every template is free to create and run | No tiers; see [pricing.md](pricing.md) |
-| Templates are single-day | No program/week/phase structure |
+| Templates are single-day | A program is a folder of days you can start in any order; no week/phase structure or "next day" |
 | No search or manual sort on the home template list | Ordering is folder structure + storage insertion order |
-| Built-in hidden state is local-only | Hidden built-in ids/folders aren't synced; a custom template's `hidden` flag syncs with the record |
+| The chosen program syncs | `activeProgramId` is part of the `app_settings` snapshot; a custom template's `hidden` flag syncs with the record |
 | Suggested is capped at 2, Recent at 6 | Home is a launcher, not a browser |
 
 ## Tests
 
 Covered:
 
-- `src/data/builtInTemplates.test.ts` — folder ids, every template in a folder, hide-by-folder
-  vs hide-by-template, **every built-in `exerciseId` exists in the catalog**, Strong Lifts
+- `src/data/builtInTemplates.test.ts` — folder ids, every template in a folder, every folder
+  described as a program (names match, shipped order, id lookup rejecting unknown ids),
+  **every built-in `exerciseId` exists in the catalog**, Strong Lifts
   resolves to 5 working sets / 0 warm-ups per exercise, and PHUL ships its four days in order
   with 3–4 working sets per exercise
 - `src/utils/templateExercises.test.ts` — resolve (defaults, legacy `defaultSets`, per-exercise
@@ -391,21 +437,22 @@ Covered:
   regions, delts split by view; focus regions drop single-exercise regions, keep chest on Push, count shared regions once per
   exercise, and fall back to all regions when none repeats
 - `src/utils/recovery.test.ts` — the 7-day "recently worked" set counts only completed exercises
-- `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; soft-hide toggle
-  de-dupes; built-in hides by id **or** folder while a custom hides only via its own flag;
-  deleting a folder keeps every template inside it, clearing only their `folderId`;
-  `folderDeletePlan` counts and deletes hidden templates, with the 0 / 1 / N prompt copy;
-  `templateMenuActions` items and order, Unhide for hidden customs, and **Unhide folder** for a
-  built-in hidden by its folder; `groupHomeTemplates` ordering (uncategorized → pinned → normal →
-  archived → hidden), all-hidden folders left out, empty folders kept, hidden built-in folders vs
-  loose hidden built-ins
+- `src/store/templatesLogic.test.ts` — `allTemplates` lists built-ins first; only a custom's own
+  flag hides it, never a built-in; deleting a folder keeps every template inside it, clearing only
+  their `folderId`; `folderDeletePlan` counts and deletes hidden templates, with the 0 / 1 / N
+  prompt copy; `templateMenuActions` items and order, Unhide for hidden customs, no menu on
+  program templates; `groupYourWorkouts` ordering (uncategorized → pinned → normal → archived →
+  hidden), all-hidden folders left out, empty folders kept, no program by default, the chosen
+  program's templates in order, unknown ids ignored; `yourWorkoutTemplates` adds only the chosen
+  program
 - `src/store/templatesStore.test.ts` — on the AsyncStorage harness: load, legacy `defaultSets` and
   `days[]` migrations persisted, corrupt-storage fallback, normalize-on-write, update/delete
-  persistence, `folderId` cleared by an `undefined` patch, built-in hide (template and folder)
-  local-only with no sync, custom hide synced on the record, folder CRUD, and folder delete
+  persistence, `folderId` cleared by an `undefined` patch, a built-in can't be hidden (nothing
+  stored or synced), custom hide synced on the record, folder CRUD, and folder delete
   re-syncing only the affected templates; delete-with-templates removing hidden ones too
 - `src/utils/workoutsHome.test.ts` — `defaultFolderExpanded`, `lastDoneByTemplate`,
-  `suggestHomeTemplates` (cap 2, no hidden, customs suggested like built-ins), and every
+  `suggestHomeTemplates` (cap 2, customs suggested like built-ins, only Your workouts — no hidden
+  template, no program you aren't following), and every
   `decideTemplateStart` branch
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
   payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
@@ -413,20 +460,36 @@ Covered:
   template rest, No rest timer, warm-up rest), Previous in
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
   (link plan, template fallback, template wins after Edit), `canEditFromPreview`
-- `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2, Recent newest
-  first without Suggested picks, customs in Suggested / Recent, Built-in collapsed with every
-  subfolder opened on first expand, Custom empty state / ordering / default-closed Archived and
-  Hidden, sections keep their rows (and border) across a light → dark switch, card Last done and count, custom cards unlocked and opening the preview, no Pro or
-  upgrade copy, built-in → preview params, empty workout → `/active-workout?templateId=_empty`,
-  "Workout in progress" Resume / Cancel, every context-menu action (hide/unhide, Unhide folder,
-  rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
+- `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2 and only from
+  the chosen program, Recent newest first without Suggested picks, customs in Suggested / Recent;
+  no program by default (no built-in listed or suggested, Pick a program grid → `/program`, See
+  all → `/programs`, Build your own template), a quiet Browse programs link under My templates once you have templates, the
+  program section (its templates, no menus, collapses and reopens, name → `/program`, Change → `/programs`); My templates ordering /
+  default-closed Archived and Hidden, sections keep their rows (and border) across a light → dark
+  switch, card Last done and count, custom cards unlocked and opening the preview, no Pro or
+  upgrade copy, program template → preview params, empty workout → `/active-workout?templateId=_empty`,
+  "Workout in progress" Resume / Cancel, every context-menu action (hide into Hidden (N) and out of
+  Suggested, unhide, rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
   `/templates` redirect
+- `src/utils/programs.test.ts` — the Add / Switch to / Remove button and hint for each
+  situation, an unknown chosen id treated as none, list order with No program first or last,
+  `N days/wk · N workouts`, and the overview (each workout's exercises and sets, unknown
+  exercises by id, muscles collected once)
+- `src/test/ui/templates/programs.test.tsx` (Jest) — Programs order, levels and sizes, the chosen
+  program first and marked with No program last; No program selected by default with Build a
+  template / Start empty workout, choosing it clears the program and stays; card → `/program?id=`;
+  program detail facts, muscles trained, each workout's exercises, a workout → preview params, Add / Switch / Remove updating and persisting `activeProgramId` and returning to Workouts,
+  Program not found
+- `src/storage/localStorage.settings.test.ts`, `src/sync/mergePolicy.test.ts` — the program setting
+  defaults to none, round-trips, rejects blank/unknown ids, survives an older build's payload, and a
+  pending local choice (none included) wins the merge
 - `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, header + New routing to the exercise builder, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
   folder and plan, Rest button (2:00 default, set with the time pad, saved on the slot; Off
   prefilled on edit), edit prefill and save, None clearing the folder, Template not found for unknown
   and built-in ids, double-tap saving once
 - `src/test/ui/templates/workoutPreview.test.tsx` (Jest) — missing params, in-progress redirect,
+  the Part of {program} link for program templates (none for customs),
   title / count line / cards, set prescription copy, 2:00 rest badge, Previous formatting and
   omission, lb conversion, footer and header Start params, no Edit for built-ins or unknown ids,
   Edit → `/create-template` → save returns to the updated preview and starts the edited plan

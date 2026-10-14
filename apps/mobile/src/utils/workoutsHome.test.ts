@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { MuscleId, WorkoutTemplate } from '@muscleos/types';
 import {
   ARCHIVED_SECTION,
-  HIDDEN_BUILT_IN_SECTION,
   HIDDEN_CUSTOM_SECTION,
   SUGGESTED_TEMPLATES_LIMIT,
   decideTemplateStart,
@@ -10,6 +9,7 @@ import {
   lastDoneByTemplate,
   suggestHomeTemplates,
 } from './workoutsHome';
+import { yourWorkoutTemplates } from '@/store/templatesLogic';
 
 const tpl = (id: string, over: Partial<WorkoutTemplate> = {}): WorkoutTemplate => ({
   id,
@@ -20,12 +20,11 @@ const tpl = (id: string, over: Partial<WorkoutTemplate> = {}): WorkoutTemplate =
 });
 
 describe('defaultFolderExpanded', () => {
-  it('real folders start open; Archived and both Hidden groups start closed', () => {
+  it('real folders start open; Archived and Hidden start closed', () => {
     expect(defaultFolderExpanded('folder_1')).toBe(true);
     expect(defaultFolderExpanded('builtin_ppl')).toBe(true);
     expect(defaultFolderExpanded(ARCHIVED_SECTION)).toBe(false);
     expect(defaultFolderExpanded(HIDDEN_CUSTOM_SECTION)).toBe(false);
-    expect(defaultFolderExpanded(HIDDEN_BUILT_IN_SECTION)).toBe(false);
   });
 });
 
@@ -52,46 +51,35 @@ describe('suggestHomeTemplates', () => {
     back: ['lats', 'biceps'],
     legs: ['quads', 'hamstrings'],
     mine: ['glutes', 'calves'],
-    hidden: ['abs', 'forearms'],
   };
-  const templates = [
-    tpl('chest'),
-    tpl('back'),
-    tpl('legs'),
-    tpl('mine', { isBuiltIn: false }),
-    tpl('hidden'),
-  ];
-  const run = () =>
+  const run = (templates: WorkoutTemplate[]) =>
     suggestHomeTemplates({
       templates,
-      isHidden: (t) => t.id === 'hidden',
       recoveringMuscleIds: new Set(),
       recentlyWorkedMuscleIds: new Set(),
       lastDoneByTemplate: {},
-      getTemplateMuscles: (t) => muscles[t.id] ?? [],
+      getTemplateMuscles: (t) => muscles[t.id] ?? ['chest'],
       nowMs: Date.parse('2026-01-10T00:00:00.000Z'),
     }).map((s) => s.template.id);
 
   it('caps at 2', () => {
     expect(SUGGESTED_TEMPLATES_LIMIT).toBe(2);
-    expect(run()).toHaveLength(2);
-  });
-
-  it('never suggests a hidden template', () => {
-    expect(run()).not.toContain('hidden');
-    expect(run()).not.toContain('hidden');
+    expect(run([tpl('chest'), tpl('back'), tpl('legs')])).toHaveLength(2);
   });
 
   it('suggests custom templates like any other — everyone can run them', () => {
-    const only = suggestHomeTemplates({
-      templates: [tpl('mine', { isBuiltIn: false })],
-      isHidden: () => false,
-      recoveringMuscleIds: new Set(),
-      recentlyWorkedMuscleIds: new Set(),
-      lastDoneByTemplate: {},
-      getTemplateMuscles: (t) => muscles[t.id] ?? [],
-    });
-    expect(only.map((s) => s.template.id)).toEqual(['mine']);
+    expect(run([tpl('mine', { isBuiltIn: false })])).toEqual(['mine']);
+  });
+
+  it('only picks from Your workouts: never a hidden template or a program you are not following', () => {
+    const userTemplates = [
+      tpl('mine', { isBuiltIn: false }),
+      tpl('hidden', { isBuiltIn: false, hidden: true }),
+    ];
+    const picked = run(yourWorkoutTemplates({ userTemplates, activeProgramId: 'builtin_sl' }));
+    expect(picked.length).toBeGreaterThan(0);
+    for (const id of picked) expect(['sl-a', 'sl-b', 'mine']).toContain(id);
+    expect(run(yourWorkoutTemplates({ userTemplates, activeProgramId: null }))).toEqual(['mine']);
   });
 });
 

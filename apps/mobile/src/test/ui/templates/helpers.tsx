@@ -5,6 +5,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TemplateFolder, WorkoutSession, WorkoutTemplate } from '@muscleos/types';
 import { STORAGE_KEYS } from '@/storage/keys';
+import { APP_SETTINGS_KEYS } from '@/storage/localStorage';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
@@ -45,10 +47,9 @@ export async function resetTemplatesTestState(): Promise<void> {
   useTemplatesStore.setState({
     userTemplates: [],
     folders: [],
-    hiddenBuiltInIds: [],
-    hiddenBuiltInFolderIds: [],
     isLoading: true,
   });
+  useSettingsStore.setState({ activeProgramId: null });
   useSessionsStore.setState({ sessions: [], isLoading: true });
   useRecoveryStore.setState({ items: [], isLoading: true, hasLoaded: false });
   useActiveWorkoutStore.setState({ session: null });
@@ -79,20 +80,22 @@ export async function seed(data: {
   templates?: WorkoutTemplate[];
   folders?: TemplateFolder[];
   sessions?: WorkoutSession[];
-  hiddenBuiltInIds?: string[];
-  hiddenBuiltInFolderIds?: string[];
+  /** The program in Your workouts (a built-in folder id). */
+  activeProgramId?: string;
   previous?: Record<string, { weightKg: number; reps?: number }>;
 }): Promise<void> {
   const pairs: [string, unknown][] = [
     [STORAGE_KEYS.templates, data.templates],
     [STORAGE_KEYS.templateFolders, data.folders],
     [STORAGE_KEYS.sessions, data.sessions],
-    [STORAGE_KEYS.hiddenBuiltInTemplateIds, data.hiddenBuiltInIds],
-    [STORAGE_KEYS.hiddenBuiltInFolderIds, data.hiddenBuiltInFolderIds],
     [STORAGE_KEYS.exercisePrevious, data.previous],
   ];
   for (const [key, value] of pairs) {
     if (value !== undefined) await AsyncStorage.setItem(key, JSON.stringify(value));
+  }
+  if (data.activeProgramId !== undefined) {
+    await AsyncStorage.setItem(APP_SETTINGS_KEYS.activeProgram, data.activeProgramId);
+    useSettingsStore.setState({ activeProgramId: data.activeProgramId });
   }
 }
 

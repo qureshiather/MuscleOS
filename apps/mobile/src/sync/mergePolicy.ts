@@ -101,5 +101,8 @@ export function mergeAppSettingsPreferLocal(
     workoutSoundsEnabled: local.workoutSoundsEnabled ?? remote.workoutSoundsEnabled,
     themePreference: local.themePreference ?? remote.themePreference,
     profile: mergeProfile(local.profile ?? {}, remote.profile ?? {}),
+    // null is a choice (no program), so only a missing local value takes the remote one.
+    activeProgramId:
+      local.activeProgramId !== undefined ? local.activeProgramId : (remote.activeProgramId ?? null),
   };
 }

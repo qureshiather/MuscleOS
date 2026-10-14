@@ -48,15 +48,11 @@ describe('load', () => {
     expect(store.getState().isLoading).toBe(true);
     await AsyncStorage.setItem(STORAGE_KEYS.templates, JSON.stringify([custom()]));
     await AsyncStorage.setItem(STORAGE_KEYS.templateFolders, JSON.stringify([{ id: 'f', name: 'F' }]));
-    await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInTemplateIds, JSON.stringify(['ppl-push']));
-    await AsyncStorage.setItem(STORAGE_KEYS.hiddenBuiltInFolderIds, JSON.stringify(['builtin_sl']));
     await store.getState().load();
     const s = store.getState();
     expect(s.isLoading).toBe(false);
     expect(s.userTemplates.map((t) => t.id)).toEqual(['tpl_1']);
     expect(s.folders).toEqual([{ id: 'f', name: 'F' }]);
-    expect(s.hiddenBuiltInIds).toEqual(['ppl-push']);
-    expect(s.hiddenBuiltInFolderIds).toEqual(['builtin_sl']);
   });
 
   it('migrates legacy defaultSets to per-exercise sets and persists the migration', async () => {
@@ -161,27 +157,13 @@ describe('custom template CRUD', () => {
 });
 
 describe('soft hide', () => {
-  it('hiding a built-in writes the local id list and never notifies sync', async () => {
+  it('a built-in cannot be hidden: nothing is stored or synced', async () => {
     const { STORAGE_KEYS, store, read, sync } = await load();
     const push = store.getState().allTemplates().find((t) => t.id === 'ppl-push')!;
     await store.getState().setTemplateHidden(push, true);
-    expect(store.getState().hiddenBuiltInIds).toEqual(['ppl-push']);
-    expect(await read(STORAGE_KEYS.hiddenBuiltInTemplateIds)).toEqual(['ppl-push']);
-    expect(store.getState().isTemplateHidden(push)).toBe(true);
-    await store.getState().setTemplateHidden(push, false);
-    expect(await read(STORAGE_KEYS.hiddenBuiltInTemplateIds)).toEqual([]);
+    expect(store.getState().isTemplateHidden(push)).toBe(false);
+    expect(await read(STORAGE_KEYS.templates)).toBeNull();
     expect(sync.notifyTemplateUpsert).not.toHaveBeenCalled();
-  });
-
-  it('hiding a built-in folder hides every template in it, locally only', async () => {
-    const { STORAGE_KEYS, store, read, sync } = await load();
-    await store.getState().setBuiltInFolderHidden('builtin_ppl', true);
-    expect(await read(STORAGE_KEYS.hiddenBuiltInFolderIds)).toEqual(['builtin_ppl']);
-    const ppl = store.getState().allTemplates().filter((t) => t.folderId === 'builtin_ppl');
-    expect(ppl.every((t) => store.getState().isTemplateHidden(t))).toBe(true);
-    await store.getState().setBuiltInFolderHidden('builtin_ppl', false);
-    expect(await read(STORAGE_KEYS.hiddenBuiltInFolderIds)).toEqual([]);
-    expect(sync.notifyFolderUpsert).not.toHaveBeenCalled();
   });
 
   it('hiding a custom sets hidden on the record, which syncs', async () => {
@@ -191,7 +173,6 @@ describe('soft hide', () => {
     await store.getState().setTemplateHidden(store.getState().userTemplates[0], true);
     expect((await read(STORAGE_KEYS.templates))[0].hidden).toBe(true);
     expect(sync.notifyTemplateUpsert).toHaveBeenCalledWith(expect.objectContaining({ id: 'tpl_1', hidden: true }));
-    expect(await read(STORAGE_KEYS.hiddenBuiltInTemplateIds)).toBeNull();
     await store.getState().setTemplateHidden(store.getState().userTemplates[0], false);
     expect((await read(STORAGE_KEYS.templates))[0]).not.toHaveProperty('hidden');
   });

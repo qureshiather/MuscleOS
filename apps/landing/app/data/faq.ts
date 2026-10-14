@@ -48,14 +48,26 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'How do I start a workout?',
     paragraphs: ['Open the Workouts tab, then:'],
     steps: [
-      'Tap a Suggested or Recent workout, one of your own templates, or open Built-in and pick from Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL.',
+      'Tap a Suggested or Recent workout, or one under Your workouts: your own templates and the workouts of the program you follow.',
       'Check the exercises and what you lifted last time, then tap Start workout.',
       'Or tap Empty workout to start with no exercises and add them as you go.',
     ],
     aside:
       'Only one workout runs at a time. If you leave it, tap Resume workout above the tabs to get back to it.',
     answerText:
-      'Open the Workouts tab and tap a Suggested or Recent workout, or open Built-in and pick a template (Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL). Check the preview and tap Start workout. You can also run your own templates or start an empty workout. Only one workout runs at a time.',
+      'Open the Workouts tab and tap a Suggested or Recent workout, or one under Your workouts (your templates and your program’s workouts). Check the preview and tap Start workout. You can also start an empty workout. Only one workout runs at a time.',
+  },
+  {
+    id: 'programs',
+    question: 'How do programs work?',
+    paragraphs: [
+      'MuscleOS has four programs: Push Pull Legs, Upper/Lower, Strong Lifts 5×5, and PHUL. You follow one at a time, or none. New installs start with none.',
+      'Tap a program to see every workout, its exercises and sets, and the muscles it trains. Add to your workouts puts its workouts next to your own templates on the Workouts tab, and Suggested picks from both.',
+    ],
+    aside:
+      'Switching or removing a program never touches your own templates or your history. Change it any time from Change beside the program’s name.',
+    answerText:
+      'Pick one of four programs (Push Pull Legs, Upper/Lower, Strong Lifts 5×5, PHUL) or none. Its workouts join your own templates on the Workouts tab. You can switch or remove it any time; your templates and history stay.',
   },
   {
     id: 'log-sets',
@@ -84,7 +96,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: 'edit-exercises',
     question: 'Can I change the exercises during a workout?',
-    paragraphs: ['Yes, on any workout, built-in ones included:'],
+    paragraphs: ['Yes, on any workout, program workouts included:'],
     bullets: [
       'Reorder: press and hold an exercise name, then drag it.',
       'Add: tap Add Exercise at the bottom of the workout.',
@@ -93,9 +105,9 @@ export const FAQ_ITEMS: FaqItem[] = [
       'Note: tap the three dots and choose Edit note to save a setup cue, like seat height. It shows every time you do that exercise.',
     ],
     aside:
-      'Changing a built-in workout changes that session only. To keep your version, save it as a new template when you finish.',
+      'Changing a program workout changes that session only. To keep your version, save it as a new template when you finish.',
     answerText:
-      'Yes, on any workout. Press and hold an exercise name to reorder, tap Add Exercise to add one, and use the three-dot menu to replace, remove, or add a note. Save a changed built-in workout as a new template to keep it.',
+      'Yes, on any workout. Press and hold an exercise name to reorder, tap Add Exercise to add one, and use the three-dot menu to replace, remove, or add a note. Save a changed program workout as a new template to keep it.',
   },
   {
     id: 'finish-cancel',
@@ -122,11 +134,11 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'templates',
     question: 'How do I create a workout template?',
     paragraphs: [
-      'On the Workouts tab, tap New. Name the template, add exercises, and set how many working and warm-up sets each one starts with.',
+      'On the Workouts tab, tap New. Name the template, add exercises, and set each one’s working sets, warm-up sets, and rest.',
       'You can also finish a workout and save it as a new template. The folder button next to New creates a folder to group templates.',
     ],
     answerText:
-      'Tap New on the Workouts tab, name the template, add exercises, and set working and warm-up sets for each. You can also save a finished workout as a template.',
+      'Tap New on the Workouts tab, name the template, add exercises, and set working sets, warm-up sets, and rest for each. You can also save a finished workout as a template.',
   },
   {
     id: 'recovery',
@@ -168,11 +180,12 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'hide-templates',
     question: 'How do I hide a template?',
     paragraphs: [
-      'On the Workouts tab, tap the three dots on the template and choose Hide. You can hide a whole built-in folder from its own three-dot menu.',
-      'Hidden templates move to a Hidden group at the bottom of their section. Open it and use the same menu to show them again.',
+      'On the Workouts tab, tap the three dots on one of your templates and choose Hide.',
+      'Hidden templates move to a Hidden group at the bottom of My templates. Open it and use the same menu to show them again.',
     ],
+    aside: 'Program workouts can’t be hidden one by one. To drop them, remove the program or switch to another.',
     answerText:
-      'Tap the three dots on a template (or a built-in folder) and choose Hide. Hidden templates move to a Hidden group at the bottom of their section; use the same menu there to show them again.',
+      'Tap the three dots on one of your templates and choose Hide. Hidden templates move to a Hidden group at the bottom of My templates; use the same menu there to show them again. To drop a program’s workouts, remove or switch the program.',
   },
   {
     id: 'units',
