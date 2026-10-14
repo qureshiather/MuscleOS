@@ -3,7 +3,7 @@
  *
  * The active-workout screen offers a different set of save options depending on what the
  * session was started from (empty / built-in / custom) and whether the template was
- * changed during the workout — exercise list *or* per-exercise working/warm-up set counts.
+ * changed during the workout — exercise list, per-exercise working/warm-up set counts, or rests.
  * Built-in templates are immutable, so the only way to keep a modified built-in is to save
  * it as a *new* custom template. See docs/features/workout-logging.md#finish-flow and
  * docs/features/templates.md#built-in-vs-custom.
@@ -24,8 +24,8 @@ export interface FinishFlowInput {
   /** The originating template is a built-in program. */
   isBuiltIn: boolean;
   /**
-   * The session no longer matches the template it started from: exercise list (identity/order)
-   * or per-exercise working/warm-up row counts.
+   * The session no longer matches the template it started from: exercise list (identity/order),
+   * per-exercise working/warm-up row counts, or per-exercise rests.
    */
   listChanged: boolean;
 }
@@ -41,6 +41,9 @@ export type TemplatePlanSlot = {
   exerciseId: string;
   sets: number;
   warmUpSets: number;
+  /** Omitted means the default, on both sides (see `templateExercisesFromSession`). */
+  restBetweenSetsSeconds?: number;
+  warmUpRestSeconds?: number;
 };
 
 /**
@@ -57,9 +60,10 @@ export function templateListChanged(
 }
 
 /**
- * True when the session's exercise identity/order *or* working/warm-up row counts differ from
- * the template plan it started from. Incomplete rows still count — this is structure, not
- * which sets were logged.
+ * True when the session's exercise identity/order, working/warm-up row counts, or rests differ from
+ * the template plan it started from. Incomplete rows still count — this is structure, not which
+ * sets were logged. Like set counts, a rest changed mid-workout is only written to the template
+ * through Overwrite / Save as new template.
  */
 export function templateStructureChanged(
   sessionPlan: readonly TemplatePlanSlot[],
@@ -71,7 +75,9 @@ export function templateStructureChanged(
     return (
       ex.exerciseId !== planned.exerciseId ||
       ex.sets !== planned.sets ||
-      ex.warmUpSets !== planned.warmUpSets
+      ex.warmUpSets !== planned.warmUpSets ||
+      ex.restBetweenSetsSeconds !== planned.restBetweenSetsSeconds ||
+      ex.warmUpRestSeconds !== planned.warmUpRestSeconds
     );
   });
 }

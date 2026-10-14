@@ -232,7 +232,8 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
 | Manual picker (header) | 60 / 120 / 180 s |
 
 There is **no rest-duration setting in Settings** — the default is a code constant, overridable
-per exercise within a session. Per-exercise rest applies after **every set of that kind**,
+per exercise on a template ([templates](templates.md#data-model), copied onto the session at
+start) and within a session. Per-exercise rest applies after **every set of that kind**,
 including the last. A working set uses `restBetweenSetsSeconds` (omitted means 120; explicit 0
 means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
 
@@ -260,8 +261,10 @@ the rows below — the countdown replaces the preset in that same row. Tapping t
 it in place, and the header dialogue's ±30 buttons change only the countdown already running.
 
 **Update rest timers** (exercise menu) sets the work-set and warm-up rests for the following sets
-of that exercise, for the rest of this workout. They are stored on the session's exercise only —
-not on the template, and not carried into later workouts. It does not change a countdown that is
+of that exercise, for the rest of this workout. They are stored on the session's exercise; like a
+changed set count, a rest that differs from the template marks the workout as changed, so
+[Finish](#finish-flow) offers **Overwrite this template** (custom) or **Save as new template** —
+nothing is written to the template until you pick one. It does not change a countdown that is
 already running. The dialogue's hint reads "A running timer is not affected. Applies to the next
 sets of this exercise for the rest of this workout." Each duration is a time box. Tapping a box
 opens the logging keypad in time mode (digits only, `m:ss`, 0:00–15:00). **Next** moves from
@@ -336,7 +339,7 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 |--------|-----------|
 | **Exercise info** | Tap an exercise title to open the same detail sheet as the [Exercises tab](exercise-library.md) — diagram, muscles, type, instructions and **Your notes** — without Edit/Delete for customs. The number pad hides while it's open; the session is untouched |
 | **Reorder exercises** | Long-press an exercise title to enter drag mode |
-| **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. 0:00 means that kind does not start a timer |
+| **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. Offered to the template at Finish. 0:00 means that kind does not start a timer |
 | **Exercise note** | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
 | **Add exercise** | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists. An exercise already in the workout can't be added again |
 | **Replace exercise** | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement), and a countdown running for that slot is cancelled. The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. Replacing with an exercise already in the workout (including itself) does nothing |
@@ -357,19 +360,20 @@ for the **Add** flow, or swapped in for the **Replace** flow.
 ## Finish flow
 
 **Finish** is enabled once any set is completed. It opens a summary modal whose options depend on
-what you started from and whether you changed the template — the exercise list *or* per-exercise
-working/warm-up row counts (incomplete rows still count):
+what you started from and whether you changed the template — the exercise list, per-exercise
+working/warm-up row counts (incomplete rows still count), or per-exercise rests (**Update rest
+timers**; `templateStructureChanged()`):
 
 | Started from | Options |
 |--------------|---------|
 | Empty workout | Save as template · Save values only · Discard workout |
-| Built-in, list or set structure changed | Save as new template · Save values only · Discard workout |
-| Custom, list or set structure changed | Save values only · Overwrite this template · Save as new template · Discard workout |
+| Built-in, list, set structure or rests changed | Save as new template · Save values only · Discard workout |
+| Custom, list, set structure or rests changed | Save values only · Overwrite this template · Save as new template · Discard workout |
 | Unchanged (built-in or custom) | Save values · Discard workout |
 
 The first option is the filled primary button, other saves are outlined, and **Discard workout**
-is a muted text button. A changed custom template also shows the hint "You changed the exercises
-in this workout." A **Back** button under the options closes the modal and returns to the workout,
+is a muted text button. A changed custom template also shows the hint "You changed this workout
+from its template." A **Back** button under the options closes the modal and returns to the workout,
 as does tapping outside the card.
 
 The summary lists duration and each exercise with completed sets (`<n> set(s) · 60 × 5 reps, …`).
@@ -377,8 +381,8 @@ The list scrolls inside the modal so the actions stay on screen, and its bottom 
 while more exercises sit below.
 
 "Overwrite" updates the template's `exerciseIds` and per-exercise set structure from the
-session (working vs warm-up row counts, including incomplete rows) — names and folders are
-untouched. **Save as template** writes the same structure onto a new custom template, and the
+session (working vs warm-up row counts, including incomplete rows, and each exercise's rests) —
+names and folders are untouched. **Save as template** writes the same structure onto a new custom template, and the
 saved session's `templateId` is re-pointed at it — so history, the "Good work" screen, "last done"
 and volume change show the new template rather than "Empty workout" or the template it started from.
 
@@ -463,7 +467,8 @@ the real router.
   30 s, total and end move together), `restTakenSeconds` / `restSecondsLeft`, `resolveRestEnd`
   (full duration recorded, manual rest records nothing, 1500 ms sound grace), `shouldPlayRestTick`
   (3, 2, 1 only while counting down), `sessionHasExercise`, `buildReplacedExercise`,
-  `parseStartParams` / `encodeStartParams`, `normalizeHydratedState` (expired rest dropped after
+  `parseStartParams` / `encodeStartParams` (including the `rest` / `warmUpRest` lists round-trip),
+  `createEmptySession` copying template rests, `normalizeHydratedState` (expired rest dropped after
   recording its duration; legacy `lastActivityAt`), and `resolveStaleWorkout`
 - `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping and the stale close after
   hydration and on foreground (overlapping closes save once); one workout at a time; 1-set
@@ -473,7 +478,7 @@ the real router.
   an expired rest; `toggleSetComplete` (reps gate, work/warm-up rest, un-complete cancels only its
   own countdown, carried weight not taken back); `skipRest`, `endRestIfDue`, ±30; `addWarmUpSet`,
   `addSet`, `removeSet` / `removeExercise` / `replaceExercise` clearing an active rest; duplicate
-  add/replace guards
+  add/replace guards; template rests copied at start
 - `src/utils/keypadInput.test.ts`, `src/utils/keypadInput.keys.test.ts` — entry maths, and
   `applyKeypadKey` (first digit overwrites a suggestion or a just-focused value, backspace right
   after focusing clears, any edit clears the flag, digit caps,

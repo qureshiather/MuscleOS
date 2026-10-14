@@ -9,7 +9,7 @@ import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useRedirectWhenReady } from '@/hooks/useRedirectWhenReady';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { formatMuscleLabels } from '@muscleos/types';
 import type { MuscleId } from '@muscleos/types';
@@ -17,7 +17,7 @@ import { getExercisePrevious } from '@/storage/localStorage';
 import {
   canEditFromPreview,
   formatPrevious,
-  formatRestDuration,
+  formatPreviewRest,
   previewEntryState,
   previewPlan,
 } from '@/utils/workoutPreview';
@@ -37,6 +37,8 @@ export default function WorkoutPreviewScreen() {
     exerciseIds?: string;
     sets?: string;
     warmUpSets?: string;
+    rest?: string;
+    warmUpRest?: string;
     defaultSets?: string;
   }>();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
@@ -53,6 +55,8 @@ export default function WorkoutPreviewScreen() {
       exerciseIds: params.exerciseIds,
       sets: params.sets,
       warmUpSets: params.warmUpSets,
+      rest: params.rest,
+      warmUpRest: params.warmUpRest,
       defaultSets: params.defaultSets,
     },
   });
@@ -197,7 +201,7 @@ export default function WorkoutPreviewScreen() {
                   >
                     <Ionicons name="timer-outline" size={12} color={colors.primary} />
                     <Text style={[styles.restBadgeText, { color: colors.primary }]}>
-                      {formatRestDuration(DEFAULT_REST_SECONDS)} rest between sets
+                      {formatPreviewRest(plan[index])}
                     </Text>
                   </View>
                 </View>

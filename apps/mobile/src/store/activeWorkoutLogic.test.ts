@@ -776,3 +776,28 @@ describe('rebuildPreviousSnapshot (after a session is deleted)', () => {
     expect(rebuildPreviousSnapshot([])).toEqual({});
   });
 });
+
+describe('start params carry template rests (MUS-143)', () => {
+  it('round-trips rests through the route params, blanks meaning the default', () => {
+    const plan = [
+      { exerciseId: 'a', sets: 3, warmUpSets: 0, restBetweenSetsSeconds: 90, warmUpRestSeconds: 30 },
+      { exerciseId: 'b', sets: 3, warmUpSets: 0 },
+      { exerciseId: 'c', sets: 3, warmUpSets: 0, restBetweenSetsSeconds: 0 },
+    ];
+    const params = encodeStartParams(plan);
+    expect(params.rest).toBe('90,,0');
+    expect(params.warmUpRest).toBe('30,,');
+    expect(parseStartParams(params)).toEqual(plan);
+  });
+
+  it('adds no rest params when no slot sets one', () => {
+    const params = encodeStartParams([{ exerciseId: 'a', sets: 3, warmUpSets: 0 }]);
+    expect(params).toEqual({ exerciseIds: 'a' });
+  });
+
+  it('createEmptySession copies the plan\'s rests onto the exercises', () => {
+    const s = createEmptySession('t', [{ exerciseId: 'a', restBetweenSetsSeconds: 0, warmUpRestSeconds: 45 }, { exerciseId: 'b' }], 1);
+    expect(s.exercises[0]).toMatchObject({ restBetweenSetsSeconds: 0, warmUpRestSeconds: 45 });
+    expect('restBetweenSetsSeconds' in s.exercises[1]).toBe(false);
+  });
+});

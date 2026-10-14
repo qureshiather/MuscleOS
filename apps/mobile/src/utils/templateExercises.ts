@@ -1,13 +1,42 @@
 import type { TemplateExercise, WorkoutTemplate } from '@muscleos/types';
+import { formatClock } from '@/utils/formatClock';
 
 /** Working sets created for each exercise when a template doesn't specify otherwise. */
 export const DEFAULT_SETS_PER_EXERCISE = 3;
+/** Rest after a working set when neither the template nor the workout sets one. */
+export const DEFAULT_REST_SECONDS = 120;
+/** Longest rest a user can set, including time added to a running timer. */
+export const REST_MAX_SECONDS = 15 * 60;
 
 export type ResolvedTemplateExercise = {
   exerciseId: string;
   sets: number;
   warmUpSets: number;
+  /** Omitted → app default (120 s). 0 → no timer. */
+  restBetweenSetsSeconds?: number;
+  /** Omitted or 0 → warm-ups don't start a timer. */
+  warmUpRestSeconds?: number;
 };
+
+/** A typed rest, including 0:00. Not snapped to the 30-second grid. */
+export function storedRestSeconds(seconds: number): number {
+  if (!Number.isFinite(seconds)) return 0;
+  return Math.min(REST_MAX_SECONDS, Math.max(0, Math.trunc(seconds)));
+}
+
+/** Only the rest fields a slot actually sets, clamped; the defaults are left implicit. */
+function restFields(
+  cfg: Pick<TemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> | undefined
+): Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> {
+  const work = cfg?.restBetweenSetsSeconds;
+  const warmUp = cfg?.warmUpRestSeconds;
+  return {
+    ...(typeof work === 'number' && storedRestSeconds(work) !== DEFAULT_REST_SECONDS && {
+      restBetweenSetsSeconds: storedRestSeconds(work),
+    }),
+    ...(typeof warmUp === 'number' && storedRestSeconds(warmUp) > 0 && { warmUpRestSeconds: storedRestSeconds(warmUp) }),
+  };
+}
 
 export function clampWorkingSets(
   n: unknown,
@@ -27,7 +56,8 @@ export function clampWarmUpSets(n: unknown): number {
 /**
  * Expand a stored template into a per-exercise plan.
  *
- * `exercises` wins when present (omitted `sets` → 3, omitted `warmUpSets` → 0).
+ * `exercises` wins when present (omitted `sets` → 3, omitted `warmUpSets` → 0, omitted rests →
+ * the app defaults).
  * Otherwise every id uses `defaultSets` (or 3) working sets and 0 warm-ups.
  */
 export function resolveTemplateExercises(
@@ -47,6 +77,7 @@ export function resolveTemplateExercises(
       exerciseId,
       sets: clampWorkingSets(cfg?.sets, fallbackSets),
       warmUpSets: clampWarmUpSets(cfg?.warmUpSets),
+      ...restFields(cfg),
     };
   });
 }
@@ -56,10 +87,11 @@ export function compactTemplateExercise(ex: ResolvedTemplateExercise): TemplateE
     exerciseId: ex.exerciseId,
     ...(ex.sets !== DEFAULT_SETS_PER_EXERCISE && { sets: ex.sets }),
     ...(ex.warmUpSets > 0 && { warmUpSets: ex.warmUpSets }),
+    ...restFields(ex),
   };
 }
 
-/** Persist `exerciseIds` plus a compact `exercises` array (omitted fields mean 3 / 0). */
+/** Persist `exerciseIds` plus a compact `exercises` array (omitted fields mean 3 / 0 / default rests). */
 export function serializeTemplateExercises(
   plan: readonly ResolvedTemplateExercise[]
 ): Pick<WorkoutTemplate, 'exerciseIds' | 'exercises'> {
@@ -86,8 +118,14 @@ export function normalizeWorkoutTemplate(template: WorkoutTemplate): WorkoutTemp
   return next;
 }
 
+/** A session's structure as a template plan: row counts and each exercise's rests. */
 export function templateExercisesFromSession(
-  exercises: readonly { exerciseId: string; sets: readonly { isWarmUp?: boolean }[] }[]
+  exercises: readonly {
+    exerciseId: string;
+    sets: readonly { isWarmUp?: boolean }[];
+    restBetweenSetsSeconds?: number;
+    warmUpRestSeconds?: number;
+  }[]
 ): ResolvedTemplateExercise[] {
   return exercises.map((ex) => {
     const warmUpSets = ex.sets.filter((s) => s.isWarmUp === true).length;
@@ -96,8 +134,17 @@ export function templateExercisesFromSession(
       exerciseId: ex.exerciseId,
       sets: Math.max(1, working),
       warmUpSets,
+      ...restFields(ex),
     };
   });
+}
+
+/** `2:00` work rest, plus the warm-up rest when warm-ups have one: `2:00 · warm-up 1:00`. */
+export function formatTemplateRestLabel(ex: Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'>): string {
+  const work = ex.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+  const warmUp = ex.warmUpRestSeconds ?? 0;
+  const workLabel = work > 0 ? formatClock(work) : 'Off';
+  return warmUp > 0 ? `${workLabel} · warm-up ${formatClock(warmUp)}` : workLabel;
 }
 
 export function formatTemplateSetLabel(sets: number, warmUpSets: number): string {

@@ -1,13 +1,21 @@
 import type { SetRecord, SessionExercise, TemplateExercise, WorkoutSession } from '@muscleos/types';
 import type { PersistedActiveWorkout } from '@/storage/localStorage';
 import {
+  DEFAULT_REST_SECONDS,
   DEFAULT_SETS_PER_EXERCISE,
+  REST_MAX_SECONDS,
   clampWarmUpSets,
   clampWorkingSets,
+  storedRestSeconds,
   type ResolvedTemplateExercise,
 } from '@/utils/templateExercises';
 
-export { DEFAULT_SETS_PER_EXERCISE } from '@/utils/templateExercises';
+export {
+  DEFAULT_REST_SECONDS,
+  DEFAULT_SETS_PER_EXERCISE,
+  REST_MAX_SECONDS,
+  storedRestSeconds,
+} from '@/utils/templateExercises';
 
 /**
  * Pure session-transformation logic for the active workout.
@@ -18,13 +26,10 @@ export { DEFAULT_SETS_PER_EXERCISE } from '@/utils/templateExercises';
  * them and persists the result.
  */
 
-export const DEFAULT_REST_SECONDS = 120;
 /** The running timer's ±30 step. */
 export const REST_STEP_SECONDS = 30;
 /** Floor for the running timer's total when stepping down. A typed preset may be 0:00. */
 export const REST_MIN_SECONDS = 30;
-/** Longest rest a user can set, including time added to a running timer. */
-export const REST_MAX_SECONDS = 15 * 60;
 /** −30 never leaves less than this much of a running countdown. */
 export const REST_MIN_REMAINING_MS = 1000;
 /** A rest that ended this recently counts as "just ended" and plays the in-app sound. */
@@ -127,7 +132,7 @@ function plannedSetsForExercise(sets?: number, warmUpSets?: number): SetRecord[]
   return rows;
 }
 
-/** A new session with the template's per-exercise working and warm-up rows. */
+/** A new session with the template's per-exercise working and warm-up rows and rests. */
 export function createEmptySession(
   templateId: string,
   plan: readonly TemplateExercise[],
@@ -140,6 +145,10 @@ export function createEmptySession(
     exercises: plan.map((item) => ({
       exerciseId: item.exerciseId,
       sets: plannedSetsForExercise(item.sets, item.warmUpSets),
+      ...(item.restBetweenSetsSeconds != null && {
+        restBetweenSetsSeconds: storedRestSeconds(item.restBetweenSetsSeconds),
+      }),
+      ...(item.warmUpRestSeconds != null && { warmUpRestSeconds: storedRestSeconds(item.warmUpRestSeconds) }),
     })),
   };
 }
@@ -358,12 +367,6 @@ export function restDurationAfterComplete(
   return seconds > 0 ? seconds : null;
 }
 
-/** A typed rest, including 0:00. Not snapped to the 30-second grid. */
-export function storedRestSeconds(seconds: number): number {
-  if (!Number.isFinite(seconds)) return 0;
-  return Math.min(REST_MAX_SECONDS, Math.max(0, Math.trunc(seconds)));
-}
-
 /**
  * When a new exercise appears in the session (start, add, or replace), a set that is completely
  * empty (no weight *and* no reps) is prefilled from the exercise's previous snapshot. Partially
@@ -456,6 +459,10 @@ export type StartWorkoutParams = {
   sets?: string;
   /** Parallel warm-up counts, e.g. "1,0,0". */
   warmUpSets?: string;
+  /** Parallel work-set rests in seconds; a blank entry is the default, e.g. "90,,180". */
+  rest?: string;
+  /** Parallel warm-up rests in seconds; a blank entry is none. */
+  warmUpRest?: string;
   /** Legacy template-wide working-set default. */
   defaultSets?: string;
 };
@@ -481,11 +488,19 @@ export function parseStartParams(params: StartWorkoutParams = {}): ResolvedTempl
   const fallbackSets = parsePositiveInt(params.defaultSets) ?? DEFAULT_SETS_PER_EXERCISE;
   const working = parseCountList(params.sets, ids.length);
   const warmUps = parseCountList(params.warmUpSets, ids.length);
-  return ids.map((exerciseId, i) => ({
-    exerciseId,
-    sets: clampWorkingSets(working[i], fallbackSets),
-    warmUpSets: clampWarmUpSets(warmUps[i]),
-  }));
+  const rests = parseCountList(params.rest, ids.length);
+  const warmUpRests = parseCountList(params.warmUpRest, ids.length);
+  return ids.map((exerciseId, i) => {
+    const rest = rests[i];
+    const warmUpRest = warmUpRests[i];
+    return {
+      exerciseId,
+      sets: clampWorkingSets(working[i], fallbackSets),
+      warmUpSets: clampWarmUpSets(warmUps[i]),
+      ...(rest != null && { restBetweenSetsSeconds: storedRestSeconds(rest) }),
+      ...(warmUpRest != null && { warmUpRestSeconds: storedRestSeconds(warmUpRest) }),
+    };
+  });
 }
 
 /** Encode a plan for `/workout-preview` and `/active-workout` route params. */
@@ -493,14 +508,22 @@ export function encodeStartParams(plan: readonly ResolvedTemplateExercise[]): {
   exerciseIds: string;
   sets?: string;
   warmUpSets?: string;
+  rest?: string;
+  warmUpRest?: string;
 } {
   const exerciseIds = plan.map((p) => p.exerciseId).join(',');
   const allDefaultSets = plan.every((p) => p.sets === DEFAULT_SETS_PER_EXERCISE);
   const allNoWarmUp = plan.every((p) => p.warmUpSets === 0);
+  const anyRest = plan.some((p) => p.restBetweenSetsSeconds != null);
+  const anyWarmUpRest = plan.some((p) => p.warmUpRestSeconds != null);
   return {
     exerciseIds,
     ...(!allDefaultSets && { sets: plan.map((p) => String(p.sets)).join(',') }),
     ...(!allNoWarmUp && { warmUpSets: plan.map((p) => String(p.warmUpSets)).join(',') }),
+    ...(anyRest && { rest: plan.map((p) => (p.restBetweenSetsSeconds != null ? String(p.restBetweenSetsSeconds) : '')).join(',') }),
+    ...(anyWarmUpRest && {
+      warmUpRest: plan.map((p) => (p.warmUpRestSeconds != null ? String(p.warmUpRestSeconds) : '')).join(','),
+    }),
   };
 }
 

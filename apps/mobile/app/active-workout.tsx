@@ -55,15 +55,12 @@ import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
 import { pickerFooter, pickerResults } from '@/utils/exercisePicker';
 import { NumericKeypad } from '@/components/NumericKeypad';
+import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
 import {
   applyKeypadKey,
-  applyRestTimeKey,
-  focusRestTimeBox,
   keypadDisplayValue,
   keypadStep as computeKeypadStep,
   type KeypadKey,
-  type RestTimeEntry,
-  type RestTimeKey,
 } from '@/utils/keypadInput';
 import {
   buildFinishSummary,
@@ -528,6 +525,8 @@ export default function ActiveWorkoutScreen() {
     exerciseIds?: string;
     sets?: string;
     warmUpSets?: string;
+    rest?: string;
+    warmUpRest?: string;
     defaultSets?: string;
   }>();
   const session = useActiveWorkoutStore((s) => s.session);
@@ -579,14 +578,6 @@ export default function ActiveWorkoutScreen() {
   const [restTick, setRestTick] = useState(0); // force re-render every second so derived restSecondsLeft updates
   const [showRestPicker, setShowRestPicker] = useState(false);
   const [showRestControls, setShowRestControls] = useState(false);
-  /** Update rest timers: both draft durations and which box (if any) the time pad is editing. */
-  const [restEntry, setRestEntry] = useState<RestTimeEntry>({
-    work: DEFAULT_REST_SECONDS,
-    warmUp: 0,
-    field: null,
-    replace: true,
-  });
-  const restTimeField = restEntry.field;
   const [reorderMode, setReorderMode] = useState(false);
 
   // Derive remaining seconds from end time so timer is correct after returning from background
@@ -652,6 +643,7 @@ export default function ActiveWorkoutScreen() {
   const dropdownMeasureRef = useRef<View>(null);
   const menuAnchorRefs = useRef<Record<number, View | null>>({});
   const [restTimersExIdx, setRestTimersExIdx] = useState<number | null>(null);
+  const restTimersExercise = restTimersExIdx !== null ? session?.exercises[restTimersExIdx] : undefined;
   const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
   /** Exercise whose info sheet (how-to, muscles, notes) is open from its card title. */
   const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
@@ -756,6 +748,8 @@ export default function ActiveWorkoutScreen() {
         exerciseIds: params.exerciseIds,
         sets: params.sets,
         warmUpSets: params.warmUpSets,
+        rest: params.rest,
+        warmUpRest: params.warmUpRest,
         defaultSets: params.defaultSets,
       },
     });
@@ -766,6 +760,8 @@ export default function ActiveWorkoutScreen() {
     params.exerciseIds,
     params.sets,
     params.warmUpSets,
+    params.rest,
+    params.warmUpRest,
     params.defaultSets,
     startWorkout,
     paramsTemplate,
@@ -845,19 +841,6 @@ export default function ActiveWorkoutScreen() {
     setFocusedCell(null);
     if (restSecondsLeft != null && restSecondsLeft > 0) setShowRestControls(true);
     else setShowRestPicker(true);
-  }
-
-  function closeRestTimers() {
-    setRestTimersExIdx(null);
-    setRestEntry((e) => ({ ...e, field: null }));
-  }
-
-  function focusRestTime(field: 'work' | 'warmUp') {
-    setRestEntry((e) => focusRestTimeBox(e, field));
-  }
-
-  function pressRestTimeKey(key: RestTimeKey) {
-    setRestEntry((e) => applyRestTimeKey(e, key));
   }
 
   // Close rest controls when rest ends
@@ -1940,13 +1923,6 @@ export default function ActiveWorkoutScreen() {
                     setExercisePicker({ mode: 'replace', exIdx });
                   }}
                   onEditRest={() => {
-                    const ex = session.exercises[exIdx];
-                    setRestEntry({
-                      work: ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
-                      warmUp: ex?.warmUpRestSeconds ?? 0,
-                      field: null,
-                      replace: true,
-                    });
                     setRestTimersExIdx(exIdx);
                     closeExerciseMenu();
                   }}
@@ -2013,113 +1989,22 @@ export default function ActiveWorkoutScreen() {
       </Modal>
 
       {/* Rest saved for the next sets of this exercise. Does not rewrite a timer already running. */}
-      <Modal visible={restTimersExIdx !== null} transparent animationType="fade">
-        <View
-          style={[
-            styles.modalOverlay,
-            { backgroundColor: colors.overlay },
-            restTimeField != null && styles.restTimersDocked,
-          ]}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={closeRestTimers} accessibilityLabel="Dismiss" />
-          <View
-            style={restTimeField != null ? styles.restTimersDock : undefined}
-            onStartShouldSetResponder={() => true}
-          >
-            <View
-              style={[
-                styles.restTimersCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                restTimeField != null && styles.restTimersCardDocked,
-              ]}
-              onStartShouldSetResponder={() => true}
-            >
-              {restTimersExIdx !== null && session?.exercises[restTimersExIdx] && (
-                <>
-                  <Text style={[styles.restTimersTitle, { color: colors.text }]}>Update rest timers</Text>
-                  <Text style={[styles.restTimersHint, { color: colors.textMuted }]}>
-                    A running timer is not affected. Applies to the next sets of this exercise for
-                    the rest of this workout.
-                  </Text>
-                  {(
-                    [
-                      ['work', 'Work set', restEntry.work],
-                      ['warmUp', 'Warm up', restEntry.warmUp],
-                    ] as const
-                  ).map(([field, label, seconds]) => {
-                    const focused = restTimeField === field;
-                    return (
-                      <View key={field} style={styles.restTypeRow}>
-                        <Text style={[styles.restTypeLabel, { color: colors.text }]}>{label}</Text>
-                        <Pressable
-                          onPress={() => focusRestTime(field)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${label} rest ${formatClock(seconds)}`}
-                          testID={`rest-time-${field}`}
-                          accessibilityHint="Enter a time"
-                          style={[
-                            styles.restTypePill,
-                            {
-                              borderColor: focused ? colors.primary : colors.border,
-                              backgroundColor: colors.surface,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.restTypePillText, { color: colors.text }]}
-                            maxFontSizeMultiplier={fontScaleCap.chrome}
-                          >
-                            {formatClock(seconds)}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                  <Pressable
-                    style={[
-                      styles.restTimersDoneBtn,
-                      styles.restTimersSaveBtn,
-                      { backgroundColor: colors.primary, borderColor: colors.primary },
-                    ]}
-                    testID="rest-timers-save"
-                    onPress={() => {
-                      setExerciseRestBetweenSets(restTimersExIdx, restEntry.work);
-                      setExerciseWarmUpRest(restTimersExIdx, restEntry.warmUp);
-                      closeRestTimers();
-                    }}
-                  >
-                    <Text style={[styles.restTimersDoneBtnText, { color: colors.primaryOn }]}>
-                      Update rest timers
-                    </Text>
-                  </Pressable>
-                </>
-              )}
-            </View>
-            {restTimeField != null && restTimersExIdx !== null && session?.exercises[restTimersExIdx] ? (
-              <NumericKeypad
-                inline
-                exerciseName={
-                  getExercise(session.exercises[restTimersExIdx].exerciseId)?.name ??
-                  session.exercises[restTimersExIdx].exerciseId
-                }
-                field="time"
-                fieldTitle={restTimeField === 'work' ? 'Work set' : 'Warm up'}
-                timeAction={restTimeField === 'work' ? 'next' : 'done'}
-                unitLabel=""
-                valueText={formatClock(restTimeField === 'work' ? restEntry.work : restEntry.warmUp)}
-                step={1}
-                canComplete
-                onDigit={(digit) => pressRestTimeKey({ kind: 'digit', digit })}
-                onBackspace={() => pressRestTimeKey({ kind: 'backspace' })}
-                onAdjust={() => {}}
-                onNext={() => pressRestTimeKey({ kind: 'next' })}
-                onComplete={() => pressRestTimeKey({ kind: 'done' })}
-                onDismiss={() => pressRestTimeKey({ kind: 'done' })}
-              />
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+      <RestTimersDialog
+        exerciseName={restTimersExercise ? (getExercise(restTimersExercise.exerciseId)?.name ?? restTimersExercise.exerciseId) : null}
+        initial={{
+          work: restTimersExercise?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
+          warmUp: restTimersExercise?.warmUpRestSeconds ?? 0,
+        }}
+        hint="A running timer is not affected. Applies to the next sets of this exercise for the rest of this workout."
+        onSave={(work, warmUp) => {
+          if (restTimersExIdx !== null) {
+            setExerciseRestBetweenSets(restTimersExIdx, work);
+            setExerciseWarmUpRest(restTimersExIdx, warmUp);
+          }
+          setRestTimersExIdx(null);
+        }}
+        onClose={() => setRestTimersExIdx(null)}
+      />
 
       {/* Personal exercise note (synced) */}
       <Modal visible={noteEditExIdx !== null} transparent animationType="fade">
@@ -2315,7 +2200,7 @@ export default function ActiveWorkoutScreen() {
               */}
               {finishVariant === 'custom-changed' && (
                 <Text style={[styles.summaryChangedHint, { color: colors.textMuted }]}>
-                  You changed the exercises in this workout.
+                  You changed this workout from its template.
                 </Text>
               )}
               {finishOptions.map((option, idx) => {
