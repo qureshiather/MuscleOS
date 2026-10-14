@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import Image from 'next/image';
+
+import { BrandMark } from './BrandMark';
 
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../data/contact';
 import { ThemeToggle } from './ThemeToggle';
@@ -21,14 +22,7 @@ export function LegalPageLayout({
             href="/"
             className="flex items-center gap-2.5 transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            <Image
-              src="/icon.png"
-              alt=""
-              width={36}
-              height={36}
-              className="brand-mark h-9 w-9 rounded-[10px]"
-              style={{ viewTransitionName: 'brand-mark' }}
-            />
+            <BrandMark className="h-9 w-9" style={{ viewTransitionName: 'brand-mark' }} />
             <span className="font-display font-semibold tracking-tight text-ink">MuscleOS</span>
           </Link>
           <nav className="ml-auto flex items-center gap-4">
