@@ -2,6 +2,7 @@ import type { Exercise } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
 import {
   exerciseSearchScore,
+  expandQueryAbbreviations,
   normalizeSearchText,
   scoreSearchText,
   searchExercises,
@@ -139,6 +140,60 @@ describe('field weighting', () => {
   });
 });
 
+describe('cross-field matches', () => {
+  it('scores 420 when tokens split across the name and muscles ("bicep curl" → Barbell Curl)', () => {
+    const barbellCurl = ex('barbell-curl', 'Barbell Curl', { equipment: ['barbell'] });
+    expect(exerciseSearchScore(barbellCurl, 'bicep curl')).toBe(420);
+    expect(exerciseSearchScore(barbellCurl, 'biceps curl')).toBe(420);
+  });
+
+  it('matches equipment as a token too ("barbell squat" → Front Squat)', () => {
+    const front = ex('front-squat', 'Front Squat', { muscles: ['quads'], equipment: ['barbell'] });
+    expect(exerciseSearchScore(front, 'barbell squat')).toBe(420);
+  });
+
+  it('needs at least one token in the name', () => {
+    expect(exerciseSearchScore(ex('a', 'Hammer Curl'), 'biceps dumbbell')).toBe(0);
+  });
+
+  it('needs every token to match somewhere', () => {
+    expect(exerciseSearchScore(ex('a', 'Barbell Curl'), 'bicep curl machine')).toBe(0);
+  });
+
+  it('ranks below a name match and above a metadata-only hit', () => {
+    const list = [
+      ex('barbell-curl', 'Barbell Curl'),
+      ex('machine-bicep-curl', 'Machine Bicep Curl'),
+    ];
+    expect(searchExercises(list, 'bicep curl').map((e) => e.id)).toEqual([
+      'machine-bicep-curl',
+      'barbell-curl',
+    ]);
+    const metadataOnly = ex('hammer', 'Hammer Curl');
+    expect(exerciseSearchScore(metadataOnly, 'biceps')).toBeLessThan(420);
+  });
+});
+
+describe('abbreviations', () => {
+  it.each([
+    ['db curl', 'Dumbbell Curl'],
+    ['bb row', 'Barbell Row'],
+    ['kb swing', 'Kettlebell Swing'],
+    ['ohp', 'Overhead Press'],
+    ['rdl', 'Romanian Deadlift'],
+  ])('"%s" finds %s', (query, name) => {
+    const target = ex('target', name);
+    expect(searchExercises([ex('other', 'Leg Press', { muscles: ['quads'] }), target], query)).toEqual([
+      target,
+    ]);
+  });
+
+  it('expands whole words only', () => {
+    expect(expandQueryAbbreviations('dbx curl')).toBe('dbx curl');
+    expect(expandQueryAbbreviations('db curl')).toBe('dumbbell curl');
+  });
+});
+
 describe('searchExercises ordering', () => {
   it('sorts by descending score', () => {
     const list = [ex('a', 'Barbell Bench Press'), ex('b', 'Bench Press'), ex('c', 'Bench')];
@@ -163,9 +218,5 @@ describe('searchExercises ordering', () => {
 
   it('drops non-matches', () => {
     expect(searchExercises([ex('a', 'Arnold Press')], 'squat')).toEqual([]);
-  });
-
-  it('has no abbreviation dictionary ("ohp" does not find Overhead Press)', () => {
-    expect(searchExercises([ex('overhead-press', 'Overhead Press')], 'ohp')).toEqual([]);
   });
 });

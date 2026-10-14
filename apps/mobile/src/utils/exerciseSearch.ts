@@ -33,6 +33,24 @@ function searchStem(value: string): string {
   return MOVEMENT_STEMS[value] ?? dropTrailingPlural(value);
 }
 
+/** Gym shorthand typed as a whole word, expanded before scoring. */
+const QUERY_ABBREVIATIONS: Record<string, string> = {
+  db: 'dumbbell',
+  bb: 'barbell',
+  kb: 'kettlebell',
+  ohp: 'overhead press',
+  rdl: 'romanian deadlift',
+};
+
+/** Expand whole-word abbreviations in an already-normalized query. */
+export function expandQueryAbbreviations(normalizedQuery: string): string {
+  if (!normalizedQuery) return normalizedQuery;
+  return normalizedQuery
+    .split(' ')
+    .map((token) => QUERY_ABBREVIATIONS[token] ?? token)
+    .join(' ');
+}
+
 function levenshtein(a: string, b: string, max: number): number {
   if (a === b) return 0;
   if (Math.abs(a.length - b.length) > max) return max + 1;
@@ -145,8 +163,32 @@ function metadataHaystacks(exercise: Exercise): string[] {
   return fields;
 }
 
+/** Score for a query split across the name and metadata ("bicep curl" → Barbell Curl). */
+const CROSS_FIELD_SCORE = 420;
+
+/**
+ * Every token matches the name or a metadata field, and at least one matches the name — so
+ * "bicep curl" finds Barbell Curl (biceps is a muscle) without "biceps" alone outranking names.
+ */
+function crossFieldMatches(exercise: Exercise, normalizedQuery: string): boolean {
+  const tokens = normalizedQuery.split(' ');
+  if (tokens.length < 2) return false;
+  const name = normalizeSearchText(exercise.name);
+  const nameWords = name.split(' ');
+  const meta = metadataHaystacks(exercise).map(normalizeSearchText);
+  let nameHit = false;
+  for (const token of tokens) {
+    if (tokenMatchesHaystack(token, name, nameWords)) {
+      nameHit = true;
+      continue;
+    }
+    if (!meta.some((field) => tokenMatchesHaystack(token, field, field.split(' ')))) return false;
+  }
+  return nameHit;
+}
+
 export function exerciseSearchScore(exercise: Exercise, query: string): number {
-  const normalizedQuery = normalizeSearchText(query);
+  const normalizedQuery = expandQueryAbbreviations(normalizeSearchText(query));
   if (!normalizedQuery) return 1;
 
   let best = 0;
@@ -162,6 +204,8 @@ export function exerciseSearchScore(exercise: Exercise, query: string): number {
   }
 
   if (best > 0) return best;
+
+  if (crossFieldMatches(exercise, normalizedQuery)) return CROSS_FIELD_SCORE;
 
   for (const field of metadataHaystacks(exercise)) {
     const metaScore = scoreSearchText(field, normalizedQuery);

@@ -339,18 +339,23 @@ Score tiers:
 Fuzzy tolerance by length: ≤3 chars none, 4–6 chars one edit, 7+ chars two edits — so short
 queries stay precise and long ones survive typos.
 
-Field weighting on top of the tier: name +80, id +40, alias +20; the best field wins. Metadata
-(category label, equipment, muscle labels) is only scored when no name, id or alias matches, and
-is capped at 350. That keeps a metadata-only hit below any name match from the any-order tier up
+Field weighting on top of the tier: name +80, id +40, alias +20; the best field wins. When no
+name, id or alias matches, a **cross-field** match scores a flat 420: with two or more tokens,
+every token matches the name or a metadata field and at least one matches the name — so
+"bicep curl" finds Barbell Curl and Dumbbell Curl (biceps is a muscle), and "barbell squat" finds
+Front Squat. It ranks below any name match from the any-order tier up (480) and above
+metadata-only hits. Metadata (category label, equipment, muscle labels) is otherwise only scored
+when nothing above matches, and is capped at 350. That keeps a metadata-only hit below any name match from the any-order tier up
 (400 + 80), but a whole-string fuzzy name match scores 360 / 340 and so can land either side of an
 exact metadata hit.
 
 Query tokens also stem `abductor(s)` ↔ `abduction` and `adductor(s)` ↔ `adduction`, so
 "hip adductors machine" finds Hip Adduction Machine.
 
-> **There is no abbreviation dictionary.** `"ohp"` will not find Overhead Press — it isn't a
-> substring or within fuzzy distance. Aliases are legacy *slug* redirects for id resolution, and
-> only help search if you happen to type the slug.
+Before scoring, whole-word gym shorthand in the query is expanded (`expandQueryAbbreviations()`):
+`db` → dumbbell, `bb` → barbell, `kb` → kettlebell, `ohp` → overhead press, `rdl` → romanian
+deadlift. Only those five; aliases are legacy *slug* redirects for id resolution, and only help
+search if you happen to type the slug.
 
 ## Exercises tab
 
@@ -451,7 +456,8 @@ Covered (Vitest):
 - `src/utils/exerciseSearch.test.ts`, `exerciseSearchScoring.test.ts` — normalization, every
   score tier (1000 / 960 / 800 / 700 / 640 / 520 / 400 / 280 / 260), the 5-char floor for
   whole-string fuzzy, fuzzy limits by length, field bonuses, the 350 metadata cap, tie-break by
-  name, empty query passthrough, abductor/adductor stems, no abbreviations
+  name, empty query passthrough, abductor/adductor stems, cross-field name + metadata matches
+  (420), the five whole-word abbreviations
 - `src/utils/exerciseNormalize.test.ts` — category inference order, invalid equipment and muscles
   stripped, `['chest']` fallback only when nothing valid is left, name → id fallback,
   instructions trimmed/dropped, snake_case mapping with `tracking_type` and media columns dropped
