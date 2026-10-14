@@ -17,17 +17,31 @@ export function googleWebClientId(): string {
   );
 }
 
+/** Google Cloud iOS OAuth client id (`extra.googleIosClientId` in app.json). Public, like the web id. */
+export function resolveGoogleIosClientId(extra: Record<string, unknown> | undefined): string {
+  return typeof extra?.googleIosClientId === 'string' ? extra.googleIosClientId.trim() : '';
+}
+
+export function googleIosClientId(): string {
+  return resolveGoogleIosClientId(Constants.expoConfig?.extra as Record<string, unknown> | undefined);
+}
+
 export type GoogleTokens = { idToken: string; accessToken?: string };
 
-async function nativeAndroidIdToken(): Promise<GoogleTokens | null> {
+/**
+ * Native Google Sign-In on both platforms: Play Services on Android, the GoogleSignIn SDK on iOS
+ * (its iOS client id, with the web id as the server client so Supabase accepts the token).
+ */
+async function nativeIdToken(): Promise<GoogleTokens | null> {
   const { GoogleSignin, isSuccessResponse } = await import('@react-native-google-signin/google-signin');
 
   GoogleSignin.configure({
     webClientId: googleWebClientId(),
+    ...(Platform.OS === 'ios' ? { iosClientId: googleIosClientId() } : {}),
     offlineAccess: false,
   });
 
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  if (Platform.OS === 'android') await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
   if (!isSuccessResponse(response)) return null;
 
@@ -44,51 +58,18 @@ async function nativeAndroidIdToken(): Promise<GoogleTokens | null> {
   return { idToken, accessToken };
 }
 
-async function authSessionIdToken(): Promise<GoogleTokens | null> {
-  const { makeRedirectUri, AuthRequest, ResponseType } = await import('expo-auth-session');
-  const { maybeCompleteAuthSession } = await import('expo-web-browser');
-
-  const redirectUri = makeRedirectUri({ scheme: 'muscleos', path: 'auth' });
-  maybeCompleteAuthSession();
-
-  const request = new AuthRequest({
-    clientId: googleWebClientId(),
-    redirectUri,
-    scopes: ['openid', 'profile', 'email'],
-    responseType: ResponseType.IdToken,
-    usePKCE: true,
-  });
-
-  const discovery = {
-    authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenEndpoint: 'https://oauth2.googleapis.com/token',
-  };
-  const result = await request.promptAsync(discovery);
-  if (result.type !== 'success' || !result.params?.id_token) return null;
-  return {
-    idToken: result.params.id_token,
-    accessToken: result.params.access_token,
-  };
-}
-
-/** Native Play Sign-In on Android; browser OAuth on iOS. */
 export async function getGoogleTokens(): Promise<GoogleTokens | null | 'cancelled'> {
   try {
-    const tokens =
-      Platform.OS === 'android' ? await nativeAndroidIdToken() : await authSessionIdToken();
-    return tokens;
+    return await nativeIdToken();
   } catch (e) {
-    if (Platform.OS === 'android') {
-      const { isErrorWithCode, statusCodes } = await import('@react-native-google-signin/google-signin');
-      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return 'cancelled';
-    }
+    const { isErrorWithCode, statusCodes } = await import('@react-native-google-signin/google-signin');
+    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return 'cancelled';
     throw e;
   }
 }
 
 /** Best-effort so the next Google picker is not stuck on the last account. */
 export async function signOutGoogle(): Promise<void> {
-  if (Platform.OS !== 'android') return;
   try {
     const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
     await GoogleSignin.signOut();

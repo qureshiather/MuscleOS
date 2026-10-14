@@ -134,9 +134,9 @@ APPLE_PRIVATE_KEY=
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.
 
-### 5. Google Sign-In (Android)
+### 5. Google Sign-In
 
-Continue with Google on Android uses the native Play Sign-In SDK (`@react-native-google-signin/google-signin`) and sends the **id token** to Supabase. iOS still uses `expo-auth-session` until an iOS OAuth client is added.
+Continue with Google uses the native SDK on both platforms (`@react-native-google-signin/google-signin`: Play Sign-In on Android, GoogleSignIn on iOS) and sends the **id token** to Supabase. In **Authentication → Providers → Google**, **Client IDs** lists the Web client id then the iOS client id (comma-separated), and **Skip nonce check** is on: the iOS SDK adds a nonce to the id token that the app can't pass on.
 
 **Google Cloud Console** (APIs & Services → Credentials):
 
@@ -151,7 +151,9 @@ keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -st
 
 EAS / Play SHA-1: Play Console → App integrity (upload key and **app signing** key), or `eas credentials -p android`.
 
-Rebuild the Android native app after adding the plugin (`pnpm --filter mobile android`). Expo Go cannot load this module.
+3. Create an OAuth **iOS** client: bundle ID `com.muscle-os.app`, App Store ID `6810909876`, Team ID `34WDD8QTXV`. Its client ID goes in `app.json` (`extra.googleIosClientId`), its reversed form (`com.googleusercontent.apps.…`) in the google-signin plugin's `iosUrlScheme` and `ios/MuscleOS/Info.plist` URL schemes, and it's added to Supabase's Google **Client IDs**.
+
+Rebuild the native apps after changing the plugin or client ids. Expo Go cannot load this module.
 
 Authorized redirect in the Web client / Supabase: `https://<project-ref>.supabase.co/auth/v1/callback`.
 

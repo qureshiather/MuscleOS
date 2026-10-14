@@ -58,3 +58,12 @@ describe('resolveGoogleWebClientId', () => {
     expect(resolveGoogleWebClientId(undefined, undefined)).toBe('');
   });
 });
+
+describe('resolveGoogleIosClientId', () => {
+  it('reads app config extra, trimmed, or empty', async () => {
+    const { resolveGoogleIosClientId } = await import('./googleSignIn');
+    expect(resolveGoogleIosClientId({ googleIosClientId: ' ios-id ' })).toBe('ios-id');
+    expect(resolveGoogleIosClientId({})).toBe('');
+    expect(resolveGoogleIosClientId(undefined)).toBe('');
+  });
+});

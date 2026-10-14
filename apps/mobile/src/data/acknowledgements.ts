@@ -54,7 +54,6 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   { name: 'expo-apple-authentication', license: 'MIT', copyright: EXPO },
   { name: 'expo-asset', license: 'MIT', copyright: EXPO },
   { name: 'expo-audio', license: 'MIT', copyright: EXPO },
-  { name: 'expo-auth-session', license: 'MIT', copyright: EXPO },
   { name: 'expo-constants', license: 'MIT', copyright: EXPO },
   { name: 'expo-document-picker', license: 'MIT', copyright: EXPO },
   { name: 'expo-file-system', license: 'MIT', copyright: EXPO },

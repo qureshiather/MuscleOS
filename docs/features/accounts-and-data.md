@@ -83,7 +83,7 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 | Provider | Platforms | Implementation |
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
-| **Google** | iOS + Android | **Android:** `@react-native-google-signin/google-signin` (Play Services, id token). **iOS:** `expo-auth-session` OAuth until a native iOS client is added. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client) plus an Android OAuth client (`app.muscleos` + SHA-1). |
+| **Google** | iOS + Android | Native `@react-native-google-signin/google-signin` on both (id token): Play Services on Android, the GoogleSignIn SDK on iOS. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client), an Android OAuth client (`app.muscleos` + SHA-1), and an iOS OAuth client (`com.muscle-os.app`) whose id is `extra.googleIosClientId` in `app.json` and whose reversed id is a URL scheme (plugin `iosUrlScheme`, and `ios/MuscleOS/Info.plist`). Supabase's Google provider lists the web and iOS client ids and skips the nonce check, because the iOS SDK puts its own nonce in the token. |
 | **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
@@ -183,8 +183,7 @@ code reads or writes SecureStore**.
 ### Required env vars
 
 `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and optionally
-`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** client ID — required for Google Sign-In
-on Android). Each is read from `Constants.expoConfig.extra` first (set by `app.config.js` at build
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** client ID — required for Google Sign-In). Each is read from `Constants.expoConfig.extra` first (set by `app.config.js` at build
 time), then from the Metro-inlined `process.env` value. Setting them for EAS builds:
 [mobile/eas-build.md](../mobile/eas-build.md).
 
@@ -580,7 +579,7 @@ Covered:
 - `src/auth/authSession.test.ts` — launch: existing session reused, anonymous sign-in, unconfigured,
   10 s timeouts and failures; sign-out order (Google, Supabase, new guest, sync reset)
 - `src/auth/authCopy.test.ts` — `emailLinkDestination`, Delete account error copy (no raw text,
-  dev-only deploy hint), Google client id lookup order
+  dev-only deploy hint), Google web and iOS client id lookup
 - `src/storage/localStorage.settings.test.ts` — settings defaults, unit fallbacks and
   independence, persistence round-trip, theme listeners; migrations (legacy units, write-back,
   `normalizeAppSettings`, template `days[]` and `defaultSets`); legacy keys removed on launch;
