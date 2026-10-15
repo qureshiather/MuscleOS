@@ -38,6 +38,24 @@ export function identityAlreadyLinked(error: LinkError): boolean {
   return linkConflict(error) != null;
 }
 
+type SignUpResult = {
+  data: { user?: { identities?: unknown[] | null } | null; session?: unknown } | null;
+  error: LinkError;
+};
+
+/**
+ * What an email signUp means. The address already has an account when GoTrue says so (email
+ * confirmations off) or, with confirmations on, when it returns a placeholder user with no
+ * identities and sends no email (its anti-enumeration response). Either way we sign into that
+ * account with the entered password instead of showing "check your email".
+ */
+export function signUpOutcome({ data, error }: SignUpResult): 'existing' | 'error' | 'signed_in' | 'confirm' {
+  if (error) return linkConflict(error) === 'email' ? 'existing' : 'error';
+  if (data?.session && data.user) return 'signed_in';
+  if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return 'existing';
+  return 'confirm';
+}
+
 export function accountLinkSideEffect(args: {
   previousUserId: string | null;
   nextUserId: string;

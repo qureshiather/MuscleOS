@@ -7,10 +7,7 @@ import { getAppleAuthorizationCode } from '@/auth/appleAuthCode';
 import { linkedAuthProvider } from '@/auth/accountProvider';
 import { accountLinkSideEffect } from '@/auth/attachAccount';
 import { edgeFunctionErrorMessage } from '@/auth/edgeFunctionError';
-import {
-  startFreshAnonymousGuest,
-  wipeDeviceAfterAccountDeletion,
-} from '@/auth/deleteAccount';
+import { resetDeviceAfterAccountDeletion, wipeDeviceAfterAccountDeletion } from '@/auth/deleteAccount';
 import { signOutGoogle } from '@/auth/googleSignIn';
 import { resolveLaunchUser, signOutToGuest } from '@/auth/authSession';
 
@@ -135,30 +132,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw new Error(await edgeFunctionErrorMessage(error, data));
     }
 
-    await signOutGoogle();
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // The auth user is already gone; local session keys may still need a fresh guest.
-    }
-
-    const { useActiveWorkoutStore } = await import('@/store/activeWorkoutStore');
-    useActiveWorkoutStore.getState().discardWorkout();
-    await wipeDeviceAfterAccountDeletion();
-    await startFreshAnonymousGuest({
+    // The account is gone. From here nothing may report a failed deletion or leave it signed in.
+    const nextUser = await resetDeviceAfterAccountDeletion<User>({
+      signOutGoogle,
+      signOutSupabase: () => supabase.auth.signOut(),
+      discardActiveWorkout: async () => {
+        const { useActiveWorkoutStore } = await import('@/store/activeWorkoutStore');
+        useActiveWorkoutStore.getState().discardWorkout();
+      },
+      wipeDevice: wipeDeviceAfterAccountDeletion,
       signInAnonymously: async () => {
         const { data } = await supabase.auth.signInAnonymously();
-        return { user: data.user ? { id: data.user.id } : null };
+        return { user: data.user ?? null };
+      },
+      resetSyncTransport: async (userId) => {
+        const { resetSyncTransport } = await import('@/sync');
+        await resetSyncTransport(userId);
       },
     });
-    const {
-      data: { user: nextUser },
-    } = await supabase.auth.getUser();
-    set({
-      user: nextUser,
-      isAnonymous: true,
-      profile: null,
-    });
+    set({ user: nextUser, isAnonymous: true, profile: null });
   },
 }));
 

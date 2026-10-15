@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountLinkSideEffect, identityAlreadyLinked, linkConflict } from './attachAccount';
+import { accountLinkSideEffect, identityAlreadyLinked, linkConflict, signUpOutcome } from './attachAccount';
 
 describe('identityAlreadyLinked', () => {
   it('matches GoTrue identity_already_exists', () => {
@@ -80,5 +80,39 @@ describe('accountLinkSideEffect', () => {
         isNowLinked: false,
       })
     ).toBe('none');
+  });
+});
+
+describe('signUpOutcome', () => {
+  it('treats an "already registered" error as an existing account (confirmations off)', () => {
+    expect(signUpOutcome({ data: null, error: { code: 'user_already_exists', message: 'User already registered' } })).toBe(
+      'existing'
+    );
+    expect(signUpOutcome({ data: null, error: { message: 'A user with this email address has already been registered' } })).toBe(
+      'existing'
+    );
+  });
+
+  it('treats a placeholder user with no identities as an existing account (confirmations on)', () => {
+    expect(signUpOutcome({ data: { user: { identities: [] }, session: null }, error: null })).toBe('existing');
+  });
+
+  it('asks to confirm a new address that has no session yet', () => {
+    expect(signUpOutcome({ data: { user: { identities: [{ provider: 'email' }] }, session: null }, error: null })).toBe(
+      'confirm'
+    );
+    expect(signUpOutcome({ data: { user: { identities: null }, session: null }, error: null })).toBe('confirm');
+  });
+
+  it('signs in when signUp returns a session', () => {
+    expect(
+      signUpOutcome({ data: { user: { identities: [{ provider: 'email' }] }, session: { access_token: 't' } }, error: null })
+    ).toBe('signed_in');
+  });
+
+  it('reports other errors as errors', () => {
+    expect(signUpOutcome({ data: null, error: { code: 'weak_password', message: 'Password should be at least 6 characters.' } })).toBe(
+      'error'
+    );
   });
 });

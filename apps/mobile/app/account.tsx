@@ -84,16 +84,22 @@ export default function AccountScreen() {
     setDeletingAccount(true);
     try {
       await deleteAccount();
-      // The wipe resets the theme to Auto through storage; reload every store from the empty device.
-      await reloadAllStores();
-      setDeletePhase('done');
     } catch (e) {
       if (__DEV__) console.warn('[account] delete failed', e);
       setDeleteError(friendlyDeleteAccountError(e, __DEV__));
       setDeletePhase('failed');
-    } finally {
       setDeletingAccount(false);
+      return;
     }
+    // The account is gone, so a store that fails to reload must not report a failed deletion.
+    // The wipe resets the theme to Auto through storage; reload every store from the empty device.
+    try {
+      await reloadAllStores();
+    } catch (e) {
+      if (__DEV__) console.warn('[account] reload after delete failed', e);
+    }
+    setDeletePhase('done');
+    setDeletingAccount(false);
   }
 
   async function handleLinkGoogle() {
