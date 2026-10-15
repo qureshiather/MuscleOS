@@ -84,7 +84,7 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
 | **Google** | iOS + Android | Native `@react-native-google-signin/google-signin` on both (id token): Play Services on Android, the GoogleSignIn SDK on iOS. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client), an Android OAuth client (`app.muscleos` + SHA-1), and an iOS OAuth client (`com.muscle-os.app`) whose id is `extra.googleIosClientId` in `app.json` and whose reversed id is a URL scheme (plugin `iosUrlScheme`, and `ios/MuscleOS/Info.plist`). Supabase's Google provider lists the web and iOS client ids and skips the nonce check, because the iOS SDK puts its own nonce in the token. |
-| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
+| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead (`signUpOutcome()`): Supabase reports this as an “already registered” error when email confirmations are off, but with confirmations on it returns a placeholder user with no identities, no session and no email, which must not show “check your email”. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
 keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
@@ -147,7 +147,11 @@ are the same account. It calls the `delete-account` Edge Function, which revokes
 a Sign in with Apple token when present and hard-deletes the Supabase user (`sync_records` and
 `user_exercises` cascade). Then this device is wiped — `clearAllData` plus the in-progress workout
 and sync transport — a **new anonymous session** starts, same as first launch, and every store is
-reloaded from the empty device. A failure says “Could not delete account” with
+reloaded from the empty device. Once the function succeeds the account is gone, so these local steps
+are best-effort (`resetDeviceAfterAccountDeletion`): one that throws (signing out a user the server
+already deleted, a store that fails to reload) doesn't stop the rest, the app always ends as a guest
+(local-only if anonymous sign-in fails), and the screen says “Account deleted”. Only a failed
+function call says “Could not delete account”, with
 plain copy (`friendlyDeleteAccountError`): network, timeout and rate-limit messages as elsewhere, an
 expired session asks you to sign out and back in, and anything else is “Couldn't delete your
 account. Try again in a moment.” Raw function or Supabase text is never shown; the “deploy the
@@ -545,12 +549,14 @@ Covered:
   drops the removed `heightCm` / `notNatty`, unknown keys, and malformed values, for both a stored
   profile and a synced `app_settings` payload
 - `src/auth/deleteAccount.test.ts` — after Delete account, local sessions/templates/active workout/
-  sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest starts.
+  sync transport/biodata/Apple auth code are gone, and a fresh anonymous guest starts; the post-deletion
+  reset runs every step in order, keeps going when one throws, and ends as a local-only guest when
+  anonymous sign-in fails.
 - `src/auth/authErrors.test.ts` — known Supabase errors map to plain copy; unknown backend or provider
   messages never leak (no "supabase", never the raw text) in any flow
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
   `edgeFunctionError.test.ts` — linked-provider resolution, already-linked identity vs in-place
-  upgrade, confirm/recovery link parsing, and Edge Function error messages
+  upgrade, signup to an existing address (error or empty-identities placeholder) signing in instead, confirm/recovery link parsing, and Edge Function error messages
 - `src/storage/importPlan.test.ts` — export parsing (bad JSON, wrong version, rows without ids,
   built-ins skipped), add-only planning with local notes kept, re-import is empty, and the summary
 - `src/sync/mergePolicy.test.ts` — every `decideEntityApply` branch, the outbox clock bump, map and
@@ -599,7 +605,7 @@ Covered:
 - Screen tests (Jest, `src/test/ui/accounts/`): `profile.test.tsx` (Account card guest/linked,
   rows, biodata hint), `account.test.tsx` (guest vs linked rows, Change password only with an
   email identity, Hide My Email notice, legal links, sync row incl. failure, Sign out confirm,
-  Delete account two confirms and friendly failure), `data.test.tsx` (rows, Sync now success and
+  Delete account two confirms, friendly failure, and “Account deleted” even when a store fails to reload), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
   validation, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,

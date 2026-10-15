@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { applyAuthUser, refreshAuthUser, useAuthStore } from '@/store/authStore';
 import { withTimeout } from '@/lib/withTimeout';
 import { setAppleAuthorizationCode } from '@/auth/appleAuthCode';
-import { identityAlreadyLinked, linkConflict } from '@/auth/attachAccount';
+import { identityAlreadyLinked, linkConflict, signUpOutcome } from '@/auth/attachAccount';
 import { getGoogleTokens, googleWebClientId } from '@/auth/googleSignIn';
 import { AUTH_UNAVAILABLE_MESSAGE, type AuthErrorContext, friendlyAuthError } from '@/auth/authErrors';
 import { EMAIL_AUTH_REDIRECT } from '@/auth/emailCallback';
@@ -275,14 +275,13 @@ export function useSignIn() {
           emailRedirectTo: EMAIL_AUTH_REDIRECT,
         },
       });
-      if (error) {
-        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-          return signInWithEmailOnly(email, password);
-        }
+      const outcome = signUpOutcome({ data, error });
+      if (outcome === 'existing') return signInWithEmailOnly(email, password);
+      if (outcome === 'error') {
         alertAuthError('Sign up failed', error, 'sign_up');
         return false;
       }
-      if (data.session?.user) {
+      if (outcome === 'signed_in' && data.session?.user) {
         applyAuthUser(data.session.user, 'SIGNED_IN', useAuthStore.getState().isAnonymous);
         return true;
       }

@@ -35,3 +35,37 @@ export async function startFreshAnonymousGuest<U extends AnonymousGuestUser>(
   const { user } = await deps.signInAnonymously();
   return user;
 }
+
+export type AccountDeletionResetDeps<U extends AnonymousGuestUser> = AnonymousGuestDeps<U> & {
+  signOutGoogle: () => Promise<void>;
+  signOutSupabase: () => Promise<unknown>;
+  discardActiveWorkout: () => void | Promise<void>;
+  wipeDevice: () => Promise<void>;
+  resetSyncTransport: (userId: string | null) => Promise<void>;
+};
+
+/**
+ * After the server has deleted the account, leave it on this device. The account is already gone,
+ * so no step may fail the deletion or stop the ones after it: each is best-effort, and the caller
+ * always ends up as a guest (null when anonymous sign-in failed — a local-only guest).
+ */
+export async function resetDeviceAfterAccountDeletion<U extends AnonymousGuestUser>(
+  deps: AccountDeletionResetDeps<U>
+): Promise<U | null> {
+  await bestEffort(deps.signOutGoogle);
+  await bestEffort(deps.signOutSupabase);
+  await bestEffort(async () => deps.discardActiveWorkout());
+  await bestEffort(deps.wipeDevice);
+  const user = (await bestEffort(() => startFreshAnonymousGuest(deps))) ?? null;
+  await bestEffort(() => deps.resetSyncTransport(user?.id ?? null));
+  return user;
+}
+
+async function bestEffort<T>(step: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await step();
+  } catch (e) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[account] post-deletion step failed', e);
+    return undefined;
+  }
+}

@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AccountScreen from '../../../../app/account';
 import { useAuthStore } from '@/store/authStore';
+import { useSessionsStore } from '@/store/sessionsStore';
 import { useSyncStore } from '@/store/syncStore';
 import { STORAGE_KEYS } from '@/storage/keys';
 import { renderApp, resetAppState, routeStub } from '../render';
@@ -167,6 +168,25 @@ describe('delete account', () => {
     fireEvent.press(screen.getByTestId('delete-account-confirm'));
     expect(await screen.findByText('Account deleted')).toBeTruthy();
     expect(deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  test('a store that fails to reload afterwards still says the account was deleted', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const load = useSessionsStore.getState().load;
+    useSessionsStore.setState({ load: jest.fn(async () => Promise.reject(new Error('reload failed'))) });
+    const deleteAccount = jest.fn(async () => {
+      useAuthStore.setState({ isAnonymous: true, profile: null });
+    });
+    signInAs(linkedUser('email'));
+    useAuthStore.setState({ deleteAccount });
+    renderApp(routes, '/account');
+    fireEvent.press(await screen.findByTestId('delete-account'));
+    fireEvent.press(screen.getByTestId('delete-account-continue'));
+    fireEvent.press(screen.getByTestId('delete-account-confirm'));
+    expect(await screen.findByText('Account deleted')).toBeTruthy();
+    expect(screen.queryByText('Could not delete account')).toBeNull();
+    useSessionsStore.setState({ load });
+    warn.mockRestore();
   });
 
   test('cancel at the first confirm does nothing', async () => {
