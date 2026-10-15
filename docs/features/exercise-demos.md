@@ -28,7 +28,7 @@ catalog id, so app links and history ids line up). It shows:
   two say the same thing (`Bodyweight`, `Machine`);
 - **Muscles worked**, the first (main) muscle emphasised;
 - **How to do it**: the catalog instruction copy as a numbered list of steps (the meta description joins them into one line);
-- a "Log it in MuscleOS" panel with the store buttons;
+- a "Log it in MuscleOS" panel with the official App Store and Google Play badges;
 - the reuse licence and light/dark MP4 download links (demo pages only);
 - **Also works your <main muscle>**: up to six other exercises sharing the main muscle
   (`relatedExercises`).
