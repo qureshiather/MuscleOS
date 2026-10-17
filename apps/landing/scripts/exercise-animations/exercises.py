@@ -117,7 +117,7 @@ def romanian_deadlift(ctx, st, u):
     hang_bar(ctx, st['bar'], 0.24, BAR_Y)
 
 
-@spec('leg-press', camera=cam((0, -0.3, 0.85), 70, 10, 3.3), setup=lambda ctx: ctx.eq.leg_press())
+@spec('leg-press', camera=cam((0, -0.35, 0.85), 80, 12, 3.5), setup=lambda ctx: ctx.eq.leg_press())
 def leg_press(ctx, st, u):
     # Hips in the seat, back on the pad; the sled slides along the 45° rail.
     ctx.root((0, 0.12, 0.56), (-48, 0, 0))
@@ -166,7 +166,7 @@ def leg_extension(ctx, st, u):
 def calf_raise(ctx, st, u):
     ctx.root((0, 0.0, STAND_Z))
     for s in SIDES:
-        ctx.leg_fk(s, ankle=lerp(-14, 32, u))  # stretched below the step → up on the toes
+        ctx.leg_fk(s, ankle=lerp(14, -35, u))  # heels stretched below the step → up on the toes
     # Keep the balls of the feet on the step edge.
     ball = ctx.attach_point('foot.L', (0.1, -0.1, 0.02))
     ctx.arm.location += Vector((ball.x, *st['step_edge'].yz)) - ball

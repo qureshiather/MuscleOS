@@ -8,7 +8,7 @@ from mathutils import Vector
 import mannequin as M
 from anim import lerp, sgn, smootherstep
 from catalog_press import incline_setup, lie, lockout_z
-from catalog_pull import inverted_row_spec, _with_bar_at, _row_bar
+from catalog_pull import ASSIST_PIVOT, inverted_row_spec, _with_bar_at, _row_bar
 from equipment import along, place, qx, qz, set_line
 from moves import (
     SIDES,
@@ -339,8 +339,14 @@ def overhead_ext_spec(id_, implement, setup, seated=False, incline=False, low_pu
                        twist=60 if implement != 'dumbbell' else 90)
         ctx.head(flex=lerp(6, 0, t))
         if implement == 'dumbbell':
-            mid = fk_hand_midpoint(ctx)
-            place(st['w'], mid + ctx.bone_delta('forearm.L') @ Vector((0, 0, 0.0)), ctx.bone_delta('forearm.L') @ along((0, 0, 1)))
+            # One dumbbell hanging upright, both hands around its top bell (as in a goblet hold):
+            # the FK arms only find where the hands are, then the hands close in on the bell.
+            top = fk_hand_midpoint(ctx) - Vector((0, 0, 0.02 * t))
+            up = Vector((0, 0, 1))
+            place(st['w'], top - up * 0.1, along(up))
+            for s in SIDES:
+                ctx.grip(s, top + Vector((sgn(s) * 0.065, 0, 0)), up)
+            elbows(ctx, (0.45, 0.1, 1))  # elbows up beside the head
         elif implement in ('bar', 'ez'):
             follow_hands(ctx, st['bar'])
         elif implement == 'cable':
@@ -471,7 +477,13 @@ def dip_spec(id_, kind='bars'):
         if kind in ('bars', 'assisted'):
             ctx.eq.dip_bars(1.25)
         if kind == 'assisted':
-            st['pad'] = ctx.eq.group('assist', [ctx.eq.pad('knee_pad', (0.42, 0.3, 0.06), (0, 0.06, 0.0))])
+            # Knee pad on a lever arm from a frame behind the lifter, as on the assisted pull-up.
+            st['pad'] = ctx.eq.group('assist', [ctx.eq.box('knee_pad', (0.42, 0.3, 0.06), (0, 0.0, 0.0), ctx.eq.m_accent, 0.025)])
+            ctx.eq.group('assist_frame', [
+                ctx.eq.frame('assist_col', (0.12, 0.12, ASSIST_PIVOT.z + 0.05), (0, ASSIST_PIVOT.y + 0.04, (ASSIST_PIVOT.z + 0.05) / 2)),
+                ctx.eq.frame('assist_base', (0.5, 0.6, 0.03), (0, ASSIST_PIVOT.y - 0.1, 0.015)),
+            ])
+            st['pad_arm'] = ctx.eq.line('assist_arm', radius=0.025)
         if kind == 'rings':
             st['rings'] = [ctx.eq.group(f'rg{s}', [ctx.eq.cyl(f'rgc{s}', 0.09, 0.03, (0, 0, 0), (0, math.pi / 2, 0), ctx.eq.m_pad, 32)]) for s in SIDES]
             st['straps'] = [ctx.eq.line('sL', radius=0.008), ctx.eq.line('sR', radius=0.008)]
@@ -495,7 +507,9 @@ def dip_spec(id_, kind='bars'):
                 set_line(st['straps'][0 if s == 'L' else 1], Vector((sgn(s) * x, -0.04, 2.4)), p + Vector((0, 0, 0.07)))
         if kind == 'assisted':
             knee = (ctx.world('shin.L', 'head') + ctx.world('shin.R', 'head')) / 2
-            place(st['pad'], Vector((0, knee.y + 0.08, knee.z - 0.05)))
+            pad = Vector((0, knee.y + 0.08, knee.z - 0.05))
+            place(st['pad'], pad)
+            set_line(st['pad_arm'], ASSIST_PIVOT, pad - Vector((0, 0, 0.03)))
         elbows(ctx, (0.25, 1, 0))
 
     spec(id_, camera=cam((0, 0, 1.0), 60, 8, 4.0), setup=setup)(pose)

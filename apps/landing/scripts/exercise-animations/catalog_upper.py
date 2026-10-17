@@ -171,8 +171,8 @@ def front_raise_spec(id_, implement='dumbbells', one_arm=False):
             return {'plate': ctx.eq.plate()}
         # One handle in the right hand; the low pulley sits behind and to the right, so the
         # cable runs up beside the right leg.
-        ctx.eq.cable_column(-0.1, 0.55, 2.0)
-        return {'pulley': Vector((-0.1, 0.46, 0.12)), 'cable': ctx.eq.line('cable'), 'handle': ctx.eq.straight_bar('cb', 0.13)}
+        ctx.eq.cable_column(-0.32, 0.55, 2.0)
+        return {'pulley': Vector((-0.32, 0.46, 0.12)), 'cable': ctx.eq.line('cable'), 'handle': ctx.eq.straight_bar('cb', 0.13)}
 
     def pose(ctx, st, u):
         stand(ctx, width=0.04)
@@ -204,14 +204,15 @@ front_raise_spec('plate-front-raise', 'plate')
 
 
 @spec('cable-lateral-raise', camera=cam((0, 0, 1.1), 10, 8, 3.9),
-      setup=lambda ctx: (ctx.eq.cable_column(0.6, 0.05, 2.0), {'pulley': Vector((0.51, -0.04, 0.12)), 'cable': ctx.eq.line('cable')})[1],
+      setup=lambda ctx: (ctx.eq.cable_column(0.6, -0.2, 2.0), {'pulley': Vector((0.51, -0.29, 0.12)), 'cable': ctx.eq.line('cable')})[1],
       concentric='out')
 def cable_lateral_raise(ctx, st, u):
-    # Low pulley on the left; the right hand reaches across and raises out to the side.
+    # Low pulley on the left, a little in front so the cable crosses in front of the legs; the
+    # right hand reaches across and raises out to the side.
     stand(ctx, width=0.04)
     t = smootherstep(u)
     ctx.arm_fk('R', flex=12, abd=lerp(-12, 75, t), elbow=12, rot=lerp(0, 15, t))
-    ctx.grip('L', (0.62, -0.05, 1.05), (0, 0, 1))
+    ctx.grip('L', (0.6, -0.3, 1.05), (0, 0, 1))
     set_line(st['cable'], st['pulley'], ctx.attach_point('hand.R', grip_point('R')))
 
 
@@ -260,8 +261,10 @@ def cuban_press(ctx, st, u):
     b = smootherstep(min(max((u - 0.35) / 0.3, 0), 1))
     c = smootherstep(max((u - 0.65) / 0.35, 0))
     for s in SIDES:
+        # Internally rotated through the row so the forearms hang under the elbows, then rotated
+        # 180° about the upper arm until they point up, then pressed.
         abd = lerp(10, 85, a) + 70 * c
-        ctx.arm_fk(s, abd=abd, elbow=lerp(10, 90, a) - 80 * c, rot=lerp(40, 0, a) - 90 * b)
+        ctx.arm_fk(s, abd=abd, elbow=lerp(10, 95, a) - 85 * c, rot=lerp(60, 90, a) - 180 * b)
     carry_dumbbells(ctx, st['db'], neutral=False)
 
 
@@ -297,6 +300,11 @@ def fly_spec(id_, seated=False, height=1.7, machine=False, pec_deck=False, band=
                                          ctx.eq.frame('post', (0.1, 0.1, 0.45), (0, 0.1, 0.22)),
                                          ctx.eq.frame('column', (0.08, 0.08, 1.8), (0, 0.45 if not reverse else -0.45, 0.9))])
             st['levers'] = [ctx.eq.line('lvL', radius=0.02), ctx.eq.line('lvR', radius=0.02)]
+            if machine and not reverse:
+                st['arms'] = [ctx.eq.line('lvaL', radius=0.02), ctx.eq.line('lvaR', radius=0.02)]
+                # Crossbar from the column carrying both arm pivots.
+                ctx.eq.group('fly_top', [ctx.eq.frame('fly_cross', (0.56, 0.06, 0.06), (0, 0.15, 1.63)),
+                                         ctx.eq.frame('fly_beam', (0.06, 0.32, 0.06), (0, 0.3, 1.63))])
             if not reverse:
                 st['handles'] = [ctx.eq.straight_bar('hd' + s, 0.13) for s in SIDES]
         else:
@@ -345,16 +353,21 @@ def fly_spec(id_, seated=False, height=1.7, machine=False, pec_deck=False, band=
                 if reverse:
                     set_line(lv, Vector((sgn(s) * 0.12, -0.45, 1.4)), h)
                     continue
-                # Each lever hangs from a pivot above and outside its shoulder down to a short
-                # upright handle, so the rod clears the arm.
                 hd = st['handles'][0 if s == 'L' else 1]
+                pivot = Vector((sgn(s) * 0.24, 0.15, 1.6))
                 if pec_deck:
+                    # Each lever hangs from a pivot above and outside its shoulder down to a short
+                    # upright handle, so the rod clears the arm.
                     place(hd, h, qz(90))
-                    top = h + Vector((0, 0, 0.02))
+                    set_line(lv, pivot, h + Vector((0, 0, 0.02)))
                 else:
+                    # An L-shaped arm swinging about a vertical axis above the shoulder: out level
+                    # over the head, then straight down to the handle, clear of the arm and face.
                     ctx.follow(hd, 'hand.' + s, grip_point(s), held(s, qz(90)))
                     top = ctx.attach_point('hand.' + s, grip_point(s) + Vector((0, 0, 0.065)))
-                set_line(lv, Vector((sgn(s) * 0.24, 0.15, 1.6)), top)
+                    elbow = Vector((top.x, top.y, pivot.z))
+                    set_line(lv, elbow, top)
+                    set_line(st['arms'][0 if s == 'L' else 1], pivot, elbow)
 
     az = 60 if band else (20 if not reverse else 200)
     spec(id_, camera=cam((0, 0, 1.1 if not (seated or machine or pec_deck) else 0.95), az, 10, 4.0),
@@ -748,16 +761,17 @@ def neck_spec(id_, kind):
                 ctx.target('arm.' + s, (sgn(s) * 0.3, -0.35, 0.08))
                 ctx.pole_world('arm.' + s, (0, 1, 0))
         else:
-            # On the back, knees bent, head on a pad: pressing the head into the pad lifts the
-            # shoulders a few centimetres while the neck extends to keep the head down.
-            ctx.root((0, 0.0, 0.12), (-90, 0, 0))
-            ctx.bone('pelvis', (X, lerp(0, 6, t)))
-            ctx.bone('neck', (X, lerp(0, -20, t)))
-            ctx.head(flex=lerp(0, -18, t))
+            # On the back, knees bent, the back of the head on a pad: pressing the head into the
+            # pad lifts the back and hips off the floor into a bridge on the head and feet, the
+            # neck extending as the body rolls up onto the head.
+            ctx.pin_root((0, 0.09, 1.64), (0, 0.7, 0.03), (lerp(-90, -103, t), 0, 0))
+            ctx.head(flex=lerp(0, -8, t))
             for s in SIDES:
                 ctx.target('leg.' + s, (sgn(s) * 0.15, -0.45, 0.085))
                 ctx.pole_world('leg.' + s, (sgn(s) * 0.2, 0, 1))
-                ctx.arm_fk(s, flex=0, abd=12, elbow=0)
+                # Hands stay flat on the floor beside the hips.
+                ctx.target('arm.' + s, (sgn(s) * 0.27, -0.06, 0.03))
+                ctx.pole_world('arm.' + s, (sgn(s) * 1, 0, 0.3))
         if 'plate' in st:
             ctx.follow(st['plate'], 'head', (0, -0.11 if kind == 'curl' else 0.09, 1.66), qx(90))
             # Both hands steady the plate at its rim, thumbs toward the top of the head.
