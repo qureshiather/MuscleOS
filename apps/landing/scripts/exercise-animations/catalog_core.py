@@ -359,7 +359,8 @@ def hollow_body_crunch(ctx, st, u):
     ctx.head(flex=12)
     for s in SIDES:
         ctx.leg_fk(s, hip_flex=lerp(18, 85, t), knee=lerp(0, 100, t), ankle=-25)
-        ctx.arm_fk(s, flex=lerp(165, 40, t), abd=-4)
+        # Arms sweep from overhead to reach past the outside of the knees.
+        ctx.arm_fk(s, flex=lerp(165, 75, t), abd=lerp(-4, 9, t))
 
 
 def dead_bug_spec(id_, weights=False):

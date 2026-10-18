@@ -4,7 +4,7 @@ choreographed on loop time with their own lowering phase."""
 
 import math
 
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 import mannequin as M
 from anim import X, Z, lerp, sgn, smootherstep
@@ -122,6 +122,25 @@ def walking_lunge(ctx, t, step=STRIDE, depth=0.42):
     return 2 * step * t
 
 
+def jump_lunge(ctx, local, lead, step=STRIDE, depth=0.42):
+    """One jumping lunge: from the bottom of a `lead`-forward lunge, drive up, switch the legs in
+    the air and land in the other lunge, sinking back to the bottom. The next rep starts from that
+    landing, so the loop never jumps."""
+    other = 'R' if lead == 'L' else 'L'
+    rise, land = phase(local, 0.0, 0.35), phase(local, 0.65, 1.0)
+    k = 1 - 0.75 * rise + 0.75 * land
+    sw = phase(local, 0.35, 0.65)
+    air = math.sin(math.pi * (local - 0.35) / 0.3) * 0.18 if 0.35 < local < 0.65 else 0.0
+    ctx.root((0, 0.05 * k, STAND_Z - depth * k + air))
+    ctx.spine(flex=6 * k)
+    for s, y in ((lead, lerp(-step / 2, step / 2, sw)), (other, lerp(step / 2, -step / 2, sw))):
+        behind = min(max(y / (step / 2), 0.0), 1.0)
+        foot = Vector((sgn(s) * 0.11, y, 0.085 + air))
+        ankle, tilt = on_toes(foot, (12 + 50 * k) * behind)
+        ctx.target('leg.' + s, ankle, tilt @ ctx.body.rest_quat('foot.' + s))
+        ctx.pole_world('leg.' + s, Vector((sgn(s) * 0.15, -1, 0)).lerp(Vector((0, -0.3, -1)), behind))
+
+
 def hands_on_hips(ctx):
     for s in SIDES:
         ctx.target('arm.' + s, ctx.body_point((sgn(s) * 0.215, 0.03, 1.0)))
@@ -162,13 +181,7 @@ def lunge_spec(id_, load='none', reverse=False, side=False, curtsy=False, walkin
             # show the travel).
             ctx.cam.location = st['cam0'] + Vector((0, -travelled + STRIDE / 2, 0))
         elif jump:
-            k = 0.85 + 0.15 * math.cos(2 * math.pi * local)
-            lunge_pose(ctx, k, lead)
-            if 0.42 < local < 0.58:
-                air = math.sin(math.pi * (local - 0.42) / 0.16) * 0.16
-                ctx.arm.location.z += air
-                for s in SIDES:
-                    ctx.body.targets['leg.' + s].location.z += air
+            jump_lunge(ctx, local, lead)
         else:
             # Step out (the foot lifts and lands), lower, rise, then step back to standing.
             out = phase(local, 0.0, 0.26)
@@ -492,6 +505,8 @@ def olympic_spec(id_, start='floor', catch='squat', finish='rack', jerk=None, gr
 
     def pose(ctx, st, u):
         t = getattr(ctx, 't', 0.0)
+        if start == 'rack':
+            t = 0.5 + 0.5 * t  # jerks from the rack skip the clean, so the loop is only the jerk
         bar_y = DL_BAR_Y
         ankle = _floor_setup_hinge(ctx, st, grip, bar_y)
         overhead = finish == 'overhead' or jerk is not None
@@ -547,12 +562,14 @@ def olympic_spec(id_, start='floor', catch='squat', finish='rack', jerk=None, gr
         if start == 'rack':
             stand(ctx, width=0.06, y=bar_y + 0.115)
         if jerk:
-            dip = math.sin(math.pi * phase(t, 0.55, 0.64)) * 0.07
-            ctx.arm.location.z -= dip
-            if jerk == 'split':
-                lunge_pose(ctx, jerk_k * 0.6, 'L', step=0.55, depth=0.25)
+            # Only while jerking: the split stance places the hips itself, and outside the jerk it
+            # would stand the lifter up through the pull and the catch.
+            if jerk_k > 0 and jerk == 'split':
+                lunge_pose(ctx, jerk_k * 0.6, 'L', step=0.9, depth=0.3, y0=bar_y + 0.115)
             elif jerk_k > 0:
                 squat_body(ctx, jerk_k, depth=0.45 if jerk == 'squat' else 0.18, back=0.08, lean=14, width=0.12, y=bar_y + 0.115)
+            # The dip goes on after the stance, which sets the hip height.
+            ctx.arm.location.z -= math.sin(math.pi * phase(t, 0.55, 0.64)) * 0.07
         sh = shoulders(ctx)
         # While pulling and lowering the bar hangs from straight arms, so it is always in the hands.
         hang_z = sum(ctx.grip_hang(s, bar_y, grip).z for s in SIDES) / 2
@@ -568,7 +585,11 @@ def olympic_spec(id_, start='floor', catch='squat', finish='rack', jerk=None, gr
         place(st['bar'], bar)
         bar_grip(ctx, bar, grip)
         racked = up * (1 - jerk_up) * (finish == 'rack') * (1 - drop if start != 'rack' else 1)
-        elbows(ctx, (lerp(0.3, 0.3, racked), lerp(1, -1, racked), lerp(0, 0.5, racked)))
+        # Racked elbows point forward and up from the chest, which tips forward in the catch; aimed
+        # from the hips they fold straight up instead.
+        lean_q = Quaternion().slerp(ctx.bone_delta('chest'), racked)
+        for s in SIDES:
+            ctx.pole_world('arm.' + s, lean_q @ Vector((sgn(s) * 0.3, lerp(1, -1, racked), lerp(0, 0.5, racked))))
 
     spec(id_, camera=cam((0, 0, 0.95), 55, 10, 4.2), setup=setup, timing=LOOP, concentric='out')(pose)
 

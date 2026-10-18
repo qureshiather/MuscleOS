@@ -713,9 +713,10 @@ def calf_spec(id_,load='none', seated=False, donkey=False, single=False, leg_pre
 
     def pose(ctx, st, u):
         t = smootherstep(u)
-        ankle = lerp(-14 if step else 0, 32, t)
+        # leg_fk ankle: + lifts the toes, - points them (rises onto the balls of the feet).
+        ankle = lerp(14 if step else 0, -35, t)
         if eccentric:
-            ankle = lerp(32, -14, t)
+            ankle = lerp(-35, 14, t)
         if leg_press:
             # Knees almost locked, ankles fixed on the 45° line like the leg press; the feet
             # plantarflex about the ankle and the balls of the feet push the sled up the rail.
@@ -725,25 +726,24 @@ def calf_spec(id_,load='none', seated=False, donkey=False, single=False, leg_pre
             rail = st['rail']
             up_rail = Vector((0, rail.z, -rail.y))  # perpendicular to the rail, toward the chest
             hip = (ctx.world('thigh.L', 'head') + ctx.world('thigh.R', 'head')) / 2
-            ankles = hip + rail * 0.72 + up_rail * 0.1
-            foot = qx(-135 + ankle)  # sole facing down the rail, then the calf raise
+            ankles = hip + rail * 0.78 + up_rail * 0.1
+            foot = qx(-135 - ankle)  # sole facing down the rail, then the calf raise (qx(+) lifts the heel)
             for s in SIDES:
                 ctx.target('leg.' + s, ankles + Vector((sgn(s) * 0.14, 0, 0)), foot @ ctx.body.rest_quat('foot.' + s))
                 ctx.pole_world('leg.' + s, up_rail + Vector((sgn(s) * 0.25, 0, 0)))
                 ctx.grip(s, ctx.body_point((sgn(s) * 0.3, -0.16, 0.86)), (0, 0, 1))
             elbows(ctx, (0.6, 1, 0))
+            # Only the balls of the feet are on the plate, just above its bottom edge, with the
+            # heels hanging below it; the plate (and sled) moves with them up the rail.
             ball = ankles + foot @ BALL_FROM_ANKLE
-            # The sled sits where the leg press puts it for these ankles, pushed along the rail as
-            # far as the balls of the feet travel.
-            push = (ball - (ankles + qx(-135) @ BALL_FROM_ANKLE)).dot(rail)
-            place(st['platform'], ankles + rail * (0.08 + push) + up_rail * 0.06, qx(45))
+            place(st['platform'], ball + rail * 0.04 + up_rail * 0.23, qx(45))
             return
         if seated:
             # Hips stay on the bench; the balls of the feet are pinned on the step's back edge, so
             # the ankle angle raises the heels and lifts the knees (and the pad or bar on them).
             sit(ctx, 0.45, y=0.32, knee=90)
             for s in SIDES:
-                foot = qx(ankle)  # qx(+) lifts the heel
+                foot = qx(-ankle)  # qx(+) lifts the heel
                 ball = Vector((sgn(s) * 0.1, SEATED_STEP_Y, 0.12))
                 ctx.target('leg.' + s, ball - foot @ BALL_FROM_ANKLE, foot @ ctx.body.rest_quat('foot.' + s))
                 ctx.pole_world('leg.' + s, (0, -1, 0.3))
@@ -794,7 +794,7 @@ def calf_spec(id_,load='none', seated=False, donkey=False, single=False, leg_pre
     if seated:
         camera = cam((0, -0.05, 0.45), 40, 12, 3.4)  # front-left, so the plates don't hide the feet
     elif leg_press:
-        camera = cam((0, -0.3, 0.85), 55, 10, 3.4)  # front-left, so the feet show beside the sled
+        camera = cam((0, -0.35, 0.85), 80, 12, 3.5)  # from the side, so the sled doesn't hide the feet
     elif standing:
         camera = cam((0, 0, 0.98), 78, 6, 4.2)
     else:

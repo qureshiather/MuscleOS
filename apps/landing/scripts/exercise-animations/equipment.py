@@ -212,20 +212,26 @@ class Equipment:
     # -- machines ---------------------------------------------------------------------------
 
     def leg_press(self):
-        r45 = math.radians(-45)
+        """45° sled: the rails run up and away from the seat along `rail`, the sled rides on them
+        and its foot plate faces back down the rails at the lifter. Place the platform with
+        qx(45): its local z is then the rail and its local y points up off the rails."""
+        r45 = math.radians(45)
+        rail = Vector((0, -math.cos(r45), math.sin(r45)))
+        up = Vector((0, rail.z, -rail.y))
+        mid = Vector((0, 0.09, 0.533)) - up * 0.15 + rail * 1.0  # under the lifter's hip-to-feet line
+        top = mid + rail * 0.82
         self.group('leg_press', [
             self.box('seat', (0.42, 0.42, 0.08), (0, 0.05, 0.42), self.m_pad, 0.02),
             self.box('back', (0.42, 0.08, 0.7), (0, 0.42, 0.68), self.m_pad, 0.02, (math.radians(-50), 0, 0)),
             self.box('base', (0.5, 1.9, 0.08), (0, -0.4, 0.04), self.m_equip, 0.01),
             self.box('frame', (0.12, 0.5, 0.36), (0, 0.15, 0.2), self.m_equip, 0.01),
-            self.frame('railL', (0.06, 0.06, 1.7), (0.36, -0.75, 0.75), (r45, 0, 0)),
-            self.frame('railR', (0.06, 0.06, 1.7), (-0.36, -0.75, 0.75), (r45, 0, 0)),
+            *[self.frame('rail', (0.06, 0.06, 1.7), (x, mid.y, mid.z), (r45, 0, 0)) for x in (0.36, -0.36)],
+            *[self.frame('post', (0.06, 0.06, top.z), (x, top.y, top.z / 2)) for x in (0.36, -0.36)],
         ])
         platform = self.group('sled', [
-            self.box('plate', (0.75, 0.05, 0.55), (0, 0, 0), self.m_equip, 0.01),
-            self.box('sled', (0.8, 0.25, 0.12), (0, -0.14, -0.2), self.m_pad, 0.01),
+            self.box('plate', (0.75, 0.55, 0.05), (0, 0, 0), self.m_equip, 0.01),
+            self.box('sled', (0.8, 0.12, 0.25), (0, -0.2, 0.14), self.m_pad, 0.01),
         ])
-        rail = Vector((0, -math.cos(math.radians(45)), math.sin(math.radians(45))))
         return {'platform': platform, 'rail': rail}
 
     def _roller_lever(self, name, arm_x, roller_y, length):
