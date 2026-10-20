@@ -62,12 +62,12 @@ test('week headers: labels, newest week first, singular "1 session" and compact 
   expect(screen.getByText('1 session · 500 kg')).toBeTruthy();
 });
 
-test('session cards: names (incl. Empty workout), date, stats line and volume change', async () => {
+test('session cards: names (incl. a dated ad-hoc workout), date, stats line and volume change', async () => {
   await seedSessions(SESSIONS);
   await renderHistory();
   await screen.findByText('This week');
   expect(screen.getAllByText('Push')).toHaveLength(2);
-  expect(screen.getByText('Empty workout')).toBeTruthy();
+  expect(screen.getByText('Sep 14 workout')).toBeTruthy();
   expect(screen.getByText('Legs')).toBeTruthy();
   expect(screen.getByText('Tue, Sep 15')).toBeTruthy();
   // 1,680 vs 1,440 kg on the previous Push → ↑17%; first Push has no change.

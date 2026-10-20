@@ -109,7 +109,7 @@ export default function HistoryScreen() {
   const [shareTarget, setShareTarget] = useState<WorkoutSession | null>(null);
   const shareModel = shareTarget
     ? shareCardModel(shareTarget, {
-        title: templateDisplayName(templates, shareTarget.templateId),
+        title: templateDisplayName(templates, shareTarget, sessions),
         nameOf: (id) => getExercise(id)?.name ?? id,
         unit: weightUnit,
         prExerciseIds: sessionPRs.get(shareTarget.id),
@@ -209,7 +209,7 @@ export default function HistoryScreen() {
                   <SessionCard
                     key={s.id}
                     session={s}
-                    title={templateDisplayName(templates, s.templateId)}
+                    title={templateDisplayName(templates, s, sessions)}
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
                     onDelete={() => setDeleteTarget(s)}

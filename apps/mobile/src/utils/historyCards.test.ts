@@ -1,6 +1,7 @@
 import type { SessionExercise, WorkoutSession } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
 import {
+  adHocSessionName,
   buildSessionPRs,
   buildVolumeDeltas,
   groupSessionsByWeek,
@@ -146,10 +147,30 @@ describe('buildSessionPRs with aliases', () => {
 describe('templateDisplayName', () => {
   const templates = [{ id: 'ppl-push', name: 'Push' }];
 
-  it('uses the template name, "Empty workout" for ad-hoc sessions, else "Workout"', () => {
-    expect(templateDisplayName(templates, 'ppl-push')).toBe('Push');
-    expect(templateDisplayName(templates, '_empty')).toBe('Empty workout');
-    expect(templateDisplayName(templates, 'deleted-template')).toBe('Workout');
+  const named = (id: string, templateId: string, startedAt = at(10, 20)) => ({ id, templateId, startedAt });
+
+  it('uses the template name, a dated name for ad-hoc sessions, else "Workout"', () => {
+    expect(templateDisplayName(templates, named('a', 'ppl-push'))).toBe('Push');
+    expect(templateDisplayName(templates, named('b', '_empty'))).toBe('Oct 20 workout');
+    expect(templateDisplayName(templates, named('c', 'deleted-template'))).toBe('Workout');
+  });
+});
+
+describe('adHocSessionName', () => {
+  const named = (id: string, templateId: string, startedAt: string) => ({ id, templateId, startedAt });
+
+  it('numbers ad-hoc sessions from the second one that day, ignoring templates and other days', () => {
+    const sessions = [
+      named('morning', '_empty', at(10, 20, 8)),
+      named('push', 'ppl-push', at(10, 20, 12)),
+      named('evening', '_empty', at(10, 20, 18)),
+      named('yesterday', '_empty', at(10, 19, 18)),
+    ];
+    expect(adHocSessionName(sessions[0], sessions)).toBe('Oct 20 workout');
+    expect(adHocSessionName(sessions[2], sessions)).toBe('Oct 20 workout 2');
+    expect(adHocSessionName(sessions[3], sessions)).toBe('Oct 19 workout');
+    // An in-progress session isn't in the list yet; it still counts the earlier ones.
+    expect(adHocSessionName(named('now', '_empty', at(10, 20, 20)), sessions)).toBe('Oct 20 workout 3');
   });
 });
 

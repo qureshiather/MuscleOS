@@ -384,7 +384,7 @@ while more exercises sit below.
 session (working vs warm-up row counts, including incomplete rows, and each exercise's rests) —
 names and folders are untouched. **Save as template** writes the same structure onto a new custom template, and the
 saved session's `templateId` is re-pointed at it — so history, the "Good work" screen, "last done"
-and volume change show the new template rather than "Empty workout" or the template it started from.
+and volume change show the new template rather than the dated ad-hoc name or the template it started from.
 
 Choosing **Save as template** / **Save as new template** swaps the summary to a name step
 **within the same modal** (Save · Back) where you name the template before it's created. This is a
@@ -399,8 +399,8 @@ On finish:
   (highest weight, then reps). It can therefore move down after a lighter workout.
 - Recovery is recomputed from all sessions.
 - Confetti falls in three staggered waves (~5–6 s in all, so it's still going while you read the
-  stats), and a **"Good work"** screen shows the template name ("Empty workout" for an
-  ad-hoc session, "Workout" if the template is gone), three stats — **Duration**, **Exercises**
+  stats), and a **"Good work"** screen shows the session name (the template name, a
+  dated name like `Oct 20 workout` for an ad-hoc session, "Workout" if the template is gone), three stats — **Duration**, **Exercises**
   (with at least one completed set) and **Sets** (completed) — a diagram of the muscles trained,
   and a summary of each exercise's completed sets (`60 kg × 5 reps  ·  …`). A lift with a
   weighted set (`summaryExerciseHasProgress`) shows a chart icon and opens its

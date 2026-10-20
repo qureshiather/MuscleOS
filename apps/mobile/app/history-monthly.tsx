@@ -181,7 +181,7 @@ export default function HistoryMonthlyScreen() {
                   ]}
                 >
                   <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]}>
-                    {templateDisplayName(templates, s.templateId)}
+                    {templateDisplayName(templates, s, completedSessions())}
                   </Text>
                   {formatSessionDuration(s) ? (
                     <Text style={[typography.data, { color: colors.textSecondary }]}>

@@ -66,7 +66,7 @@ Collapsed, a card shows:
 |---------|--------|
 | Date | Short weekday, short month, day: `Sun, Sep 27` |
 | Trash button | Deletes the session after confirmation (see [Deleting a session](#deleting-a-session)) |
-| Template name | Resolved from `templateId`; `Empty workout` for ad-hoc sessions (`_empty`); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
+| Template name | Resolved from `templateId`; ad-hoc sessions (`_empty`) are named by the local day they started — `Oct 20 workout`, then `Oct 20 workout 2` for the next ad-hoc session that day (`adHocSessionName()`, also the in-progress workout title); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
 | Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero; a session under one minute has no duration (never `0m`) |
 | Volume change | `↑4%` (success colour) or `↓3%` (danger colour) against the **previous completed session of the same template** (`buildVolumeDeltas()`), rounded to a whole percent. Hidden at 0%, for the first session of a template, when either volume is zero, and for empty workouts (`_empty`) |
 | Summary line | `6 exercises · 18 sets`, counting only exercises with a completed set and only completed sets, plus `· 2 PRs` when there are PRs |
@@ -159,7 +159,7 @@ A day is marked with a filled primary-colour circle when any session's `complete
 
 Tapping a day toggles a detail card below the grid listing that day's sessions with **template
 name and duration only** — no volume, sets, or exercises. Names follow the History list
-(including `Empty workout`); duration uses the same formatting and is omitted under a minute.
+(including dated ad-hoc names); duration uses the same formatting and is omitted under a minute.
 Empty selection shows "No workouts this day". Changing month clears the selection.
 
 ## Personal records
@@ -361,7 +361,7 @@ Vitest (`apps/mobile/src/…`):
   leap February, four-row month, local-midnight day keys, marked days, sessions on a day
 - `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, ignored sets, alias
   canonicalisation); volume change vs the same template; Monday-start weeks and labels;
-  `templateDisplayName`; `isCardExpanded`; `sessionCardSummary` (counts, singulars, PR label,
+  `templateDisplayName`; `adHocSessionName` (same-day numbering); `isCardExpanded`; `sessionCardSummary` (counts, singulars, PR label,
   stats line dropping zero volume and sub-minute duration, pounds); `volumeDeltaLabel` hidden at
   0%; `weekSummary` singular and compact volume
 - `utils/shareCard.test.ts` — `bestSetLabel` (highest e1RM over heaviest, pounds, bodyweight
@@ -381,7 +381,7 @@ Vitest (`apps/mobile/src/…`):
 
 Jest UI (`apps/mobile/src/test/ui/history/`):
 
-- `history.test.tsx` — week headers and summaries, card names (incl. Empty workout), date, stats
+- `history.test.tsx` — week headers and summaries, card names (incl. a dated ad-hoc workout), date, stats
   line and volume change, newest expanded + toggling, PR badges/counts,
   alias PRs, header shortcuts to Personal Records and the calendar, delete flow (cancel,
   confirm, storage, recovery, sync), empty-state copy, pull to refresh from empty (guest reload,
