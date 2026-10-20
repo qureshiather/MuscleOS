@@ -207,12 +207,12 @@ Rows on the Account screen: Data (`/data`), Link Google (linked accounts without
 
 **Biodata** on this tab is a single row into `/biodata` (“Weight, age, gender”). The hint (`biodataSummary`) is “Used for strength standards” until a value is saved, then a compact summary of the saved fields in display units (“176.4 lb · 30 · Male”).
 
-**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for gender, body weight and age (each field labelled, the weight with its unit, so a filled field still says what it is); The modal rises with the keyboard so Save stays visible, and on iOS — whose number keyboards have no return key — a **Done** bar above the keyboard dismisses it (`KeyboardDoneBar`); Android's number keyboard has its own check key. While the keyboard is up, a tap outside the fields only lowers it; with it down, a tap outside the modal closes it without saving. Save writes them together (`buildProfileFromInputs`), converting the weight from the display unit to kg. A value that fails validation, or a blank field, **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
+**Biodata** (`/biodata`, subtitle “Used for strength standards”) shows `UserAppProfile` read-only — stored locally and synced as app settings. **Edit** opens a modal for gender, body weight and age (each field labelled, the weight with its unit, so a filled field still says what it is); The modal rises with the keyboard so Save stays visible, and on iOS — whose number keyboards have no return key — a **Done** bar above the keyboard dismisses it (`KeyboardDoneBar`); Android's number keyboard has its own check key. While the keyboard is up, a tap outside the fields only lowers it; with it down, a tap outside the modal closes it without saving. Under weight and age a caption shows the accepted range (“Between 66 and 660 lb”, “Between 13 and 100”). Save checks both (`validateBiodataInputs`): an out-of-range or non-numeric value keeps the editor open, turns that field's border and caption red with the reason (“Enter an age between 13 and 100”) and saves nothing; editing the field restores the range caption. Otherwise Save writes them together (`buildProfileFromInputs`), converting the weight from the display unit to kg. A blank field **clears** that field. Gender has no “unset” choice: once saved it can be switched but not cleared.
 
 | Biodata field | Validation | Used by |
 |---------------|------------|---------|
-| `weightKg` | > 0 | **Strength standards** on PR and progression screens |
-| `age` | > 0 and < 150 | Optional [age adjustment](history-analytics.md#age-adjustment) of strength standards |
+| `weightKg` | 30–300 kg, or 66–660 lb when entered in pounds (inclusive, checked in the unit typed) | **Strength standards** on PR and progression screens |
+| `age` | Whole years, 13–100 inclusive | Optional [age adjustment](history-analytics.md#age-adjustment) of strength standards |
 | `sex` | `male` \| `female` | Body diagram figure; strength standard tables |
 
 Not collected: height, display name (set at sign-in), birthdate, experience level, training goals.
@@ -596,7 +596,7 @@ Covered:
   linked)
 - `src/store/settingsStore.test.ts` — load (lb defaults written back, lb/in → imperial), setters
   persist and notify sync, a theme change racing unit/sounds changes keeps all of them
-- `src/utils/biodata.test.ts` — editor validation (weight > 0, age 1–149) and lb→kg conversion,
+- `src/utils/biodata.test.ts` — editor ranges (30–300 kg / 66–660 lb, whole-year age 13–100, inclusive bounds, blank clears, out-of-range keeps the saved value), range hints, decimal comma and lb→kg conversion,
   gender can't be cleared,
   Profile hint summary
 - `src/theme/palette.test.ts` — semantic tokens and `blendOver` in both modes;
@@ -608,7 +608,7 @@ Covered:
   Delete account two confirms, friendly failure, and “Account deleted” even when a store fails to reload), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
-  validation, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
+  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:
