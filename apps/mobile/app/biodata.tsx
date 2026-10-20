@@ -18,7 +18,15 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
 import { kgToDisplay } from '@/utils/weightUnits';
-import { buildProfileFromInputs, formatBodyWeight, formatSex } from '@/utils/biodata';
+import {
+  ageRangeHint,
+  buildProfileFromInputs,
+  formatBodyWeight,
+  formatSex,
+  validateBiodataInputs,
+  weightRangeHint,
+  type BiodataErrors,
+} from '@/utils/biodata';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { KeyboardDoneBar } from '@/components/ui/KeyboardDoneBar';
@@ -36,21 +44,25 @@ export default function BiodataScreen() {
   const [weightInput, setWeightInput] = useState('');
   const [ageInput, setAgeInput] = useState('');
   const [sexSelection, setSexSelection] = useState<'male' | 'female' | null>(null);
+  const [errors, setErrors] = useState<BiodataErrors>({});
 
   function openEditor() {
     const { profile: p, bodyWeightUnit: bwu } = useSettingsStore.getState();
     setWeightInput(p.weightKg != null ? String(kgToDisplay(p.weightKg, bwu)) : '');
     setAgeInput(p.age != null ? String(p.age) : '');
     setSexSelection(p.sex ?? null);
+    setErrors({});
     setEditorVisible(true);
   }
 
   function saveBiodata() {
-    const next = buildProfileFromInputs(
-      { weight: weightInput, age: ageInput, sex: sexSelection },
-      { bodyWeightUnit },
-      profile
-    );
+    const inputs = { weight: weightInput, age: ageInput, sex: sexSelection };
+    const nextErrors = validateBiodataInputs(inputs, { bodyWeightUnit });
+    if (nextErrors.weight || nextErrors.age) {
+      setErrors(nextErrors);
+      return;
+    }
+    const next = buildProfileFromInputs(inputs, { bodyWeightUnit }, profile);
     void setProfile(next);
     setEditorVisible(false);
   }
@@ -168,30 +180,54 @@ export default function BiodataScreen() {
               <TextInput
                 style={[
                   styles.input,
-                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: errors.weight ? colors.danger : colors.border,
+                  },
                 ]}
                 accessibilityLabel={weightLabel}
+                accessibilityHint={weightRangeHint(bodyWeightUnit)}
                 value={weightInput}
-                onChangeText={setWeightInput}
+                onChangeText={(text) => {
+                  setWeightInput(text);
+                  setErrors((e) => ({ ...e, weight: undefined }));
+                }}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
                 inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
+              <Text
+                style={[typography.caption, styles.fieldHint, { color: errors.weight ? colors.danger : colors.textMuted }]}
+              >
+                {errors.weight ?? weightRangeHint(bodyWeightUnit)}
+              </Text>
               <Text style={[typography.label, styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.textMuted }]}>
                 Age
               </Text>
               <TextInput
                 style={[
                   styles.input,
-                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  {
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: errors.age ? colors.danger : colors.border,
+                  },
                 ]}
                 accessibilityLabel="Age"
+                accessibilityHint={ageRangeHint()}
                 value={ageInput}
-                onChangeText={setAgeInput}
+                onChangeText={(text) => {
+                  setAgeInput(text);
+                  setErrors((e) => ({ ...e, age: undefined }));
+                }}
                 keyboardType="number-pad"
                 returnKeyType="done"
                 inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
+              <Text style={[typography.caption, styles.fieldHint, { color: errors.age ? colors.danger : colors.textMuted }]}>
+                {errors.age ?? ageRangeHint()}
+              </Text>
               <View style={styles.modalActions}>
                 <Pressable
                   style={[styles.modalBtn, { borderColor: colors.border }]}
@@ -275,6 +311,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: { marginBottom: spacing.xs },
   fieldLabelSpaced: { marginTop: spacing.md },
+  fieldHint: { marginTop: spacing.xs },
   input: {
     borderWidth: 1,
     borderRadius: radius.md,

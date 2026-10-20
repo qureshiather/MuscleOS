@@ -50,13 +50,39 @@ describe('Biodata', () => {
     expect(sync.notifyAppSettingsSnapshot).toHaveBeenCalled();
   });
 
-  test('invalid values clear the field; age must be under 150', async () => {
-    await useSettingsStore.getState().setBodyWeightUnit('kg');
+  test('shows the accepted range under weight and age', async () => {
+    renderApp({ biodata: BiodataScreen }, '/biodata');
+    fireEvent.press(await screen.findByText('Edit'));
+    expect(screen.getByText('Between 66 and 660 lb')).toBeTruthy();
+    expect(screen.getByText('Between 13 and 100')).toBeTruthy();
+  });
+
+  test('out-of-range values block Save with a message, and editing clears it', async () => {
     await useSettingsStore.getState().setProfile({ weightKg: 80, age: 30 });
     renderApp({ biodata: BiodataScreen }, '/biodata');
     fireEvent.press(await screen.findByText('Edit'));
-    fireEvent.changeText(screen.getByLabelText('Weight (kg)'), 'abc');
-    fireEvent.changeText(screen.getByLabelText('Age'), '150');
+    fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '5');
+    fireEvent.changeText(screen.getByLabelText('Age'), '250');
+    fireEvent.press(screen.getByText('Save'));
+    expect(screen.getByText('Enter a weight between 66 and 660 lb')).toBeTruthy();
+    expect(screen.getByText('Enter an age between 13 and 100')).toBeTruthy();
+    // The editor stays open and nothing was written.
+    expect(screen.getByText('Save')).toBeTruthy();
+    expect((await getAppSettings()).profile).toEqual({ weightKg: 80, age: 30 });
+    fireEvent.changeText(screen.getByLabelText('Age'), '31');
+    expect(screen.queryByText('Enter an age between 13 and 100')).toBeNull();
+    expect(screen.getByText('Between 13 and 100')).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '180');
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(async () => expect((await getAppSettings()).profile).toEqual({ weightKg: 81.65, age: 31 }));
+  });
+
+  test('blank fields clear the saved values', async () => {
+    await useSettingsStore.getState().setProfile({ weightKg: 80, age: 30 });
+    renderApp({ biodata: BiodataScreen }, '/biodata');
+    fireEvent.press(await screen.findByText('Edit'));
+    fireEvent.changeText(screen.getByLabelText('Weight (lb)'), '');
+    fireEvent.changeText(screen.getByLabelText('Age'), '');
     fireEvent.press(screen.getByText('Save'));
     await waitFor(async () => expect((await getAppSettings()).profile).toEqual({}));
   });
