@@ -85,7 +85,7 @@ describe('finish modal options', () => {
 
   test('empty workout: Save as template · Save values only · Discard workout', async () => {
     await start('/active-workout?templateId=_empty');
-    expect(screen.getByText('Empty workout')).toBeTruthy();
+    expect(screen.getByText(/^[A-Z][a-z]{2} \d{1,2} workout$/)).toBeTruthy();
     expect(screen.getByText('No exercises yet. Tap Add Exercise below to build your workout.')).toBeTruthy();
     act(() => useActiveWorkoutStore.getState().addExercise('bench-press'));
     logSet();

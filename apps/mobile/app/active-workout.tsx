@@ -572,6 +572,8 @@ export default function ActiveWorkoutScreen() {
   const currentTemplate = useTemplatesStore((s) =>
     session == null ? undefined : s.allTemplates().find((t) => t.id === session.templateId)
   );
+  // Earlier sessions number a second ad-hoc workout on the same day.
+  const allSessions = useSessionsStore((s) => s.sessions);
   const weightLabel = weightUnit === 'lb' ? 'LB' : 'KG';
 
   // Rest timer state lives in store so it survives addSet/session updates
@@ -882,10 +884,10 @@ export default function ActiveWorkoutScreen() {
     }
 
     const completedAt = new Date().toISOString();
-    const title = templateDisplayName(allTemplates(), savedTemplateId ?? session.templateId);
     const finished = { ...session, completedAt };
     // PRs against every earlier session, as the History card will show them.
     const prior = useSessionsStore.getState().completedSessions();
+    const title = templateDisplayName(allTemplates(), { ...session, templateId: savedTemplateId ?? session.templateId }, prior);
     const prIds = buildSessionPRs([finished, ...prior], (id) => getExercise(id)?.id ?? id).get(session.id);
     const summary: FinishedSummary = {
       ...buildFinishSummary(session, title, exerciseName, elapsedMs),
@@ -1129,7 +1131,8 @@ export default function ActiveWorkoutScreen() {
 
   const hasAtLeastOneSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
   const cancelWorkoutMeta = cancelDialogMeta(session, elapsedMs);
-  const finishSummary = buildFinishSummary(session, currentTemplate?.name, exerciseName, elapsedMs);
+  const sessionTitle = currentTemplate?.name ?? templateDisplayName([], session, allSessions);
+  const finishSummary = buildFinishSummary(session, sessionTitle, exerciseName, elapsedMs);
 
   // ── In-app numeric keypad ──────────────────────────────────────────────────
   // Shown whenever a set cell is focused, unless a sheet/modal owns the bottom.
@@ -1302,8 +1305,7 @@ export default function ActiveWorkoutScreen() {
         ListHeaderComponent={
           <View>
             <Text style={[styles.workoutTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title} numberOfLines={2}>
-              {currentTemplate?.name ??
-                (isNoTemplateWorkout ? 'Empty workout' : 'Workout')}
+              {sessionTitle}
             </Text>
             {reorderMode ? (
               <Text style={[styles.reorderHintInline, { color: colors.textMuted }]}>

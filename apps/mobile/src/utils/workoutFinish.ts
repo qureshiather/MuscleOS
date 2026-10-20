@@ -157,7 +157,7 @@ export interface FinishSummaryExercise {
 }
 
 export interface FinishSummary {
-  /** Template name; "Empty workout" for an ad-hoc session; "Workout" when the template is gone. */
+  /** Session name, from `templateDisplayName()`. */
   name: string;
   durationMs: number;
   /** Only exercises with at least one completed set, in session order. */
@@ -172,7 +172,7 @@ export interface FinishSummary {
  */
 export function buildFinishSummary(
   session: Pick<WorkoutSession, 'templateId' | 'exercises'>,
-  templateName: string | undefined,
+  name: string,
   nameOf: (exerciseId: string) => string,
   durationMs: number
 ): FinishSummary {
@@ -183,7 +183,7 @@ export function buildFinishSummary(
     })
     .filter((ex) => ex.completed > 0);
   return {
-    name: templateName ?? (session.templateId === '_empty' ? 'Empty workout' : 'Workout'),
+    name,
     durationMs,
     exercises,
     totalSets: exercises.reduce((n, ex) => n + ex.completed, 0),

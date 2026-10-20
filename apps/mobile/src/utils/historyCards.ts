@@ -12,16 +12,35 @@ export type CanonicalExerciseId = (exerciseId: string) => string;
 const identity: CanonicalExerciseId = (id) => id;
 
 /**
- * Display name for a session's template everywhere a finished session is listed: the template's
- * name, `Empty workout` for ad-hoc sessions, and `Workout` when the template no longer resolves.
+ * Display name for a session everywhere it's shown: the template's name, a dated name for ad-hoc
+ * sessions (`adHocSessionName()`), and `Workout` when the template no longer resolves.
  */
 export function templateDisplayName(
   templates: readonly Pick<WorkoutTemplate, 'id' | 'name'>[],
-  templateId: string
+  session: Pick<WorkoutSession, 'id' | 'templateId' | 'startedAt'>,
+  sessions: readonly Pick<WorkoutSession, 'id' | 'templateId' | 'startedAt'>[] = []
 ): string {
-  const template = templates.find((t) => t.id === templateId);
+  const template = templates.find((t) => t.id === session.templateId);
   if (template) return template.name;
-  return templateId === EMPTY_TEMPLATE_ID ? 'Empty workout' : 'Workout';
+  return session.templateId === EMPTY_TEMPLATE_ID ? adHocSessionName(session, sessions) : 'Workout';
+}
+
+/**
+ * Ad-hoc sessions are named by the local day they started — `Oct 20 workout` — numbered from the
+ * second one that day (`Oct 20 workout 2`), counting earlier ad-hoc sessions in `sessions`.
+ */
+export function adHocSessionName(
+  session: Pick<WorkoutSession, 'id' | 'startedAt'>,
+  sessions: readonly Pick<WorkoutSession, 'id' | 'templateId' | 'startedAt'>[]
+): string {
+  const start = new Date(session.startedAt);
+  const earlier = sessions.filter((s) => {
+    if (s.id === session.id || s.templateId !== EMPTY_TEMPLATE_ID) return false;
+    const other = new Date(s.startedAt);
+    return other.toDateString() === start.toDateString() && other.getTime() < start.getTime();
+  }).length;
+  const day = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return earlier === 0 ? `${day} workout` : `${day} workout ${earlier + 1}`;
 }
 
 /** The newest session starts expanded and every other card collapsed; `toggled` flips either. */

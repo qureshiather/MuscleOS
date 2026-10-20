@@ -210,9 +210,8 @@ describe('buildFinishSummary', () => {
     expect(summary.totalSets).toBe(3);
   });
 
-  it('names an ad-hoc session "Empty workout" and a missing template "Workout"', () => {
-    expect(buildFinishSummary(session([], '_empty'), undefined, nameOf, 0).name).toBe('Empty workout');
-    expect(buildFinishSummary(session([], 'tpl_gone'), undefined, nameOf, 0).name).toBe('Workout');
+  it('carries the given session name', () => {
+    expect(buildFinishSummary(session([], '_empty'), 'Oct 20 workout', nameOf, 0).name).toBe('Oct 20 workout');
   });
 });
 

@@ -55,7 +55,7 @@ test('tapping a day toggles a detail card with template name and duration only',
   expect(await screen.findByText('Tue, Sep 15')).toBeTruthy();
   expect(screen.getByText('Legs')).toBeTruthy();
   expect(screen.getByText('45m')).toBeTruthy();
-  expect(screen.getByText('Empty workout')).toBeTruthy(); // sub-minute session: no duration
+  expect(screen.getByText('Sep 15 workout')).toBeTruthy(); // sub-minute session: no duration
   expect(screen.queryByText('0m')).toBeNull();
   expect(screen.queryByText(/kg/)).toBeNull();
 
