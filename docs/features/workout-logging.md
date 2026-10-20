@@ -367,7 +367,7 @@ timers**; `templateStructureChanged()`):
 | Started from | Options |
 |--------------|---------|
 | Empty workout | Save as template · Save values only · Discard workout |
-| Built-in, list, set structure or rests changed | Save as new template · Save values only · Discard workout |
+| Built-in, list, set structure or rests changed | Save values only · Save as new template · Discard workout |
 | Custom, list, set structure or rests changed | Save values only · Overwrite this template · Save as new template · Discard workout |
 | Unchanged (built-in or custom) | Save values · Discard workout |
 

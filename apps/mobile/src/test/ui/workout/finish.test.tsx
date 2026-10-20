@@ -37,10 +37,10 @@ function logSet(exIdx = 0, setIdx = 0, weightKg = 60, reps = 5) {
   });
 }
 
+/** The finish options' labels in render order. */
 function optionLabels(): string[] {
-  return ['save_as_template', 'overwrite', 'save_values', 'discard']
-    .map((id) => screen.queryByTestId(`finish-option-${id}`))
-    .filter((el): el is NonNullable<typeof el> => el != null)
+  return screen
+    .getAllByTestId(/^finish-option-/)
     .map((el) => within(el).getByText(/.+/).props.children as string);
 }
 
@@ -68,11 +68,11 @@ describe('finish modal options', () => {
     expect(session()).not.toBeNull();
   });
 
-  test('changed built-in: Save as new template · Save values only · Discard workout', async () => {
+  test('changed built-in: Save values only · Save as new template · Discard workout', async () => {
     await start(startUrl('ppl-push', ['bench-press', 'overhead-press']));
     logSet();
     press('finish-workout');
-    expect(optionLabels()).toEqual(['Save as new template', 'Save values only', 'Discard workout']);
+    expect(optionLabels()).toEqual(['Save values only', 'Save as new template', 'Discard workout']);
   });
 
   test('set-count change on a built-in counts as changed', async () => {
@@ -80,7 +80,7 @@ describe('finish modal options', () => {
     act(() => useActiveWorkoutStore.getState().addSet(0));
     logSet();
     press('finish-workout');
-    expect(optionLabels()).toEqual(['Save as new template', 'Save values only', 'Discard workout']);
+    expect(optionLabels()).toEqual(['Save values only', 'Save as new template', 'Discard workout']);
   });
 
   test('empty workout: Save as template · Save values only · Discard workout', async () => {
@@ -102,16 +102,6 @@ describe('finish modal options', () => {
     press('finish-workout');
     expect(screen.getByText('You changed this workout from its template.')).toBeTruthy();
     expect(optionLabels()).toEqual([
-      'Save as new template',
-      'Overwrite this template',
-      'Save values only',
-      'Discard workout',
-    ]);
-    // presentation order follows finishSaveOptions: Save values only is the primary
-    const labels = screen
-      .getAllByText(/^(Save values only|Overwrite this template|Save as new template|Discard workout)$/)
-      .map((t) => t.props.children);
-    expect(labels).toEqual([
       'Save values only',
       'Overwrite this template',
       'Save as new template',

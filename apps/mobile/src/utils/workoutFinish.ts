@@ -93,7 +93,7 @@ export function finishFlowVariant({ isEmpty, isBuiltIn, listChanged }: FinishFlo
  * The ordered save options shown in the finish summary for a given variant.
  *
  * - **empty**: Save as template · Save values only · Discard
- * - **builtin-changed**: Save as new template · Save values only · Discard
+ * - **builtin-changed**: Save values only · Save as new template · Discard
  * - **custom-changed**: Save values only · Overwrite this template · Save as new template · Discard
  * - **unchanged**: Save values · Discard
  *
@@ -111,8 +111,8 @@ export function finishSaveOptions(input: FinishFlowInput): FinishOption[] {
       ];
     case 'builtin-changed':
       return [
-        { id: 'save_as_template', label: 'Save as new template' },
         { id: 'save_values', label: 'Save values only' },
+        { id: 'save_as_template', label: 'Save as new template' },
         discard,
       ];
     case 'custom-changed':
