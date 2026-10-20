@@ -137,8 +137,9 @@ never suggests a hidden template or a program you aren't following. Each is a
 
 **4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
 most recent first, deduplicated by template and **excluding anything already in Suggested** and
-hidden templates. Recent isn't limited to Your workouts: a day from a program you've since
-switched away from still shows; sessions whose template was deleted, and empty workouts, are skipped
+hidden templates. Like Suggested, Recent only draws from [Your workouts](#your-workouts): days of a
+program you aren't following (or any program, with none chosen) are left out, as are sessions whose
+template was deleted, and empty workouts
 (`pickRecentTemplates()` in `src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
 relative completion time.
 
@@ -465,7 +466,8 @@ Covered:
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
   (link plan, template fallback, template wins after Edit), `canEditFromPreview`
 - `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2 and only from
-  the chosen program, Recent newest first without Suggested picks, customs in Suggested / Recent;
+  the chosen program, Recent newest first without Suggested picks and only from Your workouts (no
+  program days with none chosen), customs in Suggested / Recent;
   no program by default (no built-in listed or suggested, Pick a program grid → `/program`, See
   all → `/programs`, Build your own template), a quiet Browse programs link under My templates once you have templates, the
   program section (its templates, no menus, collapses and reopens, name → `/program`, Change → `/programs`); My templates ordering /

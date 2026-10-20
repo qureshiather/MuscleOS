@@ -75,7 +75,6 @@ export default function WorkoutsScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const loadTemplates = useTemplatesStore((s) => s.load);
-  const allTemplates = useTemplatesStore((s) => s.allTemplates);
   const userTemplates = useTemplatesStore((s) => s.userTemplates);
   const folders = useTemplatesStore((s) => s.folders);
   const addFolder = useTemplatesStore((s) => s.addFolder);
@@ -155,7 +154,6 @@ export default function WorkoutsScreen() {
     }, [loadSessions, ensureRecoveryLoaded])
   );
 
-  const templates = allTemplates();
   const groups = useMemo(
     () => groupYourWorkouts({ userTemplates, folders, activeProgramId }),
     [userTemplates, folders, activeProgramId]
@@ -203,10 +201,16 @@ export default function WorkoutsScreen() {
     // recoveryItems changes whenever activeRecovery() would return something new.
   }, [recoveryItems, activeRecovery, getExercise]);
 
+  /** Suggested and Recent both draw only from Your workouts: the chosen program plus your customs. */
+  const yourWorkouts = useMemo(
+    () => yourWorkoutTemplates({ userTemplates, activeProgramId }),
+    [userTemplates, activeProgramId]
+  );
+
   const suggestedWorkouts = useMemo(() => {
     const nowMs = Date.now();
     return suggestHomeTemplates({
-      templates: yourWorkoutTemplates({ userTemplates, activeProgramId }),
+      templates: yourWorkouts,
       recoveringMuscleIds: new Set(activeRecovery().map((r) => r.muscleId)),
       recentlyWorkedMuscleIds: recentlyWorkedMuscleIds(sessions, nowMs, getExercise),
       lastDoneByTemplate,
@@ -217,8 +221,7 @@ export default function WorkoutsScreen() {
     recoveryItems,
     sessions,
     lastDoneByTemplate,
-    userTemplates,
-    activeProgramId,
+    yourWorkouts,
     activeRecovery,
     templateMuscles,
     getExercise,
@@ -228,14 +231,14 @@ export default function WorkoutsScreen() {
   const recentWorkouts = useMemo(() => {
     return pickRecentTemplates({
       completedSessions: completedSessions(),
-      templates,
+      templates: yourWorkouts,
       suggestedIds: new Set(suggestedWorkouts.map((s) => s.template.id)),
       isHidden: isTemplateHidden,
     });
   }, [
     suggestedWorkouts,
     sessions,
-    userTemplates,
+    yourWorkouts,
     isTemplateHidden,
     completedSessions,
   ]);

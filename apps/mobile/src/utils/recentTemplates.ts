@@ -7,8 +7,9 @@ export type RecentTemplate = { session: WorkoutSession; template: WorkoutTemplat
 
 /**
  * The home screen's Recent row: templates you've completed, most recent first, one entry per
- * template. Skips anything already shown in Suggested, hidden templates, and sessions whose
- * template isn't in `templates` (deleted templates and empty workouts).
+ * template. `templates` is Your workouts, so sessions whose template isn't in it are skipped:
+ * days of a program you aren't following, deleted templates and empty workouts. Also skips
+ * anything already shown in Suggested and hidden templates.
  *
  * `completedSessions` must already be newest-first.
  */
