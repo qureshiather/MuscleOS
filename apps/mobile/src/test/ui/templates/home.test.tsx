@@ -108,13 +108,22 @@ describe('sections', () => {
     for (const id of suggestedIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b', 'ul-lower-b']).toContain(id);
     const recentIds = recent.map((n) => n.props.testID.replace('recent-card-', ''));
     for (const id of suggestedIds) expect(recentIds).not.toContain(id);
-    // Newest first.
+    // Only the chosen program's days: PPL and StrongLifts sessions are left out. Newest first.
+    for (const id of recentIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b']).toContain(id);
     expect(recentIds[0]).toBe(
-      ['ul-upper-b', 'sl-b', 'sl-a'].find((id) => !suggestedIds.includes(id))
+      ['ul-upper-b', 'ul-lower-a', 'ul-upper-a'].find((id) => !suggestedIds.includes(id))
     );
 
     expect(screen.getByText('Upper Lower Splits')).toBeTruthy();
     expect(screen.queryByTestId('pick-a-program')).toBeNull();
+  });
+
+  it('with no program chosen, program days stay out of Recent', async () => {
+    await seed({ sessions: [completedSession('ppl-push', NOW - 7 * DAY)] });
+    renderHome();
+    await ready();
+    expect(screen.queryByTestId('recent-card-ppl-push')).toBeNull();
+    expect(screen.queryByText('Recent')).toBeNull();
   });
 
   it('hides Recent with no completed sessions', async () => {
