@@ -67,7 +67,7 @@ export default function ExercisesScreen() {
           <View style={styles.headerTextBlock}>
             <Text style={[screenHeaderStyles.title, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Exercises</Text>
             <Text style={[screenHeaderStyles.subtitle, { color: colors.textSecondary }]}>
-              {allExercises.length} movements · tap for muscle map
+              {allExercises.length} movements
             </Text>
           </View>
           <Pressable

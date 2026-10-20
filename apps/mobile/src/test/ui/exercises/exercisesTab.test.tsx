@@ -45,7 +45,7 @@ async function openFilters() {
 describe('Exercises tab list', () => {
   it('shows the movement count (published + customs) and the list count line', async () => {
     renderExercises();
-    expect(await screen.findByText('6 movements · tap for muscle map')).toBeTruthy();
+    expect(await screen.findByText('6 movements')).toBeTruthy();
     expect(screen.getByText('6 exercises')).toBeTruthy();
     // Unpublished catalog rows are hidden from browsing.
     expect(screen.queryByText('Stationary Bike')).toBeNull();

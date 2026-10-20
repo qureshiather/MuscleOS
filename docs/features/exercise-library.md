@@ -359,7 +359,7 @@ search if you happen to type the slug.
 
 ## Exercises tab
 
-Header shows `<count> movements · tap for muscle map` (published catalog plus customs) and a
+Header shows `<count> movements` (published catalog plus customs) and a
 **+** button to create one.
 
 **Filters** are in a collapsible panel (collapsed by default); when collapsed it summarises as
