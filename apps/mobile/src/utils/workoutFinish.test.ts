@@ -135,7 +135,7 @@ describe('finishSaveOptions', () => {
 
   it('a changed built-in cannot be overwritten — only forked into a new custom template', () => {
     const opts = finishSaveOptions({ isEmpty: false, isBuiltIn: true, listChanged: true });
-    expect(ids(opts)).toEqual(['save_as_template', 'save_values', 'discard']);
+    expect(ids(opts)).toEqual(['save_values', 'save_as_template', 'discard']);
     expect(ids(opts)).not.toContain('overwrite');
     expect(opts.find((o) => o.id === 'save_as_template')?.label).toBe('Save as new template');
   });
