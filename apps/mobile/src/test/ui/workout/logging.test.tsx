@@ -100,6 +100,16 @@ describe('number pad', () => {
     expect(setsOf(0)[1].reps).toBe(5);
   });
 
+  test('the pad has no unbuilt placeholder keys (no Plates or RPE "soon")', async () => {
+    await startPush(startUrl('ppl-push', ['bench-press']));
+    press('set-weight-0-1');
+    const pad = screen.getByTestId('numeric-keypad');
+    expect(within(pad).queryByText('Plates')).toBeNull();
+    press('keypad-next');
+    expect(within(screen.getByTestId('numeric-keypad')).queryByText('RPE')).toBeNull();
+    expect(screen.queryByText(/^soon$/i)).toBeNull();
+  });
+
   test('pounds are converted to kg on write', async () => {
     const { useSettingsStore } = require('@/store/settingsStore');
     useSettingsStore.setState({ weightUnit: 'lb' });

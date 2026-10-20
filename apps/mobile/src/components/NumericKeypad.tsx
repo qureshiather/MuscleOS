@@ -45,8 +45,8 @@ const GRID_GAP = 7;
  * the OS keyboard entirely, so it never covers the sets you're editing and a set completes on
  * the first tap. The action column adapts to the field:
  *
- * - **Weight** → a reserved plate-calculator slot and a primary **Next** (jumps to reps).
- * - **Reps** → a reserved **RPE** slot and a success **Done** that finishes the set and rests.
+ * - **Weight** → a primary **Next** (jumps to reps).
+ * - **Reps** → a success **Done** that finishes the set and rests.
  */
 export function NumericKeypad({
   exerciseName,
@@ -83,8 +83,6 @@ export function NumericKeypad({
   const fieldLabel = fieldTitle ?? (isWeight ? 'Weight' : isTime ? 'Time' : 'Reps');
   const showNext = isWeight || (isTime && timeAction === 'next');
   const keyFace = isDark ? colors.surface : colors.surfaceElevated;
-  // Third utility slot is reserved for a per-field power feature we haven't built yet.
-  const reservedLabel = isWeight ? 'Plates' : 'RPE';
 
   const numberKey = (digit: string) => (
     <KeypadKey
@@ -143,7 +141,7 @@ export function NumericKeypad({
       </View>
 
       <View style={styles.grid}>
-        {/* Number column: 1–9, then 0 and reserved Plates/RPE. */}
+        {/* Number column: 1–9, then 0 centred. */}
         <View style={styles.numberColumn}>
           <View style={styles.gridRow}>{['1', '2', '3'].map(numberKey)}</View>
           <View style={styles.gridRow}>{['4', '5', '6'].map(numberKey)}</View>
@@ -151,20 +149,7 @@ export function NumericKeypad({
           <View style={styles.gridRow}>
             <View style={styles.keyCell} />
             {numberKey('0')}
-            {/* Reserved: plate calculator (weight) / RPE effort (reps). Time entry has neither. */}
-            <View style={styles.keyCell}>
-              {isTime ? null : (
-                <View
-                  style={[
-                    styles.reservedKey,
-                    { backgroundColor: keyFace, borderColor: colors.border, opacity: 0.5 },
-                  ]}
-                >
-                  <Text style={[styles.reservedLabel, { color: colors.textMuted }]}>{reservedLabel}</Text>
-                  <Text style={[styles.reservedSoon, { color: colors.textMuted }]}>soon</Text>
-                </View>
-              )}
-            </View>
+            <View style={styles.keyCell} />
           </View>
         </View>
 
@@ -364,25 +349,6 @@ const styles = StyleSheet.create({
   },
   adjustHalf: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   adjustDivider: { width: StyleSheet.hairlineWidth },
-  reservedKey: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 1,
-  },
-  reservedLabel: {
-    fontFamily: typography.label.fontFamily,
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  reservedSoon: {
-    fontFamily: typography.caption.fontFamily,
-    fontSize: 9,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
   doneInner: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   actionLabel: {
     fontFamily: typography.button.fontFamily,

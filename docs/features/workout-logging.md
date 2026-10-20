@@ -185,14 +185,11 @@ scrolled up so the pad never hides the row being edited.
   reps — clamping to empty at zero. Those keys are the only way to enter a fraction.
 - The **action key adapts to the field**, because logging a weight and finishing a set are
   different intents:
-  - **Weight** shows a primary **Next** that jumps to the same set's reps. A dimmed, non-pressable
-    **Plates** placeholder labelled "soon" sits to the right of **0**.
+  - **Weight** shows a primary **Next** that jumps to the same set's reps.
   - **Reps** shows a success **Done** (check) that **completes the set** — starting that set's
     rest — and then dismisses the pad, since a rest usually follows rather than the next
-    set. Done is disabled until reps > 0. A dimmed **RPE** placeholder ("soon")
-    sits to the right of **0**.
-  - **Time** is only the rest-duration boxes on **Update rest timers**. −/+, Plates, and RPE
-    are hidden. Digits shift into `m:ss` from the right (the first digit replaces the current
+    set. Done is disabled until reps > 0.
+  - **Time** is only the rest-duration boxes on **Update rest timers**. −/+ is hidden. Digits shift into `m:ss` from the right (the first digit replaces the current
     time); a seconds value above 59 or a total past 15:00 is ignored, and 0:00 is allowed.
     **Next** moves from Work set to Warm up; **Done** hides the pad.
 - **Backspace** is in the right-hand column, above Next/Done — the same place delete lives on a
@@ -505,7 +502,7 @@ the real router.
 
 - `logging.test.tsx` — starting a built-in from route params, prefill ghost values
   and PREVIOUS, W1/1/2/3 numbering, number-pad entry (kg and lb, suggestion overwrite, re-tap replaces a logged value, ±,
-  Next → reps), Done completing on the first tap from the pad and the row, un-complete, Done
+  Next → reps, no Plates/RPE placeholder keys), Done completing on the first tap from the pad and the row, un-complete, Done
   disabled without reps, current/upcoming/completed labels across exercises and the done card,
   the header rest dialog (±30, Skip, recorded rest), the rest row opening the manual picker, a
   countdown ending, + ADD SET, add warm-up, long-press delete with the themed confirm, swipe
