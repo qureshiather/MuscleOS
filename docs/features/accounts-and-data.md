@@ -467,6 +467,17 @@ edges round to different pixels).
 **Screens must use `useTheme().colors`** — no hardcoded hex or rgba in `app/` or
 `src/components/` (enforced by `src/theme/noHardcodedColors.test.ts`).
 
+**System UI follows the app's theme.** `ThemeProvider` hands the mode to the OS with
+`Appearance.setColorScheme` (`nativeColorScheme()`: Dark and Light pin it, Auto passes
+`unspecified` and gives control back to the device), so UI drawn outside React — iOS alerts and
+keyboards, Android's navigation bar — matches the app, not the phone. On Android the theme turns off
+the system's contrast scrim behind the navigation bar (`enforceNavigationBarContrast` /
+`enforceStatusBarContrast` false), and `MainActivity` sets light or dark navigation bar buttons from
+the current night mode at launch and on every change (`applyNavigationBarAppearance`). Without
+this, a dark app on a phone in light mode with 3-button navigation showed dark buttons on a white
+strip (MUS-168). Both native changes come from the config plugin
+`plugins/withNavigationBarFollowsAppTheme.js`, so a prebuild keeps them.
+
 ## Export
 
 Profile → Account → Data → **Export my data**. Writes pretty-printed JSON to the cache as
@@ -605,6 +616,7 @@ Covered:
   gender can't be cleared,
   Profile hint summary
 - `src/theme/palette.test.ts` — semantic tokens and `blendOver` in both modes;
+  `src/theme/nativeColorScheme.test.ts` — Dark and Light pin the OS scheme, Auto releases it;
   `src/theme/noHardcodedColors.test.ts` — no colour literals in screens or components;
   `src/theme/tabBarLayout.test.ts` — tab bar sizing
 - Screen tests (Jest, `src/test/ui/accounts/`): `profile.test.tsx` (Account card guest/linked,
@@ -622,4 +634,6 @@ Not covered:
   `linkIdentity`); the screens are tested with `useSignIn` mocked
 - The root layout's boot sequence and `EmailAuthLinks` wiring (the destination rule is covered)
 - `ThemeProvider` following the device scheme in Auto (theme persistence is covered)
+- The Android navigation bar's colours (native; checked by hand on an API 36 emulator with
+  3-button navigation: phone light + app Dark, app Light, and a cold start)
 - Notification permission gating and scheduling

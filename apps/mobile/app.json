@@ -70,7 +70,8 @@
           ]
         }
       ],
-      "./plugins/withDeepLinkOnColdStart"
+      "./plugins/withDeepLinkOnColdStart",
+      "./plugins/withNavigationBarFollowsAppTheme"
     ],
     "experiments": {
       "typedRoutes": true
