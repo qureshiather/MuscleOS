@@ -7,6 +7,7 @@ import {
   decideTemplateStart,
   defaultFolderExpanded,
   lastDoneByTemplate,
+  nextProgramDay,
   suggestHomeTemplates,
 } from './workoutsHome';
 import { yourWorkoutTemplates } from '@/store/templatesLogic';
@@ -80,6 +81,37 @@ describe('suggestHomeTemplates', () => {
     expect(picked.length).toBeGreaterThan(0);
     for (const id of picked) expect(['sl-a', 'sl-b', 'mine']).toContain(id);
     expect(run(yourWorkoutTemplates({ userTemplates, activeProgramId: null }))).toEqual(['mine']);
+  });
+});
+
+describe('nextProgramDay', () => {
+  const days = [tpl('a'), tpl('b'), tpl('c')];
+
+  it('is day 1 before any day is done, and nothing with no program', () => {
+    expect(nextProgramDay(days, {})?.id).toBe('a');
+    expect(nextProgramDay([], {})).toBeUndefined();
+  });
+
+  it('is the day after the most recently finished one, wrapping', () => {
+    expect(nextProgramDay(days, { a: '2026-01-01T00:00:00.000Z' })?.id).toBe('b');
+    expect(nextProgramDay(days, { a: '2026-01-03T00:00:00.000Z', b: '2026-01-02T00:00:00.000Z' })?.id).toBe('b');
+    expect(nextProgramDay(days, { b: '2026-01-02T00:00:00.000Z', c: '2026-01-04T00:00:00.000Z' })?.id).toBe('a');
+  });
+});
+
+describe('suggestHomeTemplates with a program', () => {
+  it("leads with the program's next day even when its muscles are recovering", () => {
+    const programDays = [tpl('sl-a'), tpl('sl-b')];
+    const picked = suggestHomeTemplates({
+      templates: [...programDays, tpl('mine', { isBuiltIn: false })],
+      programDays,
+      recoveringMuscleIds: new Set<MuscleId>(['quads', 'chest']),
+      recentlyWorkedMuscleIds: new Set(),
+      lastDoneByTemplate: { 'sl-a': '2026-01-09T00:00:00.000Z' },
+      getTemplateMuscles: (t) => (t.id === 'mine' ? ['glutes'] : ['quads', 'chest']),
+      nowMs: Date.parse('2026-01-10T00:00:00.000Z'),
+    }).map((s) => s.template.id);
+    expect(picked).toEqual(['sl-b', 'mine']);
   });
 });
 

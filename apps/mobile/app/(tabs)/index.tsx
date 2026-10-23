@@ -39,6 +39,7 @@ import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
+import { templateCardModel } from '@/utils/templateCard';
 import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
 import { focusRegions, regionStatesByView } from '@/utils/muscleDiagramRegions';
 import type { TemplateArt } from '@/components/workouts/WorkoutHomeSections';
@@ -208,6 +209,7 @@ export default function WorkoutsScreen() {
     const nowMs = Date.now();
     return suggestHomeTemplates({
       templates: yourWorkouts,
+      programDays: groups.program?.templates ?? [],
       recoveringMuscleIds: new Set(activeRecovery().map((r) => r.muscleId)),
       recentlyWorkedMuscleIds: recentlyWorkedMuscleIds(sessions, nowMs, getExercise),
       lastDoneByTemplate,
@@ -219,6 +221,7 @@ export default function WorkoutsScreen() {
     sessions,
     lastDoneByTemplate,
     yourWorkouts,
+    groups.program,
     activeRecovery,
     templateMuscles,
     getExercise,
@@ -351,6 +354,7 @@ export default function WorkoutsScreen() {
       <TemplateCard
         key={template.id}
         template={template}
+        model={templateCardModel(template, getExercise)}
         lastDone={getLastDone(template)}
         onPress={handleStartTemplate}
         onMenu={showMenu ? openTemplateMenu : undefined}

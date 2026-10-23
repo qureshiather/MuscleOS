@@ -41,6 +41,7 @@ describe('Programs', () => {
       'program-card-builtin_ppl',
       'program-card-builtin_ul',
       'program-card-builtin_phul',
+      'program-card-none',
     ]);
     expect(screen.getByText('3 days/wk · 2 workouts')).toBeTruthy();
     expect(screen.getAllByText('Beginner')).toHaveLength(2);
@@ -52,17 +53,20 @@ describe('Programs', () => {
     renderAtNow(routes, '/programs');
     const cards = await screen.findAllByTestId(/^program-card-/);
     expect(cards[0].props.testID).toBe('program-card-builtin_phul');
-    expect(cards).toHaveLength(4);
+    expect(cards.at(-1)?.props.testID).toBe('program-card-none');
     expect(screen.getByLabelText('PHUL, in your workouts')).toBeTruthy();
     expect(screen.getByText('In your workouts')).toBeTruthy();
   });
 
-  it('has no No program entry and no template or empty-workout shortcuts', async () => {
+  it('No program comes last, with no template or empty-workout shortcuts; choosing it clears the program', async () => {
+    await seed({ activeProgramId: 'builtin_ppl' });
     renderAtNow(routes, '/programs');
-    await screen.findAllByTestId(/^program-card-/);
-    expect(screen.queryByText('No program')).toBeNull();
+    fireEvent.press(await screen.findByLabelText('No program'));
+    await waitFor(() => expect(useSettingsStore.getState().activeProgramId).toBeNull());
+    expect(await screen.findByLabelText('No program, selected')).toBeTruthy();
     expect(screen.queryByText('Build a template')).toBeNull();
     expect(screen.queryByText('Start empty workout')).toBeNull();
+    expect(pathname()).toBe('/programs');
   });
 
   it('a card opens its program', async () => {

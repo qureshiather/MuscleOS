@@ -94,7 +94,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 
 | Screen | Route | Purpose | Spec |
 |--------|-------|---------|------|
-| Programs | `/programs` | Choose one built-in program; the current choice is marked | [templates.md](../features/templates.md#programs) |
+| Programs | `/programs` | Choose one built-in program or No program; the current choice is marked | [templates.md](../features/templates.md#programs) |
 | Program | `/program?id=` | A program overview: each workout and its exercises, muscles trained, with Add / Switch / Remove | [templates.md](../features/templates.md#programs) |
 | Workout preview | `/workout-preview` | Review a template's exercises and last-session numbers before starting | [templates.md](../features/templates.md#workout-preview) |
 | Active workout | `/active-workout` | The set-logging screen and rest timer | [workout-logging.md](../features/workout-logging.md) |

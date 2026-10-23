@@ -242,7 +242,7 @@ describe('sections', () => {
     expect(screen.getByTestId('template-card-tpl_h')).toBeTruthy();
   });
 
-  it('a template card shows name, description, Last done, and exercise count', async () => {
+  it('a template card shows name, size, description, exercise lineup, muscle pills and Last done', async () => {
     await seed({
       templates: [
         customTemplate({ id: 'tpl_x', name: 'Arms', description: 'Pump day', exerciseIds: ['barbell-curl', 'tricep-pushdown', 'hammer-curl'] }),
@@ -260,7 +260,9 @@ describe('sections', () => {
     expect(within(card).getByText('Arms')).toBeTruthy();
     expect(within(card).getByText('Pump day')).toBeTruthy();
     expect(within(card).getByText('Last done: 2 days ago')).toBeTruthy();
-    expect(within(card).getByText('3 exercises')).toBeTruthy();
+    expect(within(card).getByText(/^3 exercises · \d+ sets$/)).toBeTruthy();
+    expect(within(card).getByText('Barbell Curl  ·  Tricep Pushdown with Rope  ·  Hammer Curl')).toBeTruthy();
+    expect(within(card).getByText('Biceps')).toBeTruthy();
   });
 
   it('the header headline comes from session history', async () => {
