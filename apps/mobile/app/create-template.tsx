@@ -1,23 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  Modal,
-  FlatList,
-  Keyboard,
-  Dimensions,
-  type KeyboardEvent,
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import { useTheme } from '@/theme/ThemeContext';
-import { Screen, SheetFrame } from '@/components/layout';
+import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing, touch } from '@/theme/tokens';
-import { fontScaleCap, useBottomSpace, useModalMaxHeight } from '@/theme/layout';
+import { fontScaleCap, useBottomSpace } from '@/theme/layout';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -25,11 +14,9 @@ import type { MuscleId } from '@muscleos/types';
 import { formatMuscleLabels } from '@muscleos/types';
 import { Ionicons } from '@expo/vector-icons';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
-import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { searchExercises } from '@/utils/exerciseSearch';
 import type { ThemeColors } from '@/theme/palette';
 import {
   DEFAULT_SETS_PER_EXERCISE,
@@ -44,13 +31,12 @@ import { planSizeLabel } from '@/utils/templateCard';
 import { useSettingsStore } from '@/store/settingsStore';
 import { muscleLabel } from '@muscleos/types';
 import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
+import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
 import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
 
 export default function CreateTemplateScreen() {
   const { colors, isDark } = useTheme();
   const bottomSpace = useBottomSpace(spacing.xl);
-  const sheetMaxHeight = useModalMaxHeight();
-  const pickerListMaxHeight = Math.max(80, sheetMaxHeight - 180);
   const router = useRouter();
   const { templateId: editTemplateId } = useLocalSearchParams<{ templateId?: string }>();
   const addTemplate = useTemplatesStore((s) => s.addTemplate);
@@ -81,7 +67,6 @@ export default function CreateTemplateScreen() {
 
   const getExercise = useExercisesStore((s) => s.getExercise);
   const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
-  const allExercises = useExercisesStore((s) => s.getAllExercises)();
 
   const [name, setName] = useState('');
   const [selected, setSelected] = useState<ResolvedTemplateExercise[]>([]);
@@ -93,16 +78,11 @@ export default function CreateTemplateScreen() {
   /** **Rest for all** dialog. */
   const [restForAll, setRestForAll] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
-  const [pickerKeyboardHeight, setPickerKeyboardHeight] = useState(0);
-  const pickerKeyboardSubRef = useRef<{ remove: () => void } | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const selectedIds = selected.map((ex) => ex.exerciseId);
 
-  const pickerExercises = useMemo(() => {
-    return searchExercises(allExercises, pickerSearch).filter((e) => !selectedIds.includes(e.id));
-  }, [allExercises, pickerSearch, selectedIds]);
 
   function addExerciseId(id: string) {
     if (selectedIds.includes(id)) return;
@@ -135,27 +115,8 @@ export default function CreateTemplateScreen() {
   function closePicker() {
     setShowPicker(false);
     setPickerSearch('');
-    setPickerKeyboardHeight(0);
-    pickerKeyboardSubRef.current?.remove();
-    pickerKeyboardSubRef.current = null;
   }
 
-  useEffect(() => {
-    if (!showPicker) {
-      setPickerKeyboardHeight(0);
-      return;
-    }
-    const onShow = (e: KeyboardEvent) => {
-      setPickerKeyboardHeight(e.endCoordinates.height);
-    };
-    const subs = [
-      Keyboard.addListener('keyboardWillShow', onShow),
-      Keyboard.addListener('keyboardDidShow', onShow),
-    ];
-    return () => {
-      for (const sub of subs) sub.remove();
-    };
-  }, [showPicker]);
 
   async function handleSave() {
     if (savingRef.current) return;
@@ -502,102 +463,18 @@ export default function CreateTemplateScreen() {
         onClose={() => setRestForAll(false)}
       />
 
-      <Modal visible={showPicker} animationType="slide" transparent onRequestClose={closePicker}>
-        <Pressable
-          style={[
-            styles.modalOverlay,
-            { backgroundColor: colors.overlay, paddingBottom: pickerKeyboardHeight },
-          ]}
-          onPress={closePicker}
-        >
-          <SheetFrame
-            onStartShouldSetResponder={() => true}
-            style={
-              pickerKeyboardHeight > 0
-                ? {
-                    height: Math.max(240, sheetMaxHeight - pickerKeyboardHeight),
-                    maxHeight: Math.max(240, sheetMaxHeight - pickerKeyboardHeight),
-                    paddingBottom: 12,
-                  }
-                : undefined
-            }
-          >
-            <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[typography.sectionTitle, { color: colors.text }]}>Add exercise</Text>
-              <PickerHeaderActions onNew={() => createExercise(pickerSearch.trim())} onDone={closePicker} />
-            </View>
-            <TextInput
-              style={[
-                styles.pickerSearch,
-                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-              ]}
-              placeholder="Search..."
-              placeholderTextColor={colors.textMuted}
-              value={pickerSearch}
-              onChangeText={setPickerSearch}
-              autoCorrect={false}
-              autoCapitalize="none"
-              onFocus={() => {
-                const metrics = Keyboard.metrics();
-                if (metrics?.height) {
-                  setPickerKeyboardHeight(metrics.height);
-                }
-                pickerKeyboardSubRef.current?.remove();
-                pickerKeyboardSubRef.current = Keyboard.addListener('keyboardDidShow', (e) => {
-                  setPickerKeyboardHeight(e.endCoordinates.height);
-                });
-                setTimeout(() => {
-                  setPickerKeyboardHeight((current) =>
-                    current > 0 ? current : Math.round(Dimensions.get('window').height * 0.38)
-                  );
-                }, 280);
-              }}
-              onBlur={() => {
-                pickerKeyboardSubRef.current?.remove();
-                pickerKeyboardSubRef.current = null;
-                setPickerKeyboardHeight(0);
-              }}
-            />
-            <FlatList
-              data={pickerExercises}
-              keyExtractor={(item) => item.id}
-              style={pickerKeyboardHeight > 0 ? { flex: 1, minHeight: 0 } : { maxHeight: pickerListMaxHeight }}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[styles.pickerRow, { borderBottomColor: colors.border }]}
-                  onPress={() => addExerciseId(item.id)}
-                >
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[typography.bodyMedium, { color: colors.text }]}>{item.name}</Text>
-                    <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                      {formatMuscleLabels(item.muscles, ' · ')}
-                    </Text>
-                  </View>
-                  <Ionicons name="add-circle" size={22} color={colors.primary} />
-                </Pressable>
-              )}
-              ListEmptyComponent={
-                pickerSearch.trim() ? (
-                  <Pressable
-                    style={[styles.pickerRow, { borderBottomColor: colors.border }]}
-                    onPress={() => createExercise(pickerSearch.trim())}
-                  >
-                    <Text style={[typography.bodyMedium, { color: colors.primary }]}>
-                      Create “{pickerSearch.trim()}”
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Text style={[typography.body, { color: colors.textMuted, padding: spacing.lg, textAlign: 'center' }]}>
-                    No matching exercises
-                  </Text>
-                )
-              }
-            />
-          </SheetFrame>
-        </Pressable>
-      </Modal>
+      {showPicker ? (
+        <ExercisePickerSheet
+          mode="add"
+          excludeIds={selectedIds}
+          search={pickerSearch}
+          onSearchChange={setPickerSearch}
+          onPick={addExerciseId}
+          onCreate={() => createExercise(pickerSearch.trim())}
+          showMuscles
+          onClose={closePicker}
+        />
+      ) : null}
     </Screen>
     </GestureHandlerRootView>
   );
@@ -811,33 +688,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   muscleNames: { marginTop: spacing.sm, textAlign: 'center' },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg + 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  pickerSearch: {
-    marginHorizontal: spacing.lg + 4,
-    marginVertical: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    fontSize: 16,
-    fontFamily: typography.body.fontFamily,
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg + 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: spacing.md,
-  },
 });

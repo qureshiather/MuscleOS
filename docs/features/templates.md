@@ -316,10 +316,11 @@ Flow:
    all**), prefilled with the rests every exercise shares, or your default and no warm-up rest when
    they differ (`sharedRest()`). Applying sets that work and warm-up rest on every exercise
    (`applyRestToAll()`); one exercise can still be changed afterwards.
-4. **Add exercises** — "Add exercise" bottom sheet with search (**Done** closes it). Exercises
-   already in the template are left out of the list. If the search has no match, offers
-   **Create "<query>"** which routes to `/create-exercise`; with no search and nothing left to add
-   it reads "No matching exercises". New exercises start at 3 working sets and 0 warm-ups.
+4. **Add exercises** — the shared "Add exercise" sheet ([exercise pickers](exercise-library.md#exercise-pickers)),
+   search "Search exercises...", each row with its muscles; tapping adds and the sheet stays open
+   (**Done** closes it). Exercises already in the template are left out of the list. Whenever the
+   search has text it offers **Create "<query>"**, which routes to `/create-exercise`; a search
+   with no match reads "No matching exercises". New exercises start at 3 working sets and 0 warm-ups.
 5. **Muscles used** — body diagram and labels derived from the selected exercises, shown once at
    least one muscle resolves.
 6. **Save** — creates `tpl_<timestamp>_<random>` with `isBuiltIn: false`, or updates the template

@@ -100,6 +100,15 @@ describe('templateStructureChanged', () => {
       ).toBe(false);
     });
 
+    it('a deleted set offers the template update; a set left incomplete does not', () => {
+      const template = resolveTemplateExercises({ exerciseIds: ['a'] });
+      const rows = (completed: boolean[]) =>
+        templateExercisesFromSession([{ exerciseId: 'a', sets: completed.map((c) => ({ completed: c, isWarmUp: false })) }]);
+      expect(templateStructureChanged(rows([true, true, true]), template)).toBe(false);
+      expect(templateStructureChanged(rows([true, false, false]), template)).toBe(false);
+      expect(templateStructureChanged(rows([true, true]), template)).toBe(true);
+    });
+
     it("compares against the user's default rest, not 2:00", () => {
       const plain = resolveTemplateExercises({ exerciseIds: ['a'] });
       const session = (rest: number) =>

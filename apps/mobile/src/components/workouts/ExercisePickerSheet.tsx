@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { formatMuscleLabels } from '@muscleos/types';
 import { SheetFrame } from '@/components/layout';
 import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -31,6 +32,8 @@ type ExercisePickerSheetProps = {
   onPick: (exerciseId: string) => void;
   /** + New and the `Create "<query>"` row. Omitted, the sheet offers no create. */
   onCreate?: () => void;
+  /** List each exercise's muscles under its name (the template editor). */
+  showMuscles?: boolean;
   onClose: () => void;
 };
 
@@ -46,6 +49,7 @@ export function ExercisePickerSheet({
   onSearchChange,
   onPick,
   onCreate,
+  showMuscles = false,
   onClose,
 }: ExercisePickerSheetProps) {
   const { colors } = useTheme();
@@ -170,7 +174,14 @@ export function ExercisePickerSheet({
                 testID={`picker-row-${item.id}`}
                 onPress={() => onPick(item.id)}
               >
-                <Text style={[styles.rowText, { color: colors.text }]}>{item.name}</Text>
+                <View style={styles.rowLabel}>
+                  <Text style={[styles.rowText, { color: colors.text }]}>{item.name}</Text>
+                  {showMuscles ? (
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>
+                      {formatMuscleLabels(item.muscles, ' · ')}
+                    </Text>
+                  ) : null}
+                </View>
                 <Ionicons name={mode === 'replace' ? 'swap-horizontal' : 'add'} size={20} color={colors.primary} />
               </Pressable>
             )}
@@ -213,5 +224,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   createRow: { justifyContent: 'flex-start', gap: 10 },
+  rowLabel: { flex: 1, minWidth: 0, gap: 2 },
   rowText: { fontSize: 16, fontWeight: '500' },
 });

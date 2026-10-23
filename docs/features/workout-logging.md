@@ -363,7 +363,10 @@ for the **Add** flow, or swapped in for the **Replace** flow.
 
 **Finish** is enabled once any set is completed. It opens a summary modal whose options depend on
 what you started from and whether you changed the template — the exercise list, per-exercise
-working/warm-up row counts (incomplete rows still count), or per-exercise rests (**Update rest
+working/warm-up row counts, or per-exercise rests. Rows are counted whether or not they were
+completed: deleting a set changes the structure and offers the template update, but a set simply
+left incomplete doesn't (it's kept with the session and ignored like any incomplete set; History
+shows completed sets only) (**Update rest
 timers**; `templateStructureChanged()`):
 
 | Started from | Options |
@@ -495,7 +498,8 @@ the real router.
 - `src/utils/workoutSetView.test.ts` — `W1`/`1,2,3` numbering, the single current set,
   `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
   `previousLabel` (`weight × reps` with no unit, unit kept without reps)
-- `src/utils/workoutFinish.test.ts` — change detection, the finish variant and option matrix,
+- `src/utils/workoutFinish.test.ts` — change detection (a deleted set counts, an incomplete one
+  doesn't), the finish variant and option matrix,
   `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`, `summaryExerciseHasProgress`
 - `src/utils/workoutNotificationCopy.test.ts` — body selection (Next / Continue to / Finish, with
   wrap-around), alert copy, titles, `trayNotificationContent` (`Rest until <clock> • …` vs

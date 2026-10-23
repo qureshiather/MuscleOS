@@ -193,7 +193,7 @@ Non-obvious invariants the specs cover in detail. Check the relevant spec before
 - **Weight is stored in kg everywhere**; pounds exist only as a display conversion at the UI edge.
 - **Built-in templates and catalog exercises are immutable** — hide or unpublish, never delete, so historical sessions keep resolving.
 - **Recovery is never synced** — it's derived, and is recomputed locally after a sync merge.
-- **Incomplete sets are persisted** with the session but excluded from every derived metric.
+- **Incomplete sets are persisted** with the session but excluded from every derived metric. One exception: saving an edit from History (Edit workout) keeps only the completed sets it showed. At Finish, a deleted set counts as a template change; a set left incomplete doesn't.
 - **Adding an exercise touches the seed, a migration, pinned counts and a demo**: follow the runbook in [exercise-library.md](docs/features/exercise-library.md#adding-a-catalog-exercise).
 - **Exercise demo clips are not in git.** They're rendered locally with Blender and served from Vercel Blob; change or add one by editing its choreography and re-rendering by id (runbook: [exercise-demos.md](docs/features/exercise-demos.md#updating-demos)). Don't commit clips to `apps/landing/public/`, and mind the Blob free tier's 2,000 writes a month.
 - **Every new workout entry point must wait for hydration** — `/active-workout` is reachable by deep link and notification tap; start through `startFromParamsDecision()` so a running workout is never replaced and custom templates aren't mistaken for unknown ids.

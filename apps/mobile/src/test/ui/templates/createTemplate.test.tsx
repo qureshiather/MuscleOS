@@ -38,7 +38,7 @@ async function open(params = '') {
 
 async function addExercise(name: string) {
   fireEvent.press(screen.getByText('Add exercises'));
-  fireEvent.changeText(screen.getByPlaceholderText('Search...'), name);
+  fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), name);
   fireEvent.press(await screen.findByText(name));
   fireEvent.press(screen.getByText('Done'));
 }
@@ -92,7 +92,7 @@ describe('create', () => {
     expect(screen.getByText('Muscles used')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Add exercises'));
-    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Bench Press');
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Bench Press');
     expect(screen.queryAllByText('Bench Press')).toHaveLength(1); // only the selected row
     fireEvent.press(screen.getByText('Done'));
   });
@@ -102,7 +102,7 @@ describe('create', () => {
     await screen.findByText('New template');
     fireEvent.press(screen.getByText('Add exercises'));
     expect(screen.getByText('Add exercise')).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Zzqx Lift');
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Zzqx Lift');
     expect(await screen.findByText('Create “Zzqx Lift”')).toBeTruthy();
   });
 
@@ -111,7 +111,7 @@ describe('create', () => {
     await screen.findByText('New template');
     fireEvent.press(screen.getByText('Add exercises'));
     expect(screen.getByTestId('picker-done')).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Zercher Squat');
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Zercher Squat');
     fireEvent.press(screen.getByTestId('picker-new-exercise'));
     expect(await screen.findByText('route:create-exercise')).toBeTruthy();
     expect(searchParams()).toMatchObject({ name: 'Zercher Squat' });
