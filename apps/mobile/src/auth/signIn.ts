@@ -98,18 +98,23 @@ function authTimeoutMessage(): string {
   return friendlyAuthError({ message: 'timed out' }, 'sign_in');
 }
 
-/** Developer setup hints only in dev builds; users get a plain message. */
-function alertNotConfigured(devHint: string): void {
-  Alert.alert('Not available', __DEV__ ? devHint : AUTH_UNAVAILABLE_MESSAGE);
-}
+export type AuthAlert = (title: string, message: string) => void;
 
-/** Show friendly copy; keep the raw error in dev logs for debugging. */
-function alertAuthError(title: string, error: unknown, context: AuthErrorContext): void {
-  if (__DEV__) console.warn(`[auth] ${title}`, error);
-  Alert.alert(title, friendlyAuthError(error as Parameters<typeof friendlyAuthError>[0], context));
-}
+const systemAlert: AuthAlert = (title, message) => Alert.alert(title, message);
 
-export function useSignIn() {
+/** `alert` lets a screen show failures in its own themed dialog instead of the system alert. */
+export function useSignIn({ alert = systemAlert }: { alert?: AuthAlert } = {}) {
+  /** Developer setup hints only in dev builds; users get a plain message. */
+  function alertNotConfigured(devHint: string): void {
+    alert('Not available', __DEV__ ? devHint : AUTH_UNAVAILABLE_MESSAGE);
+  }
+
+  /** Show friendly copy; keep the raw error in dev logs for debugging. */
+  function alertAuthError(title: string, error: unknown, context: AuthErrorContext): void {
+    if (__DEV__) console.warn(`[auth] ${title}`, error);
+    alert(title, friendlyAuthError(error as Parameters<typeof friendlyAuthError>[0], context));
+  }
+
   async function linkWithApple(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
     if (!isSupabaseConfigured()) {
@@ -205,7 +210,7 @@ export function useSignIn() {
       if (error) {
         if (__DEV__) console.warn('[auth] Link Google', error);
         const conflict = linkConflict(error);
-        Alert.alert(
+        alert(
           "Couldn't link Google",
           conflict === 'identity'
             ? 'That Google account already signs in to a different MuscleOS account. Choose another Google account.'
@@ -234,7 +239,7 @@ export function useSignIn() {
         AUTH_REQUEST_TIMEOUT_MS
       );
       if (!result) {
-        Alert.alert('Sign in failed', authTimeoutMessage());
+        alert('Sign in failed', authTimeoutMessage());
         return false;
       }
       const { data, error } = result;
@@ -253,7 +258,7 @@ export function useSignIn() {
     } catch (e) {
       const msg = (e as Error).message ?? '';
       if (msg.includes('timed out')) {
-        Alert.alert('Sign in failed', authTimeoutMessage());
+        alert('Sign in failed', authTimeoutMessage());
       } else {
         alertAuthError('Sign in failed', e, 'sign_in');
       }
