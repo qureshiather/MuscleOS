@@ -13,6 +13,7 @@ import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
 import { DEFAULT_PROGRAM_ID, isBuiltInProgramId } from '@/data/builtInTemplates';
+import { DEFAULT_REST_SECONDS, storedRestSeconds } from '@/utils/templateExercises';
 
 export const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
@@ -23,6 +24,7 @@ export const APP_SETTINGS_KEYS = {
   workoutSounds: 'muscleos_workout_sounds',
   theme: 'muscleos_theme',
   activeProgram: 'muscleos_active_program',
+  defaultRest: 'muscleos_default_rest',
 } as const;
 
 export type ThemePreference = 'auto' | 'dark' | 'light';
@@ -56,6 +58,8 @@ export interface SyncedAppSettings {
   profile: UserAppProfile;
   /** Built-in program (folder id) in Your workouts; null = no program. Fresh installs start on Strong Lifts. */
   activeProgramId: string | null;
+  /** Work-set rest, in seconds, for every exercise that doesn't set its own (Settings → Default rest). */
+  defaultRestSeconds: number;
 }
 
 const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
@@ -65,6 +69,7 @@ const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
   themePreference: 'auto',
   profile: {},
   activeProgramId: DEFAULT_PROGRAM_ID,
+  defaultRestSeconds: DEFAULT_REST_SECONDS,
 };
 
 function parseWeightUnit(s: string | null): WeightUnit | null {
@@ -78,6 +83,13 @@ const NO_PROGRAM_STORED = 'none';
 /** A stored program id, or null when it's blank or isn't a shipped program. */
 export function parseActiveProgramId(s: string | null | undefined): string | null {
   return s != null && isBuiltInProgramId(s) ? s : null;
+}
+
+/** A stored default rest (`m:ss` range 0:00–15:00, whole seconds), or null when missing or junk. */
+export function parseDefaultRest(s: string | number | null | undefined): number | null {
+  if (s == null || s === '') return null;
+  const n = typeof s === 'number' ? s : Number(s);
+  return Number.isFinite(n) ? storedRestSeconds(n) : null;
 }
 
 export function parseThemePreference(s: string | null | undefined): ThemePreference | null {
@@ -95,6 +107,7 @@ export interface StoredAppSettingsValues {
   workoutSounds: string | null;
   theme: string | null;
   activeProgram: string | null;
+  defaultRest: string | null;
 }
 
 /**
@@ -132,6 +145,7 @@ export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppS
     // Never written means a fresh install, which starts on the default program. Removing the
     // program writes NO_PROGRAM_STORED instead (older builds wrote ''), so that choice is kept.
     activeProgramId: raw.activeProgram === null ? DEFAULT_PROGRAM_ID : parseActiveProgramId(raw.activeProgram),
+    defaultRestSeconds: parseDefaultRest(raw.defaultRest) ?? DEFAULT_REST_SECONDS,
   };
 }
 
@@ -145,6 +159,7 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     workoutSounds,
     theme,
     activeProgram,
+    defaultRest,
   ] = await Promise.all([
     AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.profile),
@@ -154,6 +169,7 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.theme),
     AsyncStorage.getItem(APP_SETTINGS_KEYS.activeProgram),
+    AsyncStorage.getItem(APP_SETTINGS_KEYS.defaultRest),
   ]);
   return {
     unitSystem,
@@ -164,6 +180,7 @@ export async function readStoredAppSettingsValues(): Promise<StoredAppSettingsVa
     workoutSounds,
     theme,
     activeProgram,
+    defaultRest,
   };
 }
 
@@ -211,6 +228,7 @@ export async function setAppSettings(settings: SyncedAppSettings): Promise<void>
     [APP_SETTINGS_KEYS.theme, themePreference],
     [APP_SETTINGS_KEYS.profile, JSON.stringify(settings.profile ?? {})],
     [APP_SETTINGS_KEYS.activeProgram, parseActiveProgramId(settings.activeProgramId) ?? NO_PROGRAM_STORED],
+    [APP_SETTINGS_KEYS.defaultRest, String(parseDefaultRest(settings.defaultRestSeconds) ?? DEFAULT_REST_SECONDS)],
   ]);
   emitThemeStorageChanged();
 }
@@ -236,6 +254,7 @@ export function normalizeAppSettings(
       base.activeProgramId === undefined
         ? fallback.activeProgramId
         : parseActiveProgramId(base.activeProgramId),
+    defaultRestSeconds: parseDefaultRest(base.defaultRestSeconds) ?? fallback.defaultRestSeconds,
   };
 }
 
@@ -503,6 +522,7 @@ export const CLEAR_ALL_DATA_KEYS = [
   APP_SETTINGS_KEYS.workoutSounds,
   APP_SETTINGS_KEYS.theme,
   APP_SETTINGS_KEYS.activeProgram,
+  APP_SETTINGS_KEYS.defaultRest,
 ] as const;
 
 /** App keys Clear all data leaves in place (Delete account removes the first three too). */

@@ -228,6 +228,7 @@ round-tripping through the synced copy.
 | Body weight unit | `kg` / `lb` | `lb` | Display only |
 | Exercise weight unit | `kg` / `lb` | `lb` | Display only — set logging, PRs, volume |
 | Workout sounds | on / off | **on** | Rest tick, rest end, set complete, workout complete, and the rest notification sound |
+| Default rest | any `m:ss` from 0:00 to 15:00 | **2:00** | Work-set rest for every exercise that doesn't set its own, in templates, programs and workouts; 0:00 means no timer ([workout-logging](workout-logging.md#rest-timer)) |
 | Program in Your workouts | a built-in program id, or none | **Strong Lifts 5x5** on a fresh install | Chosen on the Programs screen, not in Settings ([templates](templates.md#programs)) |
 
 The two unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
@@ -241,11 +242,14 @@ is written and offered to sync immediately. Every settings write — units, soun
 theme picker — goes through one queue (`persistAndNotify` in `settingsStore`), so quick taps or a
 theme change at the same moment as a unit change never drop one.
 
-Settings is **Appearance**, **Units**, **Sounds**, and an **About** card whose one row opens
-**Acknowledgements**.
+Settings is **Appearance**, **Units**, **Workouts**, **Sounds**, and an **About** card whose one
+row opens **Acknowledgements**. **Workouts** has one row, **Default rest** ("Starts after each
+working set, unless an exercise sets its own rest", value in mono): it opens the rest dialogue with
+only the work-set box, titled **Default rest** with a **Save** button, and the hint "Every exercise
+without its own rest uses this, in your templates, programs and workouts. 0:00 means no timer."
 
-**Not settings:** rest timer default (a 120 s code constant, overridable per exercise in a session),
-haptics (none exist), and notification preferences beyond sounds.
+**Not settings:** a default warm-up rest (warm-ups rest only when an exercise sets one), haptics
+(none exist), and notification preferences beyond sounds.
 
 ### Unit conversion
 
@@ -299,7 +303,8 @@ Via `sync_records` and the `upsert_sync_records` RPC:
 `session` · `template` · `template_folder` · `exercise_previous` · `exercise_note` · `app_settings`
 
 `app_settings` is one snapshot: exercise-weight and body-weight units, workout sounds, theme,
-biodata, and the program in Your workouts (`SyncedAppSettings.activeProgramId`, `null` for none).
+biodata, the Default rest (`defaultRestSeconds`; a snapshot without it keeps the local value), and
+the program in Your workouts (`SyncedAppSettings.activeProgramId`, `null` for none).
 When the local copy is dirty its program choice wins, `null` included, so removing a program on
 one device isn't undone by the other's older choice. A snapshot from an older build may still carry `heightUnit` or
 `heightCm`; they're ignored. `muscleos_unit_system` and the legacy single weight unit
@@ -361,7 +366,7 @@ Local-first. Rules in `src/sync/mergePolicy.ts`, applied by `applyRemoteRecords(
    - **Templates, folders, custom exercises** → no local timestamp, so the remote copy is taken
 5. Map-shaped snapshots (notes, previous, settings):
    - Pending local changes → keep local and union keys, filling empty local slots from remote.
-     For settings, the pending local units, sounds and theme win as a whole; biodata merges field
+     For settings, the pending local units, sounds, theme and Default rest win as a whole; biodata merges field
      by field (a local blank takes the remote value)
    - No pending changes, or an empty local map → the remote snapshot replaces local
 6. Remote deletes (`deleted_at`) follow the same rules: applied unless the local row is pending. A
@@ -403,7 +408,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_exercise_notes` | Per-exercise notes | ● |
 | `muscleos_custom_exercises` | Custom exercises | ● (`user_exercises`) |
 | `muscleos_retired_custom_exercises` | Deleted custom exercises, kept so past sessions still resolve them | ○ |
-| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds`, `muscleos_active_program` | Biodata and settings (the active program is a built-in folder id, `none` after removing it (`''` from older builds); never written means a fresh install, which starts on Strong Lifts) | ● (as `app_settings`) |
+| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds`, `muscleos_active_program`, `muscleos_default_rest` | Biodata and settings (the active program is a built-in folder id, `none` after removing it (`''` from older builds); never written means a fresh install, which starts on Strong Lifts) | ● (as `app_settings`) |
 | `muscleos_unit_system`, `muscleos_weight_unit` (legacy) | Default unit system; older single weight unit | ○ |
 | `muscleos_recovery` | Derived recovery cache | ○ |
 | `muscleos_active_workout` | In-progress session + rest state + `lastActivityAt` | ○ |
@@ -587,7 +592,7 @@ Covered:
 - `src/auth/authCopy.test.ts` — `emailLinkDestination`, Delete account error copy (no raw text,
   dev-only deploy hint), Google web and iOS client id lookup
 - `src/storage/localStorage.settings.test.ts` — settings defaults, unit fallbacks and
-  independence, persistence round-trip, theme listeners; migrations (legacy units, write-back,
+  independence, Default rest (2:00 unset, any whole-second m:ss to 15:00, junk falls back, normalize keeps local), persistence round-trip, theme listeners; migrations (legacy units, write-back,
   `normalizeAppSettings`, template `days[]` and `defaultSets`); legacy keys removed on launch;
   `clearAllData` removed vs kept keys; export payload contents and omissions (never `subscription`)
 - `src/storage/exportData.test.ts` — the export filename uses the local date
@@ -608,7 +613,7 @@ Covered:
   Delete account two confirms, friendly failure, and “Account deleted” even when a store fails to reload), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
-  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes, an incomplete email blocked before any request, failures in the themed dialog,
+  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, Default rest (2:00, set with the time pad, persisted and synced), sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes, an incomplete email blocked before any request, failures in the themed dialog,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:

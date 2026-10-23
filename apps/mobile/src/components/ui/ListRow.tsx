@@ -7,6 +7,8 @@ import { radius, spacing, touch } from '@/theme/tokens';
 type ListRowProps = {
   title: string;
   hint?: string;
+  /** Current value, shown in mono before the chevron (e.g. `2:00`). */
+  value?: string;
   onPress: () => void;
   /** Sit inside a Card: no outer chrome, hairline divider. */
   inset?: boolean;
@@ -21,6 +23,7 @@ type ListRowProps = {
 export function ListRow({
   title,
   hint,
+  value,
   onPress,
   inset = false,
   last = false,
@@ -56,6 +59,9 @@ export function ListRow({
           <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{hint}</Text>
         ) : null}
       </View>
+      {value ? (
+        <Text style={[styles.value, { color: colors.textSecondary }]}>{value}</Text>
+      ) : null}
       {showChevron ? <Ionicons name="chevron-forward" size={18} color={colors.textMuted} /> : null}
     </Pressable>
   );
@@ -80,4 +86,5 @@ const styles = StyleSheet.create({
     minHeight: touch.min,
   },
   textBlock: { flex: 1, minWidth: 0, marginRight: spacing.sm },
+  value: { ...typography.data, marginRight: spacing.xs },
 });

@@ -27,7 +27,7 @@ interface TemplateExercise {
   exerciseId: string;
   sets?: number;         // working sets; omitted → 3
   warmUpSets?: number;   // omitted → 0
-  restBetweenSetsSeconds?: number; // omitted → app default (120); 0 → no timer
+  restBetweenSetsSeconds?: number; // omitted → your Default rest (Settings, 2:00 unless changed); 0 → no timer
   warmUpRestSeconds?: number;      // omitted or 0 → warm-ups start no timer
 }
 
@@ -54,8 +54,11 @@ interface TemplateFolder {
 `exerciseIds` stays the ordered list every reader already uses. `exercises` is the per-exercise
 plan written on every custom-template save. Omitted `sets` means 3 working sets; omitted
 `warmUpSets` means 0. The two rests use the same meaning as on a session exercise
-([workout-logging](workout-logging.md#rest-timer)), clamped to 0:00–15:00; a value equal to the
-default (2:00 work, 0:00 warm-up) is stored as omitted, so templates follow the app default. `defaultSets` is only a read fallback for templates stored before this
+([workout-logging](workout-logging.md#rest-timer)), clamped to 0:00–15:00. An omitted work rest
+follows your **Default rest** (Settings, 2:00 unless changed), so changing the default changes
+every slot that doesn't set its own; an explicit value, 2:00 included, is kept. The editor stores a
+rest equal to the current default as omitted (`editorRestPatch()`), and a 0:00 warm-up rest is
+omitted too. `defaultSets` is only a read fallback for templates stored before this
 field existed — Strong Lifts used to set `defaultSets: 5` for the whole workout; it now stores
 `sets: 5` on each slot instead.
 
@@ -293,15 +296,24 @@ Flow:
 
 1. **Template name** — required text input, placeholder "e.g. Push A".
 2. **Folder** — chips (**None** plus each folder), shown only if folders exist.
-3. **Exercises · N** — ordered list ("No exercises yet" when empty). With more than one, the hint
-   "Hold and drag to rearrange" shows and a long-press on a row's handle drag-reorders. Each row
-   has **Sets** (default 3, min 1) and **Warm-up** (default 0, min 0) steppers with no maximum,
-   a **Rest** button, and a remove button. Those counts become the blank rows created when the
-   workout starts — warm-ups first, then working sets. **Rest** shows the work-set rest (`2:00` by
-   default, `Off` for 0:00, plus `· warm-up 0:45` when warm-ups have one —
+3. **Exercises** — a header with the plan's size in mono (`3 exercises · 15 sets`,
+   `planSizeLabel()`) and, once there is an exercise, a **Rest for all** button. Below it, one card
+   per exercise ("No exercises yet" when empty), styled like the workout screen's cards (border, and
+   a soft shadow in light mode). With more than one, the hint "Hold and drag to rearrange" shows and
+   a long-press on a card's header (with its handle) drag-reorders. Each card's header has the
+   exercise name, a pill for its first-listed muscle, and a remove button; below a hairline,
+   **Sets** (default 3, min 1) and **Warm-ups** (default 0, min 0) steppers with no maximum, and a
+   **Rest** button. Those counts become the blank rows created when the workout starts — warm-ups
+   first, then working sets. **Rest** shows the work-set rest (your Default rest when the slot has
+   none, `Off` for 0:00, plus `· warm-up 0:45` when warm-ups have one —
    `formatTemplateRestLabel()`) and opens the same **Update rest timers** dialogue as the workout
    (`RestTimersDialog`), with the hint "Starts after every set of this exercise when you work out
    from this template. 0:00 means no timer."
+
+   **Rest for all** opens the same dialogue titled **Rest for all exercises** (button **Apply to
+   all**), prefilled with the rests every exercise shares, or your default and no warm-up rest when
+   they differ (`sharedRest()`). Applying sets that work and warm-up rest on every exercise
+   (`applyRestToAll()`); one exercise can still be changed afterwards.
 4. **Add exercises** — "Add exercise" bottom sheet with search (**Done** closes it). Exercises
    already in the template are left out of the list. If the search has no match, offers
    **Create "<query>"** which routes to `/create-exercise`; with no search and nothing left to add
@@ -412,7 +424,7 @@ Copy, in priority order:
 
 | Assumption | Note |
 |------------|------|
-| A template is an ordered exercise list **plus set structure and rests** | Working sets default to 3, warm-ups to 0, rests to the app defaults; no target weight, reps, or supersets |
+| A template is an ordered exercise list **plus set structure and rests** | Working sets default to 3, warm-ups to 0, work rest to your Default rest (Settings) and warm-up rest to none; no target weight, reps, or supersets |
 | Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot, PHUL 3–4 |
 | Built-in templates are **immutable**; never deleted or hidden | Keeps ids stable for historical sessions; a program leaves Your workouts as a whole |
 | At most **one** program in Your workouts, **Strong Lifts 5x5** on a fresh install | A new user opens to a plan; No program is one tap away on Programs, and custom templates are always there |
@@ -463,11 +475,14 @@ Covered:
   `suggestHomeTemplates` (cap 2, customs suggested like built-ins, only Your workouts — no hidden
   template, no program you aren't following), and every
   `decideTemplateStart` branch
+- `src/utils/templateExercises.test.ts` (MUS-169 part) — `editorRestPatch` leaves a rest equal to
+  the default unset, `applyRestToAll`, `sharedRest` (shared rests or the default), and an unset rest
+  labelled with the user's default
 - `src/utils/templateCard.test.ts` — card lineup, main muscles once each (max 3), size line,
   unknown exercise by id
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
   payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
-- `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting, `formatPreviewRest` (2:00 default,
+- `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting, `formatPreviewRest` (the default rest,
   template rest, No rest timer, warm-up rest), Previous in
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
   (link plan, template fallback, template wins after Edit), `canEditFromPreview`
@@ -499,8 +514,9 @@ Covered:
   pending local choice (none included) wins the merge
 - `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, header + New routing to the exercise builder, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
-  folder and plan, Rest button (2:00 default, set with the time pad, saved on the slot; Off
-  prefilled on edit), edit prefill and save, None clearing the folder, Template not found for unknown
+  folder and plan, the plan size line, Rest button (2:00 default, set with the time pad, saved on
+  the slot; Off prefilled on edit), Rest for all (an unset rest shows the user's default, applied
+  to every exercise, a rest equal to the default saved as unset), edit prefill and save, None clearing the folder, Template not found for unknown
   and built-in ids, double-tap saving once
 - `src/test/ui/templates/workoutPreview.test.tsx` (Jest) — missing params, in-progress redirect,
   the Part of {program} link for program templates (none for customs),

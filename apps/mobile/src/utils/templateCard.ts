@@ -1,6 +1,6 @@
 import type { Exercise, MuscleId, WorkoutTemplate } from '@muscleos/types';
 import { muscleLabel } from '@muscleos/types';
-import { resolveTemplateExercises } from '@/utils/templateExercises';
+import { type ResolvedTemplateExercise, resolveTemplateExercises } from '@/utils/templateExercises';
 
 /** Muscle pills on a template card. */
 export const TEMPLATE_CARD_MUSCLES = 3;
@@ -13,6 +13,13 @@ export type TemplateCardModel = {
   /** `3 exercises · 15 sets` */
   meta: string;
 };
+
+/** `3 exercises · 15 sets` (working sets) for a resolved plan. */
+export function planSizeLabel(plan: readonly Pick<ResolvedTemplateExercise, 'sets'>[]): string {
+  const n = plan.length;
+  const sets = plan.reduce((total, e) => total + e.sets, 0);
+  return `${n} exercise${n === 1 ? '' : 's'} · ${sets} set${sets === 1 ? '' : 's'}`;
+}
 
 /** What a Workouts-tab template card shows (docs/features/templates.md#template-cards). */
 export function templateCardModel(
@@ -27,11 +34,9 @@ export function templateCardModel(
     if (main && !muscles.includes(main)) muscles.push(main);
     return exercise?.name ?? exerciseId;
   });
-  const n = resolved.length;
-  const sets = resolved.reduce((total, e) => total + e.sets, 0);
   return {
     exerciseNames,
     muscles: muscles.slice(0, TEMPLATE_CARD_MUSCLES).map((id) => ({ id, label: muscleLabel(id) })),
-    meta: `${n} exercise${n === 1 ? '' : 's'} · ${sets} set${sets === 1 ? '' : 's'}`,
+    meta: planSizeLabel(resolved),
   };
 }

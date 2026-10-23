@@ -134,11 +134,12 @@ describe('Biodata', () => {
 });
 
 describe('Settings', () => {
-  test('appearance, units and sounds only', async () => {
+  test('appearance, units, workouts and sounds only', async () => {
     renderApp({ settings: SettingsScreen }, '/settings');
     expect(await screen.findByText('Appearance')).toBeTruthy();
     expect(screen.getByText('Auto follows your device. Dark and Light stay fixed.')).toBeTruthy();
     expect(screen.getByText('Units')).toBeTruthy();
+    expect(screen.getByText('Workouts')).toBeTruthy();
     expect(screen.getByText('Sounds')).toBeTruthy();
     expect(screen.queryByText('Privacy Policy')).toBeNull();
   });
@@ -154,6 +155,20 @@ describe('Settings', () => {
     await waitFor(async () =>
       expect(await getAppSettings()).toMatchObject({ bodyWeightUnit: 'lb', weightUnit: 'lb' })
     );
+  });
+
+  test('default rest is 2:00 and can be set to any m:ss; it persists and syncs (MUS-169)', async () => {
+    renderApp({ settings: SettingsScreen }, '/settings');
+    const row = await screen.findByTestId('settings-default-rest');
+    expect(screen.getByText('2:00')).toBeTruthy();
+    fireEvent.press(row);
+    fireEvent.press(await screen.findByTestId('rest-time-work'));
+    expect(screen.queryByTestId('rest-time-warmUp')).toBeNull();
+    for (const d of ['1', '4', '5']) fireEvent.press(screen.getByTestId(`keypad-key-${d}`));
+    fireEvent.press(screen.getByTestId('rest-timers-save'));
+    expect(await screen.findByText('1:45')).toBeTruthy();
+    await waitFor(async () => expect((await getAppSettings()).defaultRestSeconds).toBe(105));
+    expect(sync.notifyAppSettingsSnapshot).toHaveBeenCalledWith(expect.objectContaining({ defaultRestSeconds: 105 }));
   });
 
   test('workout sounds default on and can be turned off', async () => {

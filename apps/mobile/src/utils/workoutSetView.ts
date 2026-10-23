@@ -93,7 +93,9 @@ export function setRowView(
     restSecondsLeft: number | null;
     /** Rest recorded after this set (`restDurationsBetweenSets`), if any. */
     recordedRestSeconds?: number;
-  }
+  },
+  /** Work-set rest when the exercise doesn't set one: the user's default. */
+  defaultRest: number = DEFAULT_REST_SECONDS
 ): SetRowView {
   const ex = exercises[exIdx];
   const sets = ex?.sets ?? [];
@@ -106,7 +108,7 @@ export function setRowView(
       : 'future';
   const restPresetSeconds = isWarmUp
     ? (ex?.warmUpRestSeconds ?? 0)
-    : (ex?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
+    : (ex?.restBetweenSetsSeconds ?? defaultRest);
   const restActive =
     rest.restAfter?.exIdx === exIdx &&
     rest.restAfter.setIdx === setIdx &&

@@ -31,7 +31,7 @@ interface SetRecord {
 interface SessionExercise {
   exerciseId: string;
   sets: SetRecord[];
-  restBetweenSetsSeconds?: number;  // omitted → 120; 0 → no rest
+  restBetweenSetsSeconds?: number;  // omitted → your Default rest (Settings, 120 unless changed); 0 → no rest
   warmUpRestSeconds?: number;       // omitted or 0 → warm-ups do not start a timer
 }
 
@@ -204,7 +204,7 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
 
 - **Done** requires `reps > 0` (the control is disabled until then); weight is optional.
   Completing a set **auto-starts the rest timer** for that set's duration: the work-set rest
-  after a working set (default 120 s; an explicit 0:00 starts nothing), and the warm-up rest
+  after a working set (your Default rest, 120 s unless changed in Settings; an explicit 0:00 starts nothing), and the warm-up rest
   after a warm-up (only when that duration is greater than 0). Both the row's Done and the pad's
   Done go through the store's `toggleSetComplete`.
 - **Tapping Done on a completed set un-completes it.** It only flips `completed` back: the
@@ -223,17 +223,17 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
 
 | Setting | Value |
 |---------|------:|
-| App default (`DEFAULT_REST_SECONDS`) | **120 s** (working sets, when omitted) |
+| Default rest (Settings → Workouts, `defaultRestSeconds`) | **120 s** unless changed (working sets, when omitted); any `m:ss` 0:00–15:00 |
 | Running timer step | ±30 s, not snapped to a 30 s grid |
 | Running timer floor / ceiling | 30 s total / 15:00 (900 s) total; −30 never leaves less than 1 s |
 | Typed preset | any `m:ss` from 0:00 to 15:00, not snapped to 30 s |
 | Manual picker (header) | 60 / 120 / 180 s |
 
-There is **no rest-duration setting in Settings** — the default is a code constant, overridable
-per exercise on a template ([templates](templates.md#data-model), copied onto the session at
-start) and within a session. Per-exercise rest applies after **every set of that kind**,
-including the last. A working set uses `restBetweenSetsSeconds` (omitted means 120; explicit 0
-means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
+The work-set default is **Settings → Default rest** ([accounts-and-data](accounts-and-data.md#settings)),
+2:00 unless changed. It's overridable per exercise on a template ([templates](templates.md#data-model),
+copied onto the session at start) and within a session. Per-exercise rest applies after **every set
+of that kind**, including the last. A working set uses `restBetweenSetsSeconds` (omitted means the
+Default rest at the moment the set is completed; explicit 0 means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
 
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
 and app restarts. **Skip rest** records the time actually rested (total minus the whole seconds
@@ -470,7 +470,8 @@ the real router.
   recording its duration; legacy `lastActivityAt`), and `resolveStaleWorkout`
 - `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping and the stale close after
   hydration and on foreground (overlapping closes save once); one workout at a time; 1-set
-  minimum; finish saving the whole session; the **debounced persist** (writes after 400 ms,
+  minimum; finish saving the whole session; a completed set resting for the user's Default rest
+  when its exercise sets none; the **debounced persist** (writes after 400 ms,
   coalesces a burst, nothing before hydration) and the immediate **background** write; start
   prefill applied once and never re-applied, keeping edits made while it loads; hydrate recording
   an expired rest; `toggleSetComplete` (reps gate, work/warm-up rest, un-complete cancels only its

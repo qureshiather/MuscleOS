@@ -413,6 +413,16 @@ describe('set actions', () => {
     expect(st.session?.exercises[0].sets[1].reps).toBeUndefined();
   });
 
+  it("toggleSetComplete uses the user's default rest when the exercise has none (MUS-169)", async () => {
+    const { useActiveWorkoutStore } = await started();
+    const { useSettingsStore } = await import('./settingsStore');
+    useSettingsStore.setState({ defaultRestSeconds: 90 });
+    const s = useActiveWorkoutStore.getState();
+    s.setSetRecord(0, 0, { reps: 5, weightKg: 60 });
+    s.toggleSetComplete(0, 0);
+    expect(useActiveWorkoutStore.getState().restTotalSeconds).toBe(90);
+  });
+
   it('toggleSetComplete starts no timer for a warm-up without a warm-up rest, or after an explicit 0:00', async () => {
     const { useActiveWorkoutStore } = await started([{ exerciseId: 'bench-press', sets: 1 }]);
     const s = useActiveWorkoutStore.getState();

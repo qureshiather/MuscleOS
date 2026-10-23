@@ -32,18 +32,22 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { searchExercises } from '@/utils/exerciseSearch';
 import type { ThemeColors } from '@/theme/palette';
 import {
-  DEFAULT_REST_SECONDS,
   DEFAULT_SETS_PER_EXERCISE,
+  applyRestToAll,
+  editorRestPatch,
   formatTemplateRestLabel,
   resolveTemplateExercises,
-  storedRestSeconds,
+  sharedRest,
   type ResolvedTemplateExercise,
 } from '@/utils/templateExercises';
+import { planSizeLabel } from '@/utils/templateCard';
+import { useSettingsStore } from '@/store/settingsStore';
+import { muscleLabel } from '@muscleos/types';
 import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
 import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
 
 export default function CreateTemplateScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const bottomSpace = useBottomSpace(spacing.xl);
   const sheetMaxHeight = useModalMaxHeight();
   const pickerListMaxHeight = Math.max(80, sheetMaxHeight - 180);
@@ -76,6 +80,7 @@ export default function CreateTemplateScreen() {
   }, [existingTemplate?.id]);
 
   const getExercise = useExercisesStore((s) => s.getExercise);
+  const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
   const allExercises = useExercisesStore((s) => s.getAllExercises)();
 
   const [name, setName] = useState('');
@@ -85,6 +90,8 @@ export default function CreateTemplateScreen() {
   /** Exercise whose rest timers are being edited. */
   const [restExerciseId, setRestExerciseId] = useState<string | null>(null);
   const restExercise = selected.find((ex) => ex.exerciseId === restExerciseId);
+  /** **Rest for all** dialog. */
+  const [restForAll, setRestForAll] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [pickerKeyboardHeight, setPickerKeyboardHeight] = useState(0);
   const pickerKeyboardSubRef = useRef<{ remove: () => void } | null>(null);
@@ -114,14 +121,9 @@ export default function CreateTemplateScreen() {
     setSelected((prev) => prev.map((ex) => (ex.exerciseId === id ? { ...ex, ...patch } : ex)));
   }
 
-  /** Defaults stay implicit (omitted), so a later change to the app default still applies. */
+  /** A rest equal to the default stays implicit, so a later change to the default still applies. */
   function saveRest(id: string, work: number, warmUp: number) {
-    const w = storedRestSeconds(work);
-    const r = storedRestSeconds(warmUp);
-    updateExercise(id, {
-      restBetweenSetsSeconds: w === DEFAULT_REST_SECONDS ? undefined : w,
-      warmUpRestSeconds: r > 0 ? r : undefined,
-    });
+    updateExercise(id, editorRestPatch(work, warmUp, defaultRestSeconds));
   }
 
   /** Picker → New exercise form, prefilled with the search text when there is some. */
@@ -294,9 +296,28 @@ export default function CreateTemplateScreen() {
               </>
             )}
 
-            <Text style={[typography.label, styles.label, { color: colors.textSecondary }]}>
-              Exercises · {selectedIds.length}
-            </Text>
+            <View style={styles.exercisesHeader}>
+              <View style={styles.exercisesHeaderText}>
+                <Text style={[typography.label, { color: colors.textSecondary }]}>Exercises</Text>
+                <Text style={[styles.planSize, { color: colors.textMuted }]} testID="template-plan-size">
+                  {planSizeLabel(selected)}
+                </Text>
+              </View>
+              {selected.length > 0 ? (
+                <Pressable
+                  onPress={() => setRestForAll(true)}
+                  accessibilityRole="button"
+                  testID="template-rest-all"
+                  style={({ pressed }) => [
+                    styles.restAllBtn,
+                    { borderColor: colors.primaryBorder, backgroundColor: colors.primarySurface, opacity: pressed ? 0.8 : 1 },
+                  ]}
+                >
+                  <Ionicons name="timer-outline" size={16} color={colors.primary} />
+                  <Text style={[typography.label, styles.restAllText, { color: colors.primary }]}>Rest for all</Text>
+                </Pressable>
+              ) : null}
+            </View>
             {canReorder ? (
               <Text style={[typography.caption, styles.reorderHint, { color: colors.textMuted }]}>
                 Hold and drag to rearrange
@@ -364,96 +385,90 @@ export default function CreateTemplateScreen() {
             />
           </View>
         }
-        renderItem={({ item, getIndex, drag, isActive }: RenderItemParams<ResolvedTemplateExercise>) => {
-          const index = getIndex() ?? 0;
+        renderItem={({ item, drag, isActive }: RenderItemParams<ResolvedTemplateExercise>) => {
           const ex = getExercise(item.exerciseId);
-          const isFirst = index === 0;
-          const isLast = index === selected.length - 1;
+          const mainMuscle = ex?.muscles[0];
           return (
             <ScaleDecorator>
               <View
+                testID={`template-exercise-${item.exerciseId}`}
                 style={[
-                  styles.selectedRow,
-                  {
-                    backgroundColor: isActive ? colors.surfaceElevated : colors.surface,
-                    borderColor: colors.border,
-                    borderTopWidth: isFirst ? StyleSheet.hairlineWidth : 0,
-                    borderTopLeftRadius: isFirst ? radius.md : 0,
-                    borderTopRightRadius: isFirst ? radius.md : 0,
-                    borderBottomLeftRadius: isLast ? radius.md : 0,
-                    borderBottomRightRadius: isLast ? radius.md : 0,
-                    marginBottom: isLast ? spacing.md : 0,
-                  },
+                  styles.exerciseCard,
+                  { backgroundColor: isActive ? colors.surfaceElevated : colors.surface, borderColor: colors.border },
+                  !isDark && [styles.exerciseCardLight, { shadowColor: colors.shadow }],
                   isActive && [styles.selectedRowActive, { shadowColor: colors.shadowCool }],
                 ]}
               >
-                <View style={styles.selectedRowBody}>
-                  <Pressable
-                    onLongPress={canReorder ? drag : undefined}
-                    delayLongPress={120}
-                    style={styles.selectedRowMain}
-                  >
-                    {canReorder ? (
-                      <View style={styles.dragHandle}>
-                        <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
-                      </View>
-                    ) : null}
-                    <Text style={[typography.data, styles.index, { color: colors.textMuted }]}>
-                      {String(index + 1).padStart(2, '0')}
-                    </Text>
-                    <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+                <Pressable
+                  onLongPress={canReorder ? drag : undefined}
+                  delayLongPress={120}
+                  style={styles.cardHeader}
+                >
+                  {canReorder ? (
+                    <View style={styles.dragHandle}>
+                      <Ionicons name="reorder-three" size={22} color={colors.textMuted} />
+                    </View>
+                  ) : null}
+                  <View style={styles.cardTitle}>
+                    <Text style={[typography.bodyMedium, { color: colors.text }]} numberOfLines={1}>
                       {ex?.name ?? item.exerciseId}
                     </Text>
+                    {mainMuscle ? (
+                      <View style={[styles.musclePill, { backgroundColor: colors.primarySurface }]}>
+                        <Text style={[styles.musclePillText, { color: colors.primary }]}>{muscleLabel(mainMuscle)}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => removeExerciseId(item.exerciseId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${ex?.name ?? item.exerciseId}`}
+                    style={styles.removeBtn}
+                  >
+                    <Ionicons name="close-circle" size={22} color={colors.textMuted} />
                   </Pressable>
-                  <View style={styles.countsRow}>
-                    <CountStepper
-                      label="Sets"
-                      value={item.sets}
-                      min={1}
-                      colors={colors}
-                      onChange={(sets) => updateExercise(item.exerciseId, { sets })}
-                    />
-                    <CountStepper
-                      label="Warm-up"
-                      value={item.warmUpSets}
-                      min={0}
-                      colors={colors}
-                      onChange={(warmUpSets) => updateExercise(item.exerciseId, { warmUpSets })}
-                    />
-                    <View style={styles.stepper}>
+                </Pressable>
+                <View style={[styles.countsRow, { borderTopColor: colors.border }]}>
+                  <CountStepper
+                    label="Sets"
+                    value={item.sets}
+                    min={1}
+                    colors={colors}
+                    onChange={(sets) => updateExercise(item.exerciseId, { sets })}
+                  />
+                  <CountStepper
+                    label="Warm-ups"
+                    value={item.warmUpSets}
+                    min={0}
+                    colors={colors}
+                    onChange={(warmUpSets) => updateExercise(item.exerciseId, { warmUpSets })}
+                  />
+                  <View style={[styles.stepper, styles.restColumn]}>
+                    <Text
+                      style={[typography.caption, { color: colors.textMuted }]}
+                      maxFontSizeMultiplier={fontScaleCap.chrome}
+                    >
+                      Rest
+                    </Text>
+                    <Pressable
+                      onPress={() => setRestExerciseId(item.exerciseId)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rest timers for ${ex?.name ?? item.exerciseId}: ${formatTemplateRestLabel(item, defaultRestSeconds)}`}
+                      testID={`template-rest-${item.exerciseId}`}
+                      style={[styles.restPill, { borderColor: colors.border }]}
+                    >
+                      <Ionicons name="timer-outline" size={14} color={colors.primary} />
                       <Text
-                        style={[typography.caption, { color: colors.textMuted }]}
-                        maxFontSizeMultiplier={fontScaleCap.chrome}
+                        style={[typography.data, { color: colors.text }]}
+                        maxFontSizeMultiplier={fontScaleCap.tabular}
+                        numberOfLines={1}
                       >
-                        Rest
+                        {formatTemplateRestLabel(item, defaultRestSeconds)}
                       </Text>
-                      <Pressable
-                        onPress={() => setRestExerciseId(item.exerciseId)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Rest timers for ${ex?.name ?? item.exerciseId}: ${formatTemplateRestLabel(item)}`}
-                        testID={`template-rest-${item.exerciseId}`}
-                        style={[styles.restPill, { borderColor: colors.border }]}
-                      >
-                        <Ionicons name="timer-outline" size={14} color={colors.primary} />
-                        <Text
-                          style={[typography.data, { color: colors.text }]}
-                          maxFontSizeMultiplier={fontScaleCap.tabular}
-                        >
-                          {formatTemplateRestLabel(item)}
-                        </Text>
-                      </Pressable>
-                    </View>
+                    </Pressable>
                   </View>
                 </View>
-                <Pressable
-                  hitSlop={8}
-                  onPress={() => removeExerciseId(item.exerciseId)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${ex?.name ?? item.exerciseId}`}
-                  style={styles.removeBtn}
-                >
-                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-                </Pressable>
               </View>
             </ScaleDecorator>
           );
@@ -463,7 +478,7 @@ export default function CreateTemplateScreen() {
       <RestTimersDialog
         exerciseName={restExercise ? (getExercise(restExercise.exerciseId)?.name ?? restExercise.exerciseId) : null}
         initial={{
-          work: restExercise?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
+          work: restExercise?.restBetweenSetsSeconds ?? defaultRestSeconds,
           warmUp: restExercise?.warmUpRestSeconds ?? 0,
         }}
         hint="Starts after every set of this exercise when you work out from this template. 0:00 means no timer."
@@ -472,6 +487,19 @@ export default function CreateTemplateScreen() {
           setRestExerciseId(null);
         }}
         onClose={() => setRestExerciseId(null)}
+      />
+
+      <RestTimersDialog
+        exerciseName={restForAll ? 'Every exercise' : null}
+        title="Rest for all exercises"
+        saveLabel="Apply to all"
+        initial={sharedRest(selected, defaultRestSeconds)}
+        hint="Sets the same rest on every exercise in this template. You can still change one afterwards. 0:00 means no timer."
+        onSave={(work, warmUp) => {
+          setSelected((prev) => applyRestToAll(prev, work, warmUp, defaultRestSeconds));
+          setRestForAll(false);
+        }}
+        onClose={() => setRestForAll(false)}
       />
 
       <Modal visible={showPicker} animationType="slide" transparent onRequestClose={closePicker}>
@@ -655,35 +683,60 @@ const styles = StyleSheet.create({
   },
   selectedCard: { marginBottom: spacing.md, paddingVertical: spacing.sm },
   reorderHint: { marginBottom: spacing.sm, marginTop: -spacing.xs },
-  selectedRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm + 2,
-    paddingRight: spacing.md,
-    paddingLeft: spacing.sm,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  exerciseCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+    overflow: 'visible',
   },
-  selectedRowBody: {
-    flex: 1,
-    minWidth: 0,
+  exerciseCardLight: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  selectedRowMain: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingLeft: spacing.sm,
+    paddingRight: spacing.xs,
   },
+  cardTitle: { flex: 1, minWidth: 0, gap: 4, paddingLeft: spacing.xs },
+  musclePill: { alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 1, borderRadius: radius.sm },
+  musclePillText: { ...typography.caption, fontSize: 11, fontWeight: '600' },
+  exercisesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  exercisesHeaderText: { gap: 2, flexShrink: 1 },
+  planSize: { ...typography.caption, fontFamily: typography.data.fontFamily, fontVariant: ['tabular-nums'] },
+  restAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    minHeight: touch.min - 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  restAllText: { fontWeight: '600' },
   countsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'flex-end',
     gap: spacing.md,
-    paddingLeft: 4,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
+  restColumn: { marginLeft: 'auto' },
   stepper: {
     gap: 4,
   },
@@ -718,7 +771,6 @@ const styles = StyleSheet.create({
     minHeight: touch.min - 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.xs,
   },
   dragHandle: {
     width: 28,
@@ -732,7 +784,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  index: { width: 28 },
   addExercisesBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -14,6 +14,7 @@ import { recoveryFromSessions } from '@/utils/recovery';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import {
   notifySessionUpsert,
   notifyExercisePreviousSnapshot,
@@ -226,7 +227,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     }
     if (!canCompleteSet(target)) return null;
     get().completeSet(exerciseIndex, setIndex);
-    const restSeconds = restDurationAfterComplete(target, ex);
+    const restSeconds = restDurationAfterComplete(target, ex, useSettingsStore.getState().defaultRestSeconds);
     if (restSeconds != null) get().startRest(exerciseIndex, setIndex, restSeconds);
     return 'completed';
   },

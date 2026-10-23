@@ -135,6 +135,7 @@ describe('snapshotItems (account-link upload)', () => {
     themePreference: 'auto' as const,
     profile: {},
     activeProgramId: null,
+    defaultRestSeconds: 120,
   };
 
   it('uploads every row; sessions keep their own clock, the rest are stamped now', () => {

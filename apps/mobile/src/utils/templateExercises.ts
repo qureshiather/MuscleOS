@@ -24,14 +24,18 @@ export function storedRestSeconds(seconds: number): number {
   return Math.min(REST_MAX_SECONDS, Math.max(0, Math.trunc(seconds)));
 }
 
-/** Only the rest fields a slot actually sets, clamped; the defaults are left implicit. */
+/**
+ * Only the rest fields a slot actually sets, clamped. An omitted work rest follows the user's
+ * default (Settings → Default rest); an explicit one, 2:00 included, is kept so it doesn't change
+ * with the default.
+ */
 function restFields(
   cfg: Pick<TemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> | undefined
 ): Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> {
   const work = cfg?.restBetweenSetsSeconds;
   const warmUp = cfg?.warmUpRestSeconds;
   return {
-    ...(typeof work === 'number' && storedRestSeconds(work) !== DEFAULT_REST_SECONDS && {
+    ...(typeof work === 'number' && {
       restBetweenSetsSeconds: storedRestSeconds(work),
     }),
     ...(typeof warmUp === 'number' && storedRestSeconds(warmUp) > 0 && { warmUpRestSeconds: storedRestSeconds(warmUp) }),
@@ -139,9 +143,60 @@ export function templateExercisesFromSession(
   });
 }
 
-/** `2:00` work rest, plus the warm-up rest when warm-ups have one: `2:00 · warm-up 1:00`. */
-export function formatTemplateRestLabel(ex: Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'>): string {
-  const work = ex.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+/**
+ * The rest fields for a slot from the template editor's dialog. A work rest equal to the user's
+ * default is left unset, so the slot keeps following the default if it changes later; an empty
+ * warm-up rest is left unset too.
+ */
+export function editorRestPatch(
+  work: number,
+  warmUp: number,
+  defaultRest: number = DEFAULT_REST_SECONDS
+): Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> {
+  const w = storedRestSeconds(work);
+  const r = storedRestSeconds(warmUp);
+  return {
+    restBetweenSetsSeconds: w === storedRestSeconds(defaultRest) ? undefined : w,
+    warmUpRestSeconds: r > 0 ? r : undefined,
+  };
+}
+
+/** **Rest for all**: the same work and warm-up rest on every slot (see `editorRestPatch`). */
+export function applyRestToAll(
+  plan: readonly ResolvedTemplateExercise[],
+  work: number,
+  warmUp: number,
+  defaultRest: number = DEFAULT_REST_SECONDS
+): ResolvedTemplateExercise[] {
+  const patch = editorRestPatch(work, warmUp, defaultRest);
+  return plan.map((ex) => ({ ...ex, ...patch }));
+}
+
+/**
+ * What **Rest for all** opens with: the rests every slot shares, or the default (and no warm-up
+ * rest) when they differ.
+ */
+export function sharedRest(
+  plan: readonly ResolvedTemplateExercise[],
+  defaultRest: number = DEFAULT_REST_SECONDS
+): { work: number; warmUp: number } {
+  const works = new Set(plan.map((ex) => ex.restBetweenSetsSeconds ?? defaultRest));
+  const warmUps = new Set(plan.map((ex) => ex.warmUpRestSeconds ?? 0));
+  return {
+    work: works.size === 1 ? [...works][0] : defaultRest,
+    warmUp: warmUps.size === 1 ? [...warmUps][0] : 0,
+  };
+}
+
+/**
+ * `2:00` work rest, plus the warm-up rest when warm-ups have one: `2:00 · warm-up 1:00`. An omitted
+ * work rest shows `defaultRest` (the user's default).
+ */
+export function formatTemplateRestLabel(
+  ex: Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'>,
+  defaultRest: number = DEFAULT_REST_SECONDS
+): string {
+  const work = ex.restBetweenSetsSeconds ?? defaultRest;
   const warmUp = ex.warmUpRestSeconds ?? 0;
   const workLabel = work > 0 ? formatClock(work) : 'Off';
   return warmUp > 0 ? `${workLabel} · warm-up ${formatClock(warmUp)}` : workLabel;

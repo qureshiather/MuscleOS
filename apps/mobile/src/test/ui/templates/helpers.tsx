@@ -49,7 +49,7 @@ export async function resetTemplatesTestState(): Promise<void> {
     folders: [],
     isLoading: true,
   });
-  useSettingsStore.setState({ activeProgramId: null });
+  useSettingsStore.setState({ activeProgramId: null, defaultRestSeconds: 120 });
   useSessionsStore.setState({ sessions: [], isLoading: true });
   useRecoveryStore.setState({ items: [], isLoading: true, hasLoaded: false });
   useActiveWorkoutStore.setState({ session: null });

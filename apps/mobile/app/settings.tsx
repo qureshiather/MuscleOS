@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
@@ -9,6 +10,9 @@ import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ListRow } from '@/components/ui/ListRow';
+import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
+import { formatClock } from '@/utils/formatClock';
+
 
 export default function SettingsScreen() {
   const { colors, themePreference, setTheme } = useTheme();
@@ -19,6 +23,9 @@ export default function SettingsScreen() {
   const setBodyWeightUnit = useSettingsStore((s) => s.setBodyWeightUnit);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const setWorkoutSoundsEnabled = useSettingsStore((s) => s.setWorkoutSoundsEnabled);
+  const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
+  const setDefaultRestSeconds = useSettingsStore((s) => s.setDefaultRestSeconds);
+  const [editingRest, setEditingRest] = useState(false);
 
   return (
     <Screen>
@@ -72,6 +79,19 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.section}>
+          <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>Workouts</Text>
+          <ListRow
+            inset
+            last
+            title="Default rest"
+            hint="Starts after each working set, unless an exercise sets its own rest"
+            value={defaultRestSeconds > 0 ? formatClock(defaultRestSeconds) : 'Off'}
+            testID="settings-default-rest"
+            onPress={() => setEditingRest(true)}
+          />
+        </Card>
+
+        <Card style={styles.section}>
           <Text style={[typography.sectionTitle, { color: colors.text }]}>Sounds</Text>
           <Text style={[typography.caption, styles.hint, { color: colors.textMuted }]}>
             Beeps and tones during an active workout.
@@ -102,6 +122,19 @@ export default function SettingsScreen() {
           />
         </Card>
       </ScrollView>
+      <RestTimersDialog
+        exerciseName={editingRest ? 'Default rest' : null}
+        title="Default rest"
+        saveLabel="Save"
+        workOnly
+        initial={{ work: defaultRestSeconds, warmUp: 0 }}
+        hint="Every exercise without its own rest uses this, in your templates, programs and workouts. 0:00 means no timer."
+        onSave={(work) => {
+          void setDefaultRestSeconds(work);
+          setEditingRest(false);
+        }}
+        onClose={() => setEditingRest(false)}
+      />
     </Screen>
   );
 }

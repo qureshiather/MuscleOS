@@ -34,7 +34,7 @@ import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { startFromParamsDecision, startPlanFromParams } from '@/utils/workoutStart';
-import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
@@ -552,6 +552,7 @@ export default function ActiveWorkoutScreen() {
   const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
   const endRestIfDue = useActiveWorkoutStore((s) => s.endRestIfDue);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
   const exerciseNotes = useExerciseNotesStore((s) => s.notes);
@@ -1089,7 +1090,8 @@ export default function ActiveWorkoutScreen() {
     currentTemplate != null &&
     computeTemplateStructureChanged(
       templateExercisesFromSession(session.exercises),
-      resolveTemplateExercises(currentTemplate)
+      resolveTemplateExercises(currentTemplate),
+      defaultRestSeconds
     );
   const finishFlowInput = {
     isEmpty: isNoTemplateWorkout,
@@ -1358,7 +1360,7 @@ export default function ActiveWorkoutScreen() {
             );
           }
 
-          const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+          const restPresetSec = se.restBetweenSetsSeconds ?? defaultRestSeconds;
           const exerciseNote = exerciseNotes[se.exerciseId];
           const exerciseComplete = se.sets.length > 0 && se.sets.every((s) => s.completed);
 
@@ -1492,7 +1494,7 @@ export default function ActiveWorkoutScreen() {
                   restAfter,
                   restSecondsLeft,
                   recordedRestSeconds: restDurationsBetweenSets[`${exIdx}-${setIdx}`],
-                });
+                }, defaultRestSeconds);
                 const isCurrentSet = row.status === 'current';
                 const isFutureSet = row.status === 'future';
                 const isActiveRestGap = row.restActive;
@@ -1964,7 +1966,7 @@ export default function ActiveWorkoutScreen() {
       <RestTimersDialog
         exerciseName={restTimersExercise ? (getExercise(restTimersExercise.exerciseId)?.name ?? restTimersExercise.exerciseId) : null}
         initial={{
-          work: restTimersExercise?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
+          work: restTimersExercise?.restBetweenSetsSeconds ?? defaultRestSeconds,
           warmUp: restTimersExercise?.warmUpRestSeconds ?? 0,
         }}
         hint="A running timer is not affected. Applies to the next sets of this exercise for the rest of this workout."

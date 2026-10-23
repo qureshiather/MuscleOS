@@ -99,6 +99,14 @@ describe('templateStructureChanged', () => {
         )
       ).toBe(false);
     });
+
+    it("compares against the user's default rest, not 2:00", () => {
+      const plain = resolveTemplateExercises({ exerciseIds: ['a'] });
+      const session = (rest: number) =>
+        templateExercisesFromSession([{ exerciseId: 'a', sets: [{}, {}, {}], restBetweenSetsSeconds: rest }]);
+      expect(templateStructureChanged(session(180), plain, 180)).toBe(false);
+      expect(templateStructureChanged(session(120), plain, 180)).toBe(true);
+    });
   });
 });
 

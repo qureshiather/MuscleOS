@@ -15,6 +15,7 @@ import {
   type ThemePreference,
 } from '@/storage/localStorage';
 import { notifyAppSettingsSnapshot } from '@/sync';
+import { DEFAULT_REST_SECONDS, storedRestSeconds } from '@/utils/templateExercises';
 
 export type { UserAppProfile, SyncedAppSettings, ThemePreference };
 
@@ -28,6 +29,8 @@ export interface SettingsState {
   profile: UserAppProfile;
   /** The built-in program in Your workouts (a built-in folder id); null = no program. */
   activeProgramId: string | null;
+  /** Work-set rest for every exercise that doesn't set its own; 2:00 unless changed. */
+  defaultRestSeconds: number;
   isLoading: boolean;
   load: () => Promise<void>;
   setWeightUnit: (unit: WeightUnit) => Promise<void>;
@@ -36,6 +39,7 @@ export interface SettingsState {
   setProfile: (profile: UserAppProfile) => Promise<void>;
   /** Put a program in Your workouts (replacing any other), or pass null to remove it. */
   setActiveProgram: (programId: string | null) => Promise<void>;
+  setDefaultRestSeconds: (seconds: number) => Promise<void>;
 }
 
 let settingsWrites: Promise<unknown> = Promise.resolve();
@@ -62,6 +66,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   workoutSoundsEnabled: true,
   profile: {},
   activeProgramId: null,
+  defaultRestSeconds: DEFAULT_REST_SECONDS,
   isLoading: true,
 
   load: async () => {
@@ -82,6 +87,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         workoutSoundsEnabled: settings.workoutSoundsEnabled,
         profile: settings.profile,
         activeProgramId: settings.activeProgramId,
+        defaultRestSeconds: settings.defaultRestSeconds,
         isLoading: false,
       });
     } catch {
@@ -113,5 +119,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     const activeProgramId = parseActiveProgramId(programId);
     set({ activeProgramId });
     await persistAndNotify({ activeProgramId });
+  },
+
+  setDefaultRestSeconds: async (seconds) => {
+    const defaultRestSeconds = storedRestSeconds(seconds);
+    set({ defaultRestSeconds });
+    await persistAndNotify({ defaultRestSeconds });
   },
 }));

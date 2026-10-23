@@ -18,16 +18,31 @@ type RestTimersDialogProps = {
   /** Durations the boxes open with, in seconds. */
   initial: { work: number; warmUp: number };
   hint: string;
+  /** Defaults to **Update rest timers**. */
+  title?: string;
+  /** The save button; defaults to the title. */
+  saveLabel?: string;
+  /** Only the work-set box (Settings → Default rest). */
+  workOnly?: boolean;
   onSave: (work: number, warmUp: number) => void;
   onClose: () => void;
 };
 
 /**
  * **Update rest timers**: the work-set and warm-up rest for one exercise, each a time box entered
- * with the time keypad (docked under the card while a box is focused). Used during a workout and
- * in the template editor.
+ * with the time keypad (docked under the card while a box is focused). Used during a workout, in
+ * the template editor (one exercise, or every exercise at once) and for Settings → Default rest.
  */
-export function RestTimersDialog({ exerciseName, initial, hint, onSave, onClose }: RestTimersDialogProps) {
+export function RestTimersDialog({
+  exerciseName,
+  initial,
+  hint,
+  title = 'Update rest timers',
+  saveLabel = title,
+  workOnly = false,
+  onSave,
+  onClose,
+}: RestTimersDialogProps) {
   const { colors } = useTheme();
   const visible = exerciseName != null;
   const [entry, setEntry] = useState<RestTimeEntry>({ ...initial, field: null, replace: true });
@@ -55,14 +70,14 @@ export function RestTimersDialog({ exerciseName, initial, hint, onSave, onClose 
             ]}
             onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.title, { color: colors.text }]}>Update rest timers</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
             <Text style={[styles.hint, { color: colors.textMuted }]}>{hint}</Text>
             {(
               [
                 ['work', 'Work set', entry.work],
                 ['warmUp', 'Warm up', entry.warmUp],
               ] as const
-            ).map(([box, label, seconds]) => (
+            ).filter(([box]) => !workOnly || box === 'work').map(([box, label, seconds]) => (
               <View key={box} style={styles.typeRow}>
                 <Text style={[styles.typeLabel, { color: colors.text }]}>{label}</Text>
                 <Pressable
@@ -87,7 +102,7 @@ export function RestTimersDialog({ exerciseName, initial, hint, onSave, onClose 
               testID="rest-timers-save"
               onPress={() => onSave(entry.work, entry.warmUp)}
             >
-              <Text style={[styles.saveBtnText, { color: colors.primaryOn }]}>Update rest timers</Text>
+              <Text style={[styles.saveBtnText, { color: colors.primaryOn }]}>{saveLabel}</Text>
             </Pressable>
           </View>
           {field != null ? (
@@ -96,7 +111,7 @@ export function RestTimersDialog({ exerciseName, initial, hint, onSave, onClose 
               exerciseName={exerciseName ?? ''}
               field="time"
               fieldTitle={field === 'work' ? 'Work set' : 'Warm up'}
-              timeAction={field === 'work' ? 'next' : 'done'}
+              timeAction={field === 'work' && !workOnly ? 'next' : 'done'}
               unitLabel=""
               valueText={formatClock(field === 'work' ? entry.work : entry.warmUp)}
               step={1}

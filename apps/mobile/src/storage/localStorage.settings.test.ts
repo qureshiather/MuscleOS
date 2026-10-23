@@ -34,6 +34,7 @@ const blank: StoredAppSettingsValues = {
   workoutSounds: null,
   theme: null,
   activeProgram: null,
+  defaultRest: null,
 };
 
 beforeEach(() => __resetAsyncStorage());
@@ -47,6 +48,7 @@ describe('settings defaults and fallbacks', () => {
       themePreference: 'auto',
       profile: {},
       activeProgramId: 'builtin_sl',
+      defaultRestSeconds: 120,
     });
     expect(defaultAppSettings()).toEqual(parseStoredAppSettings(blank));
   });
@@ -94,11 +96,22 @@ describe('settings defaults and fallbacks', () => {
       themePreference: 'dark' as const,
       profile: { weightKg: 60, sex: 'female' as const },
       activeProgramId: 'builtin_ppl',
+      defaultRestSeconds: 95,
     };
     await setAppSettings(settings);
     expect(await getAppSettings()).toEqual(settings);
     expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.workoutSounds)).toBe('0');
     expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem)).toBeNull();
+  });
+
+  it('default rest: 2:00 when unset, any whole-second m:ss up to 15:00, junk falls back', () => {
+    expect(parseStoredAppSettings(blank).defaultRestSeconds).toBe(120);
+    expect(parseStoredAppSettings({ ...blank, defaultRest: '0' }).defaultRestSeconds).toBe(0);
+    expect(parseStoredAppSettings({ ...blank, defaultRest: '95' }).defaultRestSeconds).toBe(95);
+    expect(parseStoredAppSettings({ ...blank, defaultRest: '5000' }).defaultRestSeconds).toBe(900);
+    expect(parseStoredAppSettings({ ...blank, defaultRest: 'soon' }).defaultRestSeconds).toBe(120);
+    expect(normalizeAppSettings({ weightUnit: 'kg' }, { ...defaultAppSettings(), defaultRestSeconds: 75 }).defaultRestSeconds).toBe(75);
+    expect(normalizeAppSettings({ defaultRestSeconds: 180 }).defaultRestSeconds).toBe(180);
   });
 
   it('a fresh install starts on Strong Lifts; a stored program reads back, and a blank or unknown id means none', async () => {
