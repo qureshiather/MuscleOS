@@ -203,6 +203,9 @@ export const BUILT_IN_PROGRAMS: BuiltInProgram[] = [
   },
 ];
 
+/** The program a fresh install starts with, so the Workouts tab opens with a plan to follow. */
+export const DEFAULT_PROGRAM_ID = 'builtin_sl';
+
 export function isBuiltInProgramId(id: string): boolean {
   return BUILT_IN_PROGRAMS.some((p) => p.id === id);
 }

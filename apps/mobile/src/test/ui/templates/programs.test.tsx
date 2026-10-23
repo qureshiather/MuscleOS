@@ -37,7 +37,6 @@ describe('Programs', () => {
     renderAtNow(routes, '/programs');
     const cards = await screen.findAllByTestId(/^program-card-/);
     expect(cards.map((c) => c.props.testID)).toEqual([
-      'program-card-none',
       'program-card-builtin_sl',
       'program-card-builtin_ppl',
       'program-card-builtin_ul',
@@ -53,37 +52,17 @@ describe('Programs', () => {
     renderAtNow(routes, '/programs');
     const cards = await screen.findAllByTestId(/^program-card-/);
     expect(cards[0].props.testID).toBe('program-card-builtin_phul');
-    expect(cards.at(-1)?.props.testID).toBe('program-card-none');
+    expect(cards).toHaveLength(4);
     expect(screen.getByLabelText('PHUL, in your workouts')).toBeTruthy();
     expect(screen.getByText('In your workouts')).toBeTruthy();
   });
 
-  it('No program starts selected and offers Build a template and Start empty workout', async () => {
+  it('has no No program entry and no template or empty-workout shortcuts', async () => {
     renderAtNow(routes, '/programs');
-    expect(await screen.findByLabelText('No program, selected')).toBeTruthy();
-    expect(
-      screen.getByText('Great. Make your own templates, or just start a workout and add exercises as you go.')
-    ).toBeTruthy();
-    fireEvent.press(screen.getByText('Build a template'));
-    expect(await screen.findByText('route:create-template')).toBeTruthy();
-  });
-
-  it('Start empty workout goes straight to an empty session', async () => {
-    renderAtNow(routes, '/programs');
-    fireEvent.press(await screen.findByText('Start empty workout'));
-    expect(await screen.findByText('route:active-workout')).toBeTruthy();
-    expect(searchParams()).toEqual({ templateId: '_empty', exerciseIds: '' });
-  });
-
-  it('choosing No program drops the program and stays on Programs', async () => {
-    await seed({ activeProgramId: 'builtin_ppl' });
-    renderAtNow(routes, '/programs');
+    await screen.findAllByTestId(/^program-card-/);
+    expect(screen.queryByText('No program')).toBeNull();
     expect(screen.queryByText('Build a template')).toBeNull();
-    fireEvent.press(await screen.findByLabelText('No program'));
-    await waitFor(() => expect(useSettingsStore.getState().activeProgramId).toBeNull());
-    expect(await screen.findByText('Build a template')).toBeTruthy();
-    expect(screen.queryByText('In your workouts')).toBeNull();
-    expect(pathname()).toBe('/programs');
+    expect(screen.queryByText('Start empty workout')).toBeNull();
   });
 
   it('a card opens its program', async () => {

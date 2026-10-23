@@ -4,10 +4,9 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ProgramCard } from '@/components/programs/ProgramCard';
-import { NoProgramCard } from '@/components/programs/NoProgramCard';
 import { BUILT_IN_PROGRAMS } from '@/data/builtInTemplates';
 import { useSettingsStore } from '@/store/settingsStore';
-import { NO_PROGRAM, orderPrograms } from '@/utils/programs';
+import { orderPrograms } from '@/utils/programs';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
 
@@ -16,36 +15,23 @@ export default function ProgramsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const activeProgramId = useSettingsStore((s) => s.activeProgramId);
-  const setActiveProgram = useSettingsStore((s) => s.setActiveProgram);
 
   return (
     <Screen kind="chrome">
       <ScreenHeader title="Programs" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[typography.caption, styles.intro, { color: colors.textSecondary }]}>
-          Follow one program at a time, or none. A program's workouts sit next to your own templates
-          on the Workouts tab.
+          Follow one program at a time. Its workouts sit next to your own templates on the Workouts
+          tab.
         </Text>
-        {orderPrograms(BUILT_IN_PROGRAMS, activeProgramId).map((item) =>
-          item === NO_PROGRAM ? (
-            <NoProgramCard
-              key={NO_PROGRAM}
-              selected={activeProgramId == null}
-              onSelect={() => void setActiveProgram(null)}
-              onBuildTemplate={() => router.push('/create-template')}
-              onStartEmpty={() =>
-                router.push({ pathname: '/active-workout', params: { templateId: '_empty', exerciseIds: '' } })
-              }
-            />
-          ) : (
-            <ProgramCard
-              key={item.id}
-              program={item}
-              active={item.id === activeProgramId}
-              onPress={(p) => router.push({ pathname: '/program', params: { id: p.id } })}
-            />
-          )
-        )}
+        {orderPrograms(BUILT_IN_PROGRAMS, activeProgramId).map((program) => (
+          <ProgramCard
+            key={program.id}
+            program={program}
+            active={program.id === activeProgramId}
+            onPress={(p) => router.push({ pathname: '/program', params: { id: p.id } })}
+          />
+        ))}
       </ScrollView>
     </Screen>
   );

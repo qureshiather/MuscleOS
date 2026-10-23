@@ -39,14 +39,14 @@ const blank: StoredAppSettingsValues = {
 beforeEach(() => __resetAsyncStorage());
 
 describe('settings defaults and fallbacks', () => {
-  it('defaults to lb, lb, sounds on, theme Auto, empty biodata, no program', () => {
+  it('defaults to lb, lb, sounds on, theme Auto, empty biodata, Strong Lifts', () => {
     expect(parseStoredAppSettings(blank)).toEqual({
       weightUnit: 'lb',
       bodyWeightUnit: 'lb',
       workoutSoundsEnabled: true,
       themePreference: 'auto',
       profile: {},
-      activeProgramId: null,
+      activeProgramId: 'builtin_sl',
     });
     expect(defaultAppSettings()).toEqual(parseStoredAppSettings(blank));
   });
@@ -101,13 +101,14 @@ describe('settings defaults and fallbacks', () => {
     expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.unitSystem)).toBeNull();
   });
 
-  it('starts with no program; a stored program reads back, and a blank or unknown id means none', async () => {
-    expect(parseStoredAppSettings(blank).activeProgramId).toBeNull();
+  it('a fresh install starts on Strong Lifts; a stored program reads back, and a blank or unknown id means none', async () => {
+    expect(parseStoredAppSettings(blank).activeProgramId).toBe('builtin_sl');
     expect(parseStoredAppSettings({ ...blank, activeProgram: 'builtin_sl' }).activeProgramId).toBe('builtin_sl');
     expect(parseStoredAppSettings({ ...blank, activeProgram: '' }).activeProgramId).toBeNull();
+    expect(parseStoredAppSettings({ ...blank, activeProgram: 'none' }).activeProgramId).toBeNull();
     expect(parseStoredAppSettings({ ...blank, activeProgram: 'builtin_gone' }).activeProgramId).toBeNull();
     await setAppSettings({ ...defaultAppSettings(), activeProgramId: null });
-    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.activeProgram)).toBe('');
+    expect(await AsyncStorage.getItem(APP_SETTINGS_KEYS.activeProgram)).toBe('none');
     expect((await getAppSettings()).activeProgramId).toBeNull();
   });
 

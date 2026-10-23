@@ -12,7 +12,7 @@ import type { WeightUnit } from '@/utils/weightUnits';
 import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from './keys';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { normalizeWorkoutTemplate } from '@/utils/templateExercises';
-import { isBuiltInProgramId } from '@/data/builtInTemplates';
+import { DEFAULT_PROGRAM_ID, isBuiltInProgramId } from '@/data/builtInTemplates';
 
 export const APP_SETTINGS_KEYS = {
   unitSystem: 'muscleos_unit_system',
@@ -54,7 +54,7 @@ export interface SyncedAppSettings {
   workoutSoundsEnabled: boolean;
   themePreference: ThemePreference;
   profile: UserAppProfile;
-  /** Built-in program (folder id) in Your workouts; null = no program. */
+  /** Built-in program (folder id) in Your workouts; null = no program. Fresh installs start on Strong Lifts. */
   activeProgramId: string | null;
 }
 
@@ -64,13 +64,16 @@ const DEFAULT_APP_SETTINGS: SyncedAppSettings = {
   workoutSoundsEnabled: true,
   themePreference: 'auto',
   profile: {},
-  activeProgramId: null,
+  activeProgramId: DEFAULT_PROGRAM_ID,
 };
 
 function parseWeightUnit(s: string | null): WeightUnit | null {
   if (s === 'kg' || s === 'lb') return s;
   return null;
 }
+
+/** Stored when the program was removed, so it isn't mistaken for a fresh install's unset key. */
+const NO_PROGRAM_STORED = 'none';
 
 /** A stored program id, or null when it's blank or isn't a shipped program. */
 export function parseActiveProgramId(s: string | null | undefined): string | null {
@@ -126,7 +129,9 @@ export function parseStoredAppSettings(raw: StoredAppSettingsValues): SyncedAppS
     workoutSoundsEnabled,
     themePreference: parseThemePreference(raw.theme) ?? 'auto',
     profile,
-    activeProgramId: parseActiveProgramId(raw.activeProgram),
+    // Never written means a fresh install, which starts on the default program. Removing the
+    // program writes NO_PROGRAM_STORED instead (older builds wrote ''), so that choice is kept.
+    activeProgramId: raw.activeProgram === null ? DEFAULT_PROGRAM_ID : parseActiveProgramId(raw.activeProgram),
   };
 }
 
@@ -205,7 +210,7 @@ export async function setAppSettings(settings: SyncedAppSettings): Promise<void>
     [APP_SETTINGS_KEYS.workoutSounds, settings.workoutSoundsEnabled ? '1' : '0'],
     [APP_SETTINGS_KEYS.theme, themePreference],
     [APP_SETTINGS_KEYS.profile, JSON.stringify(settings.profile ?? {})],
-    [APP_SETTINGS_KEYS.activeProgram, parseActiveProgramId(settings.activeProgramId) ?? ''],
+    [APP_SETTINGS_KEYS.activeProgram, parseActiveProgramId(settings.activeProgramId) ?? NO_PROGRAM_STORED],
   ]);
   emitThemeStorageChanged();
 }

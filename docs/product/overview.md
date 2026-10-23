@@ -86,7 +86,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 |-----|-------|---------|------|
 | **Exercises** | `/(tabs)/exercises` | Browse and search the ~400-exercise catalog; muscle maps, instructions, personal notes | [exercise-library.md](../features/exercise-library.md) |
 | **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
-| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from Your workouts (your templates plus at most one program) | [templates.md](../features/templates.md) |
+| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, or from Your workouts (your templates plus at most one program) | [templates.md](../features/templates.md) |
 | **History** | `/(tabs)/history` | Reverse-chronological list of finished sessions with duration, volume, and every completed set | [history-analytics.md](../features/history-analytics.md) |
 | **Profile** | `/(tabs)/profile` | Account, settings, then biodata — each row opens its own screen | [accounts-and-data.md](../features/accounts-and-data.md) |
 
@@ -94,7 +94,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 
 | Screen | Route | Purpose | Spec |
 |--------|-------|---------|------|
-| Programs | `/programs` | Choose one built-in program or No program; the current choice is marked | [templates.md](../features/templates.md#programs) |
+| Programs | `/programs` | Choose one built-in program; the current choice is marked | [templates.md](../features/templates.md#programs) |
 | Program | `/program?id=` | A program overview: each workout and its exercises, muscles trained, with Add / Switch / Remove | [templates.md](../features/templates.md#programs) |
 | Workout preview | `/workout-preview` | Review a template's exercises and last-session numbers before starting | [templates.md](../features/templates.md#workout-preview) |
 | Active workout | `/active-workout` | The set-logging screen and rest timer | [workout-logging.md](../features/workout-logging.md) |

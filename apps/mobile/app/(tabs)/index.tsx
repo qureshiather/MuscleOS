@@ -39,7 +39,6 @@ import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
-import { pickRecentTemplates } from '@/utils/recentTemplates';
 import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
 import { focusRegions, regionStatesByView } from '@/utils/muscleDiagramRegions';
 import type { TemplateArt } from '@/components/workouts/WorkoutHomeSections';
@@ -47,7 +46,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import {
-  RecentWorkoutsRow,
   SuggestedWorkoutsGrid,
 } from '@/components/workouts/WorkoutHomeSections';
 import { TemplateCard } from '@/components/workouts/TemplateCard';
@@ -89,7 +87,6 @@ export default function WorkoutsScreen() {
   const isLoading = useTemplatesStore((s) => s.isLoading);
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
-  const completedSessions = useSessionsStore((s) => s.completedSessions);
   const ensureRecoveryLoaded = useRecoveryStore((s) => s.ensureLoaded);
   const recoveryItems = useRecoveryStore((s) => s.items);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
@@ -227,21 +224,6 @@ export default function WorkoutsScreen() {
     getExercise,
   ]);
 
-  /** Recent excludes Suggested so the two home launchers never repeat the same template. */
-  const recentWorkouts = useMemo(() => {
-    return pickRecentTemplates({
-      completedSessions: completedSessions(),
-      templates: yourWorkouts,
-      suggestedIds: new Set(suggestedWorkouts.map((s) => s.template.id)),
-      isHidden: isTemplateHidden,
-    });
-  }, [
-    suggestedWorkouts,
-    sessions,
-    yourWorkouts,
-    isTemplateHidden,
-    completedSessions,
-  ]);
 
   function handleCreateFolder() {
     const name = newFolderName.trim();
@@ -631,68 +613,18 @@ export default function WorkoutsScreen() {
             {headline}
           </Text>
 
-          {/* Start Empty Workout - hero CTA */}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Empty workout"
+            testID="start-empty-workout"
             style={({ pressed }) => [
-              styles.startEmptyCard,
-              {
-                backgroundColor: colors.primary,
-                borderColor: colors.primary,
-                opacity: pressed ? 0.92 : 1,
-              },
-              !isDark && {
-                ...Platform.select({
-                  ios: {
-                    shadowColor: colors.primary,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                  },
-                  android: { elevation: 4 },
-                }),
-              },
+              styles.startEmptyBtn,
+              { backgroundColor: colors.primarySurface, borderColor: colors.primaryBorder, opacity: pressed ? 0.8 : 1 },
             ]}
             onPress={handleStartEmptyWorkout}
           >
-            <View style={styles.startEmptyCardInner}>
-              <View
-                style={[
-                  styles.startEmptyIconWrap,
-                  { backgroundColor: colors.primaryOnSurface },
-                ]}
-              >
-                <Ionicons
-                  name="add-circle-outline"
-                  size={28}
-                  color={colors.primaryOn}
-                />
-              </View>
-                <View style={styles.startEmptyTextWrap}>
-                <View style={styles.startEmptyTitleRow}>
-                  <Text
-                    style={[
-                      styles.startEmptyCardTitle,
-                      { color: colors.primaryOn },
-                    ]}
-                  >
-                    Empty workout
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.startEmptyCardSubtitle,
-                    { color: colors.primaryOnMuted },
-                  ]}
-                >
-                  Add exercises as you go
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={22}
-                color={colors.primaryOnMuted}
-              />
-            </View>
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={[styles.startEmptyBtnText, { color: colors.primary }]}>Empty workout</Text>
           </Pressable>
         </View>
 
@@ -703,19 +635,6 @@ export default function WorkoutsScreen() {
               <SuggestedWorkoutsGrid
                 items={suggestedWorkouts}
                 onPress={handleStartTemplate}
-                getRegions={templateArt}
-                gender={figureGender}
-              />
-            </View>
-          )}
-
-          {recentWorkouts.length > 0 && (
-            <View style={styles.homeSection}>
-              <SectionHeader title="Recent" />
-              <RecentWorkoutsRow
-                items={recentWorkouts}
-                onPress={handleStartTemplate}
-                formatRelative={formatRelative}
                 getRegions={templateArt}
                 gender={figureGender}
               />
@@ -1367,34 +1286,18 @@ export default function WorkoutsScreen() {
 }
 
 const styles = StyleSheet.create({
-  startEmptyCard: {
+  startEmptyBtn: {
     marginTop: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-  },
-  startEmptyCardInner: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 12,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
   },
-  startEmptyIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startEmptyTextWrap: { flex: 1 },
-  startEmptyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
-  startEmptyCardTitle: {
-    ...typography.bodyMedium,
-    fontFamily: typography.screenTitle.fontFamily,
-    fontSize: typography.sectionTitle.fontSize,
-  },
-  startEmptyCardSubtitle: { ...typography.caption, marginTop: 2 },
+  startEmptyBtnText: { ...typography.label, fontWeight: '600' },
   templatesSection: { marginTop: spacing.sm },
   programHeader: { justifyContent: 'space-between' },
   programToggle: { marginRight: 6 },

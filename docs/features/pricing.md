@@ -67,7 +67,7 @@ older builds may carry a `subscription` field; import ignores it.
 - `src/test/ui/workout/deepLinks.test.tsx` — a guest can start any built-in, custom, empty or ad-hoc
   workout by deep link; Add Exercise works on a built-in workout with no alert
 - `src/test/ui/templates/home.test.tsx` — custom templates show no lock, open the preview and
-  appear in Suggested / Recent; nothing on the Workouts tab mentions Pro or upgrading
+  appear in Suggested; nothing on the Workouts tab mentions Pro or upgrading
 - `src/test/ui/accounts/account.test.tsx` — Account has no Subscription row and no Pro copy
 - The former Pro screens (create template / exercise, PRs, progression, calendar) are tested
   without any tier setup in their own suites

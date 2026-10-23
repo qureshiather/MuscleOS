@@ -91,7 +91,7 @@ finished session is the way to fork one.
 
 **Removed from the list, never deleted.** Built-ins can't be deleted because their ids are
 referenced by past sessions and by the shipped constant. Removing or switching a program only
-changes which one Your workouts shows; every built-in id keeps resolving (Recent, History, the
+changes which one Your workouts shows; every built-in id keeps resolving (History, the
 preview). Built-ins can't be hidden one by one. A custom template's `hidden` flag is part of its
 record and syncs with it.
 
@@ -123,8 +123,8 @@ Renders top to bottom:
 **1. Header.** Title "Workouts" and a one-line status headline (see
 [Home headline](#home-headline)) — not a stats ticker.
 
-**2. Empty workout hero.** Starts a session with no exercises, adding them as you go (subtitle
-"Add exercises as you go"). Skips the preview screen and goes straight to `/active-workout` with
+**2. Empty workout button.** A compact **+ Empty workout** button under the headline starts a
+session with no exercises. It skips the preview screen and goes straight to `/active-workout` with
 `templateId: '_empty'`. If a session is already in progress, the "Workout in progress" dialog is
 shown instead ([workout-logging](workout-logging.md#starting)).
 
@@ -135,17 +135,12 @@ program's templates and your visible custom ones (`yourWorkoutTemplates()` in
 never suggests a hidden template or a program you aren't following. Each is a
 [muscle art card](#muscle-art-cards) with the name and exercise count.
 
-**4. Recent** (only when non-empty). Horizontal row of up to **6** templates you've completed,
-most recent first, deduplicated by template and **excluding anything already in Suggested** and
-hidden templates. Like Suggested, Recent only draws from [Your workouts](#your-workouts): days of a
-program you aren't following (or any program, with none chosen) are left out, as are sessions whose
-template was deleted, and empty workouts
-(`pickRecentTemplates()` in `src/utils/recentTemplates.ts`). Each is a [muscle art card](#muscle-art-cards) with the name and
-relative completion time.
+There is no Recent row: with a program chosen by default, Suggested and the program's own
+workouts already cover what to do next, and History lists what was done.
 
 ### Muscle art cards
 
-Suggested and Recent cards have no description or reason text. Behind the name, the template's
+Suggested cards have no description or reason text. Behind the name, the template's
 muscles are drawn as a **zoomed body figure** that bleeds off the card's right edge and fades into
 the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
 
@@ -216,7 +211,7 @@ in it, hidden ones included.
 ## Your workouts
 
 The Workouts tab lists one set of templates: **your custom templates plus at most one built-in
-program**. Everyone starts with **no program**. It's the same set Suggested picks from. The rules
+program**. A fresh install starts on **Strong Lifts 5x5** (`DEFAULT_PROGRAM_ID`), so the tab opens with a plan; removing it leaves no program. It's the same set Suggested picks from. The rules
 are `groupYourWorkouts()` / `yourWorkoutTemplates()` in `src/store/templatesLogic.ts`.
 
 Top to bottom, below the header:
@@ -242,18 +237,13 @@ folders default to expanded; Archived and Hidden default to collapsed (`defaultF
 
 ## Programs
 
-`/programs` lists **No program** and every built-in program. Whatever is chosen comes first, the
-programs follow in shipped order, and No program goes last while a program is chosen
-(`orderPrograms()`).
+`/programs` lists every built-in program: the chosen one first, then the rest in shipped order
+(`orderPrograms()`). There is no "No program" entry and no template or empty-workout shortcuts;
+a program is dropped with **Remove from your workouts** on its overview.
 
 - **Program cards:** name, a level chip (or **In your workouts** with a check on the chosen one),
   the summary, and `N days/wk · N workouts` (`programMeta()`). A card opens
   `/program?id=<folder id>`.
-- **No program:** tapping it clears the program and stays on Programs. While it's selected (the
-  default) it reads "Great. Make your own templates, or just start a workout and add exercises as
-  you go." with **Selected**, and offers **Build a template** (→ `/create-template`) and **Start
-  empty workout** (→ `/active-workout?templateId=_empty`). Unselected, it reads "Skip the plan.
-  Train from your own templates, or start empty and add exercises as you go."
 
 `/program` is the program's overview (`programOverview()` in `src/utils/programs.ts`). A **Back**
 link sits above a header with a **PROGRAM** eyebrow, the level tag (plus **In your workouts** with a
@@ -414,7 +404,7 @@ Copy, in priority order:
 | Templates are single-day | A program is a folder of days you can start in any order; no week/phase structure or "next day" |
 | No search or manual sort on the home template list | Ordering is folder structure + storage insertion order |
 | The chosen program syncs | `activeProgramId` is part of the `app_settings` snapshot; a custom template's `hidden` flag syncs with the record |
-| Suggested is capped at 2, Recent at 6 | Home is a launcher, not a browser |
+| Suggested is capped at 2 | Home is a launcher, not a browser |
 
 ## Tests
 
@@ -434,8 +424,6 @@ Covered:
 - `src/utils/recommendTemplates.test.ts` — the scoring arithmetic (ready × 100 + variety × 28,
   +3 novelty, +5 within 30 days, −20 within 2 days), the 50% cut-off boundary, unresolved templates
   skipped, name tie-break, the limit, and the −8-per-overlap diversification
-- `src/utils/recentTemplates.test.ts` — Recent: newest first, one per template, excludes
-  Suggested / hidden / deleted templates and empty workouts, capped at 6
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
@@ -466,9 +454,8 @@ Covered:
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
   (link plan, template fallback, template wins after Edit), `canEditFromPreview`
 - `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2 and only from
-  the chosen program, Recent newest first without Suggested picks and only from Your workouts (no
-  program days with none chosen), customs in Suggested / Recent;
-  no program by default (no built-in listed or suggested, Pick a program grid → `/program`, See
+  the chosen program, no Recent row, customs in Suggested;
+  with no program (no built-in listed or suggested, Pick a program grid → `/program`, See
   all → `/programs`, Build your own template), a quiet Browse programs link under My templates once you have templates, the
   program section (its templates, no menus, collapses and reopens, name → `/program`, Change → `/programs`); My templates ordering /
   default-closed Archived and Hidden, sections keep their rows (and border) across a light → dark
@@ -478,16 +465,17 @@ Covered:
   Suggested, unhide, rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
   `/templates` redirect
 - `src/utils/programs.test.ts` — the Add / Switch to / Remove button and hint for each
-  situation, an unknown chosen id treated as none, list order with No program first or last,
+  situation, an unknown chosen id treated as none, list order (the chosen program first),
   `N days/wk · N workouts`, and the overview (each workout's exercises, working sets and
   first-listed muscle, unknown exercises by id with no muscle, each workout's muscles collected
   once, sets per workout and per cycle) and `N exercises · N sets`
 - `src/test/ui/templates/programs.test.tsx` (Jest) — Programs order, levels and sizes, the chosen
-  program first and marked with No program last; No program selected by default with Build a
-  template / Start empty workout, choosing it clears the program and stays; card → `/program?id=`;
+  program first and marked, no No program entry or template / empty-workout shortcuts; card →
+  `/program?id=`;
   program detail level tag, In your workouts on the chosen one, fact chips, each workout's day number, size, description, exercises with muscle pills and `N×`, a workout → preview params, Add / Switch / Remove updating and persisting `activeProgramId` and returning to Workouts,
   Program not found
-- `src/storage/localStorage.settings.test.ts`, `src/sync/mergePolicy.test.ts` — the program setting
+- `src/storage/localStorage.settings.test.ts`, `src/sync/mergePolicy.test.ts` — the program setting (a
+  fresh install starts on Strong Lifts; a removed program is stored as `none` and stays removed)
   defaults to none, round-trips, rejects blank/unknown ids, survives an older build's payload, and a
   pending local choice (none included) wins the merge
 - `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, header + New routing to the exercise builder, Create

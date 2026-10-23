@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 describe('sections', () => {
-  it('renders the header, Suggested (max 2, from Your workouts), Recent (without Suggested picks), and Your workouts', async () => {
+  it('renders the header, Suggested (max 2, from Your workouts) and Your workouts, with no Recent row', async () => {
     await seed({
       activeProgramId: 'builtin_ul',
       sessions: [
@@ -99,40 +99,13 @@ describe('sections', () => {
     expect(suggested.length).toBeGreaterThan(0);
     expect(suggested.length).toBeLessThanOrEqual(2);
 
-    expect(screen.getByText('Recent')).toBeTruthy();
-    const recent = screen.queryAllByTestId(/^recent-card-/);
-    expect(recent.length).toBeGreaterThan(0);
-    expect(recent.length).toBeLessThanOrEqual(6);
-    const suggestedIds = suggested.map((n) => n.props.testID.replace('suggested-card-', ''));
-    // Only the chosen program's templates (there are no custom ones) can be suggested.
-    for (const id of suggestedIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b', 'ul-lower-b']).toContain(id);
-    const recentIds = recent.map((n) => n.props.testID.replace('recent-card-', ''));
-    for (const id of suggestedIds) expect(recentIds).not.toContain(id);
-    // Only the chosen program's days: PPL and StrongLifts sessions are left out. Newest first.
-    for (const id of recentIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b']).toContain(id);
-    expect(recentIds[0]).toBe(
-      ['ul-upper-b', 'ul-lower-a', 'ul-upper-a'].find((id) => !suggestedIds.includes(id))
-    );
+    expect(screen.queryByText('Recent')).toBeNull();
 
     expect(screen.getByText('Upper Lower Splits')).toBeTruthy();
     expect(screen.queryByTestId('pick-a-program')).toBeNull();
   });
 
-  it('with no program chosen, program days stay out of Recent', async () => {
-    await seed({ sessions: [completedSession('ppl-push', NOW - 7 * DAY)] });
-    renderHome();
-    await ready();
-    expect(screen.queryByTestId('recent-card-ppl-push')).toBeNull();
-    expect(screen.queryByText('Recent')).toBeNull();
-  });
-
-  it('hides Recent with no completed sessions', async () => {
-    renderHome();
-    await ready();
-    expect(screen.queryByText('Recent')).toBeNull();
-  });
-
-  it('starts with no program: no built-in is listed or suggested, and a Pick a program grid shows', async () => {
+  it('with no program: no built-in is listed or suggested, and a Pick a program grid shows', async () => {
     await seed({ sessions: [completedSession('ppl-push', NOW - 9 * DAY)] });
     renderHome();
     await ready();
@@ -396,8 +369,7 @@ describe('starting', () => {
   it('Empty workout skips the preview → /active-workout?templateId=_empty', async () => {
     renderHome();
     await ready();
-    expect(screen.getByText('Add exercises as you go')).toBeTruthy();
-    fireEvent.press(screen.getByText('Empty workout'));
+    fireEvent.press(screen.getByTestId('start-empty-workout'));
     expect(await screen.findByText('route:active-workout')).toBeTruthy();
     expect(searchParams()).toEqual({ templateId: '_empty', exerciseIds: '' });
   });
