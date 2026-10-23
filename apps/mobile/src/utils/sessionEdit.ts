@@ -46,6 +46,37 @@ export function removeDraftSet(draft: WorkoutSession, exIdx: number, setIdx: num
   return { ...draft, exercises };
 }
 
+/** Appends a set copying the last one's weight and reps, as logging does. */
+export function addDraftSet(draft: WorkoutSession, exIdx: number): WorkoutSession {
+  const ex = draft.exercises[exIdx];
+  if (!ex) return draft;
+  const last = ex.sets.at(-1);
+  const added: SetRecord = { completed: true, weightKg: last?.weightKg, reps: last?.reps };
+  const exercises = draft.exercises.map((e, i) => (i === exIdx ? { ...e, sets: [...e.sets, added] } : e));
+  return { ...draft, exercises };
+}
+
+/** Appends an exercise with one empty set. A no-op when it's already in the workout. */
+export function addDraftExercise(draft: WorkoutSession, exerciseId: string): WorkoutSession {
+  if (draft.exercises.some((e) => e.exerciseId === exerciseId)) return draft;
+  return { ...draft, exercises: [...draft.exercises, { exerciseId, sets: [{ completed: true }] }] };
+}
+
+/**
+ * Swaps the exercise at `exIdx`, keeping its sets: in an edit, a replace fixes which lift was
+ * logged, not what was lifted. A no-op when the new exercise is already in the workout.
+ */
+export function replaceDraftExercise(draft: WorkoutSession, exIdx: number, exerciseId: string): WorkoutSession {
+  if (!draft.exercises[exIdx] || draft.exercises.some((e) => e.exerciseId === exerciseId)) return draft;
+  const exercises = draft.exercises.map((e, i) => (i === exIdx ? { ...e, exerciseId } : e));
+  return { ...draft, exercises };
+}
+
+export function removeDraftExercise(draft: WorkoutSession, exIdx: number): WorkoutSession {
+  if (!draft.exercises[exIdx]) return draft;
+  return { ...draft, exercises: draft.exercises.filter((_, i) => i !== exIdx) };
+}
+
 export type DraftProblem = 'empty' | 'missing-reps';
 
 /** Why the draft can't be saved, or null. Weight is optional (bodyweight); reps are not. */

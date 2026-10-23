@@ -136,17 +136,27 @@ Nothing about sharing is stored or synced; the image is a temporary file handed 
 
 ### Editing a session
 
-A typo (an 800 kg squat) shouldn't cost the whole workout, so a finished session can be fixed. The
-card's pencil button (`Edit <name>`) opens **Edit workout** (`/edit-session?id=`), a plain form,
-separate from the workout screen: no clock, rest, sounds or done ticks.
+A typo (an 800 kg squat) or a mislogged lift shouldn't cost the whole workout, so a finished
+session can be fixed. The card's pencil button (`Edit <name>`) opens **Edit workout**
+(`/edit-session?id=`). It's laid out like the workout screen (one card per exercise, a set table,
+**+ ADD SET**, **Add Exercise**) but it is its own screen: no clock, rest timer, sounds or done
+ticks, since every set in it counts as done.
 
-It shows the session's name and date, then one card per exercise with its **completed** sets
-(`sessionEditDraft()` in `src/utils/sessionEdit.ts`; incomplete sets aren't shown, and an
-exercise with none is left out). Each row is the set label (`W1`, `1`, …), weight in the user's
-unit, reps, and a trash button. Tapping weight or reps opens the same
-[number pad](workout-logging.md#entering-values) as logging (the first digit replaces the value;
-Done just closes the pad). The trash button deletes the set straight away; deleting an
-exercise's last set removes the exercise. Nothing can be added — edit is for fixing what was logged.
+It starts from the session's **completed** sets (`sessionEditDraft()` in `src/utils/sessionEdit.ts`;
+incomplete sets aren't shown, and an exercise with none is left out). Under the session's name and
+date:
+
+| Control | Does |
+|---|---|
+| Weight / reps cell | Opens the same [number pad](workout-logging.md#entering-values) as logging (the first digit replaces the value; Done just closes the pad) |
+| ✕ on a set | Deletes it straight away; deleting an exercise's last set removes the exercise |
+| **+ ADD SET** | Appends a set copying the last one's weight and reps (`addDraftSet()`) |
+| Swap icon | **Replace exercise** picker. The sets are kept, since a replace here fixes which lift was logged (`replaceDraftExercise()`) |
+| Trash icon | **Remove exercise** — confirm *"Remove <name> and its sets from this workout?"* (**Cancel** / **Remove**) |
+| **Add Exercise** | Picker; the exercise joins with one empty set (`addDraftExercise()`) |
+
+Both pickers leave out exercises already in the workout and offer no create
+([exercise pickers](exercise-library.md#exercise-pickers)).
 
 **Save** is enabled once something changed (`draftChanged()`) and the draft is valid
 (`draftProblem()`), otherwise a hint explains why:
@@ -422,8 +432,10 @@ Vitest (`apps/mobile/src/…`):
 - `store/sessionsStore.test.ts` — `saveSessionEdit` saves in place, rebuilds previous, notifies
   sync; a deleted original saves nothing
 - `utils/sessionEdit.test.ts` — draft keeps completed sets only, set update without suggestion
-  flags, delete (and the exercise with its last set), problems (no sets, missing reps; no weight
-  is fine), `applySessionEdit` in place with original times and `editedAt`
+  flags, delete (and the exercise with its last set), add set copying the last, add exercise with
+  an empty set (never a duplicate), replace keeping sets (never into a duplicate), remove
+  exercise, problems (no sets, missing reps; no weight is fine), `applySessionEdit` in place with
+  original times and `editedAt`
 - `utils/sessionClock.test.ts` — `editedAt`, then `completedAt`, then `startedAt`
 
 Jest UI (`apps/mobile/src/test/ui/history/`):
@@ -435,10 +447,11 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   linked sync first), pounds; the Progress strip (2-session lifts only, e1RM label, card →
   progression, See all → Personal Records, hidden with no repeated lift), a session card's lift
   row → progression, and a session card's share image (best set, PR badge, volume)
-- `editSession.test.tsx` — Edit opens a form of the completed sets (no done ticks, Save
-  disabled until a change); fixing a weight saves in place and returns to History with the new
-  volume; deleting sets and the empty-workout hint; missing reps blocks Save; Cancel asks only
-  with changes and leaves the session as it was
+- `editSession.test.tsx` — Edit opens the completed sets (no done ticks, Save disabled until a
+  change); fixing a weight saves in place and returns to History with the new volume; deleting
+  sets and the empty-workout hint; missing reps blocks Save; + ADD SET; replace keeps the sets and
+  the picker has no + New; remove exercise confirms; an added exercise needs reps; Cancel asks
+  only with changes and leaves the session as it was
 - `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the

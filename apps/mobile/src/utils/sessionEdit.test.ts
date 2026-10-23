@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSession } from '@muscleos/types';
 import {
+  addDraftExercise,
+  addDraftSet,
   applySessionEdit,
+  removeDraftExercise,
+  replaceDraftExercise,
   draftChanged,
   draftProblem,
   removeDraftSet,
@@ -56,6 +60,35 @@ describe('updateDraftSet / removeDraftSet', () => {
     const draft = sessionEditDraft(original);
     expect(updateDraftSet(draft, 5, 0, { reps: 1 })).toBe(draft);
     expect(removeDraftSet(draft, 0, 9)).toBe(draft);
+  });
+});
+
+describe('exercises and added sets', () => {
+  it('adds a completed set copying the last one', () => {
+    const draft = addDraftSet(sessionEditDraft(original), 1);
+    expect(draft.exercises[1].sets).toEqual([
+      { completed: true, reps: 8, weightKg: 80 },
+      { completed: true, reps: 8, weightKg: 80 },
+    ]);
+  });
+
+  it('adds an exercise with one empty set, never a duplicate', () => {
+    const draft = addDraftExercise(sessionEditDraft(original), 'deadlift');
+    expect(draft.exercises.at(-1)).toEqual({ exerciseId: 'deadlift', sets: [{ completed: true }] });
+    expect(draftProblem(draft)).toBe('missing-reps');
+    expect(addDraftExercise(draft, 'squat')).toBe(draft);
+  });
+
+  it('replaces an exercise keeping its sets, never into a duplicate', () => {
+    const draft = sessionEditDraft(original);
+    const replaced = replaceDraftExercise(draft, 0, 'front-squat');
+    expect(replaced.exercises[0]).toEqual({ ...draft.exercises[0], exerciseId: 'front-squat' });
+    expect(replaceDraftExercise(draft, 0, 'romanian-deadlift')).toBe(draft);
+  });
+
+  it('removes an exercise', () => {
+    const draft = removeDraftExercise(sessionEditDraft(original), 0);
+    expect(draft.exercises.map((e) => e.exerciseId)).toEqual(['romanian-deadlift']);
   });
 });
 

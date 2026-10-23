@@ -7,6 +7,7 @@ import { Screen } from '@/components/layout';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NumericKeypad } from '@/components/NumericKeypad';
+import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing, touch } from '@/theme/tokens';
@@ -25,6 +26,10 @@ import {
 } from '@/utils/keypadInput';
 import {
   DRAFT_PROBLEM_COPY,
+  addDraftExercise,
+  addDraftSet,
+  removeDraftExercise,
+  replaceDraftExercise,
   draftChanged,
   draftProblem,
   removeDraftSet,
@@ -39,8 +44,8 @@ function formatEditDate(iso: string): string {
 }
 
 /**
- * Fix a finished workout from History: change a set's weight or reps, or delete it. A plain form,
- * not the workout screen — no clock, rest, sounds or done ticks
+ * Fix a finished workout from History: weights, reps, sets and exercises, laid out like the
+ * workout screen but with no clock, rest, sounds or done ticks
  * (docs/features/history-analytics.md#editing-a-session).
  */
 export default function EditSessionScreen() {
@@ -79,6 +84,9 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [picker, setPicker] = useState<{ mode: 'add' } | { mode: 'replace'; exIdx: number } | null>(null);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [removeExIdx, setRemoveExIdx] = useState<number | null>(null);
 
   const title = useMemo(() => templateDisplayName(allTemplates(), original, sessions), [allTemplates, original, sessions]);
   const changed = draftChanged(original, draft);
@@ -96,8 +104,9 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
   function pressKey(key: KeypadKey) {
     if (!focused || !focusedSet) return;
     const outcome = applyKeypadKey(focusedSet, focused.field, key, weightUnit, focused.replace);
-    if (outcome.patch) {
-      setDraft((d) => updateDraftSet(d, focused.exIdx, focused.setIdx, outcome.patch!));
+    const { patch } = outcome;
+    if (patch) {
+      setDraft((d) => updateDraftSet(d, focused.exIdx, focused.setIdx, patch));
       if (focused.replace) setFocused({ ...focused, replace: false });
     }
     if (outcome.focus === null) setFocused(null);
@@ -107,6 +116,22 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
   function deleteSet(exIdx: number, setIdx: number) {
     setFocused(null);
     setDraft((d) => removeDraftSet(d, exIdx, setIdx));
+  }
+
+  function openPicker(next: { mode: 'add' } | { mode: 'replace'; exIdx: number }) {
+    setFocused(null);
+    setPicker(next);
+  }
+
+  function closePicker() {
+    setPicker(null);
+    setPickerSearch('');
+  }
+
+  function pickExercise(exerciseId: string) {
+    if (picker?.mode === 'replace') setDraft((d) => replaceDraftExercise(d, picker.exIdx, exerciseId));
+    else setDraft((d) => addDraftExercise(d, exerciseId));
+    closePicker();
   }
 
   function handleCancel() {
@@ -168,9 +193,34 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
 
         {draft.exercises.map((ex, exIdx) => (
           <Card key={`${ex.exerciseId}-${exIdx}`} style={styles.card}>
-            <Text style={[typography.bodyMedium, styles.exerciseName, { color: colors.text }]} numberOfLines={1}>
-              {exerciseName(ex.exerciseId)}
-            </Text>
+            <View style={styles.cardHeader}>
+              <Text style={[typography.sectionTitle, styles.exerciseName, { color: colors.primary }]} numberOfLines={1}>
+                {exerciseName(ex.exerciseId)}
+              </Text>
+              <Pressable
+                testID={`edit-replace-${exIdx}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Replace ${exerciseName(ex.exerciseId)}`}
+                onPress={() => openPicker({ mode: 'replace', exIdx })}
+                hitSlop={touch.hitSlop}
+                style={styles.iconBtn}
+              >
+                <Ionicons name="swap-horizontal" size={20} color={colors.textSecondary} />
+              </Pressable>
+              <Pressable
+                testID={`edit-remove-exercise-${exIdx}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${exerciseName(ex.exerciseId)}`}
+                onPress={() => {
+                  setFocused(null);
+                  setRemoveExIdx(exIdx);
+                }}
+                hitSlop={touch.hitSlop}
+                style={styles.iconBtn}
+              >
+                <Ionicons name="trash-outline" size={20} color={colors.danger} />
+              </Pressable>
+            </View>
             <View style={styles.row}>
               <Text style={[styles.colSet, styles.colHead, { color: colors.textMuted }]}>SET</Text>
               <Text style={[styles.colValue, styles.colHead, { color: colors.textMuted }]}>{unitLabel}</Text>
@@ -218,13 +268,37 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
                     hitSlop={touch.hitSlop}
                     style={styles.colDelete}
                   >
-                    <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+                    <Ionicons name="close" size={20} color={colors.textMuted} />
                   </Pressable>
                 </View>
               );
             })}
+            <Pressable
+              testID={`edit-add-set-${exIdx}`}
+              accessibilityRole="button"
+              onPress={() => {
+                setFocused(null);
+                setDraft((d) => addDraftSet(d, exIdx));
+              }}
+              style={({ pressed }) => [styles.addSet, { borderTopColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={[styles.addSetText, { color: colors.primary }]}>+ ADD SET</Text>
+            </Pressable>
           </Card>
         ))}
+
+        <Pressable
+          testID="edit-add-exercise"
+          accessibilityRole="button"
+          onPress={() => openPicker({ mode: 'add' })}
+          style={({ pressed }) => [
+            styles.addExercise,
+            { backgroundColor: colors.primarySurface, borderColor: colors.primaryBorder, opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+          <Text style={[styles.addExerciseText, { color: colors.primary }]}>Add Exercise</Text>
+        </Pressable>
       </ScrollView>
 
       {focused && focusedSet ? (
@@ -244,6 +318,38 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
           onHeight={setKeypadHeight}
         />
       ) : null}
+
+      {picker ? (
+        <ExercisePickerSheet
+          mode={picker.mode}
+          hint={
+            picker.mode === 'replace'
+              ? `Swapping ${exerciseName(draft.exercises[picker.exIdx]?.exerciseId ?? '')}. Its sets are kept.`
+              : undefined
+          }
+          excludeIds={draft.exercises.map((e) => e.exerciseId)}
+          search={pickerSearch}
+          onSearchChange={setPickerSearch}
+          onPick={pickExercise}
+          onClose={closePicker}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        visible={removeExIdx != null}
+        title="Remove exercise"
+        message={`Remove ${removeExIdx != null ? exerciseName(draft.exercises[removeExIdx]?.exerciseId ?? '') : ''} and its sets from this workout?`}
+        cancelLabel="Cancel"
+        confirmLabel="Remove"
+        destructive
+        onCancel={() => setRemoveExIdx(null)}
+        onConfirm={() => {
+          if (removeExIdx != null) setDraft((d) => removeDraftExercise(d, removeExIdx));
+          setRemoveExIdx(null);
+        }}
+        cancelTestID="edit-remove-exercise-cancel"
+        confirmTestID="edit-remove-exercise-confirm"
+      />
 
       <ConfirmDialog
         visible={confirmDiscard}
@@ -289,8 +395,22 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
   date: { marginTop: -spacing.sm },
   problem: {},
-  card: { gap: spacing.sm },
-  exerciseName: { marginBottom: spacing.xs },
+  card: { gap: spacing.sm, paddingBottom: 0 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs },
+  exerciseName: { flex: 1 },
+  iconBtn: { minHeight: touch.min, minWidth: 32, alignItems: 'center', justifyContent: 'center' },
+  addSet: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.xs },
+  addSetText: { ...typography.label, fontWeight: '600', letterSpacing: 0.5 },
+  addExercise: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  addExerciseText: { fontSize: 15, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   colHead: { ...typography.caption, letterSpacing: 0.5 },
   colSet: { width: 36, textAlign: 'center' },

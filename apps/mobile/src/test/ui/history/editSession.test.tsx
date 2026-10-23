@@ -50,7 +50,7 @@ beforeEach(async () => {
 
 afterEach(restoreNow);
 
-test('opens a form of the completed sets: values and delete, no done ticks', async () => {
+test('opens the completed sets like the workout screen, with no done ticks', async () => {
   const r = await openEditor();
   expect(r.getPathname()).toBe('/edit-session');
   expect(screen.getByText('Legs')).toBeTruthy();
@@ -116,4 +116,42 @@ test('Cancel with no changes just goes back', async () => {
   press('edit-session-cancel');
   await waitFor(() => expect(r.getPathname()).toBe('/history'));
   expect(screen.queryByText('Discard changes?')).toBeNull();
+});
+
+test('+ ADD SET copies the last set; saving keeps it', async () => {
+  await openEditor();
+  press('edit-add-set-0');
+  expect(screen.getByTestId('edit-set-0-2')).toBeTruthy();
+  press('edit-session-save');
+  await waitFor(async () => expect((await getSessions())[0].exercises[0].sets).toHaveLength(3));
+  expect((await getSessions())[0].exercises[0].sets[2]).toEqual({ completed: true, reps: 5, weightKg: 100 });
+});
+
+test('replace swaps the exercise and keeps its sets', async () => {
+  await openEditor();
+  press('edit-replace-0');
+  expect(await screen.findByText('Replace exercise')).toBeTruthy();
+  expect(screen.queryByTestId('picker-new-exercise')).toBeNull();
+  fireEvent.changeText(screen.getByTestId('picker-search'), 'front squat');
+  press('picker-row-front-squat');
+  press('edit-session-save');
+  await waitFor(async () => expect((await getSessions())[0].exercises[0].exerciseId).toBe('front-squat'));
+  expect((await getSessions())[0].exercises[0].sets.map((s) => s.weightKg)).toEqual([800, 100]);
+});
+
+test('remove exercise asks first; add exercise needs reps before Save', async () => {
+  await openEditor();
+  press('edit-add-exercise');
+  fireEvent.changeText(await screen.findByTestId('picker-search'), 'deadlift');
+  press('picker-row-deadlift');
+  expect(screen.getByText('Every set needs reps.')).toBeTruthy();
+  press('edit-reps-1-0');
+  press('keypad-key-5');
+  press('edit-remove-exercise-0');
+  expect(await screen.findByText('Remove exercise')).toBeTruthy();
+  press('edit-remove-exercise-confirm');
+  press('edit-session-save');
+  await waitFor(async () =>
+    expect((await getSessions())[0].exercises).toEqual([{ exerciseId: 'deadlift', sets: [{ completed: true, reps: 5 }] }])
+  );
 });
