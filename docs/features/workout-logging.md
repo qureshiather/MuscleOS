@@ -325,8 +325,12 @@ the OS fires — the alert is **kept**: cancelling then would withdraw the alert
 drop it before it fires. Returning to the app clears it.
 
 **Exact alarms (Android 13+).** On the first rest timer of a launch, if exact alarms aren't
-permitted, the app prompts once ("Let rest alerts fire on time"), explaining that alerts may
-otherwise be up to a minute late. The prompt-shown flag persists in
+permitted, the app explains why before any system screen, once ever, in the themed
+`ConfirmDialog` (`ExactAlarmPrompt`, rules in `src/utils/exactAlarmPermission.ts`): **Rest timer
+alerts** — *"MuscleOS uses Android's "Alarms & reminders" permission only for your rest timer, so
+it can alert you the moment your rest ends, even with the screen off. Without it the alert can
+arrive up to a minute late."* **Not now** closes it; **Open settings** opens Android's Alarms &
+reminders screen for the app. The prompt-shown flag persists in
 `muscleos_exact_alarm_prompt_shown`. Without permission an inexact alarm is used.
 
 Notifications are skipped entirely in Expo Go, which can't load the native modules.
@@ -468,6 +472,9 @@ the real router.
   `parseStartParams` / `encodeStartParams` (including the `rest` / `warmUpRest` lists round-trip),
   `createEmptySession` copying template rests, `normalizeHydratedState` (expired rest dropped after
   recording its duration; legacy `lastActivityAt`), and `resolveStaleWorkout`
+- `src/utils/exactAlarmPermission.test.ts` — the Alarms & reminders explanation shows in the
+  themed dialog before any system screen, only Open settings opens it, once per launch and once
+  ever, never when allowed or without the native module
 - `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping and the stale close after
   hydration and on foreground (overlapping closes save once); one workout at a time; 1-set
   minimum; finish saving the whole session; a completed set resting for the user's Default rest
