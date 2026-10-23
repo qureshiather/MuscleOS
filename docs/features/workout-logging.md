@@ -441,7 +441,7 @@ them, so there is no cached value to invalidate. See
 | Rest runs after the last set of an exercise too | Simpler than special-casing; skip it if unwanted |
 | Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Completed warm-ups still count toward every derived metric ([overview](../product/overview.md#cross-cutting-assumptions)) |
 | "Previous" is one snapshot per exercise | Best weighted set within the most recent qualifying session, not an all-time best or set-by-set history |
-| Incomplete sets are stored, not discarded | They're excluded from every derived metric instead |
+| Incomplete sets are stored, not discarded | They're excluded from every derived metric instead. Saving an [edit from History](history-analytics.md#editing-a-session) keeps only the completed sets it showed |
 | Exercise notes are per exercise, not per session | Intended for setup cues (seat height, pin position) |
 
 ## Tests

@@ -228,7 +228,7 @@ round-tripping through the synced copy.
 | Body weight unit | `kg` / `lb` | `lb` | Display only |
 | Exercise weight unit | `kg` / `lb` | `lb` | Display only — set logging, PRs, volume |
 | Workout sounds | on / off | **on** | Rest tick, rest end, set complete, workout complete, and the rest notification sound |
-| Program in Your workouts | a built-in program id, or none | **none** | Chosen on the Programs screen, not in Settings ([templates](templates.md#programs)) |
+| Program in Your workouts | a built-in program id, or none | **Strong Lifts 5x5** on a fresh install | Chosen on the Programs screen, not in Settings ([templates](templates.md#programs)) |
 
 The two unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
 **Pounds is the default**, since most lifters train in lb; kilograms is one switch away. It only

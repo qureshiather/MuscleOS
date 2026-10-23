@@ -12,7 +12,8 @@ target weights or reps — they prescribe structure, not load.
 | Preview | `apps/mobile/app/workout-preview.tsx` |
 | Store | `apps/mobile/src/store/templatesStore.ts`, `src/store/templatesLogic.ts`, `src/utils/templateExercises.ts`; the chosen program is `activeProgramId` in `src/store/settingsStore.ts` |
 | Built-in content | `apps/mobile/src/data/builtInTemplates.ts` (templates, folders, `BUILT_IN_PROGRAMS`) |
-| Suggestions | `apps/mobile/src/utils/recommendTemplates.ts` |
+| Suggestions | `apps/mobile/src/utils/recommendTemplates.ts`, `src/utils/workoutsHome.ts` |
+| Template cards | `apps/mobile/src/components/workouts/TemplateCard.tsx`, `src/utils/templateCard.ts` |
 | Home headline | `apps/mobile/src/utils/homeStats.ts` |
 
 `/templates` is a legacy route that redirects to the Workouts tab.
@@ -414,7 +415,7 @@ Copy, in priority order:
 | A template is an ordered exercise list **plus set structure and rests** | Working sets default to 3, warm-ups to 0, rests to the app defaults; no target weight, reps, or supersets |
 | Default **3 working sets** per exercise (`DEFAULT_SETS_PER_EXERCISE`) | Overridden per exercise; Strong Lifts ships `sets: 5` on each slot, PHUL 3–4 |
 | Built-in templates are **immutable**; never deleted or hidden | Keeps ids stable for historical sessions; a program leaves Your workouts as a whole |
-| At most **one** program in Your workouts, **none** by default | Programs are opt-in; custom templates are always there |
+| At most **one** program in Your workouts, **Strong Lifts 5x5** on a fresh install | A new user opens to a plan; No program is one tap away on Programs, and custom templates are always there |
 | Every template is free to create and run | No tiers; see [pricing.md](pricing.md) |
 | Templates are single-day | A program is a folder of days you can start in any order; no week/phase structure or "next day" |
 | No search or manual sort on the home template list | Ordering is folder structure + storage insertion order |
@@ -450,7 +451,7 @@ Covered:
   their `folderId`; `folderDeletePlan` counts and deletes hidden templates, with the 0 / 1 / N
   prompt copy; `templateMenuActions` items and order, Unhide for hidden customs, no menu on
   program templates; `groupYourWorkouts` ordering (uncategorized → pinned → normal → archived →
-  hidden), all-hidden folders left out, empty folders kept, no program by default, the chosen
+  hidden), all-hidden folders left out, empty folders kept, no built-in with no program, the chosen
   program's templates in order, unknown ids ignored; `yourWorkoutTemplates` adds only the chosen
   program
 - `src/store/templatesStore.test.ts` — on the AsyncStorage harness: load, legacy `defaultSets` and

@@ -22,6 +22,7 @@ its effect everywhere, and why there is no cache to invalidate.
 | History card | `apps/mobile/src/components/history/SessionCard.tsx` |
 | Progress strip | `apps/mobile/src/components/history/ProgressStrip.tsx` |
 | Share image: model, card, preview | `apps/mobile/src/utils/shareCard.ts`, `src/components/share/WorkoutShareCard.tsx`, `src/components/share/ShareWorkoutSheet.tsx` |
+| Edit workout | `apps/mobile/app/edit-session.tsx`, `src/utils/sessionEdit.ts` |
 | Store | `apps/mobile/src/store/sessionsStore.ts` |
 
 ## History list
@@ -374,7 +375,7 @@ Completed sets only, warm-ups included
 | < 4 weeks | `1 week ago` / `N weeks ago` |
 | Older | Locale date string |
 
-Used for template "last done", the Recent row, and sync status. `formatRecoveryReady()` lives in
+Used for template "last done" and sync status. `formatRecoveryReady()` lives in
 the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 
 ## Assumptions
