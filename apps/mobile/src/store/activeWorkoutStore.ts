@@ -22,7 +22,6 @@ import {
 import {
   DEFAULT_REST_SECONDS,
   adjustRunningRest,
-  applySessionEdit,
   buildAddedSet,
   canCompleteSet,
   storedRestSeconds,
@@ -35,7 +34,6 @@ import {
   createPrefillingSets,
   dropRestKeysForExercise,
   dropRestKeysForRemovedSet,
-  isEditingFinishedSession,
   normalizeHydratedState,
   oldToNewForRemove,
   prefillSession,
@@ -46,7 +44,6 @@ import {
   oldToNewForReorder,
   remapRestAfter,
   remapRestDurations,
-  rebuildPreviousSnapshot,
   resolveStaleWorkout,
   type PreviousSnapshot,
   type RestAfter,
@@ -113,16 +110,6 @@ export interface ActiveWorkoutState {
    * `templateId` attributes the session to a template just saved from it ("Save as template").
    */
   finishWorkout: (completedAt?: string, templateId?: string) => Promise<void>;
-  /**
-   * Reopens a finished session from History in the workout screen. Returns false (and changes
-   * nothing) before hydration, while another workout or edit is open, or for an unknown id.
-   */
-  editSession: (sessionId: string) => boolean;
-  /**
-   * Saves the session being edited over its original (see `applySessionEdit`), then rebuilds
-   * "previous" and recovery and queues sync. Returns false when there's nothing it can save.
-   */
-  saveSessionEdit: () => Promise<boolean>;
   discardWorkout: () => void;
   // Rest timer actions (in store so timer survives addSet/session updates)
   startRest: (exIdx: number, setIdx: number, totalSeconds?: number) => void;
@@ -239,8 +226,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     }
     if (!canCompleteSet(target)) return null;
     get().completeSet(exerciseIndex, setIndex);
-    // Fixing a finished workout isn't lifting, so no rest starts.
-    const restSeconds = session && isEditingFinishedSession(session) ? null : restDurationAfterComplete(target, ex);
+    const restSeconds = restDurationAfterComplete(target, ex);
     if (restSeconds != null) get().startRest(exerciseIndex, setIndex, restSeconds);
     return 'completed';
   },
@@ -392,10 +378,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   finishWorkout: async (completedAt = new Date().toISOString(), templateId) => {
     const { session } = get();
     if (!session) return;
-    if (isEditingFinishedSession(session)) {
-      await get().saveSessionEdit();
-      return;
-    }
     const completed = completeSession(session, completedAt, templateId);
     const sessions = await getSessions();
     const allSessions = [...sessions, completed];
@@ -427,48 +409,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     notifySessionUpsert(completed);
     notifyExercisePreviousSnapshot(prev);
     void syncAfterWorkout();
-  },
-
-  editSession: (sessionId) => {
-    const { hydrated, session } = get();
-    if (!hydrated || session) return false;
-    const original = useSessionsStore.getState().sessions.find((s) => s.id === sessionId);
-    if (!original || !isEditingFinishedSession(original)) return false;
-    set({
-      session: original,
-      restEndTime: null,
-      restAfter: null,
-      restDurationsBetweenSets: {},
-      lastActivityAt: Date.now(),
-    });
-    return true;
-  },
-
-  saveSessionEdit: async () => {
-    const { session } = get();
-    if (!session || !isEditingFinishedSession(session)) return false;
-    const result = applySessionEdit(await getSessions(), session, new Date().toISOString());
-    if (!result) return false;
-    await setSessions(result.sessions);
-
-    const prev = rebuildPreviousSnapshot(result.sessions);
-    await setExercisePrevious(prev);
-
-    const merged = recoveryFromSessions(result.sessions, (id) =>
-      useExercisesStore.getState().getExercise(id)
-    );
-    await setRecovery(merged);
-
-    get().discardWorkout();
-    await Promise.all([
-      useSessionsStore.getState().load(),
-      useRecoveryStore.getState().load(),
-    ]);
-
-    notifySessionUpsert(result.saved);
-    notifyExercisePreviousSnapshot(prev);
-    void syncAfterWorkout();
-    return true;
   },
 
   discardWorkout: () =>

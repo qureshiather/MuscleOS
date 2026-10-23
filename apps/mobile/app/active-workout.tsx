@@ -76,7 +76,6 @@ import {
 import { headerRestState, previousLabel, setRowView } from '@/utils/workoutSetView';
 import {
   canCompleteSet,
-  isEditingFinishedSession,
   restSecondsLeft as computeRestSecondsLeft,
   shouldPlayRestTick,
 } from '@/store/activeWorkoutLogic';
@@ -86,11 +85,6 @@ import {
   templateExercisesFromSession,
 } from '@/utils/templateExercises';
 import { formatClock, formatClockMs } from '@/utils/formatClock';
-
-/** Header of an edit to a finished workout: the day it was done, e.g. `Tue, Oct 20`. */
-function editingDateLabel(completedAt: string): string {
-  return new Date(completedAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
 
 /** Compact but still tappable during a workout. */
 const SET_ROW_MIN_HEIGHT = 50;
@@ -550,7 +544,6 @@ export default function ActiveWorkoutScreen() {
   const removeExercise = useActiveWorkoutStore((s) => s.removeExercise);
   const reorderExercises = useActiveWorkoutStore((s) => s.reorderExercises);
   const finishWorkout = useActiveWorkoutStore((s) => s.finishWorkout);
-  const saveSessionEdit = useActiveWorkoutStore((s) => s.saveSessionEdit);
   const restEndTime = useActiveWorkoutStore((s) => s.restEndTime);
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
   const restAfter = useActiveWorkoutStore((s) => s.restAfter);
@@ -658,8 +651,6 @@ export default function ActiveWorkoutScreen() {
   const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  /** Saving an edit found its original gone (deleted on another device meanwhile). */
-  const [editSaveFailed, setEditSaveFailed] = useState(false);
   const [removeSetTarget, setRemoveSetTarget] = useState<{ exIdx: number; setIdx: number } | null>(
     null
   );
@@ -912,23 +903,6 @@ export default function ActiveWorkoutScreen() {
     await finishWorkout(completedAt, savedTemplateId);
   }
 
-  /** Edit mode's Save: write the fixed session back over the original and return to History. */
-  async function handleSaveEdit() {
-    setFocusedCell(null);
-    leavingWorkoutRef.current = true;
-    if (await saveSessionEdit()) {
-      minimizeWorkout();
-      return;
-    }
-    leavingWorkoutRef.current = false;
-    setEditSaveFailed(true);
-  }
-
-  function handleEditSaveFailed() {
-    setEditSaveFailed(false);
-    handleCancel();
-  }
-
   function leaveFinishedWorkout() {
     useActiveWorkoutStore.getState().discardWorkout();
     router.replace('/(tabs)');
@@ -996,11 +970,8 @@ export default function ActiveWorkoutScreen() {
   function handleCancel() {
     setShowCancelConfirm(false);
     leavingWorkoutRef.current = true;
-    const wasEditing = session != null && isEditingFinishedSession(session);
     useActiveWorkoutStore.getState().discardWorkout();
-    // Discarding an edit goes back to History, where it was opened.
-    if (wasEditing) minimizeWorkout();
-    else router.replace('/(tabs)');
+    router.replace('/(tabs)');
   }
 
   if (finishedSummary) {
@@ -1142,8 +1113,6 @@ export default function ActiveWorkoutScreen() {
     );
   }
 
-  // A finished session reopened from History: no clock, no rest, and Save instead of Finish.
-  const editing = isEditingFinishedSession(session);
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
   const isNoTemplateWorkout = session.templateId === '_empty';
   const templateListChanged =
@@ -1226,7 +1195,7 @@ export default function ActiveWorkoutScreen() {
           <Pressable onPress={minimizeWorkout} hitSlop={12} accessibilityLabel="Minimize workout" testID="minimize-workout">
             <Ionicons name="chevron-down" size={28} color={colors.textSecondary} />
           </Pressable>
-          {editing ? null : headerRest === 'set' ? (
+          {headerRest === 'set' ? (
             // The countdown is on the set's rest row; the header only flags it and opens the same rest.
             <Pressable
               onPress={openTopBarRestDialog}
@@ -1280,15 +1249,9 @@ export default function ActiveWorkoutScreen() {
           )}
         </View>
         <View style={styles.headerCenter} pointerEvents="none">
-          {editing ? (
-            <Text style={[styles.elapsed, { color: colors.text }]} testID="workout-edit-date">
-              {editingDateLabel(session.completedAt!)}
-            </Text>
-          ) : (
-            <Text style={[styles.elapsed, { color: colors.text }]} testID="workout-elapsed">
-              {formatClockMs(elapsedMs)}
-            </Text>
-          )}
+          <Text style={[styles.elapsed, { color: colors.text }]} testID="workout-elapsed">
+            {formatClockMs(elapsedMs)}
+          </Text>
         </View>
         <View style={styles.headerRight}>
           {reorderMode ? (
@@ -1301,11 +1264,11 @@ export default function ActiveWorkoutScreen() {
             </Pressable>
           ) : (
             <Pressable
-              onPress={editing ? () => void handleSaveEdit() : () => setShowFinishSummary(true)}
+              onPress={() => setShowFinishSummary(true)}
               disabled={!hasAtLeastOneSet}
-              testID={editing ? 'save-workout-edit' : 'finish-workout'}
+              testID="finish-workout"
               accessibilityRole="button"
-              accessibilityLabel={editing ? 'Save changes' : 'Finish'}
+              accessibilityLabel="Finish"
               accessibilityState={{ disabled: !hasAtLeastOneSet }}
               style={[
                 styles.finishHeaderBtn,
@@ -1319,7 +1282,7 @@ export default function ActiveWorkoutScreen() {
                   { color: hasAtLeastOneSet ? colors.primaryOn : colors.textMuted },
                 ]}
               >
-                {editing ? 'Save' : 'Finish'}
+                Finish
               </Text>
             </Pressable>
           )}
@@ -1384,13 +1347,11 @@ export default function ActiveWorkoutScreen() {
               style={styles.cancelWorkoutBtn}
               testID="cancel-workout-footer"
               accessibilityRole="button"
-              accessibilityLabel={editing ? 'Discard changes' : 'Cancel workout'}
-              accessibilityHint={editing ? 'Leaves the workout as it was' : 'Discards this workout without saving'}
+              accessibilityLabel="Cancel workout"
+              accessibilityHint="Discards this workout without saving"
               onPress={() => setShowCancelConfirm(true)}
             >
-              <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>
-                {editing ? 'Discard changes' : 'Cancel workout'}
-              </Text>
+              <Text style={[styles.cancelWorkoutText, { color: colors.textMuted }]}>Cancel workout</Text>
             </Pressable>
           </View>
           )
@@ -1599,7 +1560,7 @@ export default function ActiveWorkoutScreen() {
                 const canDeleteSet = se.sets.length > 1;
                 // removeSet also clears a countdown running for this set.
                 const deleteThisSet = () => removeSet(exIdx, setIdx);
-                const showRestAfter = row.showRestAfter && !editing;
+                const showRestAfter = row.showRestAfter;
                 const restJoinsCompletedSets = row.restJoinsCompleted;
 
                 const setRow = (
@@ -1790,7 +1751,7 @@ export default function ActiveWorkoutScreen() {
                 testID={`add-set-${exIdx}`}
               >
                 <Text style={[styles.addSetBtnText, { color: colors.primary }]}>
-                  {editing ? '+ ADD SET' : `+ ADD SET (${formatClock(restPresetSec)})`}
+                  + ADD SET ({formatClock(restPresetSec)})
                 </Text>
               </Pressable>
               </View>
@@ -1824,24 +1785,16 @@ export default function ActiveWorkoutScreen() {
 
       <ConfirmDialog
         visible={showCancelConfirm}
-        title={editing ? 'Discard changes?' : 'Cancel workout?'}
-        meta={editing ? undefined : cancelWorkoutMeta}
-        message={editing ? 'The workout stays as it was in History.' : 'This workout will not be saved.'}
-        cancelLabel={editing ? 'Keep editing' : 'Keep workout'}
-        confirmLabel={editing ? 'Discard changes' : 'Discard workout'}
+        title="Cancel workout?"
+        meta={cancelWorkoutMeta}
+        message="This workout will not be saved."
+        cancelLabel="Keep workout"
+        confirmLabel="Discard workout"
         destructive
         onCancel={() => setShowCancelConfirm(false)}
         onConfirm={handleCancel}
         cancelTestID="cancel-workout-keep"
         confirmTestID="cancel-workout-discard"
-      />
-
-      <ConfirmDialog
-        visible={editSaveFailed}
-        title="Workout not found"
-        message="This workout was deleted from History, so your changes can't be saved."
-        confirmLabel="OK"
-        onConfirm={handleEditSaveFailed}
       />
 
       <ConfirmDialog

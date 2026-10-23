@@ -9,6 +9,7 @@ import type { WorkoutSession } from '@muscleos/types';
 
 vi.mock('@/sync', () => ({
   notifySessionDelete: vi.fn(),
+  notifySessionUpsert: vi.fn(),
   notifyExercisePreviousSnapshot: vi.fn(),
   notifyCustomExerciseUpsert: vi.fn(),
   notifyCustomExerciseDelete: vi.fn(),
@@ -117,5 +118,35 @@ describe('deleteSession', () => {
     await useSessionsStore.getState().deleteSession('missing');
     expect(await storage.getSessions()).toHaveLength(1);
     expect(sync.notifySessionDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveSessionEdit', () => {
+  it('saves in place, rebuilds previous and recovery, and queues sync', async () => {
+    const { storage, sync, useSessionsStore } = await load();
+    await storage.setSessions([session('typo', T0 - HOUR, 'bench-press', 600)]);
+    await storage.setExercisePrevious({ 'bench-press': { weightKg: 600, reps: 5 } });
+    await useSessionsStore.getState().load();
+    const [original] = useSessionsStore.getState().sessions;
+
+    const draft = {
+      ...original,
+      exercises: [{ exerciseId: 'bench-press', sets: [{ completed: true, reps: 5, weightKg: 60 }] }],
+    };
+    expect(await useSessionsStore.getState().saveSessionEdit(draft)).toBe(true);
+
+    const [saved] = await storage.getSessions();
+    expect(saved).toEqual({ ...original, exercises: draft.exercises, editedAt: new Date(T0).toISOString() });
+    expect(useSessionsStore.getState().sessions).toEqual([saved]);
+    expect(await storage.getExercisePrevious()).toEqual({ 'bench-press': { weightKg: 60, reps: 5 } });
+    expect(sync.notifySessionUpsert).toHaveBeenCalledWith(saved);
+    expect(sync.notifyExercisePreviousSnapshot).toHaveBeenCalledWith({ 'bench-press': { weightKg: 60, reps: 5 } });
+  });
+
+  it('saves nothing when the session was deleted meanwhile', async () => {
+    const { storage, sync, useSessionsStore } = await load();
+    expect(await useSessionsStore.getState().saveSessionEdit(session('gone', T0))).toBe(false);
+    expect(await storage.getSessions()).toEqual([]);
+    expect(sync.notifySessionUpsert).not.toHaveBeenCalled();
   });
 });

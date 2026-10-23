@@ -34,7 +34,6 @@ import {
   suggestHomeTemplates,
 } from '@/utils/workoutsHome';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
-import { activeSessionCopy } from '@/utils/activeSessionCopy';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -98,7 +97,6 @@ export default function WorkoutsScreen() {
   const getExercise = useExercisesStore((s) => s.getExercise);
   const activeSession = useActiveWorkoutStore((s) => s.session);
   const discardWorkout = useActiveWorkoutStore((s) => s.discardWorkout);
-  const activeCopy = activeSessionCopy(activeSession ?? {});
 
   const { width: screenWidth } = useDeviceMetrics();
   const modalMaxHeight = useModalMaxHeight();
@@ -1316,10 +1314,10 @@ export default function WorkoutsScreen() {
 
       <ConfirmDialog
         visible={showResumeConfirm}
-        title={activeCopy.blockedTitle}
-        message={activeCopy.blockedStartMessage}
-        cancelLabel={activeCopy.discardLabel}
-        confirmLabel={activeCopy.resumeLabel}
+        title="Workout in progress"
+        message="Finish or cancel your current workout before starting another."
+        cancelLabel="Cancel workout"
+        confirmLabel="Resume workout"
         destructive="cancel"
         onDismiss={handleDismissResumeConfirm}
         onCancel={handleCancelInProgressWorkout}

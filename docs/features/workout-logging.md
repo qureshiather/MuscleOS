@@ -76,10 +76,7 @@ falling back to the template's own (`startPlanFromParams()`).
 blocks a second start (empty-workout hero or a template card) with a themed confirm dialog:
 "Workout in progress — Finish or cancel your current workout before starting another."
 **Cancel workout** discards the in-progress session (no extra confirm) and continues the start
-that was blocked; **Resume workout** opens it; tap the overlay to dismiss and keep it. An open
-[edit to a finished workout](#editing-a-finished-workout) blocks a start the same way, worded as
-**Edit in progress** — *"Save or discard your changes to the workout you're editing before starting
-another."* (**Discard changes** / **Resume editing**).
+that was blocked; **Resume workout** opens it; tap the overlay to dismiss and keep it.
 
 ### Persisting and resuming
 
@@ -106,7 +103,6 @@ After boot hydration and whenever the app returns to the foreground, a workout i
 | No completed sets | Discarded |
 
 There's no cap on total duration — a workout still being edited stays open however long it runs.
-An [edit to a finished workout](#editing-a-finished-workout) is never closed automatically.
 
 While a session exists, a **Resume workout** pill replaces part of the tab bar showing elapsed
 time. Its **X** discards the workout **with no confirmation**. Inside the workout, the
@@ -358,26 +354,6 @@ When a search with text finds nothing, "No matching exercises" shows above the C
 empty search shows neither. It routes to `/create-exercise` pre-filled with
 the query; saving returns to the workout and drops the new exercise straight in — added to the end
 for the **Add** flow, or swapped in for the **Replace** flow.
-
-## Editing a finished workout
-
-History's Edit button ([history-analytics](history-analytics.md#editing-a-session)) loads a
-finished session into this screen through `editSession()`. It's the one kind of active session
-that already has `completedAt` (`isEditingFinishedSession()`), and it is persisted and resumed like
-a workout. Everything in [Set logging](#set-logging) and [Mid-workout edits](#mid-workout-edits)
-works the same, except:
-
-| | Edit mode |
-|---|---|
-| Header | The workout's date (`Tue, Sep 15`) instead of the clock; no rest timer button |
-| Rest | Completing a set starts no rest; no rest rows; **+ ADD SET** shows no rest time |
-| Finish | **Save** (disabled with no completed set) saves straight away: no summary, no template options, no Good work screen. Returns to where the edit was opened |
-| Cancel | **Discard changes** — confirm *"Discard changes?"* / *"The workout stays as it was in History."* (**Keep editing** / **Discard changes**), then back |
-| Resume pill | **Resume editing**, with no clock; its X discards the changes |
-| Notification | None |
-| Stale close | Never |
-
-PREVIOUS shows the stored previous map, which can include the session being edited.
 
 ## Finish flow
 

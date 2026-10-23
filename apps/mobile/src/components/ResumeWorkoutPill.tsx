@@ -7,8 +7,6 @@ import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { Ionicons } from '@expo/vector-icons';
 import { formatClockMs } from '@/utils/formatClock';
-import { isEditingFinishedSession } from '@/store/activeWorkoutLogic';
-import { activeSessionCopy } from '@/utils/activeSessionCopy';
 
 export function ResumeWorkoutPill() {
   const { colors } = useTheme();
@@ -26,8 +24,6 @@ export function ResumeWorkoutPill() {
   }, [session?.startedAt]);
 
   if (!session) return null;
-  const editing = isEditingFinishedSession(session);
-  const copy = activeSessionCopy(session);
 
   function handleResume() {
     router.push('/active-workout');
@@ -43,15 +39,12 @@ export function ResumeWorkoutPill() {
       testID="resume-workout-pill"
       style={[styles.pill, { backgroundColor: colors.primarySurface, borderTopColor: colors.border }]}
     >
-      <Pressable style={styles.main} onPress={handleResume} accessibilityRole="button" accessibilityLabel={copy.resumeLabel}>
+      <Pressable style={styles.main} onPress={handleResume} accessibilityRole="button" accessibilityLabel="Resume workout">
         <View style={[styles.iconDot, { backgroundColor: colors.primary }]}>
-          <Ionicons name={editing ? 'create' : 'barbell'} size={14} color={colors.primaryOn} />
+          <Ionicons name="barbell" size={14} color={colors.primaryOn} />
         </View>
-        <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>{copy.resumeLabel}</Text>
-        {/* An edit isn't timed: the workout's duration stays what it was. */}
-        {editing ? null : (
-          <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatClockMs(elapsedMs)}</Text>
-        )}
+        <Text style={[typography.bodyMedium, styles.label, { color: colors.text }]}>Resume workout</Text>
+        <Text style={[typography.data, styles.time, { color: colors.primary }]}>{formatClockMs(elapsedMs)}</Text>
       </Pressable>
       <Pressable
         onPress={handleCancel}
@@ -59,7 +52,7 @@ export function ResumeWorkoutPill() {
         style={styles.cancelBtn}
         accessibilityRole="button"
         // Discards straight away (no confirm), so say so rather than "Cancel".
-        accessibilityLabel={editing ? 'Discard changes' : 'Discard workout'}
+        accessibilityLabel="Discard workout"
       >
         <Ionicons name="close" size={22} color={colors.textMuted} />
       </Pressable>

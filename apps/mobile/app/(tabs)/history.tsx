@@ -29,8 +29,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { WorkoutSession } from '@muscleos/types';
 import { syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
-import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
-import { activeSessionCopy } from '@/utils/activeSessionCopy';
 import { fontScaleCap } from '@/theme/layout';
 import {
   buildSessionPRs,
@@ -117,32 +115,6 @@ export default function HistoryScreen() {
         prExerciseIds: sessionPRs.get(shareTarget.id),
       })
     : null;
-
-  const activeSession = useActiveWorkoutStore((s) => s.session);
-  const activeCopy = activeSessionCopy(activeSession ?? {});
-  /** The session the user asked to edit while another workout or edit was open. */
-  const [editBlockedTarget, setEditBlockedTarget] = useState<WorkoutSession | null>(null);
-
-  function openEditor(sessionId: string) {
-    if (useActiveWorkoutStore.getState().editSession(sessionId)) router.push('/active-workout');
-  }
-
-  function handleEdit(s: WorkoutSession) {
-    if (useActiveWorkoutStore.getState().session) setEditBlockedTarget(s);
-    else openEditor(s.id);
-  }
-
-  function handleResumeActive() {
-    setEditBlockedTarget(null);
-    router.push('/active-workout');
-  }
-
-  function handleDiscardActiveThenEdit() {
-    const target = editBlockedTarget;
-    setEditBlockedTarget(null);
-    useActiveWorkoutStore.getState().discardWorkout();
-    if (target) openEditor(target.id);
-  }
 
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
@@ -241,7 +213,7 @@ export default function HistoryScreen() {
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
                     onDelete={() => setDeleteTarget(s)}
-                    onEdit={() => handleEdit(s)}
+                    onEdit={() => router.push({ pathname: '/edit-session', params: { id: s.id } })}
                     onShare={() => setShareTarget(s)}
                     prExerciseIds={sessionPRs.get(s.id)}
                     volumeDelta={volumeDeltas.get(s.id)}
@@ -275,19 +247,6 @@ export default function HistoryScreen() {
         }}
         cancelTestID="delete-session-keep"
         confirmTestID="delete-session-confirm"
-      />
-      <ConfirmDialog
-        visible={editBlockedTarget != null}
-        title={activeCopy.blockedTitle}
-        message={activeCopy.blockedEditMessage}
-        cancelLabel={activeCopy.discardLabel}
-        confirmLabel={activeCopy.resumeLabel}
-        destructive="cancel"
-        onDismiss={() => setEditBlockedTarget(null)}
-        onCancel={handleDiscardActiveThenEdit}
-        onConfirm={handleResumeActive}
-        cancelTestID="edit-blocked-discard"
-        confirmTestID="edit-blocked-resume"
       />
     </Screen>
   );
