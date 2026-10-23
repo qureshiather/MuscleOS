@@ -299,7 +299,7 @@ Flow:
 1. **Template name** — required text input, placeholder "e.g. Push A".
 2. **Folder** — chips (**None** plus each folder), shown only if folders exist.
 3. **Exercises** — a header with the plan's size in mono (`3 exercises · 15 sets`,
-   `planSizeLabel()`) and, once there is an exercise, a **Rest for all** button. Below it, one card
+   `planSizeLabel()`) and, once there is an exercise, an **Edit all rests** button. Below it, one card
    per exercise ("No exercises yet" when empty), styled like the workout screen's cards (border, and
    a soft shadow in light mode). With more than one, the hint "Hold and drag to rearrange" shows and
    a long-press on a card's header (with its handle) drag-reorders. Each card's header has the
@@ -312,7 +312,7 @@ Flow:
    (`RestTimersDialog`), with the hint "Starts after every set of this exercise when you work out
    from this template. 0:00 means no timer."
 
-   **Rest for all** opens the same dialogue titled **Rest for all exercises** (button **Apply to
+   **Edit all rests** opens the same dialogue, also titled **Edit all rests** (button **Apply to
    all**), prefilled with the rests every exercise shares, or your default and no warm-up rest when
    they differ (`sharedRest()`). Applying sets that work and warm-up rest on every exercise
    (`applyRestToAll()`); one exercise can still be changed afterwards.
@@ -518,7 +518,7 @@ Covered:
 - `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, header + New routing to the exercise builder, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
   folder and plan, the plan size line, Rest button (2:00 default, set with the time pad, saved on
-  the slot; Off prefilled on edit), Rest for all (an unset rest shows the user's default, applied
+  the slot; Off prefilled on edit), Edit all rests (an unset rest shows the user's default, applied
   to every exercise, a rest equal to the default saved as unset), edit prefill and save, None clearing the folder, Template not found for unknown
   and built-in ids, double-tap saving once
 - `src/test/ui/templates/workoutPreview.test.tsx` (Jest) — missing params, in-progress redirect,

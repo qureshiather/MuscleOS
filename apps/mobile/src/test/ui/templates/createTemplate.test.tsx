@@ -193,7 +193,7 @@ describe('rest timers (MUS-143)', () => {
     ]);
   });
 
-  it('Rest for all sets every exercise; a rest equal to the default stays unset', async () => {
+  it('Edit all rests sets every exercise; a rest equal to the default stays unset', async () => {
     useSettingsStore.setState({ defaultRestSeconds: 90 });
     await open();
     await screen.findByText('New template');
@@ -204,7 +204,7 @@ describe('rest timers (MUS-143)', () => {
     expect(screen.getByTestId('template-rest-squat').props.accessibilityLabel).toMatch(/: 1:30$/);
 
     fireEvent.press(screen.getByTestId('template-rest-all'));
-    expect(await screen.findByText('Rest for all exercises')).toBeTruthy();
+    expect(await screen.findByText('Apply to all')).toBeTruthy();
     fireEvent.press(screen.getByTestId('rest-time-work'));
     for (const d of ['2', '3', '0']) fireEvent.press(screen.getByTestId(`keypad-key-${d}`));
     fireEvent.press(screen.getByTestId('rest-timers-save'));

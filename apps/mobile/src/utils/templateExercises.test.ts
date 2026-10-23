@@ -219,7 +219,7 @@ describe('editor rests (MUS-169)', () => {
     expect(workRestOverride(90, 120)).toBe(90);
   });
 
-  it('Rest for all sets every slot', () => {
+  it('Edit all rests sets every slot', () => {
     const all = applyRestToAll(plan, 150, 60, 120);
     expect(all.map((e) => [e.restBetweenSetsSeconds, e.warmUpRestSeconds])).toEqual([
       [150, 60],

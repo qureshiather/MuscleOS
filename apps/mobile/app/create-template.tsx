@@ -75,7 +75,7 @@ export default function CreateTemplateScreen() {
   /** Exercise whose rest timers are being edited. */
   const [restExerciseId, setRestExerciseId] = useState<string | null>(null);
   const restExercise = selected.find((ex) => ex.exerciseId === restExerciseId);
-  /** **Rest for all** dialog. */
+  /** **Edit all rests** dialog. */
   const [restForAll, setRestForAll] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [showErrors, setShowErrors] = useState(false);
@@ -275,7 +275,7 @@ export default function CreateTemplateScreen() {
                   ]}
                 >
                   <Ionicons name="timer-outline" size={16} color={colors.primary} />
-                  <Text style={[typography.label, styles.restAllText, { color: colors.primary }]}>Rest for all</Text>
+                  <Text style={[typography.label, styles.restAllText, { color: colors.primary }]}>Edit all rests</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -452,7 +452,7 @@ export default function CreateTemplateScreen() {
 
       <RestTimersDialog
         exerciseName={restForAll ? 'Every exercise' : null}
-        title="Rest for all exercises"
+        title="Edit all rests"
         saveLabel="Apply to all"
         initial={sharedRest(selected, defaultRestSeconds)}
         hint="Sets the same rest on every exercise in this template. You can still change one afterwards. 0:00 means no timer."

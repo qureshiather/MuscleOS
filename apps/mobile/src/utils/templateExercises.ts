@@ -170,7 +170,7 @@ export function editorRestPatch(
   };
 }
 
-/** **Rest for all**: the same work and warm-up rest on every slot (see `editorRestPatch`). */
+/** **Edit all rests**: the same work and warm-up rest on every slot (see `editorRestPatch`). */
 export function applyRestToAll(
   plan: readonly ResolvedTemplateExercise[],
   work: number,
@@ -182,7 +182,7 @@ export function applyRestToAll(
 }
 
 /**
- * What **Rest for all** opens with: the rests every slot shares, or the default (and no warm-up
+ * What **Edit all rests** opens with: the rests every slot shares, or the default (and no warm-up
  * rest) when they differ.
  */
 export function sharedRest(
