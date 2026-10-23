@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SetRecord, SessionExercise, WorkoutSession } from '@muscleos/types';
 import type { PersistedActiveWorkout } from '@/storage/localStorage';
 import {
+  applySessionEdit,
+  isEditingFinishedSession,
   DEFAULT_SETS_PER_EXERCISE,
   REST_MAX_SECONDS,
   REST_MIN_SECONDS,
@@ -737,6 +739,11 @@ describe('resolveStaleWorkout', () => {
     ).toEqual({ kind: 'discard' });
   });
 
+  it('never closes an edit to a finished workout', () => {
+    const edit = { ...session(true), completedAt: '2026-01-01T11:00:00.000Z' };
+    expect(resolveStaleWorkout(edit, lastActivityAt, lastActivityAt + 2 * 24 * 60 * 60 * 1000)).toBeNull();
+  });
+
   it('uses a three-hour threshold', () => {
     expect(STALE_WORKOUT_MS).toBe(3 * 60 * 60 * 1000);
   });
@@ -799,5 +806,63 @@ describe('start params carry template rests (MUS-143)', () => {
     const s = createEmptySession('t', [{ exerciseId: 'a', restBetweenSetsSeconds: 0, warmUpRestSeconds: 45 }, { exerciseId: 'b' }], 1);
     expect(s.exercises[0]).toMatchObject({ restBetweenSetsSeconds: 0, warmUpRestSeconds: 45 });
     expect('restBetweenSetsSeconds' in s.exercises[1]).toBe(false);
+  });
+});
+
+describe('editing a finished session', () => {
+  const original: WorkoutSession = {
+    id: 'session_1',
+    templateId: 'ppl-push',
+    startedAt: '2026-01-01T10:00:00.000Z',
+    completedAt: '2026-01-01T11:00:00.000Z',
+    exercises: [{ exerciseId: 'bench-press', sets: [{ completed: true, reps: 5, weightKg: 800 }] }],
+  };
+  const other: WorkoutSession = { ...original, id: 'session_2' };
+
+  it('only a session with completedAt is an edit', () => {
+    expect(isEditingFinishedSession(original)).toBe(true);
+    expect(isEditingFinishedSession({ ...original, completedAt: undefined })).toBe(false);
+  });
+
+  it('saves over the original in place, keeping its times and stamping editedAt', () => {
+    const edited: WorkoutSession = {
+      ...original,
+      startedAt: '2026-01-05T10:00:00.000Z',
+      completedAt: '2026-01-05T11:00:00.000Z',
+      exercises: [
+        {
+          exerciseId: 'bench-press',
+          sets: [
+            { completed: true, reps: 5, weightKg: 80 },
+            { completed: false, weightKg: 80, weightPrefilled: true },
+          ],
+        },
+      ],
+    };
+    const result = applySessionEdit([other, original], edited, '2026-01-06T09:00:00.000Z');
+    expect(result?.sessions.map((s) => s.id)).toEqual(['session_2', 'session_1']);
+    expect(result?.saved).toEqual({
+      ...original,
+      editedAt: '2026-01-06T09:00:00.000Z',
+      exercises: [
+        {
+          exerciseId: 'bench-press',
+          sets: [
+            { completed: true, reps: 5, weightKg: 80 },
+            { completed: false, weightKg: 80 },
+          ],
+        },
+      ],
+    });
+    expect(result?.sessions[1]).toBe(result?.saved);
+  });
+
+  it('saves nothing when the original is gone or no completed set is left', () => {
+    expect(applySessionEdit([other], original, '2026-01-06T09:00:00.000Z')).toBeNull();
+    const emptied: WorkoutSession = {
+      ...original,
+      exercises: [{ exerciseId: 'bench-press', sets: [{ completed: false, reps: 5, weightKg: 80 }] }],
+    };
+    expect(applySessionEdit([original], emptied, '2026-01-06T09:00:00.000Z')).toBeNull();
   });
 });

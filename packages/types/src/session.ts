@@ -32,5 +32,7 @@ export interface WorkoutSession {
   templateId: string;
   startedAt: string; // ISO
   completedAt?: string; // ISO, undefined if in progress
+  /** ISO, set when a finished session is edited from History. The session's sync clock when present. */
+  editedAt?: string;
   exercises: SessionExercise[];
 }

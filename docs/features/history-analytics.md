@@ -65,6 +65,7 @@ Collapsed, a card shows:
 | Element | Detail |
 |---------|--------|
 | Date | Short weekday, short month, day: `Sun, Sep 27` |
+| Edit button | Reopens the session in the workout screen to fix it (see [Editing a session](#editing-a-session)) |
 | Trash button | Deletes the session after confirmation (see [Deleting a session](#deleting-a-session)) |
 | Template name | Resolved from `templateId`; ad-hoc sessions (`_empty`) are named by the local day they started — `Oct 20 workout`, then `Oct 20 workout 2` for the next ad-hoc session that day (`adHocSessionName()`, also the in-progress workout title); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
 | Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero; a session under one minute has no duration (never `0m`) |
@@ -132,6 +133,40 @@ always **1080 × 1920** (9:16, story-sized), and it's always drawn in the **dark
 | Footer | App icon, **MuscleOS**, and `muscleos.app` |
 
 Nothing about sharing is stored or synced; the image is a temporary file handed to the share sheet.
+
+### Editing a session
+
+A typo (an 800 kg squat) shouldn't cost the whole workout, so a finished session can be edited.
+The card's pencil button (`Edit <name>`) reopens it in the **workout screen** with everything the
+screen offers: change weights and reps, complete or un-complete sets, add, remove or reorder sets
+and exercises, replace an exercise. The workout screen spec's [edit mode](workout-logging.md#editing-a-finished-workout)
+covers what differs there.
+
+Only one session is open at a time, running or being edited. Tapping Edit while one is open shows
+the same themed dialog as starting a workout: **Workout in progress** — *"Finish or cancel your
+current workout before editing a past one."* (**Cancel workout** / **Resume workout**), or for an
+open edit **Edit in progress** (**Discard changes** / **Resume editing**). Cancelling the open one
+goes straight on to the edit.
+
+**Save** (`saveSessionEdit`, rules in `applySessionEdit()`):
+
+1. Writes the session over the original in place. It keeps the original `startedAt` and
+   `completedAt` (an edit never moves a workout in time or changes its duration), strips prefill
+   flags, and stamps `editedAt`. Save is disabled once no completed set is left; delete the
+   workout instead.
+2. **Rebuilds the "previous" map** from all sessions (`rebuildPreviousSnapshot()`), the same as
+   a delete, so a fixed typo stops being suggested.
+3. **Recomputes recovery** from the sessions.
+4. Queues a session upsert and the rebuilt previous map, and pushes. `editedAt` is the session's
+   sync clock (`sessionSyncClock()`), so the edit wins over other devices' copies; see
+   [conflict resolution](accounts-and-data.md#conflict-resolution).
+5. Returns to History. PRs and volume changes re-derive on read.
+
+If the original was deleted meanwhile (on another device), Save shows **Workout not found** —
+*"This workout was deleted from History, so your changes can't be saved."* — and the edit is
+discarded.
+
+**Discard changes** leaves the session exactly as it was.
 
 ### Deleting a session
 
@@ -377,7 +412,14 @@ Vitest (`apps/mobile/src/…`):
   USAPL 81–90 then held, monotonic, whole years
 - `store/sessionsStore.test.ts` — `completedSessions()` filter and order; `deleteSession` storage
   removal, recovery recompute, previous-map rebuild, sync notifications, unknown id no-op
-- `store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`
+- `store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`; `applySessionEdit` (in place,
+  original times kept, prefill flags stripped, `editedAt` stamped; nothing saved for a missing
+  original or no completed set)
+- `store/activeWorkoutStore.test.ts` — editing: only after hydration with nothing else open, no
+  rest on complete, save rebuilds previous and recovery and notifies sync, Finish on an edit
+  doesn't add a session, a deleted original keeps the edit open, discard leaves History untouched
+- `utils/sessionClock.test.ts` — `editedAt`, then `completedAt`, then `startedAt`
+- `utils/activeSessionCopy.test.ts` — workout vs edit copy for the pill and the blocked dialog
 
 Jest UI (`apps/mobile/src/test/ui/history/`):
 
@@ -388,6 +430,10 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   linked sync first), pounds; the Progress strip (2-session lifts only, e1RM label, card →
   progression, See all → Personal Records, hidden with no repeated lift), a session card's lift
   row → progression, and a session card's share image (best set, PR badge, volume)
+- `editSession.test.tsx` — Edit opens the workout screen with the date, Save, and no clock or
+  rest; fixing a weight saves in place and returns to History with the new volume; Discard changes
+  confirms and leaves the session as it was; Save disabled with no completed set; Edit during a
+  running workout asks first; the resume pill names an open edit with no clock
 - `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the

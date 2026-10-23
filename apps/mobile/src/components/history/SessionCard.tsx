@@ -24,6 +24,8 @@ type SessionCardProps = {
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  /** Reopens the session in the workout screen to fix it. */
+  onEdit?: () => void;
   /** Opens the share image for this session. */
   onShare?: () => void;
   /** Exercises that set a new best e1RM in this session. */
@@ -44,6 +46,7 @@ export function SessionCard({
   expanded,
   onToggle,
   onDelete,
+  onEdit,
   onShare,
   prExerciseIds,
   volumeDelta,
@@ -74,6 +77,17 @@ export function SessionCard({
             {session.completedAt ? formatSessionDate(session.completedAt) : ''}
           </Text>
           <View style={styles.cardActions}>
+            {onEdit ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${title}`}
+                onPress={onEdit}
+                hitSlop={touch.hitSlop}
+                style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
             {onShare ? (
               <Pressable
                 accessibilityRole="button"

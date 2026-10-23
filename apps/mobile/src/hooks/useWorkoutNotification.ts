@@ -8,6 +8,7 @@ import {
   showWorkoutLiveNotification,
 } from '../../modules/workout-live-notification';
 import { useActiveWorkoutStore, type RestAfter } from '@/store/activeWorkoutStore';
+import { isEditingFinishedSession } from '@/store/activeWorkoutLogic';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
@@ -178,7 +179,10 @@ async function scheduleRestCompleteNotification(
 }
 
 export function useWorkoutNotification() {
-  const session = useActiveWorkoutStore((s) => s.session);
+  // An edit to a finished workout has no clock or rest to show, so it gets no notification.
+  const session = useActiveWorkoutStore((s) =>
+    s.session && !isEditingFinishedSession(s.session) ? s.session : null
+  );
   const restEndTime = useActiveWorkoutStore((s) => s.restEndTime);
   const restAfter = useActiveWorkoutStore((s) => s.restAfter);
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);

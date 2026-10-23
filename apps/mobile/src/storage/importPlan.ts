@@ -6,6 +6,7 @@
  * is kept as-is, so importing the same file twice changes nothing.
  */
 import type { Exercise, TemplateFolder, WorkoutSession, WorkoutTemplate } from '@muscleos/types';
+import { sessionSyncClock } from '@/utils/sessionClock';
 
 export const SUPPORTED_EXPORT_VERSION = 1;
 
@@ -177,7 +178,7 @@ export function importOutboxEntries(
     updatedAt = now
   ): ImportOutboxEntry => ({ entityType, entityId, op: 'upsert', payload, updatedAt });
   const entries: ImportOutboxEntry[] = [
-    ...plan.sessions.map((s) => upsert('session', s.id, s, s.completedAt ?? s.startedAt ?? now)),
+    ...plan.sessions.map((s) => upsert('session', s.id, s, sessionSyncClock(s) || now)),
     ...plan.templates.map((t) => upsert('template', t.id, t)),
     ...plan.templateFolders.map((f) => upsert('template_folder', f.id, f)),
     ...plan.customExercises.map((e) => upsert('custom_exercise', e.id, e)),

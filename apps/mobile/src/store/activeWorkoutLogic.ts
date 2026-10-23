@@ -315,6 +315,43 @@ export function stripPrefillFlags(session: WorkoutSession): WorkoutSession {
 }
 
 /**
+ * A finished session reopened from History for editing. It's the only kind of active session that
+ * already has `completedAt`, so the workout screen, rest timer and notifications key off this.
+ */
+export function isEditingFinishedSession(session: Pick<WorkoutSession, 'completedAt'>): boolean {
+  return session.completedAt != null;
+}
+
+/**
+ * The stored session list with an edited session saved over its original: prefill flags stripped,
+ * the original `startedAt`/`completedAt` kept (an edit doesn't move the workout in time), and
+ * `editedAt` stamped so sync treats it as the newer copy. `null` when the original is gone (deleted
+ * on another device mid-edit) or no completed set is left.
+ */
+export function applySessionEdit(
+  sessions: readonly WorkoutSession[],
+  edited: WorkoutSession,
+  editedAt: string
+): { sessions: WorkoutSession[]; saved: WorkoutSession } | null {
+  const index = sessions.findIndex((s) => s.id === edited.id);
+  if (index < 0 || !hasCompletedSet(edited)) return null;
+  const original = sessions[index];
+  const saved: WorkoutSession = {
+    ...stripPrefillFlags(edited),
+    startedAt: original.startedAt,
+    completedAt: original.completedAt,
+    editedAt,
+  };
+  const next = [...sessions];
+  next[index] = saved;
+  return { sessions: next, saved };
+}
+
+export function hasCompletedSet(session: Pick<WorkoutSession, 'exercises'>): boolean {
+  return session.exercises.some((ex) => ex.sets.some((s) => s.completed));
+}
+
+/**
  * The session as stored on finish: prefill flags stripped and `completedAt` set. `templateId`
  * re-points it at a template saved from this workout ("Save as template"), so history shows that
  * template rather than the one it started from (e.g. `_empty`).
@@ -585,9 +622,10 @@ export function resolveStaleWorkout(
   lastActivityAt: number,
   now: number = Date.now()
 ): StaleWorkoutResolution | null {
+  // An edit to a finished session is never closed for the user: finishing would move its time.
+  if (isEditingFinishedSession(session)) return null;
   if (now - lastActivityAt < STALE_WORKOUT_MS) return null;
-  const hasCompletedSet = session.exercises.some((ex) => ex.sets.some((s) => s.completed));
-  if (!hasCompletedSet) return { kind: 'discard' };
+  if (!hasCompletedSet(session)) return { kind: 'discard' };
   return { kind: 'finish', completedAt: new Date(lastActivityAt).toISOString() };
 }
 

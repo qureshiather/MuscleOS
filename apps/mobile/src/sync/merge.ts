@@ -36,10 +36,7 @@ import {
 import type { OutboxEntry, RemoteSyncRecord, SyncEntityType } from './types';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
 import { recoveryFromSessions } from '@/utils/recovery';
-
-function sessionUpdatedAt(session: WorkoutSession): string {
-  return session.completedAt ?? session.startedAt;
-}
+import { sessionSyncClock } from '@/utils/sessionClock';
 
 function dirtyEntry(
   outboxMap: Map<string, OutboxEntry>,
@@ -113,7 +110,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
           const decision = decideEntityApply({
             hasLocal: !!local,
             isDirty,
-            localUpdatedAt: pending?.updatedAt ?? (local ? sessionUpdatedAt(local) : null),
+            localUpdatedAt: pending?.updatedAt ?? (local ? sessionSyncClock(local) : null),
             remoteUpdatedAt,
           });
           if (decision === 'take_remote') {
@@ -201,7 +198,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
         const decision = decideEntityApply({
           hasLocal: !!local,
           isDirty,
-          localUpdatedAt: pending?.updatedAt ?? (local ? sessionUpdatedAt(local) : null),
+          localUpdatedAt: pending?.updatedAt ?? (local ? sessionSyncClock(local) : null),
           remoteUpdatedAt,
         });
         if (decision === 'take_remote') {
@@ -394,7 +391,7 @@ export const ENTITY_SYNC_TYPES: ReadonlySet<SyncEntityType> = new Set([
 export function snapshotItems(data: LocalSyncData, now: string): SnapshotItem[] {
   const items: SnapshotItem[] = [];
   for (const session of data.sessions) {
-    items.push({ entityType: 'session', entityId: session.id, payload: session, updatedAt: sessionUpdatedAt(session) });
+    items.push({ entityType: 'session', entityId: session.id, payload: session, updatedAt: sessionSyncClock(session) });
   }
   for (const template of data.templates) {
     items.push({ entityType: 'template', entityId: template.id, payload: template, updatedAt: now });

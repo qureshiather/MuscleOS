@@ -312,7 +312,7 @@ exercise catalog is a separate **pull-only** delta available to all users, inclu
 
 Every local change is queued in the **outbox** (`muscleos_sync_outbox`), one entry per entity
 (`entityType:entityId`): a newer change to the same row replaces the queued one. Sessions carry
-their own clock (`completedAt`, else `startedAt`); everything else is stamped when queued; deletes
+their own clock (`editedAt` from an edit in History, else `completedAt`, else `startedAt`); everything else is stamped when queued; deletes
 are tombstones. Outbox writes are serialized, so concurrent enqueues, merges, imports and pushes
 never drop an entry.
 
@@ -357,7 +357,7 @@ Local-first. Rules in `src/sync/mergePolicy.ts`, applied by `applyRemoteRecords(
    remote is newer so the push isn't rejected
 4. Conflict with no pending local changes:
    - **Sessions** → last write wins, comparing the remote `updated_at` with the local
-     `completedAt` (or `startedAt`); ties go to local
+     `sessionSyncClock()` — `editedAt`, else `completedAt`, else `startedAt`; ties go to local
    - **Templates, folders, custom exercises** → no local timestamp, so the remote copy is taken
 5. Map-shaped snapshots (notes, previous, settings):
    - Pending local changes → keep local and union keys, filling empty local slots from remote.
