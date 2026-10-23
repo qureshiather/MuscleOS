@@ -76,7 +76,8 @@ export interface ActiveWorkoutState {
   startWorkout: (templateId: string, plan: readonly TemplateExercise[]) => Promise<void>;
   setSetRecord: (exerciseIndex: number, setIndex: number, record: Partial<SetRecord>) => void;
   /** Applies to all rests for this exercise (after each set, including the last). */
-  setExerciseRestBetweenSets: (exerciseIndex: number, seconds: number) => void;
+  /** `undefined` follows the user's Default rest (see `workRestOverride`). */
+  setExerciseRestBetweenSets: (exerciseIndex: number, seconds: number | undefined) => void;
   setExerciseWarmUpRest: (exerciseIndex: number, seconds: number) => void;
   completeSet: (exerciseIndex: number, setIndex: number) => void;
   uncompleteSet: (exerciseIndex: number, setIndex: number) => void;
@@ -172,7 +173,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     if (!ex) return;
     exercises[exerciseIndex] = {
       ...ex,
-      restBetweenSetsSeconds: storedRestSeconds(seconds),
+      restBetweenSetsSeconds: seconds === undefined ? undefined : storedRestSeconds(seconds),
     };
     set({ session: { ...session, exercises } });
   },

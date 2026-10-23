@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { type NavigationAction, usePreventRemove } from 'expo-router/react-navigation';
 import { Ionicons } from '@expo/vector-icons';
 import type { WorkoutSession } from '@muscleos/types';
 import { Screen } from '@/components/layout';
@@ -52,7 +53,12 @@ export default function EditSessionScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const original = useSessionsStore((s) => s.sessions.find((x) => x.id === id));
+  const live = useSessionsStore((s) => s.sessions.find((x) => x.id === id));
+  // Pinned once found: a sync that deletes the session mid-edit mustn't unmount the editor and lose
+  // the draft; Save then reports it (Workout not found).
+  const pinned = useRef<WorkoutSession | undefined>(undefined);
+  if (!pinned.current && live) pinned.current = live;
+  const original = pinned.current;
 
   if (!original) {
     return (
@@ -84,6 +90,11 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const navigation = useNavigation();
+  /** Set once leaving is decided (saved, discarded): lifts the back guard, then navigates. */
+  const [leaving, setLeaving] = useState<{ action?: NavigationAction } | null>(null);
+  /** The back / swipe-back that the guard held while asking. */
+  const heldAction = useRef<NavigationAction | undefined>(undefined);
   const [picker, setPicker] = useState<{ mode: 'add' } | { mode: 'replace'; exIdx: number } | null>(null);
   const [pickerSearch, setPickerSearch] = useState('');
   const [removeExIdx, setRemoveExIdx] = useState<number | null>(null);
@@ -134,8 +145,22 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
     closePicker();
   }
 
+  // Back button and swipe-back ask too, not just Cancel.
+  usePreventRemove(changed && leaving == null, ({ data }) => {
+    setFocused(null);
+    heldAction.current = data.action;
+    setConfirmDiscard(true);
+  });
+
+  useEffect(() => {
+    if (!leaving) return;
+    if (leaving.action) navigation.dispatch(leaving.action);
+    else router.back();
+  }, [leaving, navigation, router]);
+
   function handleCancel() {
     setFocused(null);
+    heldAction.current = undefined;
     if (changed) setConfirmDiscard(true);
     else router.back();
   }
@@ -146,7 +171,7 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
     setSaving(true);
     const ok = await saveSessionEdit(draft);
     setSaving(false);
-    if (ok) router.back();
+    if (ok) setLeaving({});
     else setSaveFailed(true);
   }
 
@@ -361,7 +386,7 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
         onCancel={() => setConfirmDiscard(false)}
         onConfirm={() => {
           setConfirmDiscard(false);
-          router.back();
+          setLeaving({ action: heldAction.current });
         }}
         cancelTestID="edit-session-keep"
         confirmTestID="edit-session-discard"
@@ -373,7 +398,7 @@ function SessionEditor({ original }: { original: WorkoutSession }) {
         confirmLabel="OK"
         onConfirm={() => {
           setSaveFailed(false);
-          router.back();
+          setLeaving({});
         }}
       />
     </Screen>

@@ -56,9 +56,11 @@ plan written on every custom-template save. Omitted `sets` means 3 working sets;
 `warmUpSets` means 0. The two rests use the same meaning as on a session exercise
 ([workout-logging](workout-logging.md#rest-timer)), clamped to 0:00–15:00. An omitted work rest
 follows your **Default rest** (Settings, 2:00 unless changed), so changing the default changes
-every slot that doesn't set its own; an explicit value, 2:00 included, is kept. The editor stores a
-rest equal to the current default as omitted (`editorRestPatch()`), and a 0:00 warm-up rest is
-omitted too. `defaultSets` is only a read fallback for templates stored before this
+every slot that doesn't set its own; an explicit value, 2:00 included, is kept. The editor and the
+workout's **Update rest timers** store a work rest equal to the current (non-zero) default as
+omitted (`workRestOverride()`), so Update template never pins today's default; an explicit 0:00
+is always kept, so a timer you turned off stays off if the default changes. A 0:00 warm-up rest is
+omitted. `defaultSets` is only a read fallback for templates stored before this
 field existed — Strong Lifts used to set `defaultSets: 5` for the whole workout; it now stores
 `sets: 5` on each slot instead.
 

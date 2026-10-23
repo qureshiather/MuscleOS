@@ -1,4 +1,7 @@
-import { fireEvent, screen, waitFor } from 'expo-router/testing-library';
+import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
+import { router } from 'expo-router';
+import { setSessions } from '@/storage/localStorage';
+import { useSessionsStore } from '@/store/sessionsStore';
 import HistoryScreen from '../../../../app/(tabs)/history';
 import EditSessionScreen from '../../../../app/edit-session';
 import { getSessions } from '@/storage/localStorage';
@@ -154,4 +157,28 @@ test('remove exercise asks first; add exercise needs reps before Save', async ()
   await waitFor(async () =>
     expect((await getSessions())[0].exercises).toEqual([{ exerciseId: 'deadlift', sets: [{ completed: true, reps: 5 }] }])
   );
+});
+
+test('a back gesture with unsaved edits asks first too', async () => {
+  const r = await openEditor();
+  press('edit-delete-0-0');
+  act(() => router.back());
+  expect(await screen.findByText('Discard changes?')).toBeTruthy();
+  expect(r.getPathname()).toBe('/edit-session');
+  press('edit-session-discard');
+  await waitFor(() => expect(r.getPathname()).toBe('/history'));
+  expect(await getSessions()).toEqual([LEGS]);
+});
+
+test('a delete from another device mid-edit keeps the draft; Save then says it is gone', async () => {
+  await openEditor();
+  press('edit-delete-0-0');
+  await act(async () => {
+    await setSessions([]);
+    useSessionsStore.setState({ sessions: [] });
+  });
+  expect(screen.getByText('Edit workout')).toBeTruthy();
+  press('edit-session-save');
+  expect(await screen.findByText('Workout not found')).toBeTruthy();
+  expect(screen.getByText("This workout was deleted from History, so your changes can't be saved.")).toBeTruthy();
 });

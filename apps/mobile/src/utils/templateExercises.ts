@@ -144,6 +144,16 @@ export function templateExercisesFromSession(
 }
 
 /**
+ * A work rest chosen in a rest dialog, as stored: unset when it equals the user's (non-zero)
+ * default, so the slot keeps following the default; otherwise explicit. An explicit 0:00 (no timer)
+ * is always kept, so turning a timer off survives a later change to the default.
+ */
+export function workRestOverride(work: number, defaultRest: number = DEFAULT_REST_SECONDS): number | undefined {
+  const w = storedRestSeconds(work);
+  return w > 0 && w === storedRestSeconds(defaultRest) ? undefined : w;
+}
+
+/**
  * The rest fields for a slot from the template editor's dialog. A work rest equal to the user's
  * default is left unset, so the slot keeps following the default if it changes later; an empty
  * warm-up rest is left unset too.
@@ -153,10 +163,9 @@ export function editorRestPatch(
   warmUp: number,
   defaultRest: number = DEFAULT_REST_SECONDS
 ): Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> {
-  const w = storedRestSeconds(work);
   const r = storedRestSeconds(warmUp);
   return {
-    restBetweenSetsSeconds: w === storedRestSeconds(defaultRest) ? undefined : w,
+    restBetweenSetsSeconds: workRestOverride(work, defaultRest),
     warmUpRestSeconds: r > 0 ? r : undefined,
   };
 }

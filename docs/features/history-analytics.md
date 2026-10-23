@@ -179,10 +179,12 @@ Saving (`saveSessionEdit` in `sessionsStore`, rules in `applySessionEdit()`):
    [conflict resolution](accounts-and-data.md#conflict-resolution).
 4. Returns to History. PRs and volume changes re-derive on read.
 
-If the original was deleted meanwhile (on another device), Save shows **Workout not found** —
-*"This workout was deleted from History, so your changes can't be saved."* — and goes back.
+If the original is deleted meanwhile (a sync from another device), the form stays open with the
+draft — the session is pinned when the screen opens — and Save shows **Workout not found** —
+*"This workout was deleted from History, so your changes can't be saved."* — then goes back.
 **Cancel** goes back; with unsaved changes it asks first (**Discard changes?** — *"The workout
-stays as it was in History."*, **Keep editing** / **Discard**). An unknown id shows **Workout not
+stays as it was in History."*, **Keep editing** / **Discard**). The Android back button and the
+iOS swipe-back ask the same way (`usePreventRemove`). An unknown id shows **Workout not
 found** with a Back link.
 
 ### Deleting a session
@@ -452,7 +454,8 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   change); fixing a weight saves in place and returns to History with the new volume; deleting
   sets and the empty-workout hint; missing reps blocks Save; + ADD SET; replace keeps the sets and
   the picker has no + New; remove exercise confirms; an added exercise needs reps; Cancel asks
-  only with changes and leaves the session as it was
+  only with changes and leaves the session as it was; back with unsaved edits asks too; a delete
+  from another device mid-edit keeps the draft and Save reports Workout not found
 - `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the

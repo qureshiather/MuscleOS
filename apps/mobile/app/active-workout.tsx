@@ -82,6 +82,7 @@ import {
   resolveTemplateExercises,
   serializeTemplateExercises,
   templateExercisesFromSession,
+  workRestOverride,
 } from '@/utils/templateExercises';
 import { formatClock, formatClockMs } from '@/utils/formatClock';
 
@@ -1972,7 +1973,8 @@ export default function ActiveWorkoutScreen() {
         hint="A running timer is not affected. Applies to the next sets of this exercise for the rest of this workout."
         onSave={(work, warmUp) => {
           if (restTimersExIdx !== null) {
-            setExerciseRestBetweenSets(restTimersExIdx, work);
+            // Equal to the Default rest stays unset, so Update template doesn't pin today's default.
+            setExerciseRestBetweenSets(restTimersExIdx, workRestOverride(work, defaultRestSeconds));
             setExerciseWarmUpRest(restTimersExIdx, warmUp);
           }
           setRestTimersExIdx(null);

@@ -310,9 +310,10 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
         break;
       }
       case 'app_settings': {
+        // A field an older build doesn't send (Default rest, the program) keeps this device's value.
         const remote = normalizeAppSettings(
           record.payload as Partial<SyncedAppSettings> | null,
-          defaultAppSettings()
+          settingsData
         );
         const decision = decideEntityApply({
           hasLocal: true,

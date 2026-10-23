@@ -11,6 +11,7 @@ import {
   applyRestToAll,
   editorRestPatch,
   sharedRest,
+  workRestOverride,
 } from './templateExercises';
 
 const base = (over: Partial<WorkoutTemplate> = {}): WorkoutTemplate => ({
@@ -210,6 +211,12 @@ describe('editor rests (MUS-169)', () => {
     expect(editorRestPatch(180, 0, 180)).toEqual({ restBetweenSetsSeconds: undefined, warmUpRestSeconds: undefined });
     expect(editorRestPatch(120, 45, 180)).toEqual({ restBetweenSetsSeconds: 120, warmUpRestSeconds: 45 });
     expect(editorRestPatch(0, 0, 180)).toEqual({ restBetweenSetsSeconds: 0, warmUpRestSeconds: undefined });
+  });
+
+  it('keeps an explicit 0:00 even when the default is Off, so it stays off if the default changes', () => {
+    expect(workRestOverride(0, 0)).toBe(0);
+    expect(workRestOverride(120, 120)).toBeUndefined();
+    expect(workRestOverride(90, 120)).toBe(90);
   });
 
   it('Rest for all sets every slot', () => {

@@ -55,6 +55,8 @@ export function ExercisePickerSheet({
   const customExercises = useExercisesStore((s) => s.customExercises);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const keyboardSubRef = useRef<{ remove: () => void } | null>(null);
+  /** Fallback height if the keyboard event never arrives; cleared on blur and unmount. */
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const excludeKey = excludeIds.join(',');
   // biome-ignore lint/correctness/useExhaustiveDependencies: customExercises changes what getAllExercises returns
@@ -70,6 +72,7 @@ export function ExercisePickerSheet({
     return () => {
       for (const sub of subs) sub.remove();
       keyboardSubRef.current?.remove();
+      if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
     };
   }, []);
 
@@ -120,13 +123,17 @@ export function ExercisePickerSheet({
               keyboardSubRef.current = Keyboard.addListener('keyboardDidShow', (e) => {
                 setKeyboardHeight(e.endCoordinates.height);
               });
-              setTimeout(() => {
+              if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+              fallbackTimer.current = setTimeout(() => {
+                fallbackTimer.current = null;
                 setKeyboardHeight((current) =>
                   current > 0 ? current : Math.round(Dimensions.get('window').height * 0.38)
                 );
               }, 280);
             }}
             onBlur={() => {
+              if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+              fallbackTimer.current = null;
               keyboardSubRef.current?.remove();
               keyboardSubRef.current = null;
               setKeyboardHeight(0);

@@ -552,6 +552,16 @@ describe('signing into an existing account with guest data (D13)', () => {
     expect(await getOutbox()).toEqual([]);
   });
 
+  it("an older build's settings (no Default rest) keep this device's Default rest", async () => {
+    await setAppSettings({ ...defaultAppSettings(), defaultRestSeconds: 90 });
+    const { defaultRestSeconds: _omit, ...olderPayload } = { ...defaultAppSettings(), weightUnit: 'kg' as const };
+    fake.tables.sync_records.splice(0, fake.tables.sync_records.length, remoteRow('app_settings', 'default', olderPayload));
+    signIn('user-a');
+    await syncNow();
+    expect((await getAppSettings()).weightUnit).toBe('kg');
+    expect((await getAppSettings()).defaultRestSeconds).toBe(90);
+  });
+
   it('uploads the guest’s snapshots when the account has none (a brand-new account)', async () => {
     fake.tables.sync_records.length = 0;
     signIn('user-new');

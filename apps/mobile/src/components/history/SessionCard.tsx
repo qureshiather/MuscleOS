@@ -24,7 +24,7 @@ type SessionCardProps = {
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
-  /** Reopens the session in the workout screen to fix it. */
+  /** Opens Edit workout (`/edit-session`) to fix the session's sets and exercises. */
   onEdit?: () => void;
   /** Opens the share image for this session. */
   onShare?: () => void;
