@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { Appearance, useColorScheme } from 'react-native';
+import { nativeColorScheme } from './nativeColorScheme';
 import {
   darkThemeColors,
   lightThemeColors,
@@ -37,6 +38,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     load();
     return onThemeStorageChanged(load);
   }, []);
+
+  // System UI outside React (Android's nav bar buttons, iOS alerts) follows the app's theme.
+  useEffect(() => {
+    Appearance.setColorScheme?.(nativeColorScheme(themePreference));
+  }, [themePreference]);
 
   const setTheme = async (preference: ThemePreference) => {
     setThemePreference(preference);

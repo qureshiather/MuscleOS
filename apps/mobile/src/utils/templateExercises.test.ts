@@ -8,6 +8,10 @@ import {
   resolveTemplateExercises,
   serializeTemplateExercises,
   templateExercisesFromSession,
+  applyRestToAll,
+  editorRestPatch,
+  sharedRest,
+  workRestOverride,
 } from './templateExercises';
 
 const base = (over: Partial<WorkoutTemplate> = {}): WorkoutTemplate => ({
@@ -162,12 +166,17 @@ describe('template rests (MUS-143)', () => {
     expect(plan[1].warmUpRestSeconds).toBeUndefined();
   });
 
-  it('keeps an explicit 0:00 work rest (no timer) but drops the defaults when saving', () => {
+  it('keeps an explicit work rest, 0:00 and 2:00 included, and drops an empty warm-up rest when saving', () => {
     const saved = serializeTemplateExercises([
       { exerciseId: 'a', sets: 3, warmUpSets: 0, restBetweenSetsSeconds: 0 },
       { exerciseId: 'b', sets: 3, warmUpSets: 0, restBetweenSetsSeconds: 120, warmUpRestSeconds: 0 },
+      { exerciseId: 'c', sets: 3, warmUpSets: 0 },
     ]);
-    expect(saved.exercises).toEqual([{ exerciseId: 'a', restBetweenSetsSeconds: 0 }, { exerciseId: 'b' }]);
+    expect(saved.exercises).toEqual([
+      { exerciseId: 'a', restBetweenSetsSeconds: 0 },
+      { exerciseId: 'b', restBetweenSetsSeconds: 120 },
+      { exerciseId: 'c' },
+    ]);
   });
 
   it('survives normalizing (every custom-template write)', () => {
@@ -189,5 +198,43 @@ describe('template rests (MUS-143)', () => {
     expect(formatTemplateRestLabel({ restBetweenSetsSeconds: 90 })).toBe('1:30');
     expect(formatTemplateRestLabel({ restBetweenSetsSeconds: 0 })).toBe('Off');
     expect(formatTemplateRestLabel({ warmUpRestSeconds: 45 })).toBe('2:00 · warm-up 0:45');
+  });
+});
+
+describe('editor rests (MUS-169)', () => {
+  const plan = [
+    { exerciseId: 'a', sets: 3, warmUpSets: 0 },
+    { exerciseId: 'b', sets: 3, warmUpSets: 1, restBetweenSetsSeconds: 90, warmUpRestSeconds: 30 },
+  ];
+
+  it('leaves a rest equal to the default unset so it keeps following the default', () => {
+    expect(editorRestPatch(180, 0, 180)).toEqual({ restBetweenSetsSeconds: undefined, warmUpRestSeconds: undefined });
+    expect(editorRestPatch(120, 45, 180)).toEqual({ restBetweenSetsSeconds: 120, warmUpRestSeconds: 45 });
+    expect(editorRestPatch(0, 0, 180)).toEqual({ restBetweenSetsSeconds: 0, warmUpRestSeconds: undefined });
+  });
+
+  it('keeps an explicit 0:00 even when the default is Off, so it stays off if the default changes', () => {
+    expect(workRestOverride(0, 0)).toBe(0);
+    expect(workRestOverride(120, 120)).toBeUndefined();
+    expect(workRestOverride(90, 120)).toBe(90);
+  });
+
+  it('Edit all rests sets every slot', () => {
+    const all = applyRestToAll(plan, 150, 60, 120);
+    expect(all.map((e) => [e.restBetweenSetsSeconds, e.warmUpRestSeconds])).toEqual([
+      [150, 60],
+      [150, 60],
+    ]);
+    expect(applyRestToAll(plan, 120, 0, 120).map((e) => e.restBetweenSetsSeconds)).toEqual([undefined, undefined]);
+  });
+
+  it('opens with the shared rests, or the default when slots differ', () => {
+    expect(sharedRest(plan, 120)).toEqual({ work: 120, warmUp: 0 });
+    expect(sharedRest(applyRestToAll(plan, 150, 60, 120), 120)).toEqual({ work: 150, warmUp: 60 });
+    expect(sharedRest([plan[0]], 180)).toEqual({ work: 180, warmUp: 0 });
+  });
+
+  it("labels an unset rest with the user's default", () => {
+    expect(formatTemplateRestLabel({}, 180)).toBe('3:00');
   });
 });

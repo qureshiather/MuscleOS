@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -29,11 +29,12 @@ import {
   useModalMaxHeight,
   useTextScaledSize,
 } from '@/theme/layout';
-import { Screen, ScreenFooter, SheetFrame } from '@/components/layout';
+import { Screen, ScreenFooter } from '@/components/layout';
+import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { startFromParamsDecision, startPlanFromParams } from '@/utils/workoutStart';
-import { useActiveWorkoutStore, DEFAULT_REST_SECONDS } from '@/store/activeWorkoutStore';
+import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
@@ -51,9 +52,7 @@ import { type ShareCardModel, shareCardModel } from '@/utils/shareCard';
 import { ShareWorkoutSheet } from '@/components/share/ShareWorkoutSheet';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { Ionicons } from '@expo/vector-icons';
-import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
-import { pickerFooter, pickerResults } from '@/utils/exercisePicker';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
 import {
@@ -83,6 +82,7 @@ import {
   resolveTemplateExercises,
   serializeTemplateExercises,
   templateExercisesFromSession,
+  workRestOverride,
 } from '@/utils/templateExercises';
 import { formatClock, formatClockMs } from '@/utils/formatClock';
 
@@ -509,7 +509,6 @@ export default function ActiveWorkoutScreen() {
   const listPaddingBottom = useBottomSpace(24);
   const dense = useDenseRowMetrics();
   const sheetMaxHeight = useModalMaxHeight();
-  const addExerciseListMaxHeight = Math.max(80, sheetMaxHeight - 180);
   const colSetStyle = [styles.colSet, { width: dense.setCol }];
   const colPrevStyle = [styles.colPrev, { minWidth: dense.prevMin }];
   const colInputStyle = [styles.colInput, { minWidth: dense.inputMin }];
@@ -554,10 +553,9 @@ export default function ActiveWorkoutScreen() {
   const subtract30SecondsRest = useActiveWorkoutStore((s) => s.subtract30SecondsRest);
   const endRestIfDue = useActiveWorkoutStore((s) => s.endRestIfDue);
   const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
   const getExercise = useExercisesStore((s) => s.getExercise);
-  const getAllExercises = useExercisesStore((s) => s.getAllExercises);
-  const customExercises = useExercisesStore((s) => s.customExercises);
   const exerciseNotes = useExerciseNotesStore((s) => s.notes);
   const setExerciseNote = useExerciseNotesStore((s) => s.setNote);
   const allTemplates = useTemplatesStore((s) => s.allTemplates);
@@ -601,36 +599,10 @@ export default function ActiveWorkoutScreen() {
     { mode: 'add' } | { mode: 'replace'; exIdx: number } | null
   >(null);
   const [addExerciseSearch, setAddExerciseSearch] = useState('');
-  const [pickerKeyboardHeight, setPickerKeyboardHeight] = useState(0);
-  const pickerKeyboardSubRef = useRef<{ remove: () => void } | null>(null);
   const replaceExcludeId =
     exercisePicker?.mode === 'replace'
       ? session?.exercises[exercisePicker.exIdx]?.exerciseId
       : undefined;
-  // Both pickers leave out every exercise already in the workout, so neither can add a duplicate.
-  const sessionExerciseIds = session?.exercises.map((se) => se.exerciseId).join(',') ?? '';
-  const addExerciseResults = useMemo(
-    () => pickerResults(getAllExercises(), addExerciseSearch, sessionExerciseIds.split(',')),
-    [addExerciseSearch, customExercises, getAllExercises, sessionExerciseIds]
-  );
-  const addExerciseFooter = pickerFooter(addExerciseSearch, addExerciseResults.length);
-
-  useEffect(() => {
-    if (exercisePicker === null) {
-      setPickerKeyboardHeight(0);
-      return;
-    }
-    const onShow = (e: KeyboardEvent) => {
-      setPickerKeyboardHeight(e.endCoordinates.height);
-    };
-    const subs = [
-      Keyboard.addListener('keyboardWillShow', onShow),
-      Keyboard.addListener('keyboardDidShow', onShow),
-    ];
-    return () => {
-      for (const sub of subs) sub.remove();
-    };
-  }, [exercisePicker]);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
   // Finish summary list: fade the bottom edge while more exercises sit below the fold.
   const summaryScrollMetrics = useRef({ viewport: 0, content: 0, offset: 0 });
@@ -1119,7 +1091,8 @@ export default function ActiveWorkoutScreen() {
     currentTemplate != null &&
     computeTemplateStructureChanged(
       templateExercisesFromSession(session.exercises),
-      resolveTemplateExercises(currentTemplate)
+      resolveTemplateExercises(currentTemplate),
+      defaultRestSeconds
     );
   const finishFlowInput = {
     isEmpty: isNoTemplateWorkout,
@@ -1388,7 +1361,7 @@ export default function ActiveWorkoutScreen() {
             );
           }
 
-          const restPresetSec = se.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS;
+          const restPresetSec = se.restBetweenSetsSeconds ?? defaultRestSeconds;
           const exerciseNote = exerciseNotes[se.exerciseId];
           const exerciseComplete = se.sets.length > 0 && se.sets.every((s) => s.completed);
 
@@ -1522,7 +1495,7 @@ export default function ActiveWorkoutScreen() {
                   restAfter,
                   restSecondsLeft,
                   recordedRestSeconds: restDurationsBetweenSets[`${exIdx}-${setIdx}`],
-                });
+                }, defaultRestSeconds);
                 const isCurrentSet = row.status === 'current';
                 const isFutureSet = row.status === 'future';
                 const isActiveRestGap = row.restActive;
@@ -1994,13 +1967,14 @@ export default function ActiveWorkoutScreen() {
       <RestTimersDialog
         exerciseName={restTimersExercise ? (getExercise(restTimersExercise.exerciseId)?.name ?? restTimersExercise.exerciseId) : null}
         initial={{
-          work: restTimersExercise?.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS,
+          work: restTimersExercise?.restBetweenSetsSeconds ?? defaultRestSeconds,
           warmUp: restTimersExercise?.warmUpRestSeconds ?? 0,
         }}
         hint="A running timer is not affected. Applies to the next sets of this exercise for the rest of this workout."
         onSave={(work, warmUp) => {
           if (restTimersExIdx !== null) {
-            setExerciseRestBetweenSets(restTimersExIdx, work);
+            // Equal to the Default rest stays unset, so Update template doesn't pin today's default.
+            setExerciseRestBetweenSets(restTimersExIdx, workRestOverride(work, defaultRestSeconds));
             setExerciseWarmUpRest(restTimersExIdx, warmUp);
           }
           setRestTimersExIdx(null);
@@ -2262,131 +2236,27 @@ export default function ActiveWorkoutScreen() {
       </Modal>
 
       {exercisePicker !== null ? (
-      <Modal visible animationType="slide" transparent onRequestClose={closeExercisePicker}>
-        <Pressable
-          style={[
-            styles.addExerciseOverlay,
-            { backgroundColor: colors.overlay, paddingBottom: pickerKeyboardHeight },
-          ]}
-          onPress={closeExercisePicker}
-        >
-          <SheetFrame
-            onStartShouldSetResponder={() => true}
-            style={
-              pickerKeyboardHeight > 0
-                ? {
-                    height: Math.max(240, sheetMaxHeight - pickerKeyboardHeight),
-                    maxHeight: Math.max(240, sheetMaxHeight - pickerKeyboardHeight),
-                    paddingBottom: 12,
-                  }
-                : undefined
-            }
-          >
-            <View style={[styles.addExerciseModalHeader, { borderBottomColor: colors.subtleDivider }]}>
-              <View style={styles.addExerciseModalTitleBlock}>
-                <Text style={[styles.addExerciseModalTitle, { color: colors.text }]}>
-                  {exercisePicker?.mode === 'replace' ? 'Replace exercise' : 'Add exercise'}
-                </Text>
-                {exercisePicker?.mode === 'replace' ? (
-                  <Text style={[styles.addExerciseModalHint, { color: colors.textMuted }]} numberOfLines={2}>
-                    {replaceExcludeId
-                      ? `Swapping ${getExercise(replaceExcludeId)?.name ?? 'this exercise'}. Previous weights for the new exercise load in.`
-                      : 'Previous weights for the new exercise load in.'}
-                  </Text>
-                ) : null}
-              </View>
-              <PickerHeaderActions onNew={createExerciseFromSearch} onDone={closeExercisePicker} />
-            </View>
-            <TextInput
-              style={[
-                styles.addExerciseSearch,
-                { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
-              ]}
-              placeholder="Search exercises..."
-              testID="picker-search"
-              placeholderTextColor={colors.textMuted}
-              value={addExerciseSearch}
-              onChangeText={setAddExerciseSearch}
-              autoCorrect={false}
-              autoCapitalize="none"
-              onFocus={() => {
-                const metrics = Keyboard.metrics();
-                if (metrics?.height) {
-                  setPickerKeyboardHeight(metrics.height);
-                }
-                pickerKeyboardSubRef.current?.remove();
-                pickerKeyboardSubRef.current = Keyboard.addListener('keyboardDidShow', (e) => {
-                  setPickerKeyboardHeight(e.endCoordinates.height);
-                });
-                setTimeout(() => {
-                  setPickerKeyboardHeight((current) =>
-                    current > 0 ? current : Math.round(Dimensions.get('window').height * 0.38)
-                  );
-                }, 280);
-              }}
-              onBlur={() => {
-                pickerKeyboardSubRef.current?.remove();
-                pickerKeyboardSubRef.current = null;
-                setPickerKeyboardHeight(0);
-              }}
-            />
-            <FlatList
-              data={addExerciseResults}
-              keyExtractor={(item) => item.id}
-              style={pickerKeyboardHeight > 0 ? { flex: 1, minHeight: 0 } : { maxHeight: addExerciseListMaxHeight }}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-              ListEmptyComponent={
-                addExerciseFooter.showNoMatches ? (
-                  <Text style={[styles.addExerciseEmpty, { color: colors.textMuted }]}>
-                    No matching exercises
-                  </Text>
-                ) : null
-              }
-              ListFooterComponent={
-                addExerciseFooter.createName != null ? (
-                  <Pressable
-                    testID="picker-create-exercise"
-                    style={[
-                      styles.addExerciseRow,
-                      { borderBottomColor: colors.border, justifyContent: 'flex-start', gap: 10 },
-                    ]}
-                    onPress={createExerciseFromSearch}
-                  >
-                    <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-                    <Text style={[typography.bodyMedium, { color: colors.primary, flex: 1 }]}>
-                      Create “{addExerciseFooter.createName}”
-                    </Text>
-                  </Pressable>
-                ) : null
-              }
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[styles.addExerciseRow, { borderBottomColor: colors.border }]}
-                  testID={`picker-row-${item.id}`}
-                  onPress={() => {
-                    if (!session) return;
-                    if (exercisePicker?.mode === 'replace') {
-                      replaceExercise(exercisePicker.exIdx, item.id, previousMap[item.id]);
-                      closeExercisePicker();
-                      return;
-                    }
-                    addExercise(item.id, previousMap[item.id]);
-                    closeExercisePicker();
-                  }}
-                >
-                  <Text style={[styles.addExerciseRowText, { color: colors.text }]}>{item.name}</Text>
-                  <Ionicons
-                    name={exercisePicker?.mode === 'replace' ? 'swap-horizontal' : 'add'}
-                    size={20}
-                    color={colors.primary}
-                  />
-                </Pressable>
-              )}
-            />
-          </SheetFrame>
-        </Pressable>
-      </Modal>
+        <ExercisePickerSheet
+          mode={exercisePicker.mode}
+          hint={
+            exercisePicker.mode === 'replace'
+              ? replaceExcludeId
+                ? `Swapping ${getExercise(replaceExcludeId)?.name ?? 'this exercise'}. Previous weights for the new exercise load in.`
+                : 'Previous weights for the new exercise load in.'
+              : undefined
+          }
+          excludeIds={session?.exercises.map((se) => se.exerciseId) ?? []}
+          search={addExerciseSearch}
+          onSearchChange={setAddExerciseSearch}
+          onCreate={createExerciseFromSearch}
+          onClose={closeExercisePicker}
+          onPick={(exerciseId) => {
+            if (!session) return;
+            if (exercisePicker.mode === 'replace') replaceExercise(exercisePicker.exIdx, exerciseId, previousMap[exerciseId]);
+            else addExercise(exerciseId, previousMap[exerciseId]);
+            closeExercisePicker();
+          }}
+        />
       ) : null}
     </Screen>
     </GestureHandlerRootView>
@@ -3078,49 +2948,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   addExerciseBtnText: { fontSize: 15, fontWeight: '600' },
-  addExerciseOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  addExerciseModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  addExerciseModalTitleBlock: {
-    flex: 1,
-    paddingRight: 12,
-    gap: 4,
-  },
-  addExerciseModalTitle: { fontSize: 20, fontWeight: '700' },
-  addExerciseModalHint: { ...typography.caption, fontSize: 13, lineHeight: 18 },
-  addExerciseSearch: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-  },
-  addExerciseEmpty: {
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    textAlign: 'center',
-    fontSize: 15,
-  },
-  addExerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-  },
-  addExerciseRowText: { fontSize: 16, fontWeight: '500' },
   summaryCard: {
     marginHorizontal: 24,
     borderRadius: 20,

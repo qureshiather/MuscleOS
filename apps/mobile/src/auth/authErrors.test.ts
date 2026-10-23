@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendlyAuthError } from './authErrors';
+import { friendlyAuthError, isValidEmail } from './authErrors';
 
 describe('friendlyAuthError', () => {
   it('maps known Supabase errors to plain copy', () => {
@@ -50,5 +50,19 @@ describe('friendlyAuthError', () => {
       "Couldn't sign in with Google. Try again, or use another sign-in option."
     );
     expect(friendlyAuthError(null, 'apple')).toBe("Couldn't sign in with Apple. Try again, or use another sign-in option.");
+  });
+});
+
+describe('isValidEmail', () => {
+  it('accepts ordinary addresses, ignoring surrounding spaces', () => {
+    for (const email of ['sam@example.com', ' sam@example.com ', 'a.b+c@mail.co.uk', 'x@privaterelay.appleid.com']) {
+      expect(isValidEmail(email)).toBe(true);
+    }
+  });
+
+  it('rejects incomplete addresses', () => {
+    for (const email of ['', 'samim', 'samim@', '@example.com', 'samim@example', 'samim@example.', 'sam im@example.com', 'a@b@c.com', 'a@.com']) {
+      expect(isValidEmail(email)).toBe(false);
+    }
   });
 });

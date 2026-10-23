@@ -15,8 +15,6 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { BUILT_IN_PROGRAMS } from '@/data/builtInTemplates';
-import { ProgramCard } from '@/components/programs/ProgramCard';
 import {
   folderDeletePlan,
   groupYourWorkouts,
@@ -39,7 +37,7 @@ import { useRecoveryStore } from '@/store/recoveryStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatRelative } from '@/utils/relativeTime';
-import { pickRecentTemplates } from '@/utils/recentTemplates';
+import { templateCardModel } from '@/utils/templateCard';
 import { justTrainedMuscleIds, recentlyWorkedMuscleIds } from '@/utils/recovery';
 import { focusRegions, regionStatesByView } from '@/utils/muscleDiagramRegions';
 import type { TemplateArt } from '@/components/workouts/WorkoutHomeSections';
@@ -47,7 +45,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import {
-  RecentWorkoutsRow,
   SuggestedWorkoutsGrid,
 } from '@/components/workouts/WorkoutHomeSections';
 import { TemplateCard } from '@/components/workouts/TemplateCard';
@@ -89,7 +86,6 @@ export default function WorkoutsScreen() {
   const isLoading = useTemplatesStore((s) => s.isLoading);
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
-  const completedSessions = useSessionsStore((s) => s.completedSessions);
   const ensureRecoveryLoaded = useRecoveryStore((s) => s.ensureLoaded);
   const recoveryItems = useRecoveryStore((s) => s.items);
   const activeRecovery = useRecoveryStore((s) => s.activeRecovery);
@@ -227,21 +223,6 @@ export default function WorkoutsScreen() {
     getExercise,
   ]);
 
-  /** Recent excludes Suggested so the two home launchers never repeat the same template. */
-  const recentWorkouts = useMemo(() => {
-    return pickRecentTemplates({
-      completedSessions: completedSessions(),
-      templates: yourWorkouts,
-      suggestedIds: new Set(suggestedWorkouts.map((s) => s.template.id)),
-      isHidden: isTemplateHidden,
-    });
-  }, [
-    suggestedWorkouts,
-    sessions,
-    yourWorkouts,
-    isTemplateHidden,
-    completedSessions,
-  ]);
 
   function handleCreateFolder() {
     const name = newFolderName.trim();
@@ -369,6 +350,7 @@ export default function WorkoutsScreen() {
       <TemplateCard
         key={template.id}
         template={template}
+        model={templateCardModel(template, getExercise)}
         lastDone={getLastDone(template)}
         onPress={handleStartTemplate}
         onMenu={showMenu ? openTemplateMenu : undefined}
@@ -709,19 +691,6 @@ export default function WorkoutsScreen() {
             </View>
           )}
 
-          {recentWorkouts.length > 0 && (
-            <View style={styles.homeSection}>
-              <SectionHeader title="Recent" />
-              <RecentWorkoutsRow
-                items={recentWorkouts}
-                onPress={handleStartTemplate}
-                formatRelative={formatRelative}
-                getRegions={templateArt}
-                gender={figureGender}
-              />
-            </View>
-          )}
-
           <View style={styles.templatesSectionRow}>
             <Text style={[styles.templatesSectionTitle, { color: colors.text }]}>Your workouts</Text>
             <View style={styles.templatesSectionActions}>
@@ -803,23 +772,29 @@ export default function WorkoutsScreen() {
                   )}
                 </View>
               ) : hasMyTemplates ? null : (
-                <View style={styles.homeSection} testID="pick-a-program">
-                  <SectionHeader
-                    title="Pick a program"
-                    actionLabel="See all"
-                    onAction={() => router.push('/programs')}
-                  />
-                  <View style={styles.programGrid}>
-                    {BUILT_IN_PROGRAMS.map((program) => (
-                      <View key={program.id} style={styles.programGridCell}>
-                        <ProgramCard
-                          program={program}
-                          compact
-                          onPress={(p) => router.push({ pathname: '/program', params: { id: p.id } })}
-                        />
-                      </View>
-                    ))}
+                <View
+                  style={[styles.emptyWorkouts, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  testID="your-workouts-empty"
+                >
+                  <View style={[styles.emptyWorkoutsIcon, { backgroundColor: colors.primarySurface }]}>
+                    <Ionicons name="clipboard-outline" size={24} color={colors.primary} />
                   </View>
+                  <Text style={[typography.bodyMedium, { color: colors.text }]}>No workouts yet</Text>
+                  <Text style={[typography.caption, styles.emptyWorkoutsText, { color: colors.textSecondary }]}>
+                    Make a template to start working out.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    testID="build-own-template-row"
+                    onPress={() => router.push('/create-template')}
+                    style={({ pressed }) => [
+                      styles.emptyWorkoutsBtn,
+                      { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+                    ]}
+                  >
+                    <Ionicons name="add" size={18} color={colors.primaryOn} />
+                    <Text style={[styles.emptyWorkoutsBtnText, { color: colors.primaryOn }]}>Build a template</Text>
+                  </Pressable>
                 </View>
               )}
 
@@ -892,7 +867,7 @@ export default function WorkoutsScreen() {
                     )}
                   </View>
                 </View>
-              ) : (
+              ) : groups.program ? (
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Build your own template"
@@ -907,9 +882,9 @@ export default function WorkoutsScreen() {
                   </Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                 </Pressable>
-              )}
+              ) : null}
 
-              {!groups.program && hasMyTemplates && (
+              {!groups.program && (
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Browse programs"
@@ -1400,11 +1375,36 @@ const styles = StyleSheet.create({
   programToggle: { marginRight: 6 },
   programName: { flex: 0, flexShrink: 1 },
   linkText: { fontSize: typography.label.fontSize, fontWeight: '600' },
+  emptyWorkouts: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  emptyWorkoutsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyWorkoutsText: { textAlign: 'center' },
+  emptyWorkoutsBtn: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+  },
+  emptyWorkoutsBtnText: { ...typography.label, fontWeight: '600' },
   quietLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', paddingVertical: spacing.sm },
   quietLinkAction: { fontWeight: '600' },
   quietLinkText: { fontSize: typography.caption.fontSize },
-  programGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  programGridCell: { flexBasis: '45%', flexGrow: 1 },
   homeSection: { marginBottom: spacing.lg },
   collapsibleSection: {
     borderRadius: 14,

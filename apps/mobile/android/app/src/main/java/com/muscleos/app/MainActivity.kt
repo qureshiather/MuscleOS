@@ -3,6 +3,8 @@ import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
 import android.content.Intent
+import android.content.res.Configuration
+import androidx.core.view.WindowInsetsControllerCompat
 import android.os.Bundle
 
 import com.facebook.react.ReactActivity
@@ -22,6 +24,7 @@ class MainActivity : ReactActivity() {
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
     super.onCreate(null)
+    applyNavigationBarAppearance(resources.configuration)
   }
 
   /**
@@ -73,5 +76,20 @@ class MainActivity : ReactActivity() {
   override fun onNewIntent(intent: Intent) {
     setIntent(intent)
     super.onNewIntent(intent)
+  }
+
+  /**
+   * MUS-168: the navigation bar's buttons follow the app's theme, which JS sets with
+   * Appearance.setColorScheme (AppCompat night mode). Contrast enforcement is off in the theme, so
+   * without this a dark app on a light phone kept dark buttons over a white scrim.
+   */
+  private fun applyNavigationBarAppearance(config: Configuration) {
+    val night = (config.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightNavigationBars = !night
+  }
+
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    super.onConfigurationChanged(newConfig)
+    applyNavigationBarAppearance(newConfig)
   }
 }

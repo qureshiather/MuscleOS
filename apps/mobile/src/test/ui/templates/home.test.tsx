@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 describe('sections', () => {
-  it('renders the header, Suggested (max 2, from Your workouts), Recent (without Suggested picks), and Your workouts', async () => {
+  it('renders the header, Suggested (max 2, from Your workouts) and Your workouts, with no Recent row', async () => {
     await seed({
       activeProgramId: 'builtin_ul',
       sessions: [
@@ -99,66 +99,30 @@ describe('sections', () => {
     expect(suggested.length).toBeGreaterThan(0);
     expect(suggested.length).toBeLessThanOrEqual(2);
 
-    expect(screen.getByText('Recent')).toBeTruthy();
-    const recent = screen.queryAllByTestId(/^recent-card-/);
-    expect(recent.length).toBeGreaterThan(0);
-    expect(recent.length).toBeLessThanOrEqual(6);
-    const suggestedIds = suggested.map((n) => n.props.testID.replace('suggested-card-', ''));
-    // Only the chosen program's templates (there are no custom ones) can be suggested.
-    for (const id of suggestedIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b', 'ul-lower-b']).toContain(id);
-    const recentIds = recent.map((n) => n.props.testID.replace('recent-card-', ''));
-    for (const id of suggestedIds) expect(recentIds).not.toContain(id);
-    // Only the chosen program's days: PPL and StrongLifts sessions are left out. Newest first.
-    for (const id of recentIds) expect(['ul-upper-a', 'ul-lower-a', 'ul-upper-b']).toContain(id);
-    expect(recentIds[0]).toBe(
-      ['ul-upper-b', 'ul-lower-a', 'ul-upper-a'].find((id) => !suggestedIds.includes(id))
-    );
+    expect(screen.queryByText('Recent')).toBeNull();
 
     expect(screen.getByText('Upper Lower Splits')).toBeTruthy();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
   });
 
-  it('with no program chosen, program days stay out of Recent', async () => {
-    await seed({ sessions: [completedSession('ppl-push', NOW - 7 * DAY)] });
-    renderHome();
-    await ready();
-    expect(screen.queryByTestId('recent-card-ppl-push')).toBeNull();
-    expect(screen.queryByText('Recent')).toBeNull();
-  });
-
-  it('hides Recent with no completed sessions', async () => {
-    renderHome();
-    await ready();
-    expect(screen.queryByText('Recent')).toBeNull();
-  });
-
-  it('starts with no program: no built-in is listed or suggested, and a Pick a program grid shows', async () => {
+  it('with no program and no templates: no built-in is listed or suggested, and an empty state asks for a template', async () => {
     await seed({ sessions: [completedSession('ppl-push', NOW - 9 * DAY)] });
     renderHome();
     await ready();
     expect(useSettingsStore.getState().activeProgramId).toBeNull();
     expect(screen.queryByText('Suggested')).toBeNull();
     expect(screen.queryByTestId('template-card-ppl-push')).toBeNull();
-    for (const id of ['builtin_sl', 'builtin_ppl', 'builtin_ul', 'builtin_phul']) {
-      expect(screen.getByTestId(`program-card-${id}`)).toBeTruthy();
-    }
-    fireEvent.press(screen.getByTestId('program-card-builtin_phul'));
-    expect(await screen.findByText('route:program')).toBeTruthy();
-    expect(searchParams()).toEqual({ id: 'builtin_phul' });
-  });
-
-  it('with no program and no templates, Build a template opens create-template', async () => {
-    renderHome();
-    await ready();
-    expect(screen.queryByTestId('templates-section-custom')).toBeNull();
-    fireEvent.press(screen.getByLabelText('Build your own template'));
+    expect(screen.queryByTestId('program-card-builtin_sl')).toBeNull();
+    const empty = screen.getByTestId('your-workouts-empty');
+    expect(within(empty).getByText('Make a template to start working out.')).toBeTruthy();
+    fireEvent.press(within(empty).getByText('Build a template'));
     expect(await screen.findByText('route:create-template')).toBeTruthy();
   });
 
-  it('See all opens Programs', async () => {
+  it('with no program, a quiet Browse programs link opens Programs', async () => {
     renderHome();
     await ready();
-    fireEvent.press(screen.getByText('See all'));
+    fireEvent.press(screen.getByTestId('add-program-row'));
     expect(await screen.findByText('route:programs')).toBeTruthy();
   });
 
@@ -166,7 +130,7 @@ describe('sections', () => {
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
     expect(screen.getByText('My templates')).toBeTruthy();
     expect(screen.getByText('Want a plan?', { exact: false })).toBeTruthy();
     expect(screen.queryByTestId('build-own-template-row')).toBeNull();
@@ -191,6 +155,15 @@ describe('sections', () => {
     expect(screen.queryByTestId('add-program-row')).toBeNull();
     fireEvent.press(screen.getByLabelText('Change program'));
     expect(await screen.findByText('route:programs')).toBeTruthy();
+  });
+
+  it('fresh install: Strong Lifts is the program and both days are suggested', async () => {
+    useSettingsStore.setState({ activeProgramId: 'builtin_sl' });
+    renderHome();
+    await ready();
+    expect(within(screen.getByTestId('your-workouts-program')).getByText('Strong Lifts 5x5')).toBeTruthy();
+    expect(screen.getByTestId('suggested-card-sl-a')).toBeTruthy();
+    expect(screen.getByTestId('suggested-card-sl-b')).toBeTruthy();
   });
 
   it('the program section starts open and its chevron collapses and reopens it', async () => {
@@ -269,7 +242,7 @@ describe('sections', () => {
     expect(screen.getByTestId('template-card-tpl_h')).toBeTruthy();
   });
 
-  it('a template card shows name, description, Last done, and exercise count', async () => {
+  it('a template card shows name, exercise count, muscle pills and Last done — no description or lineup', async () => {
     await seed({
       templates: [
         customTemplate({ id: 'tpl_x', name: 'Arms', description: 'Pump day', exerciseIds: ['barbell-curl', 'tricep-pushdown', 'hammer-curl'] }),
@@ -285,9 +258,12 @@ describe('sections', () => {
     await screen.findByText('Last done: 2 days ago');
     const card = screen.getByTestId('template-card-tpl_x');
     expect(within(card).getByText('Arms')).toBeTruthy();
-    expect(within(card).getByText('Pump day')).toBeTruthy();
     expect(within(card).getByText('Last done: 2 days ago')).toBeTruthy();
     expect(within(card).getByText('3 exercises')).toBeTruthy();
+    expect(within(card).getByText('Biceps')).toBeTruthy();
+    // The preview has the details: no description or exercise lineup on the card.
+    expect(within(card).queryByText('Pump day')).toBeNull();
+    expect(within(card).queryByText(/Barbell Curl/)).toBeNull();
   });
 
   it('the header headline comes from session history', async () => {
@@ -311,14 +287,14 @@ describe('sections', () => {
 });
 
 describe('Your workouts states', () => {
-  it('fresh user: Pick a program grid and Build a template, no program, My templates or Browse programs', async () => {
+  it('no program and no templates: the empty state and Browse programs, no program or My templates', async () => {
     renderHome();
     await ready();
-    expect(screen.getByTestId('pick-a-program')).toBeTruthy();
+    expect(screen.getByTestId('your-workouts-empty')).toBeTruthy();
     expect(screen.getByTestId('build-own-template-row')).toBeTruthy();
     expect(screen.queryByTestId('your-workouts-program')).toBeNull();
     expect(screen.queryByTestId('templates-section-custom')).toBeNull();
-    expect(screen.queryByTestId('add-program-row')).toBeNull();
+    expect(screen.getByTestId('add-program-row')).toBeTruthy();
     expect(screen.queryByText('Suggested')).toBeNull();
   });
 
@@ -329,7 +305,7 @@ describe('Your workouts states', () => {
     expect(within(screen.getByTestId('your-workouts-program')).getByText('Push Pull Legs')).toBeTruthy();
     expect(screen.getByTestId('template-card-ppl-push')).toBeTruthy();
     expect(screen.getByText('Suggested')).toBeTruthy();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
     expect(screen.queryByTestId('templates-section-custom')).toBeNull();
     expect(screen.queryByTestId('add-program-row')).toBeNull();
     fireEvent.press(screen.getByTestId('build-own-template-row'));
@@ -345,7 +321,7 @@ describe('Your workouts states', () => {
     await ready();
     expect(screen.getByTestId('your-workouts-program')).toBeTruthy();
     expect(within(screen.getByTestId('templates-section-custom')).getByText('Chest day')).toBeTruthy();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
     expect(screen.queryByTestId('build-own-template-row')).toBeNull();
     expect(screen.queryByTestId('add-program-row')).toBeNull();
   });

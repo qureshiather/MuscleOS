@@ -7,7 +7,7 @@ import { ProgramCard } from '@/components/programs/ProgramCard';
 import { NoProgramCard } from '@/components/programs/NoProgramCard';
 import { BUILT_IN_PROGRAMS } from '@/data/builtInTemplates';
 import { useSettingsStore } from '@/store/settingsStore';
-import { NO_PROGRAM, orderPrograms } from '@/utils/programs';
+import { orderPrograms } from '@/utils/programs';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
 
@@ -26,26 +26,15 @@ export default function ProgramsScreen() {
           Follow one program at a time, or none. A program's workouts sit next to your own templates
           on the Workouts tab.
         </Text>
-        {orderPrograms(BUILT_IN_PROGRAMS, activeProgramId).map((item) =>
-          item === NO_PROGRAM ? (
-            <NoProgramCard
-              key={NO_PROGRAM}
-              selected={activeProgramId == null}
-              onSelect={() => void setActiveProgram(null)}
-              onBuildTemplate={() => router.push('/create-template')}
-              onStartEmpty={() =>
-                router.push({ pathname: '/active-workout', params: { templateId: '_empty', exerciseIds: '' } })
-              }
-            />
-          ) : (
-            <ProgramCard
-              key={item.id}
-              program={item}
-              active={item.id === activeProgramId}
-              onPress={(p) => router.push({ pathname: '/program', params: { id: p.id } })}
-            />
-          )
-        )}
+        {orderPrograms(BUILT_IN_PROGRAMS, activeProgramId).map((program) => (
+          <ProgramCard
+            key={program.id}
+            program={program}
+            active={program.id === activeProgramId}
+            onPress={(p) => router.push({ pathname: '/program', params: { id: p.id } })}
+          />
+        ))}
+        <NoProgramCard selected={activeProgramId == null} onSelect={() => void setActiveProgram(null)} />
       </ScrollView>
     </Screen>
   );

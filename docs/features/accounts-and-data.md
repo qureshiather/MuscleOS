@@ -84,7 +84,7 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
 | **Google** | iOS + Android | Native `@react-native-google-signin/google-signin` on both (id token): Play Services on Android, the GoogleSignIn SDK on iOS. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client), an Android OAuth client (`app.muscleos` + SHA-1), and an iOS OAuth client (`com.muscle-os.app`) whose id is `extra.googleIosClientId` in `app.json` and whose reversed id is a URL scheme (plugin `iosUrlScheme`, and `ios/MuscleOS/Info.plist`). Supabase's Google provider lists the web and iOS client ids and skips the nonce check, because the iOS SDK puts its own nonce in the token. |
-| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead (`signUpOutcome()`): Supabase reports this as an “already registered” error when email confirmations are off, but with confirmations on it returns a placeholder user with no identities, no session and no email, which must not show “check your email”. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
+| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Every email action (sign in, create account, reset) first checks the address shape with `isValidEmail()` and, if it fails, shows **Invalid email** — “Enter a valid email address.” — without calling Supabase: sign-in would otherwise answer an address like `sam@` with `invalid_credentials`, which reads as a wrong password. Failures on the email screen (wrong password, network, sign-up errors) show in a themed `ConfirmDialog` (`useSignIn({ alert })`), not the system alert. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead (`signUpOutcome()`): Supabase reports this as an “already registered” error when email confirmations are off, but with confirmations on it returns a placeholder user with no identities, no session and no email, which must not show “check your email”. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
 keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
@@ -228,7 +228,8 @@ round-tripping through the synced copy.
 | Body weight unit | `kg` / `lb` | `lb` | Display only |
 | Exercise weight unit | `kg` / `lb` | `lb` | Display only — set logging, PRs, volume |
 | Workout sounds | on / off | **on** | Rest tick, rest end, set complete, workout complete, and the rest notification sound |
-| Program in Your workouts | a built-in program id, or none | **none** | Chosen on the Programs screen, not in Settings ([templates](templates.md#programs)) |
+| Default rest | any `m:ss` from 0:00 to 15:00 | **2:00** | Work-set rest for every exercise that doesn't set its own, in templates, programs and workouts; 0:00 means no timer ([workout-logging](workout-logging.md#rest-timer)) |
+| Program in Your workouts | a built-in program id, or none | **Strong Lifts 5x5** on a fresh install | Chosen on the Programs screen, not in Settings ([templates](templates.md#programs)) |
 
 The two unit settings are **independent**, so you can weigh yourself in pounds and lift in kilos.
 **Pounds is the default**, since most lifters train in lb; kilograms is one switch away. It only
@@ -241,11 +242,14 @@ is written and offered to sync immediately. Every settings write — units, soun
 theme picker — goes through one queue (`persistAndNotify` in `settingsStore`), so quick taps or a
 theme change at the same moment as a unit change never drop one.
 
-Settings is **Appearance**, **Units**, **Sounds**, and an **About** card whose one row opens
-**Acknowledgements**.
+Settings is **Appearance**, **Units**, **Workouts**, **Sounds**, and an **About** card whose one
+row opens **Acknowledgements**. **Workouts** has one row, **Default rest** ("Starts after each
+working set, unless an exercise sets its own rest", value in mono): it opens the rest dialogue with
+only the work-set box, titled **Default rest** with a **Save** button, and the hint "Every exercise
+without its own rest uses this, in your templates, programs and workouts. 0:00 means no timer."
 
-**Not settings:** rest timer default (a 120 s code constant, overridable per exercise in a session),
-haptics (none exist), and notification preferences beyond sounds.
+**Not settings:** a default warm-up rest (warm-ups rest only when an exercise sets one), haptics
+(none exist), and notification preferences beyond sounds.
 
 ### Unit conversion
 
@@ -299,7 +303,8 @@ Via `sync_records` and the `upsert_sync_records` RPC:
 `session` · `template` · `template_folder` · `exercise_previous` · `exercise_note` · `app_settings`
 
 `app_settings` is one snapshot: exercise-weight and body-weight units, workout sounds, theme,
-biodata, and the program in Your workouts (`SyncedAppSettings.activeProgramId`, `null` for none).
+biodata, the Default rest (`defaultRestSeconds`; a snapshot without it keeps the local value), and
+the program in Your workouts (`SyncedAppSettings.activeProgramId`, `null` for none).
 When the local copy is dirty its program choice wins, `null` included, so removing a program on
 one device isn't undone by the other's older choice. A snapshot from an older build may still carry `heightUnit` or
 `heightCm`; they're ignored. `muscleos_unit_system` and the legacy single weight unit
@@ -312,7 +317,7 @@ exercise catalog is a separate **pull-only** delta available to all users, inclu
 
 Every local change is queued in the **outbox** (`muscleos_sync_outbox`), one entry per entity
 (`entityType:entityId`): a newer change to the same row replaces the queued one. Sessions carry
-their own clock (`completedAt`, else `startedAt`); everything else is stamped when queued; deletes
+their own clock (`editedAt` from an edit in History, else `completedAt`, else `startedAt`); everything else is stamped when queued; deletes
 are tombstones. Outbox writes are serialized, so concurrent enqueues, merges, imports and pushes
 never drop an entry.
 
@@ -357,11 +362,11 @@ Local-first. Rules in `src/sync/mergePolicy.ts`, applied by `applyRemoteRecords(
    remote is newer so the push isn't rejected
 4. Conflict with no pending local changes:
    - **Sessions** → last write wins, comparing the remote `updated_at` with the local
-     `completedAt` (or `startedAt`); ties go to local
+     `sessionSyncClock()` — `editedAt`, else `completedAt`, else `startedAt`; ties go to local
    - **Templates, folders, custom exercises** → no local timestamp, so the remote copy is taken
 5. Map-shaped snapshots (notes, previous, settings):
    - Pending local changes → keep local and union keys, filling empty local slots from remote.
-     For settings, the pending local units, sounds and theme win as a whole; biodata merges field
+     For settings, the pending local units, sounds, theme and Default rest win as a whole; biodata merges field
      by field (a local blank takes the remote value)
    - No pending changes, or an empty local map → the remote snapshot replaces local
 6. Remote deletes (`deleted_at`) follow the same rules: applied unless the local row is pending. A
@@ -403,7 +408,7 @@ All app data is in **AsyncStorage**; see [Token storage](#token-storage) regardi
 | `muscleos_exercise_notes` | Per-exercise notes | ● |
 | `muscleos_custom_exercises` | Custom exercises | ● (`user_exercises`) |
 | `muscleos_retired_custom_exercises` | Deleted custom exercises, kept so past sessions still resolve them | ○ |
-| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds`, `muscleos_active_program` | Biodata and settings (the active program is a built-in folder id, `''` for none) | ● (as `app_settings`) |
+| `muscleos_profile`, `muscleos_theme`, `muscleos_exercise_weight_unit`, `muscleos_body_weight_unit`, `muscleos_workout_sounds`, `muscleos_active_program`, `muscleos_default_rest` | Biodata and settings (the active program is a built-in folder id, `none` after removing it (`''` from older builds); never written means a fresh install, which starts on Strong Lifts) | ● (as `app_settings`) |
 | `muscleos_unit_system`, `muscleos_weight_unit` (legacy) | Default unit system; older single weight unit | ○ |
 | `muscleos_recovery` | Derived recovery cache | ○ |
 | `muscleos_active_workout` | In-progress session + rest state + `lastActivityAt` | ○ |
@@ -461,6 +466,17 @@ edges round to different pixels).
 
 **Screens must use `useTheme().colors`** — no hardcoded hex or rgba in `app/` or
 `src/components/` (enforced by `src/theme/noHardcodedColors.test.ts`).
+
+**System UI follows the app's theme.** `ThemeProvider` hands the mode to the OS with
+`Appearance.setColorScheme` (`nativeColorScheme()`: Dark and Light pin it, Auto passes
+`unspecified` and gives control back to the device), so UI drawn outside React — iOS alerts and
+keyboards, Android's navigation bar — matches the app, not the phone. On Android the theme turns off
+the system's contrast scrim behind the navigation bar (`enforceNavigationBarContrast` /
+`enforceStatusBarContrast` false), and `MainActivity` sets light or dark navigation bar buttons from
+the current night mode at launch and on every change (`applyNavigationBarAppearance`). Without
+this, a dark app on a phone in light mode with 3-button navigation showed dark buttons on a white
+strip (MUS-168). Both native changes come from the config plugin
+`plugins/withNavigationBarFollowsAppTheme.js`, so a prebuild keeps them.
 
 ## Export
 
@@ -553,7 +569,7 @@ Covered:
   reset runs every step in order, keeps going when one throws, and ends as a local-only guest when
   anonymous sign-in fails.
 - `src/auth/authErrors.test.ts` — known Supabase errors map to plain copy; unknown backend or provider
-  messages never leak (no "supabase", never the raw text) in any flow
+  messages never leak (no "supabase", never the raw text) in any flow; `isValidEmail` accepts ordinary addresses and rejects incomplete ones (`sam@`, no domain dot)
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
   `edgeFunctionError.test.ts` — linked-provider resolution, already-linked identity vs in-place
   upgrade, signup to an existing address (error or empty-identities placeholder) signing in instead, confirm/recovery link parsing, and Edge Function error messages
@@ -587,7 +603,7 @@ Covered:
 - `src/auth/authCopy.test.ts` — `emailLinkDestination`, Delete account error copy (no raw text,
   dev-only deploy hint), Google web and iOS client id lookup
 - `src/storage/localStorage.settings.test.ts` — settings defaults, unit fallbacks and
-  independence, persistence round-trip, theme listeners; migrations (legacy units, write-back,
+  independence, Default rest (2:00 unset, any whole-second m:ss to 15:00, junk falls back, normalize keeps local), persistence round-trip, theme listeners; migrations (legacy units, write-back,
   `normalizeAppSettings`, template `days[]` and `defaultSets`); legacy keys removed on launch;
   `clearAllData` removed vs kept keys; export payload contents and omissions (never `subscription`)
 - `src/storage/exportData.test.ts` — the export filename uses the local date
@@ -600,6 +616,7 @@ Covered:
   gender can't be cleared,
   Profile hint summary
 - `src/theme/palette.test.ts` — semantic tokens and `blendOver` in both modes;
+  `src/theme/nativeColorScheme.test.ts` — Dark and Light pin the OS scheme, Auto releases it;
   `src/theme/noHardcodedColors.test.ts` — no colour literals in screens or components;
   `src/theme/tabBarLayout.test.ts` — tab bar sizing
 - Screen tests (Jest, `src/test/ui/accounts/`): `profile.test.tsx` (Account card guest/linked,
@@ -608,7 +625,7 @@ Covered:
   Delete account two confirms, friendly failure, and “Account deleted” even when a store fails to reload), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
-  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes,
+  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, Default rest (2:00, set with the time pad, persisted and synced), sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes, an incomplete email blocked before any request, failures in the themed dialog,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:
@@ -617,4 +634,6 @@ Not covered:
   `linkIdentity`); the screens are tested with `useSignIn` mocked
 - The root layout's boot sequence and `EmailAuthLinks` wiring (the destination rule is covered)
 - `ThemeProvider` following the device scheme in Auto (theme persistence is covered)
+- The Android navigation bar's colours (native; checked by hand on an API 36 emulator with
+  3-button navigation: phone light + app Dark, app Light, and a cold start)
 - Notification permission gating and scheduling

@@ -86,7 +86,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 |-----|-------|---------|------|
 | **Exercises** | `/(tabs)/exercises` | Browse and search the ~400-exercise catalog; muscle maps, instructions, personal notes | [exercise-library.md](../features/exercise-library.md) |
 | **Recovery** | `/(tabs)/recovery` | Body diagram of which muscles are still recovering and when each is ready | [recovery.md](../features/recovery.md) |
-| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, recent, or from Your workouts (your templates plus at most one program) | [templates.md](../features/templates.md) |
+| **Workouts** | `/(tabs)/index` | Home. Start a workout: empty, suggested, or from Your workouts (your templates plus at most one program) | [templates.md](../features/templates.md) |
 | **History** | `/(tabs)/history` | Reverse-chronological list of finished sessions with duration, volume, and every completed set | [history-analytics.md](../features/history-analytics.md) |
 | **Profile** | `/(tabs)/profile` | Account, settings, then biodata — each row opens its own screen | [accounts-and-data.md](../features/accounts-and-data.md) |
 
@@ -102,6 +102,7 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Create / edit exercise | `/create-exercise` | Define a custom exercise | [exercise-library.md](../features/exercise-library.md#custom-exercises) |
 | Personal records | `/personal-records` | Best estimated 1RM per exercise, with strength level | [history-analytics.md](../features/history-analytics.md#personal-records) |
 | Exercise progression | `/exercise-progression` | Estimated-1RM chart over time for one exercise | [history-analytics.md](../features/history-analytics.md#exercise-progression) |
+| Edit workout | `/edit-session?id=` | Fix a finished workout: weights, reps, sets and exercises | [history-analytics.md](../features/history-analytics.md#editing-a-session) |
 | Monthly calendar | `/history-monthly` | Month grid of training days | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
 | Account | `/account` | Sign-in, sync, data, deletion, legal | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Settings | `/settings` | Appearance, units, sounds | [accounts-and-data.md](../features/accounts-and-data.md#settings) |

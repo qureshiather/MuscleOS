@@ -354,16 +354,18 @@ export function canCompleteSet(set: Pick<SetRecord, 'reps'>): boolean {
 /**
  * Seconds of rest to start after this set, or null when this set should not start a timer.
  * Warm-ups rest only when `warmUpRestSeconds` is set. Working sets use
- * `restBetweenSetsSeconds`, which defaults to 120. An explicit 0 is no rest.
+ * `restBetweenSetsSeconds`, which defaults to `defaultRest` (the user's default, 120 unless
+ * changed in Settings). An explicit 0 is no rest.
  */
 export function restDurationAfterComplete(
   set: Pick<SetRecord, 'isWarmUp'>,
-  exercise: Pick<SessionExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'>
+  exercise: Pick<SessionExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'>,
+  defaultRest: number = DEFAULT_REST_SECONDS
 ): number | null {
   const seconds =
     set.isWarmUp === true
       ? (exercise.warmUpRestSeconds ?? 0)
-      : (exercise.restBetweenSetsSeconds ?? DEFAULT_REST_SECONDS);
+      : (exercise.restBetweenSetsSeconds ?? defaultRest);
   return seconds > 0 ? seconds : null;
 }
 

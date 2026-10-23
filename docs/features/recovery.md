@@ -228,7 +228,7 @@ There are no training recommendations on this screen.
 
 ## Where else recovery appears
 
-**Workouts tab.** Recovery appears on the home screen through the Suggested and Recent cards'
+**Workouts tab.** Recovery appears on the home screen through the Suggested cards'
 **muscle art**: each card's body figure colours the template's regions in the Recovery tab's
 ready / recovering / just-trained colours (see
 [templates.md](templates.md#muscle-art-cards)). It also drives which templates are suggested:

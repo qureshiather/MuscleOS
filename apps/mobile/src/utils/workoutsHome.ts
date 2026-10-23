@@ -1,5 +1,5 @@
 import type { MuscleId, WorkoutSession, WorkoutTemplate } from '@muscleos/types';
-import { type RecommendedTemplate, recommendTemplates } from '@/utils/recommendTemplates';
+import { recommendTemplates } from '@/utils/recommendTemplates';
 
 /**
  * Rules behind the Workouts (home) tab — docs/features/templates.md#home-screen. The screen imports
@@ -32,7 +32,10 @@ export function lastDoneByTemplate(
   return map;
 }
 
-/** Home "Suggested": `recommendTemplates` over Your workouts, capped at 2. */
+/**
+ * Home "Suggested": `recommendTemplates` over Your workouts, capped at 2. Recovery decides what to
+ * target next; a program only adds its days to the pool.
+ */
 export function suggestHomeTemplates(args: {
   /** Your workouts (`yourWorkoutTemplates()`): the chosen program's templates and visible customs. */
   templates: readonly WorkoutTemplate[];
@@ -41,7 +44,7 @@ export function suggestHomeTemplates(args: {
   lastDoneByTemplate: Record<string, string>;
   getTemplateMuscles: (template: WorkoutTemplate) => MuscleId[];
   nowMs?: number;
-}): RecommendedTemplate[] {
+}): { template: WorkoutTemplate }[] {
   return recommendTemplates({
     templates: [...args.templates],
     recoveringMuscleIds: args.recoveringMuscleIds,
@@ -50,7 +53,7 @@ export function suggestHomeTemplates(args: {
     getTemplateMuscles: args.getTemplateMuscles,
     limit: SUGGESTED_TEMPLATES_LIMIT,
     nowMs: args.nowMs,
-  });
+  }).map((r) => ({ template: r.template }));
 }
 
 export type TemplateStartDecision = 'resume-prompt' | 'preview' | 'active-workout';

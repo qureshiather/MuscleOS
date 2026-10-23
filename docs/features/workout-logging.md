@@ -31,7 +31,7 @@ interface SetRecord {
 interface SessionExercise {
   exerciseId: string;
   sets: SetRecord[];
-  restBetweenSetsSeconds?: number;  // omitted → 120; 0 → no rest
+  restBetweenSetsSeconds?: number;  // omitted → your Default rest (Settings, 120 unless changed); 0 → no rest
   warmUpRestSeconds?: number;       // omitted or 0 → warm-ups do not start a timer
 }
 
@@ -40,6 +40,7 @@ interface WorkoutSession {
   templateId: string;      // '_empty' for ad-hoc
   startedAt: string;       // ISO
   completedAt?: string;    // ISO; absent while in progress
+  editedAt?: string;       // ISO; last edit from History, the sync clock when present
   exercises: SessionExercise[];
 }
 ```
@@ -203,7 +204,7 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
 
 - **Done** requires `reps > 0` (the control is disabled until then); weight is optional.
   Completing a set **auto-starts the rest timer** for that set's duration: the work-set rest
-  after a working set (default 120 s; an explicit 0:00 starts nothing), and the warm-up rest
+  after a working set (your Default rest, 120 s unless changed in Settings; an explicit 0:00 starts nothing), and the warm-up rest
   after a warm-up (only when that duration is greater than 0). Both the row's Done and the pad's
   Done go through the store's `toggleSetComplete`.
 - **Tapping Done on a completed set un-completes it.** It only flips `completed` back: the
@@ -222,17 +223,17 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
 
 | Setting | Value |
 |---------|------:|
-| App default (`DEFAULT_REST_SECONDS`) | **120 s** (working sets, when omitted) |
+| Default rest (Settings → Workouts, `defaultRestSeconds`) | **120 s** unless changed (working sets, when omitted); any `m:ss` 0:00–15:00 |
 | Running timer step | ±30 s, not snapped to a 30 s grid |
 | Running timer floor / ceiling | 30 s total / 15:00 (900 s) total; −30 never leaves less than 1 s |
 | Typed preset | any `m:ss` from 0:00 to 15:00, not snapped to 30 s |
 | Manual picker (header) | 60 / 120 / 180 s |
 
-There is **no rest-duration setting in Settings** — the default is a code constant, overridable
-per exercise on a template ([templates](templates.md#data-model), copied onto the session at
-start) and within a session. Per-exercise rest applies after **every set of that kind**,
-including the last. A working set uses `restBetweenSetsSeconds` (omitted means 120; explicit 0
-means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
+The work-set default is **Settings → Default rest** ([accounts-and-data](accounts-and-data.md#settings)),
+2:00 unless changed. It's overridable per exercise on a template ([templates](templates.md#data-model),
+copied onto the session at start) and within a session. Per-exercise rest applies after **every set
+of that kind**, including the last. A working set uses `restBetweenSetsSeconds` (omitted means the
+Default rest at the moment the set is completed; explicit 0 means no timer). A warm-up uses `warmUpRestSeconds` (omitted or 0 means no timer).
 
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
 and app restarts. **Skip rest** records the time actually rested (total minus the whole seconds
@@ -324,8 +325,12 @@ the OS fires — the alert is **kept**: cancelling then would withdraw the alert
 drop it before it fires. Returning to the app clears it.
 
 **Exact alarms (Android 13+).** On the first rest timer of a launch, if exact alarms aren't
-permitted, the app prompts once ("Let rest alerts fire on time"), explaining that alerts may
-otherwise be up to a minute late. The prompt-shown flag persists in
+permitted, the app explains why before any system screen, once ever, in the themed
+`ConfirmDialog` (`ExactAlarmPrompt`, rules in `src/utils/exactAlarmPermission.ts`): **Rest timer
+alerts** — *"MuscleOS uses Android's "Alarms & reminders" permission only for your rest timer, so
+it can alert you the moment your rest ends, even with the screen off. Without it the alert can
+arrive up to a minute late."* **Not now** closes it; **Open settings** opens Android's Alarms &
+reminders screen for the app. The prompt-shown flag persists in
 `muscleos_exact_alarm_prompt_shown`. Without permission an inexact alarm is used.
 
 Notifications are skipped entirely in Expo Go, which can't load the native modules.
@@ -336,7 +341,7 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 |--------|-----------|
 | **Exercise info** | Tap an exercise title to open the same detail sheet as the [Exercises tab](exercise-library.md) — diagram, muscles, type, instructions and **Your notes** — without Edit/Delete for customs. The number pad hides while it's open; the session is untouched |
 | **Reorder exercises** | Long-press an exercise title to enter drag mode |
-| **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. Offered to the template at Finish. 0:00 means that kind does not start a timer |
+| **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. Offered to the template at Finish. 0:00 means that kind does not start a timer. A work rest equal to your (non-zero) Default rest is stored as unset (`workRestOverride()`), so it keeps following the default and Update template doesn't pin it |
 | **Exercise note** | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
 | **Add exercise** | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists. An exercise already in the workout can't be added again |
 | **Replace exercise** | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement), and a countdown running for that slot is cancelled. The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. Replacing with an exercise already in the workout (including itself) does nothing |
@@ -358,7 +363,10 @@ for the **Add** flow, or swapped in for the **Replace** flow.
 
 **Finish** is enabled once any set is completed. It opens a summary modal whose options depend on
 what you started from and whether you changed the template — the exercise list, per-exercise
-working/warm-up row counts (incomplete rows still count), or per-exercise rests (**Update rest
+working/warm-up row counts, or per-exercise rests. Rows are counted whether or not they were
+completed: deleting a set changes the structure and offers the template update, but a set simply
+left incomplete doesn't (it's kept with the session and ignored like any incomplete set; History
+shows completed sets only) (**Update rest
 timers**; `templateStructureChanged()`):
 
 | Started from | Options |
@@ -440,7 +448,7 @@ them, so there is no cached value to invalidate. See
 | Rest runs after the last set of an exercise too | Simpler than special-casing; skip it if unwanted |
 | Warm-ups rest only when a warm-up duration is set | 0:00 (the default) does not start a timer. Completed warm-ups still count toward every derived metric ([overview](../product/overview.md#cross-cutting-assumptions)) |
 | "Previous" is one snapshot per exercise | Best weighted set within the most recent qualifying session, not an all-time best or set-by-set history |
-| Incomplete sets are stored, not discarded | They're excluded from every derived metric instead |
+| Incomplete sets are stored, not discarded | They're excluded from every derived metric instead. Saving an [edit from History](history-analytics.md#editing-a-session) keeps only the completed sets it showed |
 | Exercise notes are per exercise, not per session | Intended for setup cues (seat height, pin position) |
 
 ## Tests
@@ -467,9 +475,13 @@ the real router.
   `parseStartParams` / `encodeStartParams` (including the `rest` / `warmUpRest` lists round-trip),
   `createEmptySession` copying template rests, `normalizeHydratedState` (expired rest dropped after
   recording its duration; legacy `lastActivityAt`), and `resolveStaleWorkout`
+- `src/utils/exactAlarmPermission.test.ts` — the Alarms & reminders explanation shows in the
+  themed dialog before any system screen, only Open settings opens it, once per launch and once
+  ever, never when allowed or without the native module
 - `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping and the stale close after
   hydration and on foreground (overlapping closes save once); one workout at a time; 1-set
-  minimum; finish saving the whole session; the **debounced persist** (writes after 400 ms,
+  minimum; finish saving the whole session; a completed set resting for the user's Default rest
+  when its exercise sets none; the **debounced persist** (writes after 400 ms,
   coalesces a burst, nothing before hydration) and the immediate **background** write; start
   prefill applied once and never re-applied, keeping edits made while it loads; hydrate recording
   an expired rest; `toggleSetComplete` (reps gate, work/warm-up rest, un-complete cancels only its
@@ -486,7 +498,8 @@ the real router.
 - `src/utils/workoutSetView.test.ts` — `W1`/`1,2,3` numbering, the single current set,
   `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
   `previousLabel` (`weight × reps` with no unit, unit kept without reps)
-- `src/utils/workoutFinish.test.ts` — change detection, the finish variant and option matrix,
+- `src/utils/workoutFinish.test.ts` — change detection (a deleted set counts, an incomplete one
+  doesn't), the finish variant and option matrix,
   `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`, `summaryExerciseHasProgress`
 - `src/utils/workoutNotificationCopy.test.ts` — body selection (Next / Continue to / Finish, with
   wrap-around), alert copy, titles, `trayNotificationContent` (`Rest until <clock> • …` vs

@@ -20,7 +20,7 @@ export interface SetRecord {
 export interface SessionExercise {
   exerciseId: string;
   sets: SetRecord[];
-  /** Rest after every working set, in seconds. Omitted means the app default (120). 0 means no rest. */
+  /** Rest after every working set, in seconds. Omitted means the user's Default rest (Settings, 120 unless changed). 0 means no rest. */
   restBetweenSetsSeconds?: number;
   /** Rest after every warm-up set, in seconds. Omitted or 0 means warm-ups do not start a timer. */
   warmUpRestSeconds?: number;
@@ -32,5 +32,7 @@ export interface WorkoutSession {
   templateId: string;
   startedAt: string; // ISO
   completedAt?: string; // ISO, undefined if in progress
+  /** ISO, set when a finished session is edited from History. The session's sync clock when present. */
+  editedAt?: string;
   exercises: SessionExercise[];
 }

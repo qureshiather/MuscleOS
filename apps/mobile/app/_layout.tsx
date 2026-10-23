@@ -106,12 +106,15 @@ export default function RootLayout() {
   // Templates come along because the workout screen needs them to tell whether the
   // session drifted from its template — resuming from the notification skips the tab
   // that used to be the only thing loading them.
+  // Settings too: a resumed workout's rest timer reads the Default rest, and the Workouts tab
+  // needs the chosen program, long before a slow sign-in finishes.
   useEffect(() => {
     void removeLegacyStorageKeys();
+    void loadSettings();
     void hydrateActiveWorkout();
     void loadTemplates();
     void loadCustomExercises();
-  }, [loadTemplates, loadCustomExercises]);
+  }, [loadSettings, loadTemplates, loadCustomExercises]);
 
   useEffect(() => {
     (async () => {

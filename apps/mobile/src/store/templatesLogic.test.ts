@@ -169,7 +169,7 @@ describe('groupYourWorkouts', () => {
     expect(c.visibleCount).toBe(5);
   });
 
-  it('no program by default: no built-in appears', () => {
+  it('with no program, no built-in appears', () => {
     expect(group().program).toBeNull();
   });
 

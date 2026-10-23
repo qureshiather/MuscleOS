@@ -15,6 +15,7 @@ import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@/auth/signIn';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/auth/authErrors';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PasswordField } from '@/components/ui/PasswordField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -26,7 +27,10 @@ type Mode = 'signin' | 'signup';
 export default function AuthEmailScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { linkWithEmail, signInWithEmailOnly, sendPasswordReset } = useSignIn();
+  const [authError, setAuthError] = useState<null | { title: string; message: string }>(null);
+  const { linkWithEmail, signInWithEmailOnly, sendPasswordReset } = useSignIn({
+    alert: (title, message) => setAuthError({ title, message }),
+  });
   const [mode, setMode] = useState<Mode>('signin');
   const [resetting, setResetting] = useState(false);
   const [email, setEmail] = useState('');
@@ -37,6 +41,10 @@ export default function AuthEmailScreen() {
   const [mailNotice, setMailNotice] = useState<null | 'confirm' | 'reset' | 'reset-failed'>(null);
 
   async function handleSubmit() {
+    if (!isValidEmail(email)) {
+      setAuthError({ title: 'Invalid email', message: INVALID_EMAIL_MESSAGE });
+      return;
+    }
     setLoading(true);
     if (resetting) {
       const sent = await sendPasswordReset(email.trim());
@@ -186,6 +194,13 @@ export default function AuthEmailScreen() {
         }
         confirmLabel="OK"
         onConfirm={() => setMailNotice(null)}
+      />
+      <ConfirmDialog
+        visible={authError != null}
+        title={authError?.title ?? ''}
+        message={authError?.message ?? ''}
+        confirmLabel="OK"
+        onConfirm={() => setAuthError(null)}
       />
     </Screen>
   );

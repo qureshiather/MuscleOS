@@ -5,6 +5,7 @@ import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
 import { type Href, router } from 'expo-router';
 import CreateTemplateScreen from '../../../../app/create-template';
 import { useTemplatesStore } from '@/store/templatesStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { routeStub } from '../render';
 import {
   customTemplate,
@@ -37,7 +38,7 @@ async function open(params = '') {
 
 async function addExercise(name: string) {
   fireEvent.press(screen.getByText('Add exercises'));
-  fireEvent.changeText(screen.getByPlaceholderText('Search...'), name);
+  fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), name);
   fireEvent.press(await screen.findByText(name));
   fireEvent.press(screen.getByText('Done'));
 }
@@ -59,7 +60,7 @@ describe('create', () => {
     expect(await screen.findByText('New template')).toBeTruthy();
     expect(screen.getByText('Template name')).toBeTruthy();
     expect(screen.getByPlaceholderText('e.g. Push A')).toBeTruthy();
-    expect(screen.getByText('Exercises · 0')).toBeTruthy();
+    expect(screen.getByTestId('template-plan-size').props.children).toBe('0 exercises · 0 sets');
     expect(screen.getByText('No exercises yet')).toBeTruthy();
     expect(screen.getByText('Save template')).toBeTruthy();
     // No folders → no folder chips.
@@ -82,16 +83,16 @@ describe('create', () => {
     await open();
     await screen.findByText('New template');
     await addExercise('Bench Press');
-    expect(screen.getByText('Exercises · 1')).toBeTruthy();
+    expect(screen.getByTestId('template-plan-size').props.children).toBe('1 exercise · 3 sets');
     expect(screen.getByLabelText('3 Sets')).toBeTruthy();
-    expect(screen.getByLabelText('0 Warm-up')).toBeTruthy();
+    expect(screen.getByLabelText('0 Warm-ups')).toBeTruthy();
     // One exercise: no reorder hint.
     expect(screen.queryByText('Hold and drag to rearrange')).toBeNull();
     // Muscles used appears once exercises resolve.
     expect(screen.getByText('Muscles used')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Add exercises'));
-    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Bench Press');
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Bench Press');
     expect(screen.queryAllByText('Bench Press')).toHaveLength(1); // only the selected row
     fireEvent.press(screen.getByText('Done'));
   });
@@ -101,7 +102,7 @@ describe('create', () => {
     await screen.findByText('New template');
     fireEvent.press(screen.getByText('Add exercises'));
     expect(screen.getByText('Add exercise')).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Zzqx Lift');
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Zzqx Lift');
     expect(await screen.findByText('Create “Zzqx Lift”')).toBeTruthy();
   });
 
@@ -110,7 +111,7 @@ describe('create', () => {
     await screen.findByText('New template');
     fireEvent.press(screen.getByText('Add exercises'));
     expect(screen.getByTestId('picker-done')).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText('Search...'), 'Zercher Squat');
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Zercher Squat');
     fireEvent.press(screen.getByTestId('picker-new-exercise'));
     expect(await screen.findByText('route:create-exercise')).toBeTruthy();
     expect(searchParams()).toMatchObject({ name: 'Zercher Squat' });
@@ -122,13 +123,13 @@ describe('create', () => {
     await addExercise('Bench Press');
     for (let i = 0; i < 5; i += 1) fireEvent.press(screen.getByLabelText('Decrease Sets'));
     expect(screen.getByLabelText('1 Sets')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Decrease Warm-up'));
-    expect(screen.getByLabelText('0 Warm-up')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Decrease Warm-ups'));
+    expect(screen.getByLabelText('0 Warm-ups')).toBeTruthy();
     for (let i = 0; i < 12; i += 1) fireEvent.press(screen.getByLabelText('Increase Sets'));
     expect(screen.getByLabelText('13 Sets')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Increase Warm-up'));
-    fireEvent.press(screen.getByLabelText('Increase Warm-up'));
-    expect(screen.getByLabelText('2 Warm-up')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Increase Warm-ups'));
+    fireEvent.press(screen.getByLabelText('Increase Warm-ups'));
+    expect(screen.getByLabelText('2 Warm-ups')).toBeTruthy();
   });
 
   it('remove takes the exercise out', async () => {
@@ -136,7 +137,7 @@ describe('create', () => {
     await screen.findByText('New template');
     await addExercise('Bench Press');
     fireEvent.press(screen.getByLabelText('Remove Bench Press'));
-    expect(screen.getByText('Exercises · 0')).toBeTruthy();
+    expect(screen.getByTestId('template-plan-size').props.children).toBe('0 exercises · 0 sets');
   });
 
   it('saves tpl_* with isBuiltIn false and the per-exercise plan, then goes back', async () => {
@@ -150,7 +151,7 @@ describe('create', () => {
     await addExercise('Barbell Squat');
     expect(screen.getByText('Hold and drag to rearrange')).toBeTruthy();
     fireEvent.press(screen.getAllByLabelText('Increase Sets')[1]);
-    fireEvent.press(screen.getAllByLabelText('Increase Warm-up')[1]);
+    fireEvent.press(screen.getAllByLabelText('Increase Warm-ups')[1]);
     fireEvent.press(screen.getByText('Save template'));
     expect(await screen.findByText('route:home')).toBeTruthy();
     const [saved] = await storedTemplates();
@@ -189,6 +190,40 @@ describe('rest timers (MUS-143)', () => {
     expect(saved.exercises).toEqual([
       { exerciseId: 'bench-press' },
       { exerciseId: 'squat', restBetweenSetsSeconds: 180, warmUpRestSeconds: 45 },
+    ]);
+  });
+
+  it('Edit all rests sets every exercise; a rest equal to the default stays unset', async () => {
+    useSettingsStore.setState({ defaultRestSeconds: 90 });
+    await open();
+    await screen.findByText('New template');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. Push A'), 'Push A');
+    await addExercise('Bench Press');
+    await addExercise('Barbell Squat');
+    // An unset rest shows the user's default.
+    expect(screen.getByTestId('template-rest-squat').props.accessibilityLabel).toMatch(/: 1:30$/);
+
+    fireEvent.press(screen.getByTestId('template-rest-all'));
+    expect(await screen.findByText('Apply to all')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('rest-time-work'));
+    for (const d of ['2', '3', '0']) fireEvent.press(screen.getByTestId(`keypad-key-${d}`));
+    fireEvent.press(screen.getByTestId('rest-timers-save'));
+    await waitFor(() =>
+      expect(screen.getByTestId('template-rest-bench-press').props.accessibilityLabel).toMatch(/: 2:30$/)
+    );
+    expect(screen.getByTestId('template-rest-squat').props.accessibilityLabel).toMatch(/: 2:30$/);
+
+    fireEvent.press(screen.getByTestId('template-rest-bench-press'));
+    fireEvent.press(await screen.findByTestId('rest-time-work'));
+    for (const d of ['1', '3', '0']) fireEvent.press(screen.getByTestId(`keypad-key-${d}`));
+    fireEvent.press(screen.getByTestId('rest-timers-save'));
+
+    fireEvent.press(screen.getByText('Save template'));
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    const [saved] = await storedTemplates();
+    expect(saved.exercises).toEqual([
+      { exerciseId: 'bench-press' },
+      { exerciseId: 'squat', restBetweenSetsSeconds: 150 },
     ]);
   });
 

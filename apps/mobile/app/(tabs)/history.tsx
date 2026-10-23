@@ -213,6 +213,7 @@ export default function HistoryScreen() {
                     expanded={isExpanded(s.id)}
                     onToggle={() => toggle(s.id)}
                     onDelete={() => setDeleteTarget(s)}
+                    onEdit={() => router.push({ pathname: '/edit-session', params: { id: s.id } })}
                     onShare={() => setShareTarget(s)}
                     prExerciseIds={sessionPRs.get(s.id)}
                     volumeDelta={volumeDeltas.get(s.id)}

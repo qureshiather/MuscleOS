@@ -10,6 +10,16 @@ export type AuthErrorContext = 'sign_in' | 'sign_up' | 'google' | 'apple' | 'pas
 
 export const AUTH_UNAVAILABLE_MESSAGE = "Sign-in isn't available right now. Try again later.";
 
+export const INVALID_EMAIL_MESSAGE = 'Enter a valid email address.';
+
+/**
+ * Shape check run before any email request. Supabase's sign-in answers a malformed address
+ * ("sam@") with invalid_credentials, which reads as a wrong password, so we never send one.
+ */
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email.trim());
+}
+
 const NETWORK_MESSAGE = "Couldn't reach MuscleOS. Check your internet connection and try again.";
 
 const FALLBACK: Record<AuthErrorContext, string> = {
@@ -45,7 +55,7 @@ export function friendlyAuthError(error: AuthErrorLike, context: AuthErrorContex
     msg.includes('invalid format') ||
     (msg.includes('email address') && msg.includes('invalid'))
   ) {
-    return 'Enter a valid email address.';
+    return INVALID_EMAIL_MESSAGE;
   }
   if (
     error?.status === 429 ||

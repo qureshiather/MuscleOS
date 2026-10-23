@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useWorkoutNotification } from '@/hooks/useWorkoutNotification';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
+import { ExactAlarmPrompt } from '@/components/ExactAlarmPrompt';
 
 function isRestCompleteNotification(
   notification: Notifications.Notification
@@ -79,5 +80,5 @@ export default function WorkoutNotificationHandler() {
     };
   }, [router]);
 
-  return null;
+  return <ExactAlarmPrompt />;
 }

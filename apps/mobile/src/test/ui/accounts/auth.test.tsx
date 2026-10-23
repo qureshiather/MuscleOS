@@ -17,7 +17,13 @@ const mockSignIn = {
   linkWithEmail: jest.fn(async (): Promise<boolean | 'confirm'> => false),
   sendPasswordReset: jest.fn(async (): Promise<boolean | 'missing'> => true),
 };
-jest.mock('@/auth/signIn', () => ({ useSignIn: () => mockSignIn }));
+let mockSignInAlert: ((title: string, message: string) => void) | undefined;
+jest.mock('@/auth/signIn', () => ({
+  useSignIn: (options?: { alert?: (title: string, message: string) => void }) => {
+    mockSignInAlert = options?.alert;
+    return mockSignIn;
+  },
+}));
 jest.mock('@/lib/supabase', () => ({
   isSupabaseConfigured: () => true,
   supabase: {
@@ -123,6 +129,37 @@ describe('/auth-email', () => {
     expect(
       screen.getByText('If an account exists for that email, we sent a reset link. Open it on this phone.')
     ).toBeTruthy();
+  });
+
+  test('an incomplete email is caught before any request, in every mode', async () => {
+    renderApp(routes, '/auth-email');
+    fireEvent.changeText(await screen.findByPlaceholderText('Email'), 'samim@');
+    fireEvent.changeText(screen.getByPlaceholderText('Password (min 6 characters)'), '12345678');
+    fireEvent.press(screen.getAllByText('Sign in').at(-1)!);
+    expect(await screen.findByText('Invalid email')).toBeTruthy();
+    expect(screen.getByText('Enter a valid email address.')).toBeTruthy();
+    expect(mockSignIn.signInWithEmailOnly).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByText('OK'));
+    await waitFor(() => expect(screen.queryByText('Invalid email')).toBeNull());
+
+    fireEvent.press(screen.getByText('Forgot password?'));
+    fireEvent.press(screen.getByText('Send reset link'));
+    expect(await screen.findByText('Invalid email')).toBeTruthy();
+    expect(mockSignIn.sendPasswordReset).not.toHaveBeenCalled();
+  });
+
+  test('sign-in failures show in the themed dialog, not the system alert', async () => {
+    mockSignIn.signInWithEmailOnly.mockImplementationOnce(async () => {
+      mockSignInAlert?.('Sign in failed', "That email and password don't match. Check them, or use Forgot password.");
+      return false;
+    });
+    renderApp(routes, '/auth-email');
+    fireEvent.changeText(await screen.findByPlaceholderText('Email'), 'sam@example.com');
+    fireEvent.changeText(screen.getByPlaceholderText('Password (min 6 characters)'), 'wrong12');
+    fireEvent.press(screen.getAllByText('Sign in').at(-1)!);
+    expect(await screen.findByText("That email and password don't match. Check them, or use Forgot password.")).toBeTruthy();
+    expect(alertSpy).not.toHaveBeenCalled();
   });
 
   test('forgot password: a missing account shows no dialog; a send failure says so', async () => {

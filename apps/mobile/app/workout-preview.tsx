@@ -43,6 +43,7 @@ export default function WorkoutPreviewScreen() {
     defaultSets?: string;
   }>();
   const weightUnit = useSettingsStore((s) => s.weightUnit);
+  const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
   // Set once Edit is opened: from then on the preview follows the saved template, not the link.
   const [followTemplate, setFollowTemplate] = useState(false);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
@@ -220,7 +221,7 @@ export default function WorkoutPreviewScreen() {
                   >
                     <Ionicons name="timer-outline" size={12} color={colors.primary} />
                     <Text style={[styles.restBadgeText, { color: colors.primary }]}>
-                      {formatPreviewRest(plan[index])}
+                      {formatPreviewRest(plan[index], defaultRestSeconds)}
                     </Text>
                   </View>
                 </View>

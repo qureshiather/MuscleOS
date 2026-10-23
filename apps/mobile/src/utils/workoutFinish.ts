@@ -14,6 +14,7 @@
 import type { SetRecord, WorkoutSession } from '@muscleos/types';
 import { formatClockMs } from '@/utils/formatClock';
 import { kgToDisplay, type WeightUnit } from '@/utils/weightUnits';
+import { DEFAULT_REST_SECONDS } from '@/utils/templateExercises';
 
 /** Where the finished workout was started from, combined with whether its template was edited. */
 export type FinishFlowVariant = 'empty' | 'builtin-changed' | 'custom-changed' | 'unchanged';
@@ -67,7 +68,9 @@ export function templateListChanged(
  */
 export function templateStructureChanged(
   sessionPlan: readonly TemplatePlanSlot[],
-  templatePlan: readonly TemplatePlanSlot[]
+  templatePlan: readonly TemplatePlanSlot[],
+  /** Work rest for a slot that leaves it unset: the user's default. Compared by value. */
+  defaultRest: number = DEFAULT_REST_SECONDS
 ): boolean {
   if (sessionPlan.length !== templatePlan.length) return true;
   return sessionPlan.some((ex, i) => {
@@ -76,8 +79,8 @@ export function templateStructureChanged(
       ex.exerciseId !== planned.exerciseId ||
       ex.sets !== planned.sets ||
       ex.warmUpSets !== planned.warmUpSets ||
-      ex.restBetweenSetsSeconds !== planned.restBetweenSetsSeconds ||
-      ex.warmUpRestSeconds !== planned.warmUpRestSeconds
+      (ex.restBetweenSetsSeconds ?? defaultRest) !== (planned.restBetweenSetsSeconds ?? defaultRest) ||
+      (ex.warmUpRestSeconds ?? 0) !== (planned.warmUpRestSeconds ?? 0)
     );
   });
 }

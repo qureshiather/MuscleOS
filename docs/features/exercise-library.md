@@ -402,11 +402,16 @@ There are **no favourites** on this tab. The PR screen is reached from History; 
 
 ## Exercise pickers
 
-Two implementations: the template builder filters `searchExercises` inline, and the active
-workout's add and replace flows share `pickerResults()` (`src/utils/exercisePicker.ts`). Both
-search the catalog plus customs and leave out exercises already selected.
+One sheet, `ExercisePickerSheet` (`src/components/workouts/`), over `pickerResults()`
+(`src/utils/exercisePicker.ts`), serves the template builder (add, staying open to add several,
+with each exercise's muscles under its name) and the add and replace flows of the active workout
+and [Edit workout](history-analytics.md#editing-a-session). It searches the catalog plus customs
+and leaves out exercises already selected, and owns the keyboard handling (the list shrinks above
+the keyboard).
 
-Both sheets' headers carry **+ New** beside **Done** (`PickerHeaderActions`): it opens the
+The template builder and active workout sheets carry **+ New** beside **Done**
+(`PickerHeaderActions`) and, whenever the search has text, a **Create "<query>"** row; Edit
+workout's sheet has Done only and no Create row. **+ New** opens the
 **New exercise** form, prefilled with the search text when there is some (blank otherwise) — the
 same route as the Create "<query>" row, so from the active workout saving drops the new exercise
 in (or swaps it in for Replace).

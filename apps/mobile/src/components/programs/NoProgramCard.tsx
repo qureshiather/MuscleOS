@@ -5,15 +5,13 @@ import { fontFamily, typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 
 type NoProgramCardProps = {
-  /** No program is chosen: the card is marked and offers its two ways to train. */
+  /** No program is chosen: the card is marked. */
   selected: boolean;
   onSelect: () => void;
-  onBuildTemplate: () => void;
-  onStartEmpty: () => void;
 };
 
-/** The Programs list's "No program" choice: your own templates, or just start lifting. */
-export function NoProgramCard({ selected, onSelect, onBuildTemplate, onStartEmpty }: NoProgramCardProps) {
+/** The Programs list's "No program" choice: train from your own templates. */
+export function NoProgramCard({ selected, onSelect }: NoProgramCardProps) {
   const { colors, isDark } = useTheme();
   return (
     <Pressable
@@ -42,36 +40,8 @@ export function NoProgramCard({ selected, onSelect, onBuildTemplate, onStartEmpt
         ) : null}
       </View>
       <Text style={[typography.caption, { color: colors.textSecondary }]}>
-        {selected
-          ? 'Great. Make your own templates, or just start a workout and add exercises as you go.'
-          : 'Skip the plan. Train from your own templates, or start empty and add exercises as you go.'}
+        Skip the plan and train from your own templates.
       </Text>
-      {selected ? (
-        <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onBuildTemplate}
-            style={({ pressed }) => [
-              styles.action,
-              { borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
-            ]}
-          >
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Build a template</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onStartEmpty}
-            style={({ pressed }) => [
-              styles.action,
-              { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <Ionicons name="barbell-outline" size={16} color={colors.primaryOn} />
-            <Text style={[styles.actionText, { color: colors.primaryOn }]}>Start empty workout</Text>
-          </Pressable>
-        </View>
-      ) : null}
     </Pressable>
   );
 }
@@ -82,17 +52,4 @@ const styles = StyleSheet.create({
   name: { flex: 1, minWidth: 0 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tagText: { fontFamily: fontFamily.sansSemiBold, fontSize: 11 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
-  action: {
-    flexGrow: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-  },
-  actionText: { fontFamily: fontFamily.sansSemiBold, fontSize: 14 },
 });

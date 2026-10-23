@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Slug } from 'react-native-body-highlighter';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import { useDeviceMetrics } from '@/theme/layout';
-import type { WorkoutTemplate, WorkoutSession } from '@muscleos/types';
+import type { WorkoutTemplate } from '@muscleos/types';
 import type { FigureGender } from '@/utils/bodyCrop';
 import type { DiagramView, RegionStates } from '@/utils/muscleDiagramRegions';
 import { MuscleZoomArt, ZoomFade } from '@/components/workouts/MuscleZoomArt';
@@ -18,7 +17,6 @@ export type TemplateArt = {
 export type TemplateRegions = (template: WorkoutTemplate) => TemplateArt;
 
 const SUGGESTED_CARD_HEIGHT = 132;
-const RECENT_CARD_HEIGHT = 112;
 /** The figure overhangs the card so it reads as cropped, not framed. */
 const ART_WIDTH = 0.9;
 const ART_HEIGHT = 1.28;
@@ -79,53 +77,6 @@ function ZoomCard({ template, art, gender, height, width, subtitle, accessibilit
   );
 }
 
-type RecentWorkoutsRowProps = {
-  items: { session: WorkoutSession; template: WorkoutTemplate }[];
-  onPress: (template: WorkoutTemplate) => void;
-  formatRelative: (iso: string) => string;
-  getRegions: TemplateRegions;
-  gender: FigureGender;
-};
-
-export function RecentWorkoutsRow({ items, onPress, formatRelative, getRegions, gender }: RecentWorkoutsRowProps) {
-  const { colors } = useTheme();
-  const { isNarrow } = useDeviceMetrics();
-  const cardWidth = isNarrow ? 140 : 160;
-
-  if (items.length === 0) return null;
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-      style={styles.scroll}
-    >
-      {items.map(({ session, template }) => {
-        const completedAgo = session.completedAt ? formatRelative(session.completedAt) : null;
-        return (
-          <ZoomCard
-            key={session.id}
-            template={template}
-            art={getRegions(template)}
-            gender={gender}
-            width={cardWidth}
-            height={RECENT_CARD_HEIGHT}
-            accessibilityLabel={`${template.name}${completedAgo ? `, ${completedAgo}` : ''}`}
-            testID={`recent-card-${template.id}`}
-            onPress={() => onPress(template)}
-            subtitle={
-              completedAgo ? (
-                <Text style={[typography.caption, { color: colors.textMuted }]}>{completedAgo}</Text>
-              ) : null
-            }
-          />
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 type SuggestedWorkoutsGridProps = {
   items: { template: WorkoutTemplate }[];
   onPress: (template: WorkoutTemplate) => void;
@@ -163,12 +114,6 @@ export function SuggestedWorkoutsGrid({ items, onPress, getRegions, gender }: Su
 }
 
 const styles = StyleSheet.create({
-  scroll: { marginHorizontal: -spacing.lg },
-  row: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    paddingBottom: spacing.xs,
-  },
   cardLight: {
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,

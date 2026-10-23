@@ -35,21 +35,14 @@ export function programActionHint(action: ProgramAction): string {
   }
 }
 
-/** The Programs list's "No program" entry, alongside the real programs. */
-export const NO_PROGRAM = 'none' as const;
-export type ProgramsListItem = BuiltInProgram | typeof NO_PROGRAM;
-
-/**
- * Programs list order: whatever is chosen first — a program, or No program when none is — then
- * the rest of the programs as shipped. No program goes last while a program is chosen.
- */
+/** Programs list order: the chosen program first, then the rest as shipped. */
 export function orderPrograms(
   programs: readonly BuiltInProgram[],
   activeProgramId: string | null
-): ProgramsListItem[] {
+): BuiltInProgram[] {
   const active = programs.find((p) => p.id === activeProgramId);
-  if (!active) return [NO_PROGRAM, ...programs];
-  return [active, ...programs.filter((p) => p !== active), NO_PROGRAM];
+  if (!active) return [...programs];
+  return [active, ...programs.filter((p) => p !== active)];
 }
 
 /** `3 days/wk · 2 workouts` */

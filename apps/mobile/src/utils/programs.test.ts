@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN_PROGRAMS, builtInProgram } from '@/data/builtInTemplates';
 import type { MuscleId } from '@muscleos/types';
 import {
-  NO_PROGRAM,
   orderPrograms,
   programAction,
   programActionHint,
@@ -40,12 +39,10 @@ describe('programAction', () => {
 });
 
 describe('orderPrograms', () => {
-  const ids = (items: ReturnType<typeof orderPrograms>) =>
-    items.map((i) => (i === NO_PROGRAM ? 'none' : i.id));
+  const ids = (items: ReturnType<typeof orderPrograms>) => items.map((i) => i.id);
 
-  it('with no program, No program comes first, then every program as shipped', () => {
+  it('with no program, every program as shipped', () => {
     expect(ids(orderPrograms(BUILT_IN_PROGRAMS, null))).toEqual([
-      'none',
       'builtin_sl',
       'builtin_ppl',
       'builtin_ul',
@@ -53,13 +50,12 @@ describe('orderPrograms', () => {
     ]);
   });
 
-  it('with a program, it comes first, the rest as shipped, and No program last', () => {
+  it('with a program, it comes first, then the rest as shipped', () => {
     expect(ids(orderPrograms(BUILT_IN_PROGRAMS, 'builtin_ul'))).toEqual([
       'builtin_ul',
       'builtin_sl',
       'builtin_ppl',
       'builtin_phul',
-      'none',
     ]);
   });
 });

@@ -22,6 +22,7 @@ its effect everywhere, and why there is no cache to invalidate.
 | History card | `apps/mobile/src/components/history/SessionCard.tsx` |
 | Progress strip | `apps/mobile/src/components/history/ProgressStrip.tsx` |
 | Share image: model, card, preview | `apps/mobile/src/utils/shareCard.ts`, `src/components/share/WorkoutShareCard.tsx`, `src/components/share/ShareWorkoutSheet.tsx` |
+| Edit workout | `apps/mobile/app/edit-session.tsx`, `src/utils/sessionEdit.ts` |
 | Store | `apps/mobile/src/store/sessionsStore.ts` |
 
 ## History list
@@ -65,6 +66,7 @@ Collapsed, a card shows:
 | Element | Detail |
 |---------|--------|
 | Date | Short weekday, short month, day: `Sun, Sep 27` |
+| Edit button | Opens **Edit workout** to fix its sets (see [Editing a session](#editing-a-session)) |
 | Trash button | Deletes the session after confirmation (see [Deleting a session](#deleting-a-session)) |
 | Template name | Resolved from `templateId`; ad-hoc sessions (`_empty`) are named by the local day they started — `Oct 20 workout`, then `Oct 20 workout 2` for the next ad-hoc session that day (`adHocSessionName()`, also the in-progress workout title); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
 | Duration · volume | `59m · 5,518 kg`. Duration is `completedAt − startedAt` to the nearest minute (`45m`, `1h 15m`, `2h`); volume is Σ `weightKg × reps` over completed sets, whole numbers in the user's unit (`formatVolume`). Either part is dropped when missing or zero; a session under one minute has no duration (never `0m`) |
@@ -132,6 +134,58 @@ always **1080 × 1920** (9:16, story-sized), and it's always drawn in the **dark
 | Footer | App icon, **MuscleOS**, and `muscleos.app` |
 
 Nothing about sharing is stored or synced; the image is a temporary file handed to the share sheet.
+
+### Editing a session
+
+A typo (an 800 kg squat) or a mislogged lift shouldn't cost the whole workout, so a finished
+session can be fixed. The card's pencil button (`Edit <name>`) opens **Edit workout**
+(`/edit-session?id=`). It's laid out like the workout screen (one card per exercise, a set table,
+**+ ADD SET**, **Add Exercise**) but it is its own screen: no clock, rest timer, sounds or done
+ticks, since every set in it counts as done.
+
+It starts from the session's **completed** sets (`sessionEditDraft()` in `src/utils/sessionEdit.ts`;
+incomplete sets aren't shown, and an exercise with none is left out). Under the session's name and
+date:
+
+| Control | Does |
+|---|---|
+| Weight / reps cell | Opens the same [number pad](workout-logging.md#entering-values) as logging (the first digit replaces the value; Done just closes the pad) |
+| ✕ on a set | Deletes it straight away; deleting an exercise's last set removes the exercise |
+| **+ ADD SET** | Appends a set copying the last one's weight and reps (`addDraftSet()`) |
+| Swap icon | **Replace exercise** picker. The sets are kept, since a replace here fixes which lift was logged (`replaceDraftExercise()`) |
+| Trash icon | **Remove exercise** — confirm *"Remove <name> and its sets from this workout?"* (**Cancel** / **Remove**) |
+| **Add Exercise** | Picker; the exercise joins with one empty set (`addDraftExercise()`) |
+
+Both pickers leave out exercises already in the workout and offer no create
+([exercise pickers](exercise-library.md#exercise-pickers)).
+
+**Save** is enabled once something changed (`draftChanged()`) and the draft is valid
+(`draftProblem()`), otherwise a hint explains why:
+
+| Problem | Hint |
+|---|---|
+| No sets left | A workout needs at least one set. To remove it, delete it from History. |
+| A set without reps | Every set needs reps. |
+
+Saving (`saveSessionEdit` in `sessionsStore`, rules in `applySessionEdit()`):
+
+1. Writes the draft over the original in place. The original's `startedAt` and `completedAt` are
+   kept (an edit never moves a workout in time or changes its duration), `editedAt` is stamped, and
+   the saved session holds only the completed sets shown in the form.
+2. **Recomputes recovery** and **rebuilds the "previous" map** from all sessions, the same as a
+   delete, so a fixed typo stops being suggested.
+3. Queues a session upsert and the rebuilt previous map. `editedAt` is the session's sync clock
+   (`sessionSyncClock()`), so the edit wins over other devices' copies; see
+   [conflict resolution](accounts-and-data.md#conflict-resolution).
+4. Returns to History. PRs and volume changes re-derive on read.
+
+If the original is deleted meanwhile (a sync from another device), the form stays open with the
+draft — the session is pinned when the screen opens — and Save shows **Workout not found** —
+*"This workout was deleted from History, so your changes can't be saved."* — then goes back.
+**Cancel** goes back; with unsaved changes it asks first (**Discard changes?** — *"The workout
+stays as it was in History."*, **Keep editing** / **Discard**). The Android back button and the
+iOS swipe-back ask the same way (`usePreventRemove`). An unknown id shows **Workout not
+found** with a Back link.
 
 ### Deleting a session
 
@@ -323,7 +377,7 @@ Completed sets only, warm-ups included
 | < 4 weeks | `1 week ago` / `N weeks ago` |
 | Older | Locale date string |
 
-Used for template "last done", the Recent row, and sync status. `formatRecoveryReady()` lives in
+Used for template "last done" and sync status. `formatRecoveryReady()` lives in
 the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 
 ## Assumptions
@@ -378,6 +432,14 @@ Vitest (`apps/mobile/src/…`):
 - `store/sessionsStore.test.ts` — `completedSessions()` filter and order; `deleteSession` storage
   removal, recovery recompute, previous-map rebuild, sync notifications, unknown id no-op
 - `store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`
+- `store/sessionsStore.test.ts` — `saveSessionEdit` saves in place, rebuilds previous, notifies
+  sync; a deleted original saves nothing
+- `utils/sessionEdit.test.ts` — draft keeps completed sets only, set update without suggestion
+  flags, delete (and the exercise with its last set), add set copying the last, add exercise with
+  an empty set (never a duplicate), replace keeping sets (never into a duplicate), remove
+  exercise, problems (no sets, missing reps; no weight is fine), `applySessionEdit` in place with
+  original times and `editedAt`
+- `utils/sessionClock.test.ts` — `editedAt`, then `completedAt`, then `startedAt`
 
 Jest UI (`apps/mobile/src/test/ui/history/`):
 
@@ -388,6 +450,12 @@ Jest UI (`apps/mobile/src/test/ui/history/`):
   linked sync first), pounds; the Progress strip (2-session lifts only, e1RM label, card →
   progression, See all → Personal Records, hidden with no repeated lift), a session card's lift
   row → progression, and a session card's share image (best set, PR badge, volume)
+- `editSession.test.tsx` — Edit opens the completed sets (no done ticks, Save disabled until a
+  change); fixing a weight saves in place and returns to History with the new volume; deleting
+  sets and the empty-workout hint; missing reps blocks Save; + ADD SET; replace keeps the sets and
+  the picker has no + New; remove exercise confirms; an added exercise needs reps; Cancel asks
+  only with changes and leaves the session as it was; back with unsaved edits asks too; a delete
+  from another device mid-edit keeps the draft and Save reports Workout not found
 - `monthly.test.tsx` — Monday-first grid, local-date day marking, day detail
   toggle with name + duration only, No workouts this day, month navigation
 - `records.test.tsx` — empty state, e1RM order with 1-dp values, 10-bar window and the

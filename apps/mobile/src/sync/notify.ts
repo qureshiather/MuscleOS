@@ -2,6 +2,7 @@ import type { WorkoutSession, WorkoutTemplate, TemplateFolder, Exercise } from '
 import type { ExercisePrevious, SyncedAppSettings } from '@/storage/localStorage';
 import { enqueueOutbox } from './outbox';
 import { isCloudSyncEnabled, schedulePush } from './syncEngine';
+import { sessionSyncClock } from '@/utils/sessionClock';
 
 function touch(): void {
   schedulePush();
@@ -14,7 +15,7 @@ export function notifySessionUpsert(session: WorkoutSession): void {
     entityId: session.id,
     op: 'upsert',
     payload: session,
-    updatedAt: session.completedAt ?? session.startedAt,
+    updatedAt: sessionSyncClock(session),
   });
   touch();
 }
