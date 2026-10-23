@@ -242,7 +242,7 @@ describe('sections', () => {
     expect(screen.getByTestId('template-card-tpl_h')).toBeTruthy();
   });
 
-  it('a template card shows name, size, description, exercise lineup, muscle pills and Last done', async () => {
+  it('a template card shows name, exercise count, muscle pills and Last done — no description or lineup', async () => {
     await seed({
       templates: [
         customTemplate({ id: 'tpl_x', name: 'Arms', description: 'Pump day', exerciseIds: ['barbell-curl', 'tricep-pushdown', 'hammer-curl'] }),
@@ -258,11 +258,12 @@ describe('sections', () => {
     await screen.findByText('Last done: 2 days ago');
     const card = screen.getByTestId('template-card-tpl_x');
     expect(within(card).getByText('Arms')).toBeTruthy();
-    expect(within(card).getByText('Pump day')).toBeTruthy();
     expect(within(card).getByText('Last done: 2 days ago')).toBeTruthy();
-    expect(within(card).getByText(/^3 exercises · \d+ sets$/)).toBeTruthy();
-    expect(within(card).getByText('Barbell Curl  ·  Tricep Pushdown with Rope  ·  Hammer Curl')).toBeTruthy();
+    expect(within(card).getByText('3 exercises')).toBeTruthy();
     expect(within(card).getByText('Biceps')).toBeTruthy();
+    // The preview has the details: no description or exercise lineup on the card.
+    expect(within(card).queryByText('Pump day')).toBeNull();
+    expect(within(card).queryByText(/Barbell Curl/)).toBeNull();
   });
 
   it('the header headline comes from session history', async () => {

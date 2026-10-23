@@ -12,7 +12,7 @@ const exercises: Record<string, Pick<Exercise, 'name' | 'muscles'>> = {
 const get = (id: string) => exercises[id];
 
 describe('templateCardModel', () => {
-  it('lists names, main muscles once each (max 3) and the size', () => {
+  it('main muscles once each (max 3) and the exercise count', () => {
     const model = templateCardModel(
       {
         exerciseIds: ['squat', 'bench', 'fly', 'row', 'curl'],
@@ -26,16 +26,14 @@ describe('templateCardModel', () => {
       },
       get
     );
-    expect(model.exerciseNames).toEqual(['Barbell Squat', 'Bench Press', 'Cable Fly', 'Barbell Row', 'Curl']);
     expect(model.muscles.map((m) => m.id)).toEqual(['quads', 'chest', 'lats']);
     expect(model.muscles[0].label).toBe('Quads');
-    expect(model.meta).toBe('5 exercises · 21 sets');
+    expect(model.meta).toBe('5 exercises');
   });
 
-  it('falls back to the id for an unknown exercise, and says 1 exercise · 1 set', () => {
+  it('an unknown exercise adds no muscle; 1 exercise is singular', () => {
     const model = templateCardModel({ exerciseIds: ['gone'], exercises: [{ exerciseId: 'gone', sets: 1 }] }, get);
-    expect(model.exerciseNames).toEqual(['gone']);
     expect(model.muscles).toEqual([]);
-    expect(model.meta).toBe('1 exercise · 1 set');
+    expect(model.meta).toBe('1 exercise');
   });
 });

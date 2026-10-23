@@ -175,15 +175,16 @@ the [Your workouts](#your-workouts) list.
 ### Template cards
 
 Cards share the History card's look: the card surface with a border (and a soft shadow in light
-mode). Top to bottom (`templateCardModel()` in `src/utils/templateCard.ts`):
+mode). They stay short, because the preview they open lists every exercise with its sets, rests
+and previous (`templateCardModel()` in `src/utils/templateCard.ts`):
 
-- The name, with its size in mono on the right — `3 exercises · 15 sets` (working sets) — and the
-  menu for custom templates.
-- The optional description.
-- The exercise lineup: every exercise name in order, joined with `·`, up to two lines.
-- Below a hairline: up to **3** muscle pills (the first-listed muscle of each exercise, once each,
-  in order), `Last done: <relative>` when a completed session exists for it (the most recent one —
+- The name, with the exercise count in mono on the right (`3 exercises`), and the menu for custom
+  templates.
+- Up to **3** muscle pills: the first-listed muscle of each exercise, once each, in order.
+- `Last done: <relative>` when a completed session exists for it (the most recent one —
   `lastDoneByTemplate()`), and a chevron.
+
+The description and the exercise list are left to the preview.
 
 Tapping a card opens **`/workout-preview`**, not the workout directly, passing the template id and
 its set plan. Cards in the program section have no menu. The routing decision is `decideTemplateStart()` in `src/utils/workoutsHome.ts`: an
@@ -481,8 +482,8 @@ Covered:
 - `src/utils/templateExercises.test.ts` (MUS-169 part) — `editorRestPatch` leaves a rest equal to
   the default unset, `applyRestToAll`, `sharedRest` (shared rests or the default), and an unset rest
   labelled with the user's default
-- `src/utils/templateCard.test.ts` — card lineup, main muscles once each (max 3), size line,
-  unknown exercise by id
+- `src/utils/templateCard.test.ts` — main muscles once each (max 3), exercise count (singular),
+  an unknown exercise adds no muscle
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
   payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
 - `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting, `formatPreviewRest` (the default rest,
@@ -496,7 +497,7 @@ Covered:
   `/programs`), the
   program section (its templates, no menus, collapses and reopens, name → `/program`, Change → `/programs`); My templates ordering /
   default-closed Archived and Hidden, sections keep their rows (and border) across a light → dark
-  switch, card size, lineup, muscle pills and Last done, custom cards unlocked and opening the preview, no Pro or
+  switch, card exercise count, muscle pills and Last done (no description or lineup), custom cards unlocked and opening the preview, no Pro or
   upgrade copy, program template → preview params, the Empty workout hero → `/active-workout?templateId=_empty`,
   "Workout in progress" Resume / Cancel, every context-menu action (hide into Hidden (N) and out of
   Suggested, unhide, rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,

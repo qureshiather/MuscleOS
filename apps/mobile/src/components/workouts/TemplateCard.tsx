@@ -15,17 +15,17 @@ type TemplateCardProps = {
 };
 
 /**
- * A workout on the Workouts tab, styled like a History card: name and size, the exercise lineup,
- * its main muscles as pills, and when it was last done (docs/features/templates.md#template-cards).
+ * A workout on the Workouts tab, styled like a History card: name and exercise count, its main
+ * muscles as pills, and when it was last done. The preview it opens has the details
+ * (docs/features/templates.md#template-cards).
  */
 export function TemplateCard({ template, model, lastDone, onPress, onMenu }: TemplateCardProps) {
   const { colors, isDark } = useTheme();
-  const description = template.description?.trim();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${template.name}, ${model.exerciseNames.length} exercises`}
+      accessibilityLabel={`${template.name}, ${model.meta}`}
       testID={`template-card-${template.id}`}
       style={({ pressed }) => [
         styles.card,
@@ -53,19 +53,7 @@ export function TemplateCard({ template, model, lastDone, onPress, onMenu }: Tem
         ) : null}
       </View>
 
-      {description ? (
-        <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>
-          {description}
-        </Text>
-      ) : null}
-
-      {model.exerciseNames.length > 0 ? (
-        <Text style={[typography.label, styles.lineup, { color: colors.text }]} numberOfLines={2}>
-          {model.exerciseNames.join('  ·  ')}
-        </Text>
-      ) : null}
-
-      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+      <View style={styles.footer}>
         <View style={styles.pills}>
           {model.muscles.map((m) => (
             <View key={m.id} style={[styles.pill, { backgroundColor: colors.primarySurface }]}>
@@ -73,11 +61,12 @@ export function TemplateCard({ template, model, lastDone, onPress, onMenu }: Tem
             </View>
           ))}
         </View>
-        {lastDone ? (
-          <Text style={[typography.caption, { color: colors.textMuted }]}>Last done: {lastDone}</Text>
-        ) : null}
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </View>
+
+      {lastDone ? (
+        <Text style={[typography.caption, { color: colors.textMuted }]}>Last done: {lastDone}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -99,15 +88,7 @@ const styles = StyleSheet.create({
   name: { flex: 1, minWidth: 0 },
   meta: { ...typography.caption, fontFamily: typography.data.fontFamily, fontVariant: ['tabular-nums'] },
   menuBtn: { padding: 2 },
-  lineup: { lineHeight: 20 },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: spacing.sm,
-    marginTop: 2,
-  },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   pills: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   pill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
   pillText: { ...typography.caption, fontSize: 11, fontWeight: '600' },
