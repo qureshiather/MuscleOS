@@ -102,36 +102,27 @@ describe('sections', () => {
     expect(screen.queryByText('Recent')).toBeNull();
 
     expect(screen.getByText('Upper Lower Splits')).toBeTruthy();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
   });
 
-  it('with no program: no built-in is listed or suggested, and a Pick a program grid shows', async () => {
+  it('with no program and no templates: no built-in is listed or suggested, and an empty state asks for a template', async () => {
     await seed({ sessions: [completedSession('ppl-push', NOW - 9 * DAY)] });
     renderHome();
     await ready();
     expect(useSettingsStore.getState().activeProgramId).toBeNull();
     expect(screen.queryByText('Suggested')).toBeNull();
     expect(screen.queryByTestId('template-card-ppl-push')).toBeNull();
-    for (const id of ['builtin_sl', 'builtin_ppl', 'builtin_ul', 'builtin_phul']) {
-      expect(screen.getByTestId(`program-card-${id}`)).toBeTruthy();
-    }
-    fireEvent.press(screen.getByTestId('program-card-builtin_phul'));
-    expect(await screen.findByText('route:program')).toBeTruthy();
-    expect(searchParams()).toEqual({ id: 'builtin_phul' });
-  });
-
-  it('with no program and no templates, Build a template opens create-template', async () => {
-    renderHome();
-    await ready();
-    expect(screen.queryByTestId('templates-section-custom')).toBeNull();
-    fireEvent.press(screen.getByLabelText('Build your own template'));
+    expect(screen.queryByTestId('program-card-builtin_sl')).toBeNull();
+    const empty = screen.getByTestId('your-workouts-empty');
+    expect(within(empty).getByText('Make a template to start working out.')).toBeTruthy();
+    fireEvent.press(within(empty).getByText('Build a template'));
     expect(await screen.findByText('route:create-template')).toBeTruthy();
   });
 
-  it('See all opens Programs', async () => {
+  it('with no program, a quiet Browse programs link opens Programs', async () => {
     renderHome();
     await ready();
-    fireEvent.press(screen.getByText('See all'));
+    fireEvent.press(screen.getByTestId('add-program-row'));
     expect(await screen.findByText('route:programs')).toBeTruthy();
   });
 
@@ -139,7 +130,7 @@ describe('sections', () => {
     await seed({ templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })] });
     renderHome();
     await ready();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
     expect(screen.getByText('My templates')).toBeTruthy();
     expect(screen.getByText('Want a plan?', { exact: false })).toBeTruthy();
     expect(screen.queryByTestId('build-own-template-row')).toBeNull();
@@ -164,6 +155,15 @@ describe('sections', () => {
     expect(screen.queryByTestId('add-program-row')).toBeNull();
     fireEvent.press(screen.getByLabelText('Change program'));
     expect(await screen.findByText('route:programs')).toBeTruthy();
+  });
+
+  it('fresh install: Strong Lifts is the program and both days are suggested', async () => {
+    useSettingsStore.setState({ activeProgramId: 'builtin_sl' });
+    renderHome();
+    await ready();
+    expect(within(screen.getByTestId('your-workouts-program')).getByText('Strong Lifts 5x5')).toBeTruthy();
+    expect(screen.getByTestId('suggested-card-sl-a')).toBeTruthy();
+    expect(screen.getByTestId('suggested-card-sl-b')).toBeTruthy();
   });
 
   it('the program section starts open and its chevron collapses and reopens it', async () => {
@@ -286,14 +286,14 @@ describe('sections', () => {
 });
 
 describe('Your workouts states', () => {
-  it('fresh user: Pick a program grid and Build a template, no program, My templates or Browse programs', async () => {
+  it('no program and no templates: the empty state and Browse programs, no program or My templates', async () => {
     renderHome();
     await ready();
-    expect(screen.getByTestId('pick-a-program')).toBeTruthy();
+    expect(screen.getByTestId('your-workouts-empty')).toBeTruthy();
     expect(screen.getByTestId('build-own-template-row')).toBeTruthy();
     expect(screen.queryByTestId('your-workouts-program')).toBeNull();
     expect(screen.queryByTestId('templates-section-custom')).toBeNull();
-    expect(screen.queryByTestId('add-program-row')).toBeNull();
+    expect(screen.getByTestId('add-program-row')).toBeTruthy();
     expect(screen.queryByText('Suggested')).toBeNull();
   });
 
@@ -304,7 +304,7 @@ describe('Your workouts states', () => {
     expect(within(screen.getByTestId('your-workouts-program')).getByText('Push Pull Legs')).toBeTruthy();
     expect(screen.getByTestId('template-card-ppl-push')).toBeTruthy();
     expect(screen.getByText('Suggested')).toBeTruthy();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
     expect(screen.queryByTestId('templates-section-custom')).toBeNull();
     expect(screen.queryByTestId('add-program-row')).toBeNull();
     fireEvent.press(screen.getByTestId('build-own-template-row'));
@@ -320,7 +320,7 @@ describe('Your workouts states', () => {
     await ready();
     expect(screen.getByTestId('your-workouts-program')).toBeTruthy();
     expect(within(screen.getByTestId('templates-section-custom')).getByText('Chest day')).toBeTruthy();
-    expect(screen.queryByTestId('pick-a-program')).toBeNull();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
     expect(screen.queryByTestId('build-own-template-row')).toBeNull();
     expect(screen.queryByTestId('add-program-row')).toBeNull();
   });
@@ -371,7 +371,8 @@ describe('starting', () => {
   it('Empty workout skips the preview → /active-workout?templateId=_empty', async () => {
     renderHome();
     await ready();
-    fireEvent.press(screen.getByTestId('start-empty-workout'));
+    expect(screen.getByText('Add exercises as you go')).toBeTruthy();
+    fireEvent.press(screen.getByText('Empty workout'));
     expect(await screen.findByText('route:active-workout')).toBeTruthy();
     expect(searchParams()).toEqual({ templateId: '_empty', exerciseIds: '' });
   });

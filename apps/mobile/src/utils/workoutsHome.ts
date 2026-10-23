@@ -33,49 +33,27 @@ export function lastDoneByTemplate(
 }
 
 /**
- * The program day to do next: the one after the most recently finished day, in shipped order and
- * wrapping (B after A, A after B), or day 1 when none was done. Undefined for no program.
- */
-export function nextProgramDay(
-  days: readonly WorkoutTemplate[],
-  lastDone: Record<string, string>
-): WorkoutTemplate | undefined {
-  if (days.length === 0) return undefined;
-  let latest = -1;
-  for (let i = 0; i < days.length; i++) {
-    const at = lastDone[days[i].id];
-    if (at != null && (latest < 0 || at > lastDone[days[latest].id])) latest = i;
-  }
-  return days[(latest + 1) % days.length];
-}
-
-/**
- * Home "Suggested", capped at 2: the chosen program's next day always leads (following a program
- * means doing its next workout, recovered or not), then `recommendTemplates` over the rest of Your
- * workouts.
+ * Home "Suggested": `recommendTemplates` over Your workouts, capped at 2. Recovery decides what to
+ * target next; a program only adds its days to the pool.
  */
 export function suggestHomeTemplates(args: {
   /** Your workouts (`yourWorkoutTemplates()`): the chosen program's templates and visible customs. */
   templates: readonly WorkoutTemplate[];
-  /** The chosen program's days in shipped order; empty or omitted for no program. */
-  programDays?: readonly WorkoutTemplate[];
   recoveringMuscleIds: ReadonlySet<MuscleId>;
   recentlyWorkedMuscleIds: ReadonlySet<MuscleId>;
   lastDoneByTemplate: Record<string, string>;
   getTemplateMuscles: (template: WorkoutTemplate) => MuscleId[];
   nowMs?: number;
 }): { template: WorkoutTemplate }[] {
-  const next = nextProgramDay(args.programDays ?? [], args.lastDoneByTemplate);
-  const recommended = recommendTemplates({
-    templates: args.templates.filter((t) => t.id !== next?.id),
+  return recommendTemplates({
+    templates: [...args.templates],
     recoveringMuscleIds: args.recoveringMuscleIds,
     recentlyWorkedMuscleIds: args.recentlyWorkedMuscleIds,
     lastDoneByTemplate: args.lastDoneByTemplate,
     getTemplateMuscles: args.getTemplateMuscles,
-    limit: SUGGESTED_TEMPLATES_LIMIT - (next ? 1 : 0),
+    limit: SUGGESTED_TEMPLATES_LIMIT,
     nowMs: args.nowMs,
-  });
-  return [...(next ? [{ template: next }] : []), ...recommended.map((r) => ({ template: r.template }))];
+  }).map((r) => ({ template: r.template }));
 }
 
 export type TemplateStartDecision = 'resume-prompt' | 'preview' | 'active-workout';

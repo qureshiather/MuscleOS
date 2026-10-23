@@ -123,21 +123,19 @@ Renders top to bottom:
 **1. Header.** Title "Workouts" and a one-line status headline (see
 [Home headline](#home-headline)) — not a stats ticker.
 
-**2. Empty workout button.** A compact **+ Empty workout** button under the headline starts a
-session with no exercises. It skips the preview screen and goes straight to `/active-workout` with
+**2. Empty workout hero.** A full-width primary banner, **Empty workout** / "Add exercises as you
+go", starts a session with no exercises. It skips the preview screen and goes straight to `/active-workout` with
 `templateId: '_empty'`. If a session is already in progress, the "Workout in progress" dialog is
 shown instead ([workout-logging](workout-logging.md#starting)).
 
-**3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid
-(`suggestHomeTemplates()` in `src/utils/workoutsHome.ts`). With a program chosen, its **next day**
-always comes first, recovered or not: the day after the most recently finished day of that
-program, in shipped order and wrapping (B after A, A after B), or day 1 when none was done
-(`nextProgramDay()`). The remaining slot (both, with no program) is chosen by
-[recommendTemplates](#suggested-templates) over the rest of [Your workouts](#your-workouts) — the
-chosen program's templates and your visible custom ones (`yourWorkoutTemplates()` in
-`src/store/templatesLogic.ts`). It never suggests a hidden template or a program you aren't
-following. Each is a
-[muscle art card](#muscle-art-cards) with the name and exercise count.
+**3. Suggested** (only when non-empty). Up to **2** templates in a 2-column grid, chosen by
+[recommendTemplates](#suggested-templates) over [Your workouts](#your-workouts) only — the chosen
+program's templates and your visible custom ones (`yourWorkoutTemplates()` in
+`src/store/templatesLogic.ts`, fed to `suggestHomeTemplates()` in `src/utils/workoutsHome.ts`).
+Recovery decides what to target next; a program only adds its days to the pool, so a program day
+whose muscles are still recovering isn't suggested. It never suggests a hidden template or a
+program you aren't following. Each is a [muscle art card](#muscle-art-cards) with the name and
+exercise count.
 
 There is no Recent row: with a program chosen by default, Suggested and the program's own
 workouts already cover what to do next, and History lists what was done.
@@ -234,14 +232,15 @@ Top to bottom, below the header:
    |---|---|---|
    | Yes | either | A section headed with a collapse chevron, the program's name (tap → its overview at `/program?id=`) and a **Change** link (→ `/programs`), listing its templates in shipped order. It starts open; collapsing hides the templates for this visit, like a folder. Program cards have no menu. |
    | No | Yes | Nothing here; a quiet **Want a plan? Browse programs ›** link sits under My templates (→ `/programs`) |
-   | No | No | **Pick a program** with **See all** (→ `/programs`) and a 2×2 grid of program cards (name, `N days/wk · Level`), each → `/program?id=` |
+   | No | No | An empty state: **No workouts yet** — "Make a template to start working out." — with a **Build a template** button (→ `/create-template`), and the quiet **Browse programs** link below it. No program grid |
 
 2. **My templates** (only when you have any custom template or folder, hidden or empty ones
    included). Contents in order: uncategorized templates → favourite (pinned) folders → normal
    folders → an **Archived** group (archived folders, pinned or not) → a **Hidden (N)** group
    (every hidden custom template, in a folder or not). An empty folder still shows, with
-   "No templates in this folder." With no custom templates or folders, a quiet "Prefer your own?
-   **Build a template** ›" link (→ `/create-template`) takes its place. Nothing on this tab uses
+   "No templates in this folder." With no custom templates or folders and a program chosen, a quiet
+   "Prefer your own? **Build a template** ›" link (→ `/create-template`) takes its place; with no
+   program either, the empty state above covers it. Nothing on this tab uses
    dashed or outlined placeholder boxes.
 
 Folders whose every template is hidden are omitted (their templates show under Hidden). Real
@@ -460,9 +459,8 @@ Covered:
   stored or synced), custom hide synced on the record, folder CRUD, and folder delete
   re-syncing only the affected templates; delete-with-templates removing hidden ones too
 - `src/utils/workoutsHome.test.ts` — `defaultFolderExpanded`, `lastDoneByTemplate`,
-  `nextProgramDay` (day 1 first, the day after the latest, wrapping), `suggestHomeTemplates` (cap
-  2, the program's next day first even while recovering, customs suggested like built-ins, only
-  Your workouts — no hidden template, no program you aren't following), and every
+  `suggestHomeTemplates` (cap 2, customs suggested like built-ins, only Your workouts — no hidden
+  template, no program you aren't following), and every
   `decideTemplateStart` branch
 - `src/utils/templateCard.test.ts` — card lineup, main muscles once each (max 3), size line,
   unknown exercise by id
@@ -474,12 +472,13 @@ Covered:
   (link plan, template fallback, template wins after Edit), `canEditFromPreview`
 - `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2 and only from
   the chosen program, no Recent row, customs in Suggested;
-  with no program (no built-in listed or suggested, Pick a program grid → `/program`, See
-  all → `/programs`, Build your own template), a quiet Browse programs link under My templates once you have templates, the
+  a fresh install on Strong Lifts with both days suggested; with no program (no built-in listed
+  or suggested, the empty state's Build a template → `/create-template`, Browse programs →
+  `/programs`), the
   program section (its templates, no menus, collapses and reopens, name → `/program`, Change → `/programs`); My templates ordering /
   default-closed Archived and Hidden, sections keep their rows (and border) across a light → dark
   switch, card size, lineup, muscle pills and Last done, custom cards unlocked and opening the preview, no Pro or
-  upgrade copy, program template → preview params, empty workout → `/active-workout?templateId=_empty`,
+  upgrade copy, program template → preview params, the Empty workout hero → `/active-workout?templateId=_empty`,
   "Workout in progress" Resume / Cancel, every context-menu action (hide into Hidden (N) and out of
   Suggested, unhide, rename, move incl. Create & move and No folder, edit, delete confirm), folder menu (pin, archive, rename), all three folder-delete prompts and outcomes,
   `/templates` redirect

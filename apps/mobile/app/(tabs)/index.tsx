@@ -15,8 +15,6 @@ import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { screenHeaderStyles } from '@/theme/screenHeader';
 import { useTemplatesStore } from '@/store/templatesStore';
-import { BUILT_IN_PROGRAMS } from '@/data/builtInTemplates';
-import { ProgramCard } from '@/components/programs/ProgramCard';
 import {
   folderDeletePlan,
   groupYourWorkouts,
@@ -209,7 +207,6 @@ export default function WorkoutsScreen() {
     const nowMs = Date.now();
     return suggestHomeTemplates({
       templates: yourWorkouts,
-      programDays: groups.program?.templates ?? [],
       recoveringMuscleIds: new Set(activeRecovery().map((r) => r.muscleId)),
       recentlyWorkedMuscleIds: recentlyWorkedMuscleIds(sessions, nowMs, getExercise),
       lastDoneByTemplate,
@@ -221,7 +218,6 @@ export default function WorkoutsScreen() {
     sessions,
     lastDoneByTemplate,
     yourWorkouts,
-    groups.program,
     activeRecovery,
     templateMuscles,
     getExercise,
@@ -617,18 +613,68 @@ export default function WorkoutsScreen() {
             {headline}
           </Text>
 
+          {/* Start Empty Workout - hero CTA */}
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Empty workout"
-            testID="start-empty-workout"
             style={({ pressed }) => [
-              styles.startEmptyBtn,
-              { backgroundColor: colors.primarySurface, borderColor: colors.primaryBorder, opacity: pressed ? 0.8 : 1 },
+              styles.startEmptyCard,
+              {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+                opacity: pressed ? 0.92 : 1,
+              },
+              !isDark && {
+                ...Platform.select({
+                  ios: {
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                  },
+                  android: { elevation: 4 },
+                }),
+              },
             ]}
             onPress={handleStartEmptyWorkout}
           >
-            <Ionicons name="add" size={18} color={colors.primary} />
-            <Text style={[styles.startEmptyBtnText, { color: colors.primary }]}>Empty workout</Text>
+            <View style={styles.startEmptyCardInner}>
+              <View
+                style={[
+                  styles.startEmptyIconWrap,
+                  { backgroundColor: colors.primaryOnSurface },
+                ]}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={28}
+                  color={colors.primaryOn}
+                />
+              </View>
+                <View style={styles.startEmptyTextWrap}>
+                <View style={styles.startEmptyTitleRow}>
+                  <Text
+                    style={[
+                      styles.startEmptyCardTitle,
+                      { color: colors.primaryOn },
+                    ]}
+                  >
+                    Empty workout
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.startEmptyCardSubtitle,
+                    { color: colors.primaryOnMuted },
+                  ]}
+                >
+                  Add exercises as you go
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={22}
+                color={colors.primaryOnMuted}
+              />
+            </View>
           </Pressable>
         </View>
 
@@ -726,23 +772,29 @@ export default function WorkoutsScreen() {
                   )}
                 </View>
               ) : hasMyTemplates ? null : (
-                <View style={styles.homeSection} testID="pick-a-program">
-                  <SectionHeader
-                    title="Pick a program"
-                    actionLabel="See all"
-                    onAction={() => router.push('/programs')}
-                  />
-                  <View style={styles.programGrid}>
-                    {BUILT_IN_PROGRAMS.map((program) => (
-                      <View key={program.id} style={styles.programGridCell}>
-                        <ProgramCard
-                          program={program}
-                          compact
-                          onPress={(p) => router.push({ pathname: '/program', params: { id: p.id } })}
-                        />
-                      </View>
-                    ))}
+                <View
+                  style={[styles.emptyWorkouts, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  testID="your-workouts-empty"
+                >
+                  <View style={[styles.emptyWorkoutsIcon, { backgroundColor: colors.primarySurface }]}>
+                    <Ionicons name="clipboard-outline" size={24} color={colors.primary} />
                   </View>
+                  <Text style={[typography.bodyMedium, { color: colors.text }]}>No workouts yet</Text>
+                  <Text style={[typography.caption, styles.emptyWorkoutsText, { color: colors.textSecondary }]}>
+                    Make a template to start working out.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    testID="build-own-template-row"
+                    onPress={() => router.push('/create-template')}
+                    style={({ pressed }) => [
+                      styles.emptyWorkoutsBtn,
+                      { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+                    ]}
+                  >
+                    <Ionicons name="add" size={18} color={colors.primaryOn} />
+                    <Text style={[styles.emptyWorkoutsBtnText, { color: colors.primaryOn }]}>Build a template</Text>
+                  </Pressable>
                 </View>
               )}
 
@@ -815,7 +867,7 @@ export default function WorkoutsScreen() {
                     )}
                   </View>
                 </View>
-              ) : (
+              ) : groups.program ? (
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Build your own template"
@@ -830,9 +882,9 @@ export default function WorkoutsScreen() {
                   </Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                 </Pressable>
-              )}
+              ) : null}
 
-              {!groups.program && hasMyTemplates && (
+              {!groups.program && (
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Browse programs"
@@ -1290,28 +1342,69 @@ export default function WorkoutsScreen() {
 }
 
 const styles = StyleSheet.create({
-  startEmptyBtn: {
+  startEmptyCard: {
     marginTop: spacing.md,
-    alignSelf: 'flex-start',
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  startEmptyCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 12,
   },
-  startEmptyBtnText: { ...typography.label, fontWeight: '600' },
+  startEmptyIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startEmptyTextWrap: { flex: 1 },
+  startEmptyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+  startEmptyCardTitle: {
+    ...typography.bodyMedium,
+    fontFamily: typography.screenTitle.fontFamily,
+    fontSize: typography.sectionTitle.fontSize,
+  },
+  startEmptyCardSubtitle: { ...typography.caption, marginTop: 2 },
   templatesSection: { marginTop: spacing.sm },
   programHeader: { justifyContent: 'space-between' },
   programToggle: { marginRight: 6 },
   programName: { flex: 0, flexShrink: 1 },
   linkText: { fontSize: typography.label.fontSize, fontWeight: '600' },
+  emptyWorkouts: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  emptyWorkoutsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyWorkoutsText: { textAlign: 'center' },
+  emptyWorkoutsBtn: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+  },
+  emptyWorkoutsBtnText: { ...typography.label, fontWeight: '600' },
   quietLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', paddingVertical: spacing.sm },
   quietLinkAction: { fontWeight: '600' },
   quietLinkText: { fontSize: typography.caption.fontSize },
-  programGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  programGridCell: { flexBasis: '45%', flexGrow: 1 },
   homeSection: { marginBottom: spacing.lg },
   collapsibleSection: {
     borderRadius: 14,
