@@ -444,30 +444,30 @@ export default function CreateTemplateScreen() {
                     colors={colors}
                     onChange={(warmUpSets) => updateExercise(item.exerciseId, { warmUpSets })}
                   />
-                  <View style={[styles.stepper, styles.restColumn]}>
+                </View>
+                <View style={styles.restRow}>
+                  <Text
+                    style={[typography.caption, styles.restLabel, { color: colors.textMuted }]}
+                    maxFontSizeMultiplier={fontScaleCap.chrome}
+                  >
+                    Rest
+                  </Text>
+                  <Pressable
+                    onPress={() => setRestExerciseId(item.exerciseId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Rest timers for ${ex?.name ?? item.exerciseId}: ${formatTemplateRestLabel(item, defaultRestSeconds)}`}
+                    testID={`template-rest-${item.exerciseId}`}
+                    style={[styles.restPill, { borderColor: colors.border }]}
+                  >
+                    <Ionicons name="timer-outline" size={14} color={colors.primary} />
                     <Text
-                      style={[typography.caption, { color: colors.textMuted }]}
-                      maxFontSizeMultiplier={fontScaleCap.chrome}
+                      style={[typography.data, { color: colors.text }]}
+                      maxFontSizeMultiplier={fontScaleCap.tabular}
+                      numberOfLines={1}
                     >
-                      Rest
+                      {formatTemplateRestLabel(item, defaultRestSeconds)}
                     </Text>
-                    <Pressable
-                      onPress={() => setRestExerciseId(item.exerciseId)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Rest timers for ${ex?.name ?? item.exerciseId}: ${formatTemplateRestLabel(item, defaultRestSeconds)}`}
-                      testID={`template-rest-${item.exerciseId}`}
-                      style={[styles.restPill, { borderColor: colors.border }]}
-                    >
-                      <Ionicons name="timer-outline" size={14} color={colors.primary} />
-                      <Text
-                        style={[typography.data, { color: colors.text }]}
-                        maxFontSizeMultiplier={fontScaleCap.tabular}
-                        numberOfLines={1}
-                      >
-                        {formatTemplateRestLabel(item, defaultRestSeconds)}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  </Pressable>
                 </View>
               </View>
             </ScaleDecorator>
@@ -733,10 +733,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  restColumn: { marginLeft: 'auto' },
+  restRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  restLabel: { minWidth: 32 },
   stepper: {
     gap: 4,
   },
