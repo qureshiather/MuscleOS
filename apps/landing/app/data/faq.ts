@@ -147,7 +147,7 @@ export const FAQ_ITEMS: FaqItem[] = [
       'When you finish a workout, every muscle worked by an exercise with a completed set starts a recovery timer:',
     ],
     bullets: [
-      '36 hours: abs, obliques, biceps, triceps, forearms.',
+      '36 hours: abs, obliques, biceps, triceps, forearms, neck, tibialis.',
       '48 hours: front, side, and rear delts, calves, adductors.',
       '72 hours: chest, traps, lats, rhomboids, lower back, quads, hamstrings, glutes.',
     ],

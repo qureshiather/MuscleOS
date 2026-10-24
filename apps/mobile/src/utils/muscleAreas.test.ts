@@ -12,9 +12,9 @@ import {
 const shoulders = muscleArea('shoulders');
 
 describe('MUSCLE_AREAS', () => {
-  it('covers all 18 muscles exactly once', () => {
+  it('covers all 20 muscles exactly once', () => {
     const all = MUSCLE_AREAS.flatMap((a) => a.muscles);
-    expect(all).toHaveLength(18);
+    expect(all).toHaveLength(20);
     expect(new Set(all)).toEqual(new Set(Object.keys(MUSCLE_GROUPS)));
   });
 

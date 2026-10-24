@@ -4,6 +4,7 @@ export type MuscleId =
   | 'front_delts'
   | 'side_delts'
   | 'rear_delts'
+  | 'neck'
   | 'traps'
   | 'lats'
   | 'rhomboids'
@@ -17,7 +18,8 @@ export type MuscleId =
   | 'hamstrings'
   | 'glutes'
   | 'adductors'
-  | 'calves';
+  | 'calves'
+  | 'tibialis';
 
 export interface MuscleGroup {
   id: MuscleId;
@@ -31,6 +33,7 @@ export const MUSCLE_GROUPS: Record<MuscleId, MuscleGroup> = {
   front_delts: { id: 'front_delts', name: 'Front Delts', region: 'upper_front' },
   side_delts: { id: 'side_delts', name: 'Side Delts', region: 'upper_front' },
   rear_delts: { id: 'rear_delts', name: 'Rear Delts', region: 'upper_back' },
+  neck: { id: 'neck', name: 'Neck', region: 'upper_back' },
   traps: { id: 'traps', name: 'Traps', region: 'upper_back' },
   lats: { id: 'lats', name: 'Lats', region: 'upper_back' },
   rhomboids: { id: 'rhomboids', name: 'Rhomboids', region: 'upper_back' },
@@ -45,6 +48,7 @@ export const MUSCLE_GROUPS: Record<MuscleId, MuscleGroup> = {
   glutes: { id: 'glutes', name: 'Glutes', region: 'lower_back' },
   adductors: { id: 'adductors', name: 'Adductors', region: 'lower_front' },
   calves: { id: 'calves', name: 'Calves', region: 'lower_back' },
+  tibialis: { id: 'tibialis', name: 'Tibialis', region: 'lower_front' },
 };
 
 /** User-facing label for a muscle ID. Never show the raw ID (e.g. `rear_delts`) in UI. */

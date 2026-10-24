@@ -92,6 +92,15 @@ describe('MuscleDiagram', () => {
     ).toEqual([3, 1]);
   });
 
+  it('lights the shin for a tibialis raise and the neck for neck work, not calves or traps (MUS-171)', () => {
+    const tib = renderDiagram({ muscleIds: ['tibialis'] });
+    expect(tib.bySlug).toEqual({ tibialis: 1 });
+    expect(tib.neutral.calves).toBeDefined();
+    const neck = renderDiagram({ muscleIds: ['neck'] });
+    expect(neck.bySlug).toEqual({ neck: 1 });
+    expect(neck.neutral.trapezius).toBeDefined();
+  });
+
   it('uses the female figure only when the profile says female (or the variant overrides)', () => {
     expect(renderDiagram({ muscleIds: [] }).body.gender).toBe('male');
     act(() => useSettingsStore.setState({ profile: { sex: 'female' } }));
@@ -109,7 +118,7 @@ describe('MuscleDiagram', () => {
     expect(bySlug.quadriceps).toBe(2);
     expect(bySlug.deltoids).toBe(2);
     expect(bySlug.calves).toBe(3);
-    expect(highlighted).toHaveLength(15);
+    expect(highlighted).toHaveLength(17);
   });
 
   it('two-state recovery when no just-trained subset is supplied', () => {
@@ -117,13 +126,13 @@ describe('MuscleDiagram', () => {
     expect(body.colors).toEqual(getRecoveryPalette(themeColors, false));
     expect(bySlug['upper-back']).toBe(1); // lats + rhomboids share a region
     expect(bySlug.chest).toBe(2);
-    expect(highlighted).toHaveLength(15);
+    expect(highlighted).toHaveLength(17);
     expect(body.colors).toHaveLength(2);
   });
 
   it('all-clear: every region highlighted in the ready green', () => {
     const { body, highlighted } = renderDiagram({ muscleIds: ALL, highlightColor: 'green' });
-    expect(highlighted).toHaveLength(15);
+    expect(highlighted).toHaveLength(17);
     expect(body.colors[0]).toBe(themeColors.recoveryReady);
   });
 

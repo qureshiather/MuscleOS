@@ -9,7 +9,7 @@ describe('muscle labels', () => {
   });
 
   it('has a group entry for every muscle ID used in recovery', () => {
-    expect(Object.keys(MUSCLE_GROUPS).length).toBe(18);
+    expect(Object.keys(MUSCLE_GROUPS).length).toBe(20);
     expect(muscleLabel('adductors')).toBe('Adductors');
   });
 });

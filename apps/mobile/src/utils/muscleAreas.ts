@@ -9,7 +9,7 @@ export interface MuscleArea {
 }
 
 /**
- * Body areas covering all 18 muscles exactly once, in head-to-toe order. The create-exercise form
+ * Body areas covering all 20 muscles exactly once, in head-to-toe order. The create-exercise form
  * offers them as shortcut chips (Shoulders selects all three delts) and as headings in its
  * specific-muscle view; the library Muscle filter reuses Legs, Back and Shoulders.
  *
@@ -19,10 +19,10 @@ export interface MuscleArea {
 export const MUSCLE_AREAS: MuscleArea[] = [
   { key: 'chest', label: 'Chest', muscles: ['chest'] },
   { key: 'shoulders', label: 'Shoulders', muscles: ['front_delts', 'side_delts', 'rear_delts'] },
-  { key: 'back', label: 'Back', muscles: ['lats', 'traps', 'rhomboids', 'lower_back'] },
+  { key: 'back', label: 'Back', muscles: ['neck', 'traps', 'lats', 'rhomboids', 'lower_back'] },
   { key: 'arms', label: 'Arms', muscles: ['biceps', 'triceps', 'forearms'] },
   { key: 'core', label: 'Core', muscles: ['abs', 'obliques'] },
-  { key: 'legs', label: 'Legs', muscles: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves'] },
+  { key: 'legs', label: 'Legs', muscles: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves', 'tibialis'] },
 ];
 
 export function muscleArea(key: MuscleAreaKey): MuscleArea {

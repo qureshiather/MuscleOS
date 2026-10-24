@@ -34,6 +34,19 @@ describe('cropToRegions', () => {
     expect(viewBox[1]).toBeLessThan(434);
   });
 
+  it('shows the shin on the front figure, low on the body', () => {
+    for (const gender of ['male', 'female'] as const) {
+      const { side, viewBox } = cropToRegions(['tibialis'], gender, 1);
+      expect(side).toBe('front');
+      expect(viewBox[1] + viewBox[3]).toBeGreaterThan(1200);
+    }
+  });
+
+  it('crops the neck high on the figure', () => {
+    const { viewBox } = cropToRegions(['neck'], 'male', 1);
+    expect(viewBox[1]).toBeLessThan(240);
+  });
+
   it('crops legs low on the figure', () => {
     const { viewBox } = cropToRegions(['quadriceps', 'hamstring', 'gluteal', 'calves'], 'male', 0.9);
     expect(viewBox[1]).toBeGreaterThan(400);

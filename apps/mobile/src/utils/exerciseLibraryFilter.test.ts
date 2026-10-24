@@ -58,8 +58,9 @@ describe('LARGE_MUSCLE_GROUPS', () => {
       'glutes',
       'adductors',
       'calves',
+      'tibialis',
     ]);
-    expect(LARGE_MUSCLE_GROUPS.back.muscles).toEqual(['lats', 'traps', 'rhomboids', 'lower_back']);
+    expect(LARGE_MUSCLE_GROUPS.back.muscles).toEqual(['neck', 'traps', 'lats', 'rhomboids', 'lower_back']);
     expect(LARGE_MUSCLE_GROUPS.shoulders.muscles).toEqual(['front_delts', 'side_delts', 'rear_delts']);
   });
 });

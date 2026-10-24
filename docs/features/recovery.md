@@ -20,15 +20,15 @@ load, not sets, not sleep — changes that number. This is a deliberate simplifi
 
 ## Muscle taxonomy
 
-18 muscle groups, defined in `packages/types/src/muscles.ts`. `MuscleId` is a closed union;
+20 muscle groups, defined in `packages/types/src/muscles.ts`. `MuscleId` is a closed union;
 every exercise maps to one or more of these.
 
 | Region | Muscles |
 |--------|---------|
 | `upper_front` | `chest`, `front_delts`, `side_delts`, `abs`, `obliques` |
-| `upper_back` | `rear_delts`, `traps`, `lats`, `rhomboids`, `lower_back` |
+| `upper_back` | `rear_delts`, `neck`, `traps`, `lats`, `rhomboids`, `lower_back` |
 | `arms` | `biceps`, `triceps`, `forearms` |
-| `lower_front` | `quads`, `adductors` |
+| `lower_front` | `quads`, `adductors`, `tibialis` |
 | `lower_back` | `hamstrings`, `glutes`, `calves` |
 
 `region` is layout metadata for the diagram only. There is **no** push/pull/legs taxonomy in
@@ -75,7 +75,7 @@ From `packages/types/src/recovery.ts`:
 
 | Bucket | Hours | Muscles |
 |--------|------:|---------|
-| Small | **36** | `abs`, `obliques`, `biceps`, `triceps`, `forearms` |
+| Small | **36** | `abs`, `obliques`, `biceps`, `triceps`, `forearms`, `neck`, `tibialis` |
 | Medium | **48** | `front_delts`, `side_delts`, `rear_delts`, `calves`, `adductors` |
 | Large | **72** | `chest`, `traps`, `lats`, `rhomboids`, `lower_back`, `quads`, `hamstrings`, `glutes` |
 
@@ -148,7 +148,7 @@ side by side** — always both, with no toggle. The figure is male by default an
 
 ### Muscle id → SVG region
 
-18 muscle ids map onto **15** diagram regions, so some ids share a region and cannot be
+20 muscle ids map onto **17** diagram regions, so some ids share a region and cannot be
 distinguished visually:
 
 | Diagram region | Muscle ids |
@@ -156,11 +156,12 @@ distinguished visually:
 | `deltoids` | `front_delts`, `side_delts`, `rear_delts` |
 | `upper-back` | `lats`, `rhomboids` |
 | `chest` | `chest` |
-| `trapezius` | `traps` |
+| `neck` / `trapezius` | `neck` / `traps` |
 | `biceps` / `triceps` / `forearm` | `biceps` / `triceps` / `forearms` |
 | `abs` / `obliques` / `lower-back` | `abs` / `obliques` / `lower_back` |
 | `quadriceps` / `hamstring` / `gluteal` / `calves` | `quads` / `hamstrings` / `glutes` / `calves` |
 | `adductors` | `adductors` |
+| `tibialis` | `tibialis` |
 
 The figure draws `deltoids` on both views, so the delts are split by view
 (`MUSCLE_DIAGRAM_VIEW`): front delts shade only the front figure's deltoids, rear delts only the
@@ -168,7 +169,9 @@ back figure's, and side delts both. Each figure's deltoids take the least-recove
 heads on that side, so a pull day lights the rear of the shoulders and leaves the front unlit. Lats
 and rhomboids always shade together. Hip abductors are
 glute med/min, so they stay on `glutes` / `gluteal` — the diagram library has no separate
-abductor region. Adductors (inner thigh) are their own region. The per-muscle list on the
+abductor region. Adductors (inner thigh) are their own region. Tibialis (front of the shin) is
+drawn on the front figure only, and the neck on both; neither borrows a neighbour, so a tibialis
+raise lights the shin rather than the calves and neck work lights the neck rather than the traps. The per-muscle list on the
 Recovery tab is where shared-region distinction stays visible.
 
 ### Colours
@@ -208,8 +211,8 @@ Renders, in order:
    *Some recover faster* (the duration buckets) and *Reading the map* (red just trained, amber
    recovering, green ready). The bucket paragraph is generated from the duration table
    (`recoveryBucketsCopy()`), so it always lists every muscle with its real hours:
-   *"Smaller muscles bounce back quicker. Biceps, triceps, forearms, abs and obliques are ready
-   after 36 hours; front delts, side delts, rear delts, adductors and calves after 48 hours;
+   *"Smaller muscles bounce back quicker. Neck, biceps, triceps, forearms, abs, obliques and
+   tibialis are ready after 36 hours; front delts, side delts, rear delts, adductors and calves after 48 hours;
    chest, traps, lats, rhomboids, lower back, quads, hamstrings and glutes after 72 hours."*
 2. **Loading** — a 220×220 circular skeleton, only before the first load of the app run.
 3. **All-clear state** — the diagram with every muscle highlighted green.
@@ -260,9 +263,9 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 `utils/recovery.test.ts`, `relativeTime.test.ts`, `muscleDiagramRegions.test.ts`,
 `store/recoveryStore.test.ts`, `store/sessionsStore.test.ts`):
 
-- `getRecoveryHoursForMuscle` for **all 18 muscles**, the table covering every muscle, 72 h default
+- `getRecoveryHoursForMuscle` for **all 20 muscles**, the table covering every muscle, 72 h default
 - `getRecoveryUntil` — adds the correct hours to `trainedAt`
-- 18 muscle groups exist; label formatting
+- 20 muscle groups exist; label formatting
 - `formatRecoveryReady` — every branch: later today (including a passed deadline), tomorrow,
   weekday, month + day
 - `recoveryFromSessions()` — skips in-progress sessions, skips exercises with no completed set,
@@ -273,7 +276,8 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 - `justTrainedMuscleIds()` — latest `trainedAt`, ties included
 - `sameRecovery()` — equal records in order; added, removed or retrained records differ
 - `recoveryBuckets()` / `recoveryBucketsCopy()` — the 36/48/72 buckets and the exact explainer copy
-- Diagram regions — 18 ids onto 15 regions, delts and lats/rhomboids shared, adductors separate;
+- Diagram regions — 20 ids onto 17 regions, delts and lats/rhomboids shared, adductors, tibialis
+  and neck separate;
   `musclesOnView()` / `regionStatesByView()` keep front delts to the front figure and rear delts to the back;
   `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral;
   `withNeutralFill()` paints every part but head and hair, covering every muscle region
