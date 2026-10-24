@@ -5,7 +5,7 @@ export const DEFAULT_RECOVERY_HOURS = 72;
 
 /**
  * Recovery hours per muscle group (docs/features/recovery.md#recovery-durations):
- * - Small (36h): abs, obliques, biceps, triceps, forearms
+ * - Small (36h): abs, obliques, biceps, triceps, forearms, neck, tibialis
  * - Medium (48h): delts, calves, adductors
  * - Large (72h): chest, traps, lats, rhomboids, lower_back, quads, hamstrings, glutes
  */
@@ -16,6 +16,8 @@ export const RECOVERY_HOURS_BY_MUSCLE: Record<MuscleId, number> = {
   biceps: 36,
   triceps: 36,
   forearms: 36,
+  neck: 36,
+  tibialis: 36,
   // Medium (48h) – shoulders, calves, adductors
   front_delts: 48,
   side_delts: 48,

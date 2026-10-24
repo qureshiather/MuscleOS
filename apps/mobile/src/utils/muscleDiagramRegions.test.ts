@@ -12,10 +12,10 @@ import {
 } from './muscleDiagramRegions';
 
 describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
-  it('maps all 18 muscle ids onto 15 regions', () => {
+  it('maps all 20 muscle ids onto 17 regions', () => {
     const ids = Object.keys(MUSCLE_GROUPS);
     expect(Object.keys(MUSCLE_ID_TO_DIAGRAM_REGION).sort()).toEqual([...ids].sort());
-    expect(new Set(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION)).size).toBe(15);
+    expect(new Set(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION)).size).toBe(17);
   });
 
   it('shades all delts together, and lats with rhomboids', () => {
@@ -27,6 +27,11 @@ describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
   it('keeps adductors as their own region and abductors on the glutes', () => {
     expect(MUSCLE_ID_TO_DIAGRAM_REGION.adductors).toBe('adductors');
     expect(MUSCLE_ID_TO_DIAGRAM_REGION.glutes).toBe('gluteal');
+  });
+
+  it('gives the shin and neck their own regions instead of calves and traps', () => {
+    expect(MUSCLE_ID_TO_DIAGRAM_REGION.tibialis).toBe('tibialis');
+    expect(MUSCLE_ID_TO_DIAGRAM_REGION.neck).toBe('neck');
   });
 });
 
@@ -129,12 +134,12 @@ describe('regionStatesToBodyData', () => {
     expect(data).toEqual([{ slug: 'chest', intensity: 1 }]);
   });
 
-  it('covers all 15 regions when built from every muscle (Recovery tab)', () => {
+  it('covers all 17 regions when built from every muscle (Recovery tab)', () => {
     const all = Object.keys(MUSCLE_GROUPS) as (keyof typeof MUSCLE_GROUPS)[];
     const data = regionStatesToBodyData(regionStatesForMuscles(all, new Set(['lats']), new Set()), false);
-    expect(data).toHaveLength(15);
+    expect(data).toHaveLength(17);
     expect(data.find((d) => d.slug === 'upper-back')?.intensity).toBe(1);
-    expect(data.filter((d) => d.intensity === 2)).toHaveLength(14);
+    expect(data.filter((d) => d.intensity === 2)).toHaveLength(16);
   });
 });
 

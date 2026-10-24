@@ -46,7 +46,7 @@ describe('exercise catalog for the website', () => {
 
   it('labels muscles with display names, never raw ids', () => {
     const row = getExercise('squat');
-    expect(row && muscleLine(row)).toBe('Quads, Glutes, Lower Back, Calves');
+    expect(row && muscleLine(row)).toBe('Quads, Glutes, Lower Back');
   });
 
   it('search matches every word against name, muscles and equipment', () => {

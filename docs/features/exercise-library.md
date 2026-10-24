@@ -99,6 +99,22 @@ lowercase unless they are the first or last word. Hyphenated
 segments are capitalized (`Push-Up`, `T-Bar`). Short acronyms stay uppercase (`EZ`, `L-Sit`).
 Custom exercise names are not rewritten.
 
+### Muscle tags
+
+Every tag lights that muscle on the body diagram and starts its recovery timer, so a catalog row
+lists the **main mover first** (the website emphasises it) and then only the muscles the lift
+really loads — at most 7, never stabilisers. Conventions, enforced by `exercises.test.ts`:
+
+| Movement | Rule |
+|----------|------|
+| Tibialis raises, heel walks | `tibialis` first; never `calves` |
+| Neck curls, extensions, bridges | `neck` first; extensions and supine bridges add `traps` |
+| Rows, rear-delt rows, face pulls, pull-aparts, reverse flys | include `rhomboids` |
+| Squats (not jumps) | no `calves`; wide-stance squats, Cossack squats and side lunges add `adductors` |
+| Romanian and stiff-leg deadlifts, good mornings | `hamstrings` first |
+| Hip abduction | `glutes` (there is no abductor muscle) |
+| Rotator-cuff rotations | external → `rear_delts`, internal → `front_delts` |
+
 ### Pipeline
 
 ```
@@ -228,7 +244,7 @@ Anyone can create, edit and delete their own exercises.
 | Name | ● | Non-empty after trim; no maximum length; capitalises words as you type |
 | Type (category) | ● | One of the 4 categories |
 | Equipment | ○ | Only what the Type doesn't already name (below); hidden until a Type is picked |
-| Muscles | ● | At least one; any of the 18 |
+| Muscles | ● | At least one; any of the 20 |
 | Instructions | ○ | Free text; one step per line shows as a numbered list |
 
 Field headings share one style: the name on the left, and on the right `Optional` for optional
@@ -251,12 +267,12 @@ removed (`equipmentOptions()`).
 **Muscles** has two views, switched by a **Body areas / Specific muscles** control:
 
 - **Body areas** (default): six shortcut chips, `MUSCLE_AREAS` — Chest (chest), Shoulders (front,
-  side and rear delts), Back (lats, traps, rhomboids, lower back), Arms (biceps, triceps,
-  forearms), Core (abs, obliques), Legs (quads, hamstrings, glutes, adductors, calves). Tapping an
+  side and rear delts), Back (neck, traps, lats, rhomboids, lower back), Arms (biceps, triceps,
+  forearms), Core (abs, obliques), Legs (quads, hamstrings, glutes, adductors, calves, tibialis). Tapping an
   area adds all its muscles; tapping a fully selected one removes them. An area with only some
   muscles picked shows as partial, e.g. `Shoulders 2/3`, and tapping it fills in the rest. The
   selected muscles are listed under the chips.
-- **Specific muscles**: all 18 muscles under the same six area headings.
+- **Specific muscles**: all 20 muscles under the same six area headings.
 
 Both views edit the same flat `muscles` list; areas are only a picking shortcut and are never
 saved. Editing a custom opens on Specific muscles when some area is partly selected
@@ -367,7 +383,7 @@ Header shows `<count> movements` (published catalog plus customs) and a
 
 - **Type** — All plus the 4 categories
 - **Muscle** — All, 3 coarse groups (Legs, Back, Shoulders — the same muscles as those
-  [body areas](#custom-exercises)), or any of the 18 individual muscles.
+  [body areas](#custom-exercises)), or any of the 20 individual muscles.
   There is no coarse Chest group — chest is a single muscle, so one Chest chip covers it.
 
 Filters AND together with the search query (`filterLibraryExercises()`). Above the list a count
@@ -440,7 +456,9 @@ Covered (Vitest):
 - `src/data/exercises.test.ts` — source ids match the bundled seed; every exercise has
   instructions; no third-party URLs or attribution; current copy is present in a migration;
   one equipment per row, Type follows equipment (with the listed exceptions), and equipment
-  agrees with the equipment named in the exercise (Barbell/Dumbbell/Cable/Smith Machine…)
+  agrees with the equipment named in the exercise (Barbell/Dumbbell/Cable/Smith Machine…);
+  the [muscle-tag conventions](#muscle-tags) (shin work tags tibialis, neck work neck, every row
+  rhomboids, no calves on squats, hamstrings lead straight-leg hinges, at most 7 tags)
 - `src/sync/catalogMerge.test.ts` — seed overlay (seed fields and instructions win, cached
   instructions kept when the seed has none, cache-only ids kept); `reconcileCatalogCache` (empty
   cache, missing `seedAppliedAt`, newer seed, current cache untouched, watermark never moves back);
@@ -473,7 +491,7 @@ Covered (Vitest):
   (trimmed name, Type, ≥1 muscle, no max length, blank instructions → none); equipment options
   per Type (Type never repeated, older out-of-Type picks kept visible), pruning on Type change,
   the missing-fields hint
-- `src/utils/muscleAreas.test.ts` — the six areas cover all 18 muscles once; area none / some /
+- `src/utils/muscleAreas.test.ts` — the six areas cover all 20 muscles once; area none / some /
   all; area toggle adds, fills a partial area and clears a full one; specific view only for a
   partial area
 - `src/utils/noteDraft.test.ts` — `noteSaveState` unsaved / saved / empty, trimming

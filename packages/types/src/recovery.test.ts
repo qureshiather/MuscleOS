@@ -24,6 +24,8 @@ describe('getRecoveryHoursForMuscle — every muscle', () => {
     biceps: 36,
     triceps: 36,
     forearms: 36,
+    neck: 36,
+    tibialis: 36,
     front_delts: 48,
     side_delts: 48,
     rear_delts: 48,
@@ -48,7 +50,7 @@ describe('getRecoveryHoursForMuscle — every muscle', () => {
   });
 
   it('falls back to 72 hours for an unknown id', () => {
-    expect(getRecoveryHoursForMuscle('neck' as MuscleId)).toBe(DEFAULT_RECOVERY_HOURS);
+    expect(getRecoveryHoursForMuscle('hip_flexors' as MuscleId)).toBe(DEFAULT_RECOVERY_HOURS);
   });
 });
 

@@ -21,14 +21,17 @@ const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<Slug
       abs: [300, 425, 423, 716],
       biceps: [181, 404, 547, 499],
       triceps: [200, 385, 528, 517],
+      neck: [326, 240, 401, 316],
       trapezius: [285, 279, 446, 312],
       deltoids: [193, 296, 543, 398],
       adductors: [274, 647, 454, 899],
       quadriceps: [240, 667, 487, 952],
       calves: [249, 1008, 479, 1232],
+      tibialis: [260, 973, 469, 1202],
       forearm: [123, 499, 606, 686],
     },
     back: {
+      neck: [1022, 217, 1145, 293],
       trapezius: [1002, 296, 1164, 473],
       deltoids: [914, 309, 1253, 398],
       'upper-back': [955, 322, 1211, 585],
@@ -43,6 +46,7 @@ const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<Slug
   },
   female: {
     front: {
+      neck: [280, 250, 361, 322],
       trapezius: [240, 271, 400, 302],
       deltoids: [167, 282, 474, 372],
       chest: [215, 319, 426, 434],
@@ -54,8 +58,10 @@ const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<Slug
       adductors: [223, 607, 418, 877],
       quadriceps: [194, 622, 447, 970],
       calves: [226, 1053, 417, 1291],
+      tibialis: [235, 1055, 405, 1297],
     },
     back: {
+      neck: [1084, 218, 1201, 284],
       trapezius: [1034, 278, 1251, 408],
       deltoids: [991, 283, 1294, 373],
       'upper-back': [1028, 315, 1258, 541],

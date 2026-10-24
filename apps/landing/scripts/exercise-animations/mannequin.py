@@ -357,6 +357,7 @@ def _side_regions(side):
         ('adductors', H.lerp(K, 0.3) + v((-sx * 0.055, -0.015, 0)), (0.035, 0.05, 0.13)),
         ('calves', K.lerp(A, 0.3) + v((sx * 0.025, 0.05, 0)), (0.028, 0.04, 0.11)),
         ('calves', K.lerp(A, 0.32) + v((-sx * 0.022, 0.05, 0)), (0.028, 0.04, 0.12)),
+        ('tibialis', K.lerp(A, 0.32) + v((sx * 0.014, -0.03, 0)), (0.026, 0.026, 0.13)),
     ]
     arm = [
         ('front_delts', Sd + v((sx * 0.005, -0.06, -0.035)), (0.05, 0.045, 0.08)),
@@ -372,6 +373,7 @@ def _side_regions(side):
 CENTER_REGIONS = [
     ('traps', Vector((0, 0.05, 1.45)), (0.15, 0.08, 0.08), None),
     ('traps', Vector((0, 0.09, 1.33)), (0.05, 0.05, 0.11), None),
+    ('neck', Vector((0, 0.008, 1.48)), (0.07, 0.075, 0.065), None),
 ] + [
     # Six-pack: three rows of two segments.
     ('abs', Vector((sx * 0.036, -0.095, z)), (0.037, 0.07, 0.043), None)

@@ -2,7 +2,7 @@ import type { MuscleId } from '@muscleos/types';
 import type { Slug } from 'react-native-body-highlighter';
 
 /**
- * 18 muscle ids onto 15 diagram regions. Shared regions can't be told apart on the figure:
+ * 20 muscle ids onto 17 diagram regions. Shared regions can't be told apart on the figure:
  * lats + rhomboids shade `upper-back`. All three delts map to `deltoids`, but the figure draws
  * that region on both views, so `MUSCLE_DIAGRAM_VIEW` keeps front and rear delts to their own side.
  */
@@ -11,6 +11,7 @@ export const MUSCLE_ID_TO_DIAGRAM_REGION: Record<MuscleId, Slug> = {
   front_delts: 'deltoids',
   side_delts: 'deltoids',
   rear_delts: 'deltoids',
+  neck: 'neck',
   traps: 'trapezius',
   lats: 'upper-back',
   rhomboids: 'upper-back',
@@ -25,6 +26,7 @@ export const MUSCLE_ID_TO_DIAGRAM_REGION: Record<MuscleId, Slug> = {
   glutes: 'gluteal',
   adductors: 'adductors',
   calves: 'calves',
+  tibialis: 'tibialis',
 };
 
 /** One of the two body figures. */

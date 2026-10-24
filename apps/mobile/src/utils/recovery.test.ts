@@ -228,18 +228,18 @@ describe('musclesTrainedInSession', () => {
 });
 
 describe('recoveryBuckets / recoveryBucketsCopy', () => {
-  it('groups all 18 muscles into the 36 / 48 / 72 hour buckets', () => {
+  it('groups all 20 muscles into the 36 / 48 / 72 hour buckets', () => {
     const buckets = recoveryBuckets();
     expect(buckets.map((b) => b.hours)).toEqual([36, 48, 72]);
-    expect([...buckets[0].muscleIds].sort()).toEqual(['abs', 'biceps', 'forearms', 'obliques', 'triceps']);
+    expect([...buckets[0].muscleIds].sort()).toEqual(['abs', 'biceps', 'forearms', 'neck', 'obliques', 'tibialis', 'triceps']);
     expect([...buckets[1].muscleIds].sort()).toEqual(['adductors', 'calves', 'front_delts', 'rear_delts', 'side_delts']);
     expect(buckets[2].muscleIds).toHaveLength(8);
-    expect(buckets.flatMap((b) => b.muscleIds)).toHaveLength(18);
+    expect(buckets.flatMap((b) => b.muscleIds)).toHaveLength(20);
   });
 
   it('writes the explainer copy from the duration table', () => {
     expect(recoveryBucketsCopy()).toBe(
-      'Biceps, triceps, forearms, abs and obliques are ready after 36 hours; ' +
+      'Neck, biceps, triceps, forearms, abs, obliques and tibialis are ready after 36 hours; ' +
         'front delts, side delts, rear delts, adductors and calves after 48 hours; ' +
         'chest, traps, lats, rhomboids, lower back, quads, hamstrings and glutes after 72 hours.'
     );

@@ -124,7 +124,7 @@ describe('search and filters', () => {
       .getAllByText('Chest')
       .filter((node) => within(screen.getByTestId('muscle-chip-chest')).queryByText('Chest') === node);
     expect(chestChips).toHaveLength(1);
-    expect(screen.getAllByTestId(/^muscle-chip-/)).toHaveLength(1 + 3 + 18);
+    expect(screen.getAllByTestId(/^muscle-chip-/)).toHaveLength(1 + 3 + 20);
   });
 
   it('ANDs the query with Type and Muscle filters', async () => {

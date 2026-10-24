@@ -57,7 +57,7 @@ test('all clear: subtitle and every muscle green when nothing is recovering', as
   expect(await screen.findByText('All clear — every muscle group is ready')).toBeTruthy();
   expect(screen.queryByText('In recovery')).toBeNull();
   expect(screen.queryByText('Just trained')).toBeNull();
-  expect(Object.keys(bodyData())).toHaveLength(15);
+  expect(Object.keys(bodyData())).toHaveLength(17);
 });
 
 test('active: subtitle, legend, three-state diagram, and no Targeted label', async () => {

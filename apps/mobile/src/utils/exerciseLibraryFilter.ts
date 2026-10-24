@@ -4,7 +4,7 @@ import { searchExercises } from '@/utils/exerciseSearch';
 import { muscleArea } from '@/utils/muscleAreas';
 
 /**
- * Coarse muscle groups offered as Muscle filter chips ahead of the 18 individual muscles, shared
+ * Coarse muscle groups offered as Muscle filter chips ahead of the 20 individual muscles, shared
  * with the create-exercise form's area shortcuts (`MUSCLE_AREAS`). Chest has no coarse group: it is a
  * single muscle, so the individual Chest chip covers it.
  */
