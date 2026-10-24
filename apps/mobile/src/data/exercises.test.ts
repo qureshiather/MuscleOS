@@ -83,3 +83,44 @@ describe('catalog equipment and type', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/** docs/features/exercise-library.md#muscle-tags — the conventions from the MUS-171/172 audit. */
+describe('catalog muscle tags', () => {
+  const named = (re: RegExp) => EXERCISES.filter((e) => re.test(e.name));
+  const ids = (rows: typeof EXERCISES) => rows.map((e) => e.id);
+
+  it('tags shin work tibialis, not calves', () => {
+    const shin = named(/tibialis|heel walk/i);
+    expect(shin.length).toBeGreaterThanOrEqual(4);
+    expect(ids(shin.filter((e) => e.muscles[0] !== 'tibialis' || e.muscles.includes('calves')))).toEqual([]);
+  });
+
+  it('tags neck work neck, not only traps', () => {
+    const neck = named(/\bneck (curl|extension|bridge)/i);
+    expect(neck).toHaveLength(4);
+    expect(ids(neck.filter((e) => e.muscles[0] !== 'neck'))).toEqual([]);
+  });
+
+  it('tags rhomboids on every row and rear-delt pull', () => {
+    const pulls = named(/\brow\b|face pull|pull-apart|reverse .*fl(y|ies)/i).filter(
+      (e) => !/upright|monkey|rowing machine/i.test(e.name)
+    );
+    expect(pulls.length).toBeGreaterThan(25);
+    expect(ids(pulls.filter((e) => !e.muscles.includes('rhomboids')))).toEqual([]);
+  });
+
+  it('leaves calves off squats, except jumps', () => {
+    const squats = named(/squat/i).filter((e) => !/jump|jerk/i.test(e.name));
+    expect(ids(squats.filter((e) => e.muscles.includes('calves')))).toEqual([]);
+  });
+
+  it('leads straight-leg hinges with the hamstrings', () => {
+    const hinges = named(/^(dumbbell )?romanian deadlift|stiff-leg|good morning/i);
+    expect(hinges.length).toBeGreaterThanOrEqual(4);
+    expect(ids(hinges.filter((e) => e.muscles[0] !== 'hamstrings'))).toEqual([]);
+  });
+
+  it('keeps tags to the muscles a lift really loads', () => {
+    expect(ids(EXERCISES.filter((e) => e.muscles.length > 7))).toEqual([]);
+  });
+});
