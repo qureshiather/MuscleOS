@@ -260,8 +260,10 @@ export function oldToNewForReorder(length: number, fromIndex: number, toIndex: n
 }
 
 /**
- * Complete a set and, when the next set is the same kind (warm-up vs working) and has no weight,
- * copy this set's weight into it. Reps are never carried over on complete. Returns a new array.
+ * Complete a set and carry its weight forward as a suggestion into every later incomplete set of
+ * the same kind (warm-up vs working) whose weight is empty, or is itself a lower suggestion — so
+ * raising set 1 above last time's prefill raises the sets after it. Typed weights and completed
+ * sets are never touched, and reps are never carried over on complete. Returns a new array.
  */
 export function completeSetInSets(sets: SetRecord[], setIndex: number): SetRecord[] {
   if (!sets[setIndex]) return sets;
@@ -275,16 +277,18 @@ export function completeSetInSets(sets: SetRecord[], setIndex: number): SetRecor
     repsPrefilled: false,
   };
   next[setIndex] = completed;
-  const nextIdx = setIndex + 1;
-  const following = next[nextIdx];
-  if (
-    following &&
-    following.weightKg == null &&
-    completed.weightKg != null &&
-    (completed.isWarmUp === true) === (following.isWarmUp === true)
-  ) {
-    // Carried weight is a suggestion for the next set: overwrite it on first digit.
-    next[nextIdx] = { ...following, weightKg: completed.weightKg, weightPrefilled: true };
+  const weightKg = completed.weightKg;
+  if (weightKg == null) return next;
+  for (let i = setIndex + 1; i < next.length; i++) {
+    const following = next[i];
+    if (following.completed) continue;
+    if ((completed.isWarmUp === true) !== (following.isWarmUp === true)) continue;
+    const empty = following.weightKg == null;
+    const lowerSuggestion = following.weightPrefilled === true && following.weightKg! < weightKg;
+    if (empty || lowerSuggestion) {
+      // Carried weight is a suggestion: overwrite it on first digit.
+      next[i] = { ...following, weightKg, weightPrefilled: true };
+    }
   }
   return next;
 }

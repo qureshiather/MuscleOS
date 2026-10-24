@@ -280,6 +280,44 @@ describe('completeSetInSets', () => {
     expect(completeSetInSets(withWeight, 0)[1].weightKg).toBe(60);
   });
 
+  it('raises later prefilled working sets when a set is completed at a higher weight', () => {
+    const prefilled: SetRecord[] = [
+      { completed: false, weightKg: 105, reps: 5 },
+      { completed: false, weightKg: 100, reps: 5, weightPrefilled: true, repsPrefilled: true },
+      { completed: false, weightKg: 100, reps: 5, weightPrefilled: true, repsPrefilled: true },
+    ];
+    const next = completeSetInSets(prefilled, 0);
+    expect(next[1]).toEqual({ ...prefilled[1], weightKg: 105 });
+    expect(next[2]).toEqual({ ...prefilled[2], weightKg: 105 });
+  });
+
+  it('fills every later empty set of the same kind', () => {
+    expect(completeSetInSets(sets, 0)[2].weightKg).toBe(100);
+  });
+
+  it('never lowers a suggestion, and never touches typed or completed sets', () => {
+    const mixed: SetRecord[] = [
+      { completed: false, weightKg: 90 },
+      { completed: false, weightKg: 100, weightPrefilled: true },
+      { completed: false, weightKg: 80 },
+      { completed: true, weightKg: 70, reps: 5 },
+    ];
+    const lower = completeSetInSets(mixed, 0);
+    expect(lower.slice(1)).toEqual(mixed.slice(1));
+    const higher = completeSetInSets([{ ...mixed[0], weightKg: 110 }, ...mixed.slice(1)], 0);
+    expect(higher[1].weightKg).toBe(110);
+    expect(higher[2].weightKg).toBe(80);
+    expect(higher[3].weightKg).toBe(70);
+  });
+
+  it('does not raise working sets from a heavier warm-up', () => {
+    const mixed: SetRecord[] = [
+      { completed: false, weightKg: 120, isWarmUp: true },
+      { completed: false, weightKg: 100, weightPrefilled: true },
+    ];
+    expect(completeSetInSets(mixed, 0)[1].weightKg).toBe(100);
+  });
+
   it('does not carry weight across the warm-up / working boundary', () => {
     const mixed: SetRecord[] = [
       { completed: false, weightKg: 40, isWarmUp: true },

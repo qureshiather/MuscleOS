@@ -147,7 +147,7 @@ Prefill rules:
 |------|-----------|
 | Session starts (once, in `startWorkout`) | For any **working** set with **both** weight and reps empty, copy the previous snapshot's weight and reps. Warm-up rows are left empty. Partially filled sets (including anything typed while the snapshot loads) are left alone. |
 | Add or replace exercise | Same as session start, for the **new** exercise's snapshot. A replace discards the old movement's set values first — they are not carried over. |
-| Completing a set | Copy that set's weight (not reps) into the next set if the next set's weight is empty — only when both are the same kind (warm-up vs working). |
+| Completing a set | Carry that set's weight (not reps) into every later **incomplete** set of the same kind (warm-up vs working) whose weight is empty or is a **lower suggestion** — so completing set 1 above last time's prefilled weight raises the sets after it. A typed weight, a completed set, or a higher suggestion is never changed. |
 | Adding a set | Copy the last set's weight and reps if present. |
 
 Template targets are never used for weight or reps — only the number of warm-up and working
@@ -209,7 +209,7 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
   Done go through the store's `toggleSetComplete`.
 - **Tapping Done on a completed set un-completes it.** It only flips `completed` back: the
   weight and reps stay, a countdown running for *that* set is cancelled, and nothing else is
-  undone — the weight already carried into the next set stays, prefill flags aren't restored, and
+  undone — weight already carried into later sets stays, prefill flags aren't restored, and
   a recorded rest duration is kept (hidden until the set is completed again). The pad's Done on an
   already-completed set just hides the pad.
 - **+ ADD SET** appends a set; the button label shows the current rest preset. The control is a full-width footer of the set table, separated from the last row by the same divider as the set rows, and shares the table’s edges.
@@ -461,8 +461,8 @@ the real router.
 **Vitest (pure logic and store):**
 
 - `src/store/activeWorkoutLogic.test.ts` — `createEmptySession` (default 3 working / optional
-  warm-ups / per-exercise counts), set-complete weight prefill (same warm-up/working kind only,
-  never reps), add-set carry-over, `bestCompletedSet` / `buildPreviousSnapshot` (highest weight
+  warm-ups / per-exercise counts), set-complete weight prefill (same warm-up/working kind only, raises lower suggestions, never
+  typed or completed sets, never reps), add-set carry-over, `bestCompletedSet` / `buildPreviousSnapshot` (highest weight
   then reps; can move down; keeps a prior snapshot when nothing qualifies), warm-up insert bumping
   rest keys, rest-key remap on reorder / remove / replace, `canCompleteSet`,
   `restDurationAfterComplete`, `storedRestSeconds`, `startPrefillPatch` and `prefillSession`
