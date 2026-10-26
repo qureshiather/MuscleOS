@@ -1,16 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   Pressable,
   Modal,
   ScrollView,
   Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -27,7 +23,7 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { exerciseHasHistory } from '@/utils/personalRecords';
-import { noteSaveState } from '@/utils/noteDraft';
+import { ExerciseNoteEditor, NOTE_HINT } from '@/components/ExerciseNoteEditor';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { exerciseTypeLine } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
@@ -37,9 +33,9 @@ import { exercisePageUrl } from '@/utils/exerciseDemo';
 const DETAIL_HEADER_HEIGHT = 64;
 
 /**
- * Exercise detail sheet: diagram, muscles, type, instructions and the user's notes. Notes save on
- * Save, Close, backdrop tap, back, and end-editing; the sheet rises with the keyboard so the note
- * stays visible while typing. `canManage` adds Edit/Delete for customs and a link to the exercise's
+ * Exercise detail sheet: diagram, muscles, type, instructions and the user's note. The note shows
+ * read-only here; tapping it swaps the sheet for the note dialog (same Modal — stacking a second
+ * Modal froze iOS), which keeps the field above the keyboard. `canManage` adds Edit/Delete for customs and a link to the exercise's
  * history — off where leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
  * Catalog exercises link to their page on the website (an animated demo where one exists); that
  * opens in the in-app browser over the sheet, so it's offered everywhere, mid-workout included.
@@ -64,10 +60,7 @@ export function ExerciseDetailSheet({
   const savedNote = useExerciseNotesStore((s) => (exercise ? s.notes[exercise.id] : undefined));
   const sessions = useSessionsStore((s) => s.sessions);
   const getExercise = useExercisesStore((s) => s.getExercise);
-  const [noteDraft, setNoteDraft] = useState('');
-  const [noteFocused, setNoteFocused] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
-  const saveState = noteSaveState(noteDraft, savedNote);
+  const [editingNote, setEditingNote] = useState(false);
   const exerciseId = exercise?.id;
   const pageUrl = exercise ? exercisePageUrl(exercise) : undefined;
   const hasHistory = useMemo(
@@ -78,46 +71,45 @@ export function ExerciseDetailSheet({
     [canManage, exerciseId, sessions, getExercise]
   );
 
-  // The note sits at the bottom of the sheet: once the keyboard is up (and the sheet has risen
-  // above it), scroll so the field stays in view while typing.
   useEffect(() => {
-    if (!noteFocused) return;
-    const sub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => {
-      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-    });
-    return () => sub.remove();
-  }, [noteFocused]);
-
-  useEffect(() => {
-    if (exerciseId) setNoteDraft(useExerciseNotesStore.getState().notes[exerciseId] ?? '');
+    setEditingNote(false);
   }, [exerciseId]);
 
   const steps = instructionSteps(exercise?.instructions);
 
   const close = () => {
-    if (exercise) void setNote(exercise.id, noteDraft);
+    setEditingNote(false);
     onClose();
   };
 
-  const saveNote = () => {
-    if (exercise) void setNote(exercise.id, noteDraft);
-    Keyboard.dismiss();
+  const saveNote = (note: string) => {
+    if (exercise) void setNote(exercise.id, note);
+    setEditingNote(false);
   };
 
   const openHistory = () => {
     if (!exercise) return;
     const id = exercise.id;
-    void setNote(id, noteDraft);
     onClose();
     router.push({ pathname: '/exercise-progression', params: { exerciseId: id } });
   };
 
   return (
-    <Modal visible={exercise !== null} animationType="slide" transparent onRequestClose={close}>
-      {/* Top inset: lifted by the keyboard, the sheet shrinks (its body scrolls) rather than
-          rising under the status bar. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <Modal
+      visible={exercise !== null}
+      animationType="slide"
+      transparent
+      onRequestClose={editingNote ? () => setEditingNote(false) : close}
+    >
+      {exercise && editingNote ? (
+        <ExerciseNoteEditor
+          exerciseName={exercise.name}
+          savedNote={savedNote}
+          onSave={saveNote}
+          onCancel={() => setEditingNote(false)}
+        />
+      ) : (
+      <View
         style={[
           styles.modalOverlay,
           { backgroundColor: colors.overlay, paddingTop: insets.top + spacing.sm },
@@ -145,7 +137,6 @@ export function ExerciseDetailSheet({
                 </Pressable>
               </View>
               <ScrollView
-                ref={scrollRef}
                 style={[styles.modalScroll, { maxHeight: detailScrollMaxHeight }]}
                 contentContainerStyle={styles.modalBody}
                 keyboardShouldPersistTaps="handled"
@@ -197,7 +188,6 @@ export function ExerciseDetailSheet({
                     <Pressable
                       onPress={() => {
                         const id = exercise.id;
-                        void setNote(id, noteDraft);
                         onClose();
                         router.push({ pathname: '/create-exercise', params: { id } });
                       }}
@@ -245,48 +235,28 @@ export function ExerciseDetailSheet({
                   </>
                 ) : null}
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Your notes</Text>
-                <Text style={[styles.noteHint, { color: colors.textMuted }]}>
-                  Seat height, lever settings, and other personal adjustments. Synced to your account.
-                </Text>
-                <TextInput
-                  style={[
-                    styles.noteInput,
-                    { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                <Text style={[styles.noteHint, { color: colors.textMuted }]}>{NOTE_HINT}</Text>
+                <Pressable
+                  onPress={() => setEditingNote(true)}
+                  testID="exercise-note-edit"
+                  accessibilityRole="button"
+                  accessibilityLabel={savedNote ? 'Edit note' : 'Add a note'}
+                  style={({ pressed }) => [
+                    styles.noteRow,
+                    { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
                   ]}
-                  placeholder="e.g. seat 4 · lever underneath on 3"
-                  placeholderTextColor={colors.textMuted}
-                  value={noteDraft}
-                  onChangeText={setNoteDraft}
-                  onFocus={() => setNoteFocused(true)}
-                  onBlur={() => setNoteFocused(false)}
-                  onEndEditing={() => void setNote(exercise.id, noteDraft)}
-                  multiline
-                  textAlignVertical="top"
-                />
-                <View style={styles.noteActions}>
-                  {saveState === 'saved' ? (
-                    <Text style={[styles.noteSavedText, { color: colors.textMuted }]}>Saved</Text>
-                  ) : null}
-                  {saveState === 'unsaved' ? (
-                    <Pressable
-                      onPress={saveNote}
-                      testID="exercise-note-save"
-                      accessibilityRole="button"
-                      accessibilityLabel="Save note"
-                      style={({ pressed }) => [
-                        styles.noteSaveBtn,
-                        { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.noteSaveText, { color: colors.primaryOn }]}>Save</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
+                >
+                  <Text style={[styles.noteText, { color: savedNote ? colors.text : colors.textMuted }]}>
+                    {savedNote ?? 'Add a note'}
+                  </Text>
+                  <Ionicons name="create-outline" size={18} color={colors.primary} />
+                </Pressable>
               </ScrollView>
             </>
           ) : null}
         </SheetFrame>
-      </KeyboardAvoidingView>
+      </View>
+      )}
     </Modal>
   );
 }
@@ -323,14 +293,17 @@ const styles = StyleSheet.create({
   stepNumber: { width: 24 },
   stepText: { flex: 1 },
   noteHint: { ...typography.caption, marginBottom: spacing.sm },
-  noteInput: {
-    ...typography.body,
-    minHeight: 88,
+  noteRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    minHeight: 48,
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
   },
+  noteText: { ...typography.body, flex: 1 },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -342,20 +315,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   historyText: { ...typography.label, flex: 1 },
-  noteActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    minHeight: 36,
-    marginTop: spacing.sm,
-  },
-  noteSavedText: { ...typography.caption },
-  noteSaveBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  noteSaveText: { ...typography.label },
   customActions: {
     flexDirection: 'row',
     gap: spacing.lg,

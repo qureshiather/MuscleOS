@@ -310,7 +310,7 @@ describe('adding and removing sets', () => {
 });
 
 describe('exercise info', () => {
-  test('tapping an exercise title opens its info sheet with instructions; Close saves the note', async () => {
+  test('tapping an exercise title opens its info sheet with instructions and the note dialog', async () => {
     useExerciseNotesStore.setState({ notes: {}, isLoading: false });
     await startPush(startUrl('ppl-push', ['bench-press']));
     press('set-reps-0-0');
@@ -323,11 +323,20 @@ describe('exercise info', () => {
     expect(screen.queryByTestId('numeric-keypad')).toBeNull();
     expect(screen.queryByText('Delete')).toBeNull();
 
+    press('exercise-note-edit');
     fireEvent.changeText(screen.getByPlaceholderText('e.g. seat 4 · lever underneath on 3'), 'seat 4');
-    fireEvent.press(screen.getByText('Close'));
+    press('exercise-note-save');
     await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({ 'bench-press': 'seat 4' }));
+    fireEvent.press(screen.getByText('Close'));
     expect(screen.queryByText(/^Lie on the bench with your eyes under the bar/)).toBeNull();
     // the session is untouched
     expect(session()?.exercises.map((e) => e.exerciseId)).toEqual(['bench-press']);
+
+    // the card shows the note; tapping it opens the same dialog
+    fireEvent.press(screen.getByText('seat 4'));
+    fireEvent.changeText(screen.getByDisplayValue('seat 4'), 'seat 5');
+    press('exercise-note-save');
+    await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({ 'bench-press': 'seat 5' }));
+    expect(screen.queryByTestId('exercise-note-editor')).toBeNull();
   });
 });

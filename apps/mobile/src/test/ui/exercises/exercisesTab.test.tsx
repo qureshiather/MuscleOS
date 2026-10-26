@@ -20,6 +20,7 @@ jest.mock('@/sync/catalogPull', () => ({
 }));
 
 const SEARCH = 'Search by name, muscle, equipment...';
+const PLACEHOLDER = 'e.g. seat 4 · lever underneath on 3';
 const CUSTOM = exercise('custom_1', 'Landmine Press', {
   muscles: ['front_delts'],
   equipment: [],
@@ -184,43 +185,39 @@ describe('detail sheet', () => {
     expect(screen.queryByText('Delete')).toBeNull();
   });
 
-  it('saves a trimmed note on Close, keyed by exercise id', async () => {
+  it('edits the note in a dialog: Save stores it trimmed, keyed by exercise id, back on the sheet', async () => {
     renderExercises();
     fireEvent.press(await screen.findByText('Pec Deck'));
-    fireEvent.changeText(
-      await screen.findByPlaceholderText('e.g. seat 4 · lever underneath on 3'),
-      '  seat 4  '
-    );
-    fireEvent.press(screen.getByText('Close'));
-    await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({ 'pec-deck': 'seat 4' }));
-  });
-
-  it('saves on end-editing and on backdrop tap, and reopens with the saved note', async () => {
-    renderExercises();
-    fireEvent.press(await screen.findByText('Pec Deck'));
-    const input = await screen.findByPlaceholderText('e.g. seat 4 · lever underneath on 3');
-    fireEvent.changeText(input, 'lever 3');
-    fireEvent(input, 'endEditing');
-    await waitFor(() => expect(useExerciseNotesStore.getState().notes['pec-deck']).toBe('lever 3'));
-
-    fireEvent.changeText(input, 'lever 5');
-    fireEvent.press(screen.getByLabelText('Dismiss exercise details'));
-    await waitFor(() => expect(useExerciseNotesStore.getState().notes['pec-deck']).toBe('lever 5'));
-
-    fireEvent.press(screen.getByText('Pec Deck'));
-    expect(await screen.findByDisplayValue('lever 5')).toBeTruthy();
-  });
-
-  it('Save stores the note without closing the sheet, then shows Saved', async () => {
-    renderExercises();
-    fireEvent.press(await screen.findByText('Pec Deck'));
-    expect(screen.queryByTestId('exercise-note-save')).toBeNull();
-    fireEvent.changeText(await screen.findByPlaceholderText('e.g. seat 4 · lever underneath on 3'), 'seat 4 ');
+    expect(screen.getByText('Add a note')).toBeTruthy();
+    // the sheet shows the note read-only; typing happens in the dialog
+    expect(screen.queryByPlaceholderText(PLACEHOLDER)).toBeNull();
+    fireEvent.press(screen.getByTestId('exercise-note-edit'));
+    expect(screen.getByText('Exercise note')).toBeTruthy();
+    expect(screen.getByTestId('exercise-note-save')).toBeDisabled();
+    fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), '  seat 4  ');
     fireEvent.press(screen.getByTestId('exercise-note-save'));
     await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({ 'pec-deck': 'seat 4' }));
-    expect(screen.queryByTestId('exercise-note-save')).toBeNull();
-    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.queryByTestId('exercise-note-editor')).toBeNull();
     expect(screen.getByText('Your notes')).toBeTruthy();
+    expect(screen.getByText('seat 4')).toBeTruthy();
+  });
+
+  it('Cancel discards the draft; a backdrop tap saves it', async () => {
+    useExerciseNotesStore.setState({ notes: { 'pec-deck': 'seat 4' }, isLoading: false });
+    renderExercises();
+    fireEvent.press(await screen.findByText('Pec Deck'));
+    fireEvent.press(screen.getByTestId('exercise-note-edit'));
+    fireEvent.changeText(screen.getByDisplayValue('seat 4'), 'seat 5');
+    fireEvent.press(screen.getByTestId('exercise-note-cancel'));
+    expect(screen.getByText('seat 4')).toBeTruthy();
+    expect(useExerciseNotesStore.getState().notes).toEqual({ 'pec-deck': 'seat 4' });
+
+    fireEvent.press(screen.getByTestId('exercise-note-edit'));
+    // reopens on the stored note, not the discarded draft
+    fireEvent.changeText(screen.getByDisplayValue('seat 4'), 'lever 5');
+    fireEvent.press(screen.getByLabelText('Save and close note'));
+    await waitFor(() => expect(useExerciseNotesStore.getState().notes['pec-deck']).toBe('lever 5'));
+    expect(screen.getByText('lever 5')).toBeTruthy();
   });
 
   it('links catalog exercises to their website page, customs to nothing', async () => {
@@ -263,9 +260,11 @@ describe('detail sheet', () => {
     useExerciseNotesStore.setState({ notes: { 'pec-deck': 'seat 4' }, isLoading: false });
     renderExercises();
     fireEvent.press(await screen.findByText('Pec Deck'));
-    fireEvent.changeText(await screen.findByDisplayValue('seat 4'), '   ');
-    fireEvent.press(screen.getByText('Close'));
+    fireEvent.press(screen.getByTestId('exercise-note-edit'));
+    fireEvent.changeText(screen.getByDisplayValue('seat 4'), '   ');
+    fireEvent.press(screen.getByTestId('exercise-note-save'));
     await waitFor(() => expect(useExerciseNotesStore.getState().notes).toEqual({}));
+    expect(screen.getByText('Add a note')).toBeTruthy();
   });
 
   it('Edit on a custom opens the prefilled edit form', async () => {

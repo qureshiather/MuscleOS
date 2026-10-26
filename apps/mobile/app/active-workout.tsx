@@ -9,7 +9,6 @@ import {
   Alert,
   Modal,
   FlatList,
-  KeyboardAvoidingView,
   Keyboard,
   Platform,
   Animated,
@@ -38,6 +37,7 @@ import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
+import { ExerciseNoteEditor } from '@/components/ExerciseNoteEditor';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { kgToDisplay } from '@/utils/weightUnits';
@@ -621,7 +621,6 @@ export default function ActiveWorkoutScreen() {
   const [noteEditExIdx, setNoteEditExIdx] = useState<number | null>(null);
   /** Exercise whose info sheet (how-to, muscles, notes) is open from its card title. */
   const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [removeSetTarget, setRemoveSetTarget] = useState<{ exIdx: number; setIdx: number } | null>(
     null
@@ -1422,7 +1421,6 @@ export default function ActiveWorkoutScreen() {
                       {exerciseNote ? (
                         <Pressable
                           onPress={() => {
-                            setNoteDraft(exerciseNote);
                             setNoteEditExIdx(exIdx);
                           }}
                           hitSlop={4}
@@ -1902,7 +1900,6 @@ export default function ActiveWorkoutScreen() {
                     closeExerciseMenu();
                   }}
                   onEditNote={() => {
-                    setNoteDraft(exerciseNotes[se.exerciseId] ?? '');
                     setNoteEditExIdx(exIdx);
                     closeExerciseMenu();
                   }}
@@ -1983,75 +1980,26 @@ export default function ActiveWorkoutScreen() {
       />
 
       {/* Personal exercise note (synced) */}
-      <Modal visible={noteEditExIdx !== null} transparent animationType="fade">
-        <Pressable
-          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
-          onPress={() => setNoteEditExIdx(null)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.noteEditAvoid}
-          >
-            <View
-              style={[styles.restTimersCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onStartShouldSetResponder={() => true}
-            >
-              {noteEditExIdx !== null && session?.exercises[noteEditExIdx] && (() => {
-                const ex = session.exercises[noteEditExIdx];
-                const exerciseName = getExercise(ex.exerciseId)?.name ?? ex.exerciseId;
-                return (
-                  <>
-                    <Text style={[styles.restTimersTitle, { color: colors.text }]}>Exercise note</Text>
-                    <Text style={[styles.restTimersSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
-                      {exerciseName}
-                    </Text>
-                    <Text style={[styles.restTimersHint, { color: colors.textMuted }]}>
-                      Seat height, lever settings, and other personal adjustments. Synced to your account.
-                    </Text>
-                    <TextInput
-                      style={[
-                        styles.noteEditInput,
-                        {
-                          backgroundColor: colors.background,
-                          color: colors.text,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                      placeholder="e.g. seat 4 · lever underneath on 3"
-                      placeholderTextColor={colors.textMuted}
-                      value={noteDraft}
-                      onChangeText={setNoteDraft}
-                      multiline
-                      textAlignVertical="top"
-                      autoFocus
-                    />
-                    <View style={styles.noteEditActions}>
-                      <Pressable
-                        style={[styles.restTimersDoneBtn, styles.noteEditActionBtn, { borderColor: colors.border }]}
-                        onPress={() => setNoteEditExIdx(null)}
-                      >
-                        <Text style={[styles.restTimersDoneBtnText, { color: colors.text }]}>Cancel</Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.restTimersDoneBtn,
-                          styles.noteEditActionBtn,
-                          { backgroundColor: colors.primary, borderColor: colors.primary },
-                        ]}
-                        onPress={() => {
-                          void setExerciseNote(ex.exerciseId, noteDraft);
-                          setNoteEditExIdx(null);
-                        }}
-                      >
-                        <Text style={[styles.restTimersDoneBtnText, { color: colors.primaryOn }]}>Save</Text>
-                      </Pressable>
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
-          </KeyboardAvoidingView>
-        </Pressable>
+      <Modal
+        visible={noteEditExIdx !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteEditExIdx(null)}
+      >
+        {noteEditExIdx !== null && session?.exercises[noteEditExIdx] ? (
+          <ExerciseNoteEditor
+            exerciseName={
+              getExercise(session.exercises[noteEditExIdx].exerciseId)?.name ??
+              session.exercises[noteEditExIdx].exerciseId
+            }
+            savedNote={exerciseNotes[session.exercises[noteEditExIdx].exerciseId]}
+            onSave={(note) => {
+              void setExerciseNote(session.exercises[noteEditExIdx].exerciseId, note);
+              setNoteEditExIdx(null);
+            }}
+            onCancel={() => setNoteEditExIdx(null)}
+          />
+        ) : null}
       </Modal>
 
       {/*
@@ -2902,28 +2850,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   restTimersDoneBtnText: { ...typography.button },
-  noteEditAvoid: {
-    width: '100%',
-    justifyContent: 'center',
-  },
-  noteEditInput: {
-    ...typography.body,
-    minHeight: 96,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 4,
-  },
-  noteEditActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  noteEditActionBtn: {
-    flex: 1,
-    marginTop: 12,
-  },
   addSetBtn: {
     alignItems: 'center',
     justifyContent: 'center',
