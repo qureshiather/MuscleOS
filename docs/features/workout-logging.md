@@ -342,7 +342,7 @@ Notifications are skipped entirely in Expo Go, which can't load the native modul
 | **Exercise info** | Tap an exercise title to open the same detail sheet as the [Exercises tab](exercise-library.md) — diagram, muscles, type, instructions and **Your notes** — without Edit/Delete for customs. The number pad hides while it's open; the session is untouched |
 | **Reorder exercises** | Long-press an exercise title to enter drag mode |
 | **Edit rest for an exercise** | **Update rest timers**: work-set and warm-up rests, each any `m:ss` from 0:00 to 15:00, entered with the time keypad. Saved for the next sets of that kind; a running countdown is left alone. Offered to the template at Finish. 0:00 means that kind does not start a timer. A work rest equal to your (non-zero) Default rest is stored as unset (`workRestOverride()`), so it keeps following the default and Update template doesn't pin it |
-| **Exercise note** | Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
+| **Exercise note** | **Edit note** in the exercise menu, or tapping the note under the title, opens the [note dialog](exercise-library.md#exercises-tab) above the keyboard. Stored per exercise id in `exerciseNotesStore`, not on the session — so it persists across workouts |
 | **Add exercise** | Adds with 3 empty sets, prefilled from that exercise's previous snapshot when one exists. An exercise already in the workout can't be added again |
 | **Replace exercise** | Swaps `exerciseId`. **Logged sets, warm-ups, and per-set rest of the old exercise are discarded** (they belong to a different movement), and a countdown running for that slot is cancelled. The slot keeps its rest preset and starts with 3 empty sets prefilled from the **new** exercise's previous snapshot. PREVIOUS follows the new id. Replacing with an exercise already in the workout (including itself) does nothing |
 | **Remove exercise** | A themed confirm ("Remove {name} from this workout?") removes it and remaps recorded rest. **Cancel** (or tap the overlay) dismisses; **Remove** removes. |
@@ -520,7 +520,7 @@ the real router.
   the header rest dialog (±30, Skip, recorded rest), the rest row opening the manual picker, a
   countdown ending, + ADD SET, add warm-up, long-press delete with the themed confirm, swipe
   delete, the 1-set minimum, and the exercise info sheet (instructions, pad hidden, no
-  Edit/Delete, note saved on Close)
+  Edit/Delete, note saved from the dialog, the card's note opening it)
 - `finish.test.tsx` — Finish disabled until a set is completed, the option matrix (unchanged
   built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
   custom-changed hint, Back, the save-as-template name step and its Back, summary contents,

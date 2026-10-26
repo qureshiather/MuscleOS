@@ -1,5 +1,5 @@
 /**
- * Save state of a free-text note being edited (the exercise detail sheet's **Your notes**). Notes
+ * Save state of a free-text note being edited (the **Exercise note** dialog). Notes
  * are stored trimmed, so whitespace-only edits aren't unsaved changes.
  *
  * - `unsaved` — the draft differs from the stored note; Save is enabled.
