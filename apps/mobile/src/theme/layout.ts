@@ -19,6 +19,7 @@ import {
   type KeyboardEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { computeDenseRowMetrics, type DenseRowMetrics } from './denseRowLayout';
 import { computeTabBarLayout, type TabBarLayout } from './tabBarLayout';
 import { spacing } from './tokens';
 import { typography } from './typography';
@@ -156,20 +157,11 @@ export function useScrollBottomPadding(kind: 'tab' | 'stack' = 'stack'): number 
 
 /**
  * Column and control sizes for a dense numeric row (set table, similar chrome).
- * Scales with system text, then tightens on Display Zoom / SE-class widths.
+ * Scales with system text, then fits the columns back into the screen width.
  */
-export function useDenseRowMetrics() {
-  const scale = useClampedFontScale(fontScaleCap.tabular);
-  const { isNarrow } = useDeviceMetrics();
-
-  return {
-    rowMin: Math.round(50 * scale),
-    inputMinHeight: Math.round(42 * scale),
-    doneBtn: Math.round(42 * scale),
-    setCol: Math.round((isNarrow ? 30 : 34) * scale),
-    prevMin: Math.round((isNarrow ? 60 : 72) * scale),
-    inputMin: Math.round((isNarrow ? 52 : 60) * scale),
-  };
+export function useDenseRowMetrics(): DenseRowMetrics {
+  const { width, fontScale } = useWindowDimensions();
+  return computeDenseRowMetrics({ width, fontScale });
 }
 
 /**

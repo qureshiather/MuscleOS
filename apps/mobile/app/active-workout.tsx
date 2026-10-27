@@ -25,9 +25,13 @@ import {
   fontScaleCap,
   useBottomSpace,
   useDenseRowMetrics,
+  useDeviceMetrics,
+  useKeyboardOverlap,
   useModalMaxHeight,
   useTextScaledSize,
 } from '@/theme/layout';
+import { scrollRegionFloor } from '@/theme/sheetLayout';
+import { spacing } from '@/theme/tokens';
 import { Screen, ScreenFooter } from '@/components/layout';
 import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -501,6 +505,14 @@ function RestBetweenBar({
 
 /** Height of the fade over the bottom of the finish summary list when it overflows. */
 const SUMMARY_FADE_HEIGHT = 36;
+/**
+ * The exercise list shrinks to make room for the save options, but keeps roughly the
+ * duration row plus one exercise while the card has room; without a floor it collapsed to
+ * nothing on an SE. The actions win when both can't fit (see scrollRegionFloor).
+ */
+const SUMMARY_LIST_MIN_HEIGHT = 140;
+const SUMMARY_CARD_PADDING_Y = 24;
+const SUMMARY_CARD_PADDING_Y_SHORT = 20;
 
 type FinishedSummary = FinishSummary & { muscleIds: MuscleId[]; share: ShareCardModel };
 
@@ -508,7 +520,30 @@ export default function ActiveWorkoutScreen() {
   const { colors, isDark } = useTheme();
   const listPaddingBottom = useBottomSpace(24);
   const dense = useDenseRowMetrics();
-  const sheetMaxHeight = useModalMaxHeight();
+  const { isCompact, isShort } = useDeviceMetrics();
+  // Short phones (SE, 640dp Androids) can't spare the usual breathing room above and below.
+  const sheetMaxHeight = useModalMaxHeight(isShort ? spacing.lg * 2 : undefined);
+  const keyboardOverlap = useKeyboardOverlap();
+  // SE-class phones: tighter padding and buttons so the save options fit on one line each
+  // and leave the exercise list room to show.
+  const summaryCardStyle = [
+    styles.summaryCard,
+    isCompact && styles.summaryCardCompact,
+    isShort && styles.summaryCardShort,
+  ];
+  const summaryActionsStyle = [styles.summaryActions, isShort && styles.summaryActionsShort];
+  const summaryBtnStyle = [styles.summarySaveBtn, isShort && styles.summarySaveBtnShort];
+  const summaryTextBtnStyle = [styles.summaryCancelBtn, isShort && styles.summaryCancelBtnShort];
+  const [summaryHeaderHeight, setSummaryHeaderHeight] = useState(0);
+  const [summaryActionsHeight, setSummaryActionsHeight] = useState(0);
+  const summaryListFloor = scrollRegionFloor({
+    maxHeight: sheetMaxHeight,
+    otherContentHeight:
+      2 * (isShort ? SUMMARY_CARD_PADDING_Y_SHORT : SUMMARY_CARD_PADDING_Y) +
+      summaryHeaderHeight +
+      summaryActionsHeight,
+    preferred: SUMMARY_LIST_MIN_HEIGHT,
+  });
   const colSetStyle = [styles.colSet, { width: dense.setCol }];
   const colPrevStyle = [styles.colPrev, { minWidth: dense.prevMin }];
   const colInputStyle = [styles.colInput, { minWidth: dense.inputMin }];
@@ -2018,7 +2053,14 @@ export default function ActiveWorkoutScreen() {
           The backdrop is a sibling behind the card, not its parent, so the card doesn't have to
           claim touches with a responder and the exercise list can scroll freely.
         */}
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+        <View
+          style={[
+            styles.modalOverlay,
+            { backgroundColor: colors.overlay },
+            // The template name field autofocuses; centre the card in the space above the keyboard.
+            showSaveAsTemplateModal && keyboardOverlap > 0 && { paddingBottom: keyboardOverlap + 16 },
+          ]}
+        >
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={closeFinishFlow}
@@ -2027,7 +2069,7 @@ export default function ActiveWorkoutScreen() {
           />
           {showSaveAsTemplateModal ? (
             <View
-              style={[styles.summaryCard, styles.saveAsTemplateCard, { backgroundColor: colors.surface }]}
+              style={[...summaryCardStyle, { backgroundColor: colors.surface }]}
             >
               <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Save as template</Text>
               <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>
@@ -2044,10 +2086,10 @@ export default function ActiveWorkoutScreen() {
                 onChangeText={setSaveAsTemplateName}
                 autoFocus
               />
-              <View style={styles.summaryActions}>
+              <View style={summaryActionsStyle}>
                 <Pressable
                   style={[
-                    styles.summarySaveBtn,
+                    ...summaryBtnStyle,
                     { backgroundColor: colors.primary, opacity: savingAsTemplate ? 0.5 : 1 },
                   ]}
                   onPress={() => void handleSaveAsTemplate()}
@@ -2059,7 +2101,7 @@ export default function ActiveWorkoutScreen() {
                 </Pressable>
                 <Pressable
                   onPress={() => setShowSaveAsTemplateModal(false)}
-                  style={styles.summaryCancelBtn}
+                  style={summaryTextBtnStyle}
                   disabled={savingAsTemplate}
                 >
                   <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
@@ -2067,13 +2109,15 @@ export default function ActiveWorkoutScreen() {
               </View>
             </View>
           ) : (
-          <View style={[styles.summaryCard, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}>
-            <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Workout summary</Text>
-            {currentTemplate?.name && (
-              <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{currentTemplate.name}</Text>
-            )}
+          <View style={[...summaryCardStyle, { backgroundColor: colors.surface, maxHeight: sheetMaxHeight }]}>
+            <View onLayout={(e) => setSummaryHeaderHeight(e.nativeEvent.layout.height)}>
+              <Text style={[styles.summaryTitle, { color: colors.text }]} maxFontSizeMultiplier={fontScaleCap.title}>Workout summary</Text>
+              {currentTemplate?.name && (
+                <Text style={[styles.summaryDay, { color: colors.textSecondary }]}>{currentTemplate.name}</Text>
+              )}
+            </View>
             {/* Scrolls so the save actions below stay on screen no matter how many exercises were logged. */}
-            <View style={styles.summaryScroll}>
+            <View style={[styles.summaryScroll, { minHeight: summaryListFloor }]}>
             <ScrollView
               style={styles.summaryScrollView}
               contentContainerStyle={styles.summaryScrollContent}
@@ -2115,7 +2159,10 @@ export default function ActiveWorkoutScreen() {
               </Svg>
             ) : null}
             </View>
-            <View style={styles.summaryActions}>
+            <View
+              style={summaryActionsStyle}
+              onLayout={(e) => setSummaryActionsHeight(e.nativeEvent.layout.height)}
+            >
               {/*
                 Rendered straight from finishSaveOptions() so the option set and labels have a
                 single source of truth (see @/utils/workoutFinish). Presentation only lives here:
@@ -2134,7 +2181,7 @@ export default function ActiveWorkoutScreen() {
                       key={option.id}
                       testID="finish-option-discard"
                       onPress={handleDiscardOnly}
-                      style={[styles.summaryCancelBtn, { marginTop: 4 }]}
+                      style={[...summaryTextBtnStyle, { marginTop: 4 }]}
                     >
                       <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>
                         {option.label}
@@ -2157,8 +2204,8 @@ export default function ActiveWorkoutScreen() {
                     accessibilityLabel={option.label}
                     style={
                       isPrimary
-                        ? [styles.summarySaveBtn, { backgroundColor: colors.primary }]
-                        : [styles.summarySaveBtn, styles.summarySecondaryBtn, { borderColor: colors.border }]
+                        ? [...summaryBtnStyle, { backgroundColor: colors.primary }]
+                        : [...summaryBtnStyle, styles.summarySecondaryBtn, { borderColor: colors.border }]
                     }
                     onPress={onPress}
                   >
@@ -2174,7 +2221,7 @@ export default function ActiveWorkoutScreen() {
                   </Pressable>
                 );
               })}
-              <Pressable onPress={closeFinishFlow} style={styles.summaryCancelBtn} testID="finish-back">
+              <Pressable onPress={closeFinishFlow} style={summaryTextBtnStyle} testID="finish-back">
                 <Text style={[styles.summaryCancelText, { color: colors.textMuted }]}>Back</Text>
               </Pressable>
             </View>
@@ -2875,12 +2922,13 @@ const styles = StyleSheet.create({
   },
   addExerciseBtnText: { fontSize: 15, fontWeight: '600' },
   summaryCard: {
-    marginHorizontal: 24,
-    borderRadius: 20,
-    padding: 24,
+    width: '100%',
     maxWidth: 400,
-    alignSelf: 'center',
+    borderRadius: 20,
+    padding: SUMMARY_CARD_PADDING_Y,
   },
+  summaryCardCompact: { paddingHorizontal: 20 },
+  summaryCardShort: { paddingVertical: SUMMARY_CARD_PADDING_Y_SHORT },
   summaryTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
   summaryDay: { fontSize: 15, marginBottom: 16, textAlign: 'center' },
   summaryRow: {
@@ -2906,6 +2954,7 @@ const styles = StyleSheet.create({
   summaryExerciseName: { fontSize: 16, fontWeight: '600' },
   summaryExerciseSets: { fontSize: 14, marginTop: 2 },
   summaryActions: { gap: 10 },
+  summaryActionsShort: { gap: 8 },
   summaryChangedHint: { fontSize: 13, textAlign: 'center' },
   summarySaveBtn: {
     padding: 16,
@@ -2915,12 +2964,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  summarySaveBtnText: { fontSize: 17, fontWeight: '600' },
+  summarySaveBtnShort: { paddingVertical: 12 },
+  summarySaveBtnText: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
   summarySecondaryBtn: { backgroundColor: 'transparent', borderWidth: 2 },
-  summarySecondaryBtnText: { fontSize: 17, fontWeight: '600' },
+  summarySecondaryBtnText: { fontSize: 17, fontWeight: '600', textAlign: 'center' },
   summaryCancelBtn: { paddingVertical: 12, alignItems: 'center' },
+  summaryCancelBtnShort: { paddingVertical: 8 },
   summaryCancelText: { fontSize: 16 },
-  saveAsTemplateCard: { minWidth: 280 },
   saveAsTemplateInput: {
     padding: 14,
     borderRadius: 12,

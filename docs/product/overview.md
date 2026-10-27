@@ -159,6 +159,10 @@ and the system text size. Body text scales with the system setting; screen title
 display numbers cap at 1.5× (`fontScaleCap.title`) so they never break mid-word; tab labels cap
 at 1.15× and shrink to fit rather than truncate. Surfaces that own the bottom edge keep a minimum
 padding even when the device reports no bottom inset (e.g. Samsung with gesture hints hidden).
+Centred modals cap their height to the screen (`useModalMaxHeight`, with a smaller reserve on
+short phones), and a scrolling list inside one gives up its minimum height before the card's
+actions get pushed out (`scrollRegionFloor`). The reference small sizes are iPhone SE 3
+(375×667pt) and a 360×640dp Android with 3-button navigation.
 
 ## Deliberately not built
 

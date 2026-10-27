@@ -124,7 +124,9 @@ session, and queues a cloud sync.
 
 ## Set logging
 
-Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the full width of the exercise card with no inner frame, and the weight and reps cells are large filled wells (every editable cell looks the same; only the focused one gets the accent ring) so they're easy to hit mid-set.
+Columns: **SET · PREVIOUS · KG/LB · REPS · Done**. The set table runs the full width of the exercise card with no inner frame, and the weight and reps cells are large filled wells (every editable cell looks the same; only the focused one gets the accent ring) so they're easy to hit mid-set. Columns grow with the system text size, then shrink back toward their
+narrow-phone widths when all five would no longer fit the screen, so Done never runs off the edge
+(`computeDenseRowMetrics`).
 
 - Working sets are numbered `1, 2, 3…`; warm-ups are `W1, W2…` and are excluded from that count.
 - Exactly **one** set is the **current** set across the whole workout: the first incomplete set of the first exercise that still has unlogged sets. It gets a primary row tint, a 3px primary bar on the left, the set number in a filled primary mark, and a primary-ringed Done control. Every other incomplete set — including the first set of later exercises — is "upcoming": it renders muted with an outlined number; there is never more than one highlighted set at a time. The set number's accessibility label reads `Set <n>, current | upcoming | completed`.
@@ -383,7 +385,10 @@ as does tapping outside the card.
 
 The summary lists duration and each exercise with completed sets (`<n> set(s) · 60 × 5 reps, …`).
 The list scrolls inside the modal so the actions stay on screen, and its bottom edge fades out
-while more exercises sit below.
+while more exercises sit below. While the card has room, the list keeps at least roughly the
+duration row plus one exercise; when it doesn't (large text on a 640dp Android), the list gives
+way so every option stays inside the card. On short phones (iPhone SE class) the card and buttons
+tighten so both fit. The **Save as template** name dialog sits above the keyboard.
 
 "Overwrite" updates the template's `exerciseIds` and per-exercise set structure from the
 session (working vs warm-up row counts, including incomplete rows, and each exercise's rests) —

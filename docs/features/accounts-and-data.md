@@ -618,7 +618,9 @@ Covered:
 - `src/theme/palette.test.ts` — semantic tokens and `blendOver` in both modes;
   `src/theme/nativeColorScheme.test.ts` — Dark and Light pin the OS scheme, Auto releases it;
   `src/theme/noHardcodedColors.test.ts` — no colour literals in screens or components;
-  `src/theme/tabBarLayout.test.ts` — tab bar sizing
+  `src/theme/tabBarLayout.test.ts` — tab bar sizing;
+  `src/theme/denseRowLayout.test.ts` — set table columns grow with text and fit the screen width;
+  `src/theme/sheetLayout.test.ts` — a modal's scroll region gives up its floor before the actions overflow
 - Screen tests (Jest, `src/test/ui/accounts/`): `profile.test.tsx` (Account card guest/linked,
   rows, biodata hint), `account.test.tsx` (guest vs linked rows, Change password only with an
   email identity, Hide My Email notice, legal links, sync row incl. failure, Sign out confirm,
