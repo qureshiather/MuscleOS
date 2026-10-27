@@ -109,7 +109,7 @@ export function LandingPage() {
           <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-14 px-5 pb-20 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6 lg:pb-28 lg:pt-20">
             <div>
               <BrandMark className="h-16 w-16 sm:h-20 sm:w-20" />
-              <h1 className="font-poster mt-6 text-[clamp(4rem,18vw,7.5rem)] text-ink">MuscleOS</h1>
+              <h1 className="font-poster mt-6 text-[clamp(3.25rem,14vw,5.75rem)] text-ink">MuscleOS</h1>
               <p className="font-display mt-5 text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
                 Your next set starts here.
               </p>
