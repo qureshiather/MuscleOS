@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { DEMO_EXERCISES, demoSources, EXERCISES, exercisePath, FEATURED_DEMOS } from '../data/exercises';
+import { BrandMark } from './BrandMark';
 import { ExerciseDemo } from './ExerciseDemo';
 import { FaqJsonLd } from './FaqJsonLd';
 import { FaqSection } from './FaqSection';
@@ -8,7 +9,6 @@ import { PhoneFrame } from './PhoneFrame';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
 import { FeatureScroller } from './FeatureScroller';
-import { LiveSetCard } from './LiveSetCard';
 import { StoreButtons } from './StoreButtons';
 
 const FEATURES = [
@@ -104,33 +104,29 @@ export function LandingPage() {
       <FaqJsonLd />
       <SiteHeader />
       <main className="bg-atmosphere relative overflow-x-clip">
-        {/* Hero: the headline, and the app's set table to play with */}
+        {/* Hero: the name, the mark, and the app */}
         <section className="relative">
-          <div className="bg-ruled pointer-events-none absolute inset-0" aria-hidden />
-          <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-12 px-5 pb-16 pt-10 sm:px-8 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-28 lg:pt-20">
+          <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-14 px-5 pb-20 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6 lg:pb-28 lg:pt-20">
             <div>
-              <h1 className="font-poster text-[clamp(4.25rem,15vw,9.5rem)] text-ink">
-                Beat last
-                <br />
-                time.
-              </h1>
-              <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-secondary sm:text-xl">
-                MuscleOS puts what you lifted last time next to every set, runs your rest timer, and
-                maps which muscles are still recovering. Free, with every feature.
+              <BrandMark className="h-16 w-16 sm:h-20 sm:w-20" />
+              <h1 className="font-poster mt-6 text-[clamp(4.5rem,21vw,10rem)] uppercase text-ink">MuscleOS</h1>
+              <p className="font-display mt-5 text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
+                Your next set starts here.
               </p>
-              <div className="mt-8">
+              <div className="mt-9">
                 <StoreButtons />
               </div>
-              <p className="mt-4 text-sm text-ink-muted">On iPhone and Android. No account, no ads.</p>
             </div>
 
             <div className="relative flex justify-center lg:justify-end">
-              <div className="glow-primary absolute left-1/2 top-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 opacity-60" aria-hidden />
-              <div className="relative hidden rotate-[4deg] lg:block lg:translate-x-6">
-                <PhoneFrame src="/screens/active-workout.png" alt="MuscleOS active workout screen" priority />
-              </div>
-              <div className="relative w-full sm:w-auto lg:absolute lg:bottom-[-2.5rem] lg:left-[-1rem] lg:w-[400px]">
-                <LiveSetCard />
+              <div className="glow-primary absolute left-1/2 top-1/2 h-[120%] w-[130%] -translate-x-1/2 -translate-y-1/2 opacity-60" aria-hidden />
+              <div className="relative flex items-center">
+                <div className="relative z-0 -mr-16 hidden -rotate-[6deg] opacity-90 sm:block">
+                  <PhoneFrame src="/screens/recovery.png" alt="MuscleOS Recovery screen" size="compact" />
+                </div>
+                <div className="relative z-10">
+                  <PhoneFrame src="/screens/workouts.png" alt="MuscleOS Workouts screen" priority />
+                </div>
               </div>
             </div>
           </div>
@@ -257,9 +253,9 @@ export function LandingPage() {
         <section id="get" className="relative scroll-mt-16 overflow-hidden border-t border-border bg-primary">
           <div className="mx-auto flex max-w-site flex-col items-start gap-8 px-5 py-20 sm:px-8 sm:py-24 lg:flex-row lg:items-end lg:justify-between">
             <h2 className="font-poster text-[clamp(3.5rem,11vw,7.5rem)] text-surface">
-              Your next set
+              Free on iPhone
               <br />
-              starts here.
+              and Android.
             </h2>
             <div className="shrink-0">
               <StoreButtons />

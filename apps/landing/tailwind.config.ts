@@ -18,7 +18,6 @@ export default {
         'primary-dim': 'var(--color-primary-dim)',
         accent: 'var(--color-accent)',
         ready: 'var(--color-ready)',
-        recovering: 'var(--color-recovering)',
         danger: 'var(--color-danger)',
         border: 'var(--color-border)',
         'phone-frame': 'var(--color-phone-frame)',
@@ -28,21 +27,6 @@ export default {
         display: ['var(--font-display)', 'system-ui', 'sans-serif'],
         body: ['var(--font-body)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
-      },
-      keyframes: {
-        'set-pop': {
-          '0%': { transform: 'scale(1)' },
-          '40%': { transform: 'scale(1.12)' },
-          '100%': { transform: 'scale(1)' },
-        },
-        'rise-in': {
-          from: { opacity: '0', transform: 'translateY(12px)' },
-          to: { opacity: '1', transform: 'none' },
-        },
-      },
-      animation: {
-        'set-pop': 'set-pop 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-        'rise-in': 'rise-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
       },
       borderRadius: {
         '4xl': '2rem',
