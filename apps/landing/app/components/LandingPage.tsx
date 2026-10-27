@@ -158,10 +158,8 @@ export function LandingPage() {
           <div className="mx-auto max-w-site px-5 py-20 sm:px-8 sm:py-28">
             <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <div className="max-w-2xl">
-                <h2 className="font-poster text-[clamp(3rem,8vw,5.5rem)] text-ink">
-                  {DEMO_EXERCISES.length} exercises.
-                  <br />
-                  Every one animated.
+                <h2 className="font-display text-4xl font-bold tracking-tight text-ink text-balance sm:text-5xl">
+                  {DEMO_EXERCISES.length} exercises, every one animated.
                 </h2>
                 <p className="mt-5 text-lg text-ink-secondary">
                   Each exercise in the library has a looping 3D demo, the muscles it works, and step-by-step
@@ -202,8 +200,8 @@ export function LandingPage() {
         <section id="pricing" className="relative scroll-mt-16 border-t border-border">
           <div className="mx-auto grid max-w-site gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1fr_1fr] lg:gap-16">
             <div>
-              <h2 className="font-poster text-[clamp(8rem,30vw,17rem)] leading-[0.8] text-primary">$0</h2>
-              <p className="font-display mt-6 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+              <h2 className="font-poster text-7xl text-primary sm:text-8xl">$0</h2>
+              <p className="font-display mt-4 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Free. All of it, forever.
               </p>
               <p className="mt-4 max-w-md text-lg text-ink-secondary">

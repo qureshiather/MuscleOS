@@ -45,7 +45,7 @@ export function FeatureScroller({ features, phones }: { features: readonly Scrol
             }}
             className="scroll-mt-24 py-10 lg:flex lg:min-h-[78vh] lg:flex-col lg:justify-center lg:py-0"
           >
-            <h3 className="font-poster text-[3.25rem] text-ink text-balance sm:text-[4.5rem]">
+            <h3 className="font-display text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
               {f.title}
             </h3>
             <p className="mt-4 max-w-md text-lg leading-relaxed text-ink-secondary">{f.body}</p>
