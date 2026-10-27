@@ -14,6 +14,9 @@ mobile app bundles no media and no list of which exercises have a demo.
 
 ## Website
 
+**`/`** (the home page) shows the first six `FEATURED_DEMOS` as a grid of looping demos, each
+linking to its exercise page, with a link to the full library.
+
 **`/exercises`** shows **Staple lifts** first (a grid of demos for a fixed set of core lifts,
 `FEATURED_DEMOS`), then **All exercises**: every
 published catalog row A–Z with a search box. Search is case-insensitive and every word must match

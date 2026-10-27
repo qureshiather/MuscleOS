@@ -107,6 +107,19 @@
     font-family: var(--font-display), system-ui, sans-serif;
   }
 
+  /* Headline voice: the original hero treatment (Bricolage extra bold, tracking-tight), set larger. */
+  .font-poster {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 0.95;
+  }
+
+  .glow-primary {
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-primary) 45%, transparent), transparent);
+    filter: blur(40px);
+  }
+
   .font-mono-label {
     font-family: var(--font-mono), ui-monospace, monospace;
   }
