@@ -77,7 +77,7 @@ const FEATURES = [
     id: 'history',
     label: 'History',
     title: 'Review past workouts',
-    body: 'Each saved workout shows its duration, volume, exercises, and sets, with personal records, progression charts, and a monthly calendar.',
+    body: 'Each saved workout shows its duration, volume, exercises, and sets, with personal records, progression charts, and a monthly calendar. Fix a mistyped set or share a workout as an image.',
     points: [
       'Every session with its sets',
       'JSON export anytime',

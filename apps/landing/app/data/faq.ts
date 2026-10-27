@@ -48,26 +48,26 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'How do I start a workout?',
     paragraphs: ['Open the Workouts tab, then:'],
     steps: [
-      'Tap a Suggested or Recent workout, or one under Your workouts: your own templates and the workouts of the program you follow.',
+      'Tap a Suggested workout, or one under Your workouts: your own templates and the workouts of the program you follow.',
       'Check the exercises and what you lifted last time, then tap Start workout.',
       'Or tap Empty workout to start with no exercises and add them as you go.',
     ],
     aside:
       'Only one workout runs at a time. If you leave it, tap Resume workout above the tabs to get back to it.',
     answerText:
-      'Open the Workouts tab and tap a Suggested or Recent workout, or one under Your workouts (your templates and your program’s workouts). Check the preview and tap Start workout. You can also start an empty workout. Only one workout runs at a time.',
+      'Open the Workouts tab and tap a Suggested workout, or one under Your workouts (your templates and your program’s workouts). Check the preview and tap Start workout. You can also start an empty workout. Only one workout runs at a time.',
   },
   {
     id: 'programs',
     question: 'How do programs work?',
     paragraphs: [
-      'MuscleOS has four programs: Push Pull Legs, Upper/Lower, Strong Lifts 5×5, and PHUL. You follow one at a time, or none. New installs start with none.',
+      'MuscleOS has four programs: Push Pull Legs, Upper/Lower, Strong Lifts 5×5, and PHUL. You follow one at a time, or none. New installs start on Strong Lifts 5×5.',
       'Tap a program to see every workout, its exercises and sets, and the muscles it trains. Add to your workouts puts its workouts next to your own templates on the Workouts tab, and Suggested picks from both.',
     ],
     aside:
       'Switching or removing a program never touches your own templates or your history. Change it any time from Change beside the program’s name.',
     answerText:
-      'Pick one of four programs (Push Pull Legs, Upper/Lower, Strong Lifts 5×5, PHUL) or none. Its workouts join your own templates on the Workouts tab. You can switch or remove it any time; your templates and history stay.',
+      'Pick one of four programs (Push Pull Legs, Upper/Lower, Strong Lifts 5×5, PHUL) or none; new installs start on Strong Lifts 5×5. Its workouts join your own templates on the Workouts tab. You can switch or remove it any time; your templates and history stay.',
   },
   {
     id: 'log-sets',
@@ -86,12 +86,12 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'rest-timer',
     question: 'How does the rest timer work?',
     paragraphs: [
-      'Completing a working set starts a 2:00 rest. Tap the timer at the top of the screen to add or remove 30 seconds or skip it. The rest you actually took is shown under the set number.',
-      'To change the rest for an exercise, tap the three dots beside its name and choose Update rest timers. Each exercise has a work-set rest and a warm-up rest, from 0:00 to 15:00. Warm-ups don’t start a timer unless you set one.',
+      'Completing a working set starts your default rest, 2:00 unless you change it, counting down on the line under that set. Tap the countdown, or the timer icon at the top of the screen, to add or remove 30 seconds or skip it. Once you’re done, that line shows the rest you actually took.',
+      'To change the default for every exercise, go to Profile → Settings → Default rest; 0:00 turns the timer off. To change it for one exercise, tap the three dots beside its name and choose Update rest timers. Each exercise has a work-set rest and a warm-up rest, from 0:00 to 15:00. Warm-ups don’t start a timer unless you set one.',
       'When the rest ends you get a notification, even if the app is in the background.',
     ],
     answerText:
-      'Completing a working set starts a 2:00 rest you can extend, shorten, or skip. Use Update rest timers in the exercise menu to set work-set and warm-up rests from 0:00 to 15:00. A notification tells you when rest is over.',
+      'Completing a working set starts your default rest (2:00 unless you change it), which you can extend, shorten, or skip. Change the default in Profile → Settings → Default rest, or use Update rest timers in the exercise menu to set one exercise’s work-set and warm-up rests from 0:00 to 15:00. A notification tells you when rest is over.',
   },
   {
     id: 'edit-exercises',
@@ -160,11 +160,11 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: 'history',
     question: 'Where can I see past workouts?',
     paragraphs: [
-      'Open the History tab. Workouts are grouped by week. Each one shows its date, duration, total volume, and how the volume compares with the last time you did that workout; tap it to see every completed set. Tap the trash icon to delete one; recovery and your previous values update to match.',
+      'Open the History tab. Workouts are grouped by week. Each one shows its date, duration, total volume, and how the volume compares with the last time you did that workout; tap it to see every completed set. Tap the pencil to fix a mistyped set, the share icon to share it as an image, or the trash icon to delete it; recovery and your previous values update to match.',
       'Workouts where you set a personal record are marked PR. The trophy button opens personal records (estimated one-rep max for each exercise, with progression charts) and the calendar button opens a monthly view.',
     ],
     answerText:
-      'Open the History tab to see your workouts grouped by week, with each one’s date, duration, volume, and change from last time. Tap a workout to see its sets, or the trash icon to delete it. The trophy button shows personal records and progression charts, and the calendar button a monthly view.',
+      'Open the History tab to see your workouts grouped by week, with each one’s date, duration, volume, and change from last time. Tap a workout to see its sets, the pencil to edit them, or the trash icon to delete it. The trophy button shows personal records and progression charts, and the calendar button a monthly view.',
   },
   {
     id: 'exercises',
