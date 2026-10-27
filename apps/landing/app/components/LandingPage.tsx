@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { DEMO_EXERCISES, demoSources, EXERCISES, exercisePath, FEATURED_DEMOS } from '../data/exercises';
+import { DEMO_EXERCISES, demoSources, exercisePath, FEATURED_DEMOS } from '../data/exercises';
 import { BrandMark } from './BrandMark';
 import { ExerciseDemo } from './ExerciseDemo';
 import { FaqJsonLd } from './FaqJsonLd';
@@ -15,85 +15,57 @@ const FEATURES = [
   {
     id: 'workouts',
     label: 'Workouts',
-    title: 'Log your workouts',
-    body: 'Enter your weight and reps, see what you lifted last time, and rest between sets with a timer. Change exercises mid-session and save the result as a template.',
-    points: [
-      'Set logging with rest timers',
-      'See what you lifted last time',
-      'Setup notes on every exercise',
-    ],
+    title: 'Log a workout',
+    body: 'Type the weight, tick the set, and the rest timer starts. What you lifted last time is right there next to it.',
+    points: ['Rest timer after every set', 'Last session’s weights and reps', 'Notes for seat height, pins or grip'],
     src: '/screens/active-workout.png',
     alt: 'MuscleOS active workout — logging sets with a rest timer running',
   },
   {
     id: 'programs',
     label: 'Programs',
-    title: 'Follow a program, or don’t',
-    body: 'Pick one program and its workouts sit next to your own templates on the Workouts tab. See every workout and exercise before you commit, switch whenever you like, or skip programs and build your own.',
-    points: [
-      'Push Pull Legs, Upper/Lower, Strong Lifts 5×5 & PHUL',
-      'One program at a time, or none',
-      'Switch or remove it any time',
-    ],
+    title: 'Run a program',
+    body: 'Push Pull Legs, Upper/Lower, Strong Lifts 5×5 or PHUL. Or skip programs and build your own workouts.',
+    points: ['See every workout before you start', 'Switch programs any time'],
     src: '/screens/program.png',
     alt: 'MuscleOS program overview — Push Pull Legs with its workouts and exercises',
   },
   {
     id: 'exercises',
     label: 'Exercises',
-    title: 'Find exercises',
-    body: 'Search nearly 400 exercises by name, muscle, or equipment. Tap an exercise to see instructions, the muscles it works, and your own notes.',
-    points: [
-      'Search by name, muscle, or equipment',
-      'Muscle map on each exercise',
-      'Add your own exercises',
-    ],
+    title: 'Find any exercise',
+    body: 'Nearly 400 of them, each with the muscles it works. Can’t find yours? Add it.',
+    points: ['Search by name, muscle or equipment', 'Keep your own notes on each one'],
     src: '/screens/exercises.png',
     alt: 'MuscleOS exercise library',
   },
   {
     id: 'recovery',
     label: 'Recovery',
-    title: 'Check your recovery',
-    body: 'Each muscle you train recovers for 36, 48, or 72 hours depending on its size. The body map shows which muscles are ready and which are still recovering.',
-    points: [
-      'Front and back diagram',
-      'Updates when you finish a workout',
-      'Suggests what’s ready to train',
-    ],
+    title: 'Know what’s ready',
+    body: 'Finish a workout and the body map fills in. Red was just trained, green is good to go.',
+    points: ['Front and back view', 'Suggests workouts for fresh muscles'],
     src: '/screens/recovery.png',
     alt: 'MuscleOS Recovery screen',
   },
   {
     id: 'history',
     label: 'History',
-    title: 'Review past workouts',
-    body: 'Each saved workout shows its duration, volume, exercises, and sets, with personal records, progression charts, and a monthly calendar. Fix a mistyped set or share a workout as an image.',
-    points: [
-      'Every session with its sets',
-      'JSON export anytime',
-      'PRs, progression charts, and a calendar',
-    ],
+    title: 'Watch the numbers go up',
+    body: 'Every workout you’ve logged, with your PRs, charts and a calendar. Share a session as an image.',
+    points: ['Personal records', 'Progress charts per exercise', 'Export your data any time'],
     src: '/screens/history.png',
     alt: 'MuscleOS History screen',
   },
 ] as const;
 
 const INCLUDED_POINTS = [
-  'Programs: PPL, Upper/Lower, Strong Lifts & PHUL',
-  'Your own templates, folders & rest timers',
-  'Empty workouts & mid-session edits',
-  'Set logging & rest timers',
-  'Exercise library & custom exercises',
+  'Programs and your own workouts',
+  'Rest timers',
+  'Exercise library',
   'Recovery map',
-  'History, PRs, charts & calendar',
-  'Backup, sync & JSON export',
-] as const;
-
-const COACHING_POINTS = [
-  'Personal trainers send you programs to run in MuscleOS',
-  'The MuscleOS AI coach builds a program around your goals',
-  'Your next weights and reps, set from what you logged',
+  'History, PRs and charts',
+  'Backup and sync',
 ] as const;
 
 const DEMO_STRIP = FEATURED_DEMOS.slice(0, 6);
@@ -136,12 +108,8 @@ export function LandingPage() {
         <section id="features" className="relative scroll-mt-16 border-t border-border">
           <div className="mx-auto max-w-site px-5 pt-20 sm:px-8 sm:pt-28">
             <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight text-ink text-balance sm:text-5xl">
-              Log the session. Everything else builds itself from it.
+              Everything you need between sets.
             </h2>
-            <p className="mt-4 max-w-xl text-lg text-ink-secondary">
-              Recovery, history, records and charts all come from the sets you tick off. Nothing extra to
-              fill in.
-            </p>
           </div>
           <div className="mx-auto max-w-site px-5 pb-16 sm:px-8 lg:pb-8">
             <FeatureScroller
@@ -162,15 +130,14 @@ export function LandingPage() {
                   {DEMO_EXERCISES.length} exercises, every one animated.
                 </h2>
                 <p className="mt-5 text-lg text-ink-secondary">
-                  Each exercise in the library has a looping 3D demo, the muscles it works, and step-by-step
-                  form cues. Search by name, muscle, or equipment.
+                  See how each one is done before you load the bar.
                 </p>
               </div>
               <Link
                 href="/exercises"
                 className="inline-flex shrink-0 items-center self-start rounded-full bg-primary px-6 py-3 text-base font-semibold text-surface transition hover:bg-primary-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:self-auto"
               >
-                Browse all {EXERCISES.length} exercises
+                Browse exercises
               </Link>
             </div>
 
@@ -202,10 +169,10 @@ export function LandingPage() {
             <div>
               <h2 className="font-poster text-7xl text-primary sm:text-8xl">$0</h2>
               <p className="font-display mt-4 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                Free. All of it, forever.
+                Free. All of it.
               </p>
               <p className="mt-4 max-w-md text-lg text-ink-secondary">
-                No paywall, no trial, no ads, and no account needed. Every feature is for everyone.
+                No paywall, no trial, no ads. You don’t even need an account.
               </p>
             </div>
 
@@ -229,17 +196,9 @@ export function LandingPage() {
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-ink-secondary">
-                  For when you want someone else to plan your training. Optional, and paid. The app stays
-                  free.
+                  A paid extra for when you want someone else to plan your training: a personal trainer,
+                  or the MuscleOS AI coach. The app stays free.
                 </p>
-                <ul className="mt-4 space-y-2 text-sm text-ink-secondary">
-                  {COACHING_POINTS.map((point) => (
-                    <li key={point} className="flex gap-2.5">
-                      <span className="mt-2 h-1 w-3 shrink-0 rounded-full bg-ink-muted" aria-hidden />
-                      {point}
-                    </li>
-                  ))}
-                </ul>
               </div>
             </div>
           </div>

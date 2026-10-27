@@ -13,7 +13,7 @@ export function SiteFooter() {
             <span className="font-display font-medium text-ink">MuscleOS</span>
           </div>
           <p className="mt-2 max-w-xs text-sm text-ink-secondary">
-            Track workouts, history, and muscle recovery.
+            A free workout tracker for iPhone and Android.
           </p>
           <p className="mt-4 text-sm text-ink-muted">© {new Date().getFullYear()} MuscleOS</p>
         </div>

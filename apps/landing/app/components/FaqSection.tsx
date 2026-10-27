@@ -46,11 +46,8 @@ export function FaqSection({ heading = 'h2', bordered = true, showShots = true }
       <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
         <div className="max-w-2xl">
           <Title className="font-display text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-            How to use MuscleOS
+            Questions
           </Title>
-          <p className="mt-4 text-lg text-ink-secondary">
-            Simple instructions for the main parts of the app.
-          </p>
         </div>
 
         {showShots ? (
