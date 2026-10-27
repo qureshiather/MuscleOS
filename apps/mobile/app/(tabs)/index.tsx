@@ -176,7 +176,7 @@ export default function WorkoutsScreen() {
     [getExercise]
   );
 
-  /** Suggested and Recent card art: each template's muscles, coloured by recovery state. */
+  /** Suggested card art: each template's muscles, coloured by recovery state. */
   const templateArt = useMemo(() => {
     const active = activeRecovery();
     const recovering = new Set(active.map((r) => r.muscleId));
@@ -197,7 +197,7 @@ export default function WorkoutsScreen() {
     // recoveryItems changes whenever activeRecovery() would return something new.
   }, [recoveryItems, activeRecovery, getExercise]);
 
-  /** Suggested and Recent both draw only from Your workouts: the chosen program plus your customs. */
+  /** Suggested draws only from Your workouts: the chosen program plus your customs. */
   const yourWorkouts = useMemo(
     () => yourWorkoutTemplates({ userTemplates, activeProgramId }),
     [userTemplates, activeProgramId]

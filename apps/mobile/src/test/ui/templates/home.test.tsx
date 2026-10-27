@@ -388,7 +388,7 @@ describe('starting', () => {
     expect(searchParams()).toMatchObject({ templateId: 'tpl_c' });
   });
 
-  it('Suggested and Recent include custom templates', async () => {
+  it('Suggested includes custom templates', async () => {
     await seed({
       templates: [customTemplate({ id: 'tpl_c', name: 'Chest day' })],
       sessions: [completedSession('tpl_c', NOW - 3 * DAY)],
