@@ -16,7 +16,7 @@ const FEATURES = [
     id: 'workouts',
     label: 'Workouts',
     title: 'Log a workout',
-    body: 'Type the weight, tick the set, and the rest timer starts. What you lifted last time is right there next to it.',
+    body: 'Type the weight, tick the set, and the rest timer starts.',
     points: ['Rest timer after every set', 'Last session’s weights and reps', 'Notes for seat height, pins or grip'],
     src: '/screens/active-workout.png',
     alt: 'MuscleOS active workout — logging sets with a rest timer running',

@@ -1,13 +1,15 @@
 import Image from 'next/image';
 
 /**
- * Official App Store and Google Play badges. Google's PNG carries its own clear space
- * (41px of 250px on every side); it's drawn larger and that transparent margin clipped to match
- * Apple's badge at the same visible height.
+ * Official App Store and Google Play badges. Google's PNG (646×250) holds a 564×168 badge with 41px
+ * of clear space on every side. It's drawn so the badge is a little taller than Apple's, then
+ * clipped evenly on all four sides to Apple's height, which trims Google's thin grey edge too. A
+ * border in Apple's colour and corner radius is drawn on top so both badges share the same edge.
  */
 const BADGE_HEIGHT = 48;
-const PLAY_SCALE = 250 / 168;
-const PLAY_INSET = Math.round((BADGE_HEIGHT * 41) / 168);
+const BADGE_RADIUS = 8;
+const PLAY_TRIM = 2;
+const PLAY_PX = (BADGE_HEIGHT + 2 * PLAY_TRIM) / 168;
 
 export function StoreButtons() {
   return (
@@ -30,16 +32,21 @@ export function StoreButtons() {
         href="https://play.google.com/store/apps/details?id=app.muscleos"
         target="_blank"
         rel="noopener noreferrer"
-        className="block overflow-hidden rounded-[9px] transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        style={{ width: Math.round((BADGE_HEIGHT * 564) / 168), height: BADGE_HEIGHT }}
+        className="relative block overflow-hidden bg-black transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        style={{ width: 564 * PLAY_PX - 2 * PLAY_TRIM, height: BADGE_HEIGHT, borderRadius: BADGE_RADIUS }}
       >
         <Image
           src="/badges/google-play.png"
           alt="Get it on Google Play"
-          width={Math.round((BADGE_HEIGHT * PLAY_SCALE * 646) / 250)}
-          height={Math.round(BADGE_HEIGHT * PLAY_SCALE)}
-          style={{ margin: -PLAY_INSET, maxWidth: 'none' }}
+          width={646 * PLAY_PX}
+          height={250 * PLAY_PX}
+          style={{ margin: -(41 * PLAY_PX + PLAY_TRIM), maxWidth: 'none' }}
           unoptimized
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 border border-[#a6a6a6]"
+          style={{ borderRadius: BADGE_RADIUS }}
         />
       </a>
     </div>

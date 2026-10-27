@@ -31,7 +31,7 @@ export function SiteHeader() {
               key={item.href}
               href={item.href}
               className={`inline-flex items-center py-1 text-sm font-medium text-ink transition hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                item.hideOnMobile ? 'max-sm:hidden' : ''
+                item.hideOnMobile ? 'max-md:hidden' : ''
               }`}
             >
               {item.label}
