@@ -251,11 +251,9 @@ export function LandingPage() {
 
         {/* Closing call to install */}
         <section id="get" className="relative scroll-mt-16 overflow-hidden border-t border-border bg-primary">
-          <div className="mx-auto flex max-w-site flex-col items-start gap-8 px-5 py-20 sm:px-8 sm:py-24 lg:flex-row lg:items-end lg:justify-between">
-            <h2 className="font-poster text-[clamp(3.5rem,11vw,7.5rem)] text-surface">
-              Free on iPhone
-              <br />
-              and Android.
+          <div className="mx-auto flex max-w-site flex-col items-start gap-6 px-5 py-12 sm:px-8 sm:py-14 lg:flex-row lg:items-center lg:justify-between">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-surface sm:text-4xl">
+              Free on iPhone and Android.
             </h2>
             <div className="shrink-0">
               <StoreButtons />
