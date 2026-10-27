@@ -4,8 +4,10 @@ import './globals.css';
 
 import { THEME_INIT_SCRIPT } from './data/theme';
 
+// Variable, with the width and optical-size axes: headlines run condensed and heavy.
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
+  axes: ['opsz', 'wdth'],
   variable: '--font-display',
   display: 'swap',
 });
