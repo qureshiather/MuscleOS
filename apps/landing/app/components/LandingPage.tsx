@@ -1,24 +1,15 @@
+import Link from 'next/link';
+
+import { DEMO_EXERCISES, demoSources, EXERCISES, exercisePath, FEATURED_DEMOS } from '../data/exercises';
+import { ExerciseDemo } from './ExerciseDemo';
 import { FaqJsonLd } from './FaqJsonLd';
 import { FaqSection } from './FaqSection';
 import { PhoneFrame } from './PhoneFrame';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
+import { FeatureScroller } from './FeatureScroller';
+import { LiveSetCard } from './LiveSetCard';
 import { StoreButtons } from './StoreButtons';
-
-const PROBLEMS = [
-  {
-    pain: 'Start quickly',
-    fix: 'Follow Push Pull Legs, Upper/Lower, Strong Lifts 5×5, or PHUL, or tap Empty workout and begin logging.',
-  },
-  {
-    pain: 'Use your own workouts',
-    fix: 'Create templates for your usual training days, or start empty and add as you go.',
-  },
-  {
-    pain: 'Check muscle recovery',
-    fix: 'See which muscles are ready and which are still recovering.',
-  },
-] as const;
 
 const FEATURES = [
   {
@@ -105,176 +96,152 @@ const COACHING_POINTS = [
   'Your next weights and reps, set from what you logged',
 ] as const;
 
+const DEMO_STRIP = FEATURED_DEMOS.slice(0, 6);
+
 export function LandingPage() {
   return (
     <>
       <FaqJsonLd />
       <SiteHeader />
-      <div className="bg-atmosphere relative min-h-screen">
-        <div className="bg-grain pointer-events-none absolute inset-0 opacity-30" aria-hidden />
-
-        {/* Hero */}
+      <main className="bg-atmosphere relative overflow-x-clip">
+        {/* Hero: the headline, and the app's set table to play with */}
         <section className="relative">
-          <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-8 px-5 pb-12 pt-8 sm:gap-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-24 lg:pt-16">
-            <div className="max-w-xl">
-              <h1 className="font-display text-[clamp(2.5rem,9vw,5rem)] font-extrabold leading-[0.95] tracking-tight text-ink">
-                MuscleOS
+          <div className="bg-ruled pointer-events-none absolute inset-0" aria-hidden />
+          <div className="relative z-10 mx-auto grid max-w-site grid-cols-1 items-center gap-12 px-5 pb-16 pt-10 sm:px-8 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-28 lg:pt-20">
+            <div>
+              <h1 className="font-poster text-[clamp(4.25rem,15vw,9.5rem)] text-ink">
+                Beat last
+                <br />
+                time.
               </h1>
-
-              <p className="mt-3 text-lg font-semibold leading-snug text-primary sm:mt-4 sm:text-2xl">
-                Log your workouts and track muscle recovery.
+              <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-secondary sm:text-xl">
+                MuscleOS puts what you lifted last time next to every set, runs your rest timer, and
+                maps which muscles are still recovering. Free, with every feature.
               </p>
-
-              <div className="mt-6 sm:mt-8">
+              <div className="mt-8">
                 <StoreButtons />
               </div>
-              <p className="mt-3 text-sm text-ink-muted sm:mt-4">Free. Every feature, no paywall, no ads.</p>
+              <p className="mt-4 text-sm text-ink-muted">On iPhone and Android. No account, no ads.</p>
             </div>
 
-            <div className="flex justify-center lg:justify-end">
-              <PhoneFrame src="/screens/workouts.png" alt="MuscleOS Workouts screen" priority />
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="glow-primary absolute left-1/2 top-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 opacity-60" aria-hidden />
+              <div className="relative hidden rotate-[4deg] lg:block lg:translate-x-6">
+                <PhoneFrame src="/screens/active-workout.png" alt="MuscleOS active workout screen" priority />
+              </div>
+              <div className="relative w-full sm:w-auto lg:absolute lg:bottom-[-2.5rem] lg:left-[-1rem] lg:w-[400px]">
+                <LiveSetCard />
+              </div>
             </div>
-          </div>
-        </section>
-
-        {/* Why */}
-        <section className="relative border-t border-border/70 bg-surface/50">
-          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
-            <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-ink-muted">
-              Overview
-            </p>
-            <h2 className="font-display mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-              A simple way to track your training.
-            </h2>
-
-            <ul className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-5">
-              {PROBLEMS.map((item) => (
-                <li
-                  key={item.pain}
-                  className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
-                >
-                  <p className="font-medium text-ink">{item.pain}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{item.fix}</p>
-                </li>
-              ))}
-            </ul>
           </div>
         </section>
 
         {/* Features */}
-        <section id="features" className="relative border-t border-border/70">
-          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
-            <div className="max-w-2xl">
-              <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-                Features
-              </p>
-              <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-                Workouts, programs, recovery, exercises, and history.
-              </h2>
-              <p className="mt-4 text-lg text-ink-secondary">
-                The main parts of MuscleOS.
-              </p>
+        <section id="features" className="relative scroll-mt-16 border-t border-border">
+          <div className="mx-auto max-w-site px-5 pt-20 sm:px-8 sm:pt-28">
+            <h2 className="font-display max-w-3xl text-4xl font-bold tracking-tight text-ink text-balance sm:text-5xl">
+              Log the session. Everything else builds itself from it.
+            </h2>
+            <p className="mt-4 max-w-xl text-lg text-ink-secondary">
+              Recovery, history, records and charts all come from the sets you tick off. Nothing extra to
+              fill in.
+            </p>
+          </div>
+          <div className="mx-auto max-w-site px-5 pb-16 sm:px-8 lg:pb-8">
+            <FeatureScroller
+              features={FEATURES}
+              phones={FEATURES.map((f) => (
+                <PhoneFrame key={f.id} src={f.src} alt={f.alt} label={f.label} />
+              ))}
+            />
+          </div>
+        </section>
+
+        {/* Exercise demos */}
+        <section className="relative border-t border-border bg-surface">
+          <div className="mx-auto max-w-site px-5 py-20 sm:px-8 sm:py-28">
+            <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+              <div className="max-w-2xl">
+                <h2 className="font-poster text-[clamp(3rem,8vw,5.5rem)] text-ink">
+                  {DEMO_EXERCISES.length} exercises.
+                  <br />
+                  Every one animated.
+                </h2>
+                <p className="mt-5 text-lg text-ink-secondary">
+                  Each exercise in the library has a looping 3D demo, the muscles it works, and step-by-step
+                  form cues. Search by name, muscle, or equipment.
+                </p>
+              </div>
+              <Link
+                href="/exercises"
+                className="inline-flex shrink-0 items-center self-start rounded-full bg-primary px-6 py-3 text-base font-semibold text-surface transition hover:bg-primary-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:self-auto"
+              >
+                Browse all {EXERCISES.length} exercises
+              </Link>
             </div>
 
-            <div className="mt-14 space-y-16 sm:mt-16 lg:mt-20 lg:space-y-24">
-              {FEATURES.map((feature, i) => {
-                const phoneFirst = i % 2 === 1;
+            <ul className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+              {DEMO_STRIP.map((exercise) => {
+                const sources = demoSources(exercise.id);
+                if (!sources) return null;
                 return (
-                  <article
-                    key={feature.id}
-                    id={feature.id}
-                    className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16"
-                  >
-                    <div className={phoneFirst ? 'lg:order-2' : undefined}>
-                      <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-                        {feature.label}
-                      </p>
-                      <h3 className="font-display mt-3 text-2xl font-bold tracking-tight text-ink text-balance sm:text-3xl">
-                        {feature.title}
-                      </h3>
-                      <p className="mt-4 max-w-md text-base leading-relaxed text-ink-secondary sm:text-lg">
-                        {feature.body}
-                      </p>
-                      <ul className="mt-6 space-y-2.5 text-sm text-ink-secondary">
-                        {feature.points.map((point) => (
-                          <li key={point} className="flex gap-2.5">
-                            <span
-                              className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                              aria-hidden
-                            />
-                            {point}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div
-                      className={`flex justify-center ${phoneFirst ? 'lg:order-1 lg:justify-start' : 'lg:justify-end'}`}
+                  <li key={exercise.id}>
+                    <Link
+                      href={exercisePath(exercise.id)}
+                      className="group block overflow-hidden rounded-2xl border border-border bg-background transition hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
-                      <PhoneFrame
-                        src={feature.src}
-                        alt={feature.alt}
-                        label={feature.label}
-                        priority={i === 0}
-                      />
-                    </div>
-                  </article>
+                      <ExerciseDemo sources={sources} label={`${exercise.name} demo`} lazy static />
+                      <p className="px-4 py-3 font-display text-base font-semibold text-ink group-hover:text-primary sm:text-lg">
+                        {exercise.name}
+                      </p>
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="relative border-t border-border/70 bg-surface/50">
-          <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-                Pricing
+        <section id="pricing" className="relative scroll-mt-16 border-t border-border">
+          <div className="mx-auto grid max-w-site gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1fr_1fr] lg:gap-16">
+            <div>
+              <h2 className="font-poster text-[clamp(8rem,30vw,17rem)] leading-[0.8] text-primary">$0</h2>
+              <p className="font-display mt-6 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+                Free. All of it, forever.
               </p>
-              <h2 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
-                Free. All of it.
-              </h2>
-              <p className="mt-4 text-lg text-ink-secondary">
-                Every feature in MuscleOS is free, forever. No paywall, no trial, no ads, and no account
-                needed.
+              <p className="mt-4 max-w-md text-lg text-ink-secondary">
+                No paywall, no trial, no ads, and no account needed. Every feature is for everyone.
               </p>
             </div>
 
-            <div className="mx-auto mt-12 grid max-w-4xl items-stretch gap-5 sm:mt-14 sm:grid-cols-2 sm:gap-6">
-              <div className="relative flex h-full flex-col rounded-2xl border-2 border-primary bg-primary/[0.06] p-6 sm:p-8">
-                <p className="font-display text-xl font-semibold text-ink">MuscleOS</p>
-                <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">Free</p>
-                <p className="mt-2 text-sm text-ink-muted">Forever</p>
-                <p className="mt-5 text-sm font-medium text-ink">Everything included:</p>
-                <ul className="mt-4 space-y-2.5 text-sm text-ink-secondary">
-                  {INCLUDED_POINTS.map((point) => (
-                    <li key={point} className="flex gap-2">
-                      <span
-                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                        aria-hidden
-                      />
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div className="flex flex-col gap-5 lg:pt-6">
+              <ul className="grid gap-x-6 gap-y-3 text-[15px] text-ink sm:grid-cols-2">
+                {INCLUDED_POINTS.map((point) => (
+                  <li key={point} className="flex gap-3">
+                    <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 shrink-0 text-ready" fill="none" stroke="currentColor" strokeWidth={2.6} aria-hidden>
+                      <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {point}
+                  </li>
+                ))}
+              </ul>
 
-              <div className="relative flex h-full flex-col rounded-2xl border border-border bg-surface p-6 sm:p-8">
-                <p className="absolute -top-3 left-6 rounded-full bg-ink px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-surface">
-                  Coming later
-                </p>
-                <p className="font-display text-xl font-semibold text-ink">Coaching</p>
+              <div className="mt-4 rounded-2xl border border-dashed border-border p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-display text-xl font-semibold text-ink">Coaching</p>
+                  <span className="rounded-full border border-border px-3 py-0.5 text-xs font-semibold text-ink-muted">
+                    Coming later
+                  </span>
+                </div>
                 <p className="mt-2 text-sm text-ink-secondary">
-                  For when you want someone else to plan your training. Optional, and paid. The app
-                  stays free.
+                  For when you want someone else to plan your training. Optional, and paid. The app stays
+                  free.
                 </p>
-                <ul className="mt-5 space-y-2.5 text-sm text-ink-secondary">
+                <ul className="mt-4 space-y-2 text-sm text-ink-secondary">
                   {COACHING_POINTS.map((point) => (
-                    <li key={point} className="flex gap-2">
-                      <span
-                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted"
-                        aria-hidden
-                      />
+                    <li key={point} className="flex gap-2.5">
+                      <span className="mt-2 h-1 w-3 shrink-0 rounded-full bg-ink-muted" aria-hidden />
                       {point}
                     </li>
                   ))}
@@ -284,10 +251,23 @@ export function LandingPage() {
           </div>
         </section>
 
-        <FaqSection />
+        <FaqSection showShots={false} />
 
-        <SiteFooter />
-      </div>
+        {/* Closing call to install */}
+        <section id="get" className="relative scroll-mt-16 overflow-hidden border-t border-border bg-primary">
+          <div className="mx-auto flex max-w-site flex-col items-start gap-8 px-5 py-20 sm:px-8 sm:py-24 lg:flex-row lg:items-end lg:justify-between">
+            <h2 className="font-poster text-[clamp(3.5rem,11vw,7.5rem)] text-surface">
+              Your next set
+              <br />
+              starts here.
+            </h2>
+            <div className="shrink-0">
+              <StoreButtons />
+            </div>
+          </div>
+        </section>
+      </main>
+      <SiteFooter />
     </>
   );
 }

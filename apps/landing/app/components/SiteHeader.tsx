@@ -38,6 +38,12 @@ export function SiteHeader() {
             </Link>
           ))}
           <ThemeToggle />
+          <Link
+            href="/#get"
+            className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-surface transition hover:bg-primary-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-sm:hidden"
+          >
+            Get the app
+          </Link>
         </nav>
       </div>
     </header>

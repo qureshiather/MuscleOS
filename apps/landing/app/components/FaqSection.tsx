@@ -31,9 +31,11 @@ const FLOW_SHOTS = [
 type FaqSectionProps = {
   heading?: 'h1' | 'h2';
   bordered?: boolean;
+  /** The row of app screens above the questions; the home page already shows them. */
+  showShots?: boolean;
 };
 
-export function FaqSection({ heading = 'h2', bordered = true }: FaqSectionProps) {
+export function FaqSection({ heading = 'h2', bordered = true, showShots = true }: FaqSectionProps) {
   const Title = heading;
 
   return (
@@ -43,10 +45,7 @@ export function FaqSection({ heading = 'h2', bordered = true }: FaqSectionProps)
     >
       <div className="mx-auto max-w-site px-5 py-16 sm:px-8 sm:py-20 lg:py-24">
         <div className="max-w-2xl">
-          <p className="font-mono-label text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-            FAQ
-          </p>
-          <Title className="font-display mt-3 text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
+          <Title className="font-display text-3xl font-bold tracking-tight text-ink text-balance sm:text-4xl">
             How to use MuscleOS
           </Title>
           <p className="mt-4 text-lg text-ink-secondary">
@@ -54,6 +53,7 @@ export function FaqSection({ heading = 'h2', bordered = true }: FaqSectionProps)
           </p>
         </div>
 
+        {showShots ? (
         <ul className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 sm:mt-12 lg:grid-cols-4 lg:gap-6">
           {FLOW_SHOTS.map((shot) => (
             <li key={shot.src}>
@@ -64,6 +64,7 @@ export function FaqSection({ heading = 'h2', bordered = true }: FaqSectionProps)
             </li>
           ))}
         </ul>
+        ) : null}
 
         <div className="mt-12 sm:mt-16">
           <FaqAccordion />

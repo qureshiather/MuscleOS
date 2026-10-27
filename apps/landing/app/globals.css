@@ -132,6 +132,19 @@
     mask-image: radial-gradient(ellipse 70% 60% at 60% 30%, black 20%, transparent 75%);
   }
 
+  /* Tailwind's /opacity modifiers don't work on var() colours; these tints do. */
+  .tint-primary {
+    background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+
+  .tint-primary-strong {
+    background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  }
+
+  .tint-ready {
+    background-color: color-mix(in srgb, var(--color-ready) 15%, transparent);
+  }
+
   .glow-primary {
     background: radial-gradient(closest-side, color-mix(in srgb, var(--color-primary) 45%, transparent), transparent);
     filter: blur(40px);
