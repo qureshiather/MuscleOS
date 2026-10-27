@@ -107,13 +107,12 @@
     font-family: var(--font-display), system-ui, sans-serif;
   }
 
-  /* Condensed, heavy, optically sized for display: the site's headline voice. */
+  /* Headline voice: the original hero treatment (Bricolage extra bold, tracking-tight), set larger. */
   .font-poster {
     font-family: var(--font-display), system-ui, sans-serif;
-    font-variation-settings: 'wdth' 75, 'opsz' 96;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 0.88;
+    letter-spacing: -0.025em;
+    line-height: 0.95;
   }
 
   .glow-primary {
