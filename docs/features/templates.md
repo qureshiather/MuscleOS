@@ -458,7 +458,8 @@ Covered:
   skipped, name tie-break, the limit, and the −8-per-overlap diversification
 - `src/utils/bodyCrop.test.ts` — muscle art side choice (front for push, back for pull and
   posterior chain), crop aspect and containment, minimum height, empty fallback, leg crops sit low, the
-  tibialis crops the front figure's shins and the neck crops high
+  tibialis crops the front figure's shins and the neck crops high, and every region's crop bounds
+  match the figure paths
 - `src/utils/muscleDiagramRegions.test.ts` — region recovery states, least-recovered wins on shared
   regions, delts split by view; focus regions drop single-exercise regions, keep chest on Push, count shared regions once per
   exercise, and fall back to all regions when none repeats

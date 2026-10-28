@@ -10,7 +10,7 @@ account is optional and adds backup plus multi-device sync; it is never required
 |--|--|
 | Root layout | `apps/mobile/app/_layout.tsx` |
 | Auth | `apps/mobile/src/store/authStore.ts`, `src/auth/`, `src/lib/supabase.ts`, `app/auth.tsx`, `app/auth-email.tsx`, `app/auth-new-password.tsx`, `app/auth-callback.tsx` |
-| Profile / settings | `app/(tabs)/profile.tsx`, `app/account.tsx`, `app/settings.tsx`, `app/acknowledgements.tsx`, `app/biodata.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
+| Profile / settings | `app/(tabs)/profile.tsx`, `app/account.tsx`, `app/settings.tsx`, `app/about.tsx`, `app/acknowledgements.tsx`, `app/biodata.tsx`, `app/data.tsx`, `src/store/settingsStore.ts` |
 | Storage | `apps/mobile/src/storage/keys.ts`, `src/storage/localStorage.ts` |
 | Sync | `apps/mobile/src/sync/` |
 | Theme | `apps/mobile/src/theme/` |
@@ -29,7 +29,7 @@ custom (`TabBarWithResumePill`) so it can host the resume-workout pill. It is si
 (`computeTabBarLayout`): icon and label sit centred between equal top and bottom padding, and a larger
 system bottom inset (home indicator, Android nav bar) replaces the bottom padding rather than adding to it.
 
-**Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/acknowledgements`, `/biodata`, `/data`, `/create-template`,
+**Pushed screens:** `/auth`, `/auth-email`, `/auth-new-password`, `/auth-callback`, `/account`, `/settings`, `/about`, `/acknowledgements`, `/biodata`, `/data`, `/create-template`,
 `/create-exercise`, `/programs`, `/program`, `/workout-preview`, `/active-workout`, `/history-monthly`,
 `/exercise-progression`, `/personal-records`. `/templates` is a legacy redirect to the tabs.
 
@@ -193,13 +193,13 @@ time), then from the Metro-inlined `process.env` value. Setting them for EAS bui
 
 ## Profile
 
-The tab is three headed cards, in order: **Account**, **Settings**, then **Biodata**. Each card is one row that pushes a screen.
+The tab is four headed cards, in order: **Account**, **Settings**, **Biodata**, then **About**. Each card is one row that pushes a screen.
 
 **Account** on this tab shows the linked identity without opening `/account`: the provider icon, **Apple ID**, **Google**, or **Email** (resolved from Supabase identities), the display name when set, and the email. A chevron still opens `/account`. Guests see **Sign in or create an account** and “Back up your workouts and use them on any device.”
 
 `/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. The sync row (`syncStatusLabel`) reads “Syncing…”, “Sync failed — tap to retry” (in the danger colour) when the last sync failed, “Last synced 5 min ago” after a success, or “Not synced yet — tap to sync”; tapping it runs `syncNow()`. Guests see “Sign in to back up your workouts and use them on any device.” and a Sign in CTA. The method picker says linking an account backs up your workouts so you can use them on any device. An account unlocks nothing else — every feature is free ([pricing.md](pricing.md)). Sign out does not wipe local workouts.
 
-Rows on the Account screen: Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only), Privacy Policy, Terms of Service. Legal lives only here — Settings does not repeat it.
+Rows on the Account screen: Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only). Legal links live on [About](#about), not here or in Settings.
 
 **Reaching an account from another platform.** Apple sign-in is iOS-only, and Apple's **Hide My Email** gives the account an `@privaterelay.appleid.com` address that nothing else shares, so Google or email sign-in on Android would create a second account. Apps can't turn Hide My Email off, so **Link Google** on Account calls `linkIdentity` on the signed-in user, which attaches Google whatever the account's email is. It never switches accounts: if that Google login or its email already belongs to another MuscleOS account, a dialog says to choose another Google account. When the email is a relay address and Google isn't linked yet, the identity block says to link Google before signing in on Android. Apple accounts can't add a password.
 
@@ -242,8 +242,8 @@ is written and offered to sync immediately. Every settings write — units, soun
 theme picker — goes through one queue (`persistAndNotify` in `settingsStore`), so quick taps or a
 theme change at the same moment as a unit change never drop one.
 
-Settings is **Appearance**, **Units**, **Workouts**, **Sounds**, and an **About** card whose one
-row opens **Acknowledgements**. **Workouts** has one row, **Default rest** ("Starts after each
+Settings is **Appearance**, **Units**, **Workouts** and **Sounds** — settings only; legal and
+credits are on [About](#about). **Workouts** has one row, **Default rest** ("Starts after each
 working set, unless an exercise sets its own rest", value in mono): it opens the rest dialogue with
 only the work-set box, titled **Default rest** with a **Save** button, and the hint "Every exercise
 without its own rest uses this, in your templates, programs and workouts. 0:00 means no timer."
@@ -264,12 +264,26 @@ Pounds display rounds to 1 decimal and kilograms to 2, so a 2.5 lb or 0.25 kg pl
 a round-trip. Storage of a pounds value is 2 decimal kilograms — enough that the round-trip
 doesn't drift visibly.
 
+### About
+
+**About** on the Profile tab is a single row into `/about` (“Version, legal, licenses”, hint
+“Privacy Policy, Terms of Service, acknowledgements”). The screen has three cards:
+
+- **MuscleOS** with “Version 1.0.0 (42)” in mono: the native version and store build number from
+  `expo-application`, formatted by `formatAppVersion()` (the build is dropped when missing; “Unknown”
+  when neither is available). Testers quote it in bug reports.
+- **Legal**: Privacy Policy and Terms of Service, opening `LEGAL_URLS` on muscleos.app in the
+  in-app browser. This is the only place in the app that links them.
+- **Credits**: **Acknowledgements** (“Open-source licenses and artwork”) pushes `/acknowledgements`.
+
 ### Acknowledgements
 
-`/acknowledgements` (Settings → About) shows the open-source notices that the MIT License and SIL
-Open Font License require to ship with the app. It has two cards. **Libraries — MIT License** lists
+`/acknowledgements` (Profile → About) shows the open-source notices that the MIT License and SIL
+Open Font License require to ship with the app. It has three cards. **Libraries — MIT License** lists
 each runtime dependency with its copyright line, followed by the MIT text. **Fonts — SIL Open Font
-License 1.1** lists DM Sans and DM Mono, followed by the OFL text. The entries are in
+License 1.1** lists DM Sans and DM Mono, followed by the OFL text. **Artwork — MIT License** credits
+artwork copied into the app rather than installed: the body diagram figures, from
+react-native-body-highlighter. The entries are in
 `src/data/acknowledgements.ts` and the license texts in `src/data/licenseTexts.ts`. Every package in
 `apps/mobile/package.json` `dependencies` must have an entry; workspace `@muscleos/*` packages are
 exempt (`missingAcknowledgements`). Adding a dependency without one fails the unit test.
@@ -621,13 +635,17 @@ Covered:
   `src/theme/tabBarLayout.test.ts` — tab bar sizing;
   `src/theme/denseRowLayout.test.ts` — set table columns grow with text and fit the screen width;
   `src/theme/sheetLayout.test.ts` — a modal's scroll region gives up its floor before the actions overflow
+- `src/utils/appVersion.test.ts` — `formatAppVersion()` with and without a build number, and the
+  unknown fallbacks
 - Screen tests (Jest, `src/test/ui/accounts/`): `profile.test.tsx` (Account card guest/linked,
-  rows, biodata hint), `account.test.tsx` (guest vs linked rows, Change password only with an
-  email identity, Hide My Email notice, legal links, sync row incl. failure, Sign out confirm,
+  rows incl. About, biodata hint), `about.test.tsx` (version with build number, legal links open
+  the website, Acknowledgements lists library, font and artwork notices with their licenses),
+  `account.test.tsx` (guest vs linked rows, Change password only with an
+  email identity, Hide My Email notice, no legal links, sync row incl. failure, Sign out confirm,
   Delete account two confirms, friendly failure, and “Account deleted” even when a store fails to reload), `data.test.tsx` (rows, Sync now success and
   failure, Export, Import confirm/failure copy, Clear all data keeps kept keys, reloads stores and
   pushes nothing), `biodataSettings.test.tsx` (Biodata collects weight, age and gender but not height,
-  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, Default rest (2:00, set with the time pad, persisted and synced), sounds, theme; Acknowledgements lists notices and licenses), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes, an incomplete email blocked before any request, failures in the themed dialog,
+  range captions, out-of-range values block Save with a message, blank clears, lb, save, iOS keyboard Done key, backdrop tap lowers the keyboard; Settings units, Default rest (2:00, set with the time pad, persisted and synced), sounds, theme, no legal or About rows), `auth.test.tsx` (method picker, email sign-in/create/reset copy and outcomes, an incomplete email blocked before any request, failures in the themed dialog,
   New password and Change password, `/auth-callback` spinner and fallback)
 
 Not covered:

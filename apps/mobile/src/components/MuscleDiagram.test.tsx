@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react-native';
-import Body from 'react-native-body-highlighter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MUSCLE_GROUPS, type MuscleId } from '@muscleos/types';
+import { BodyFigure } from '@/components/BodyFigure';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { darkThemeColors, lightThemeColors } from '@/theme/palette';
 import { getRecoveryPalette, ThemeProvider, type ThemeColors, useTheme } from '@/theme/ThemeContext';
@@ -26,20 +26,11 @@ function renderDiagram(props: Parameters<typeof MuscleDiagram>[0]) {
       </ThemeProvider>
     </SafeAreaProvider>
   );
-  const bodies = utils.UNSAFE_getAllByType(Body);
-  const props0 = bodies[0].props as {
-    data: ({ slug: string; intensity: number } | { slug: string; color: string })[];
-    colors: string[];
-    defaultFill: string;
-    gender: string;
-    side: string;
-  };
-  const highlighted = props0.data.filter((d): d is { slug: string; intensity: number } => 'intensity' in d);
-  const bySlug = Object.fromEntries(highlighted.map((d) => [d.slug, d.intensity]));
-  const neutral = Object.fromEntries(
-    props0.data.filter((d): d is { slug: string; color: string } => 'color' in d).map((d) => [d.slug, d.color])
-  );
-  return { ...utils, bodies, body: props0, bySlug, highlighted, neutral };
+  const bodies = utils.UNSAFE_getAllByType(BodyFigure);
+  const props0 = bodies[0].props as Parameters<typeof BodyFigure>[0];
+  const highlighted = props0.data;
+  const bySlug: Record<string, number> = Object.fromEntries(highlighted.map((d) => [d.slug, d.intensity]));
+  return { ...utils, bodies, body: props0, bySlug, highlighted };
 }
 
 beforeEach(() => {
@@ -92,13 +83,18 @@ describe('MuscleDiagram', () => {
     ).toEqual([3, 1]);
   });
 
+  it('lights lats and rhomboids as different regions (MUS-176)', () => {
+    const lats = renderDiagram({ muscleIds: ['lats'] });
+    expect(lats.bySlug).toEqual({ lats: 1 });
+    const rhomboids = renderDiagram({ muscleIds: ['rhomboids'] });
+    expect(rhomboids.bySlug).toEqual({ 'upper-back': 1 });
+  });
+
   it('lights the shin for a tibialis raise and the neck for neck work, not calves or traps (MUS-171)', () => {
     const tib = renderDiagram({ muscleIds: ['tibialis'] });
     expect(tib.bySlug).toEqual({ tibialis: 1 });
-    expect(tib.neutral.calves).toBeDefined();
     const neck = renderDiagram({ muscleIds: ['neck'] });
     expect(neck.bySlug).toEqual({ neck: 1 });
-    expect(neck.neutral.trapezius).toBeDefined();
   });
 
   it('uses the female figure only when the profile says female (or the variant overrides)', () => {
@@ -118,37 +114,32 @@ describe('MuscleDiagram', () => {
     expect(bySlug.quadriceps).toBe(2);
     expect(bySlug.deltoids).toBe(2);
     expect(bySlug.calves).toBe(3);
-    expect(highlighted).toHaveLength(17);
+    expect(highlighted).toHaveLength(18);
   });
 
   it('two-state recovery when no just-trained subset is supplied', () => {
     const { body, highlighted, bySlug } = renderDiagram({ recoveringMuscleIds: ['lats'] });
     expect(body.colors).toEqual(getRecoveryPalette(themeColors, false));
-    expect(bySlug['upper-back']).toBe(1); // lats + rhomboids share a region
+    expect(bySlug.lats).toBe(1);
+    expect(bySlug['upper-back']).toBe(2); // rhomboids: their own region, still ready
     expect(bySlug.chest).toBe(2);
-    expect(highlighted).toHaveLength(17);
+    expect(highlighted).toHaveLength(18);
     expect(body.colors).toHaveLength(2);
   });
 
   it('all-clear: every region highlighted in the ready green', () => {
     const { body, highlighted } = renderDiagram({ muscleIds: ALL, highlightColor: 'green' });
-    expect(highlighted).toHaveLength(17);
+    expect(highlighted).toHaveLength(18);
     expect(body.colors[0]).toBe(themeColors.recoveryReady);
   });
 
   it('session mode (Good work): trained muscles just-trained, the rest neutral — not ready', () => {
-    const { body, bySlug, highlighted, neutral } = renderDiagram({
+    const { body, bySlug, highlighted } = renderDiagram({
       sessionMuscleIds: ['chest', 'triceps', 'front_delts'],
     });
     expect(body.colors[0]).toBe(themeColors.recoveryHot);
     expect(bySlug).toEqual({ chest: 1, triceps: 1, deltoids: 1 });
     expect(highlighted.some((d) => d.intensity === 3)).toBe(false);
-    // Every other part gets the theme's neutral fill explicitly: the library's assets bake a dark
-    // colour into each part that would otherwise win over `defaultFill`.
-    expect(neutral.quadriceps).toBe(themeColors.bodyDiagramFill);
-    expect(neutral.hands).toBe(themeColors.bodyDiagramFill);
-    expect(neutral.chest).toBeUndefined();
-    expect(neutral.head).toBeUndefined();
   });
 
   it('shows no "Targeted" label', () => {

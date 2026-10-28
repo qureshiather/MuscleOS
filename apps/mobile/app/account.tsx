@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
@@ -18,7 +17,6 @@ import { useSyncStore } from '@/store/syncStore';
 import { syncNow } from '@/sync';
 import { syncStatusLabel } from '@/sync/syncStatus';
 import { friendlyDeleteAccountError } from '@/auth/edgeFunctionError';
-import { LEGAL_URLS } from '@/utils/legalUrls';
 import {
   authProviderLabel,
   hasIdentity,
@@ -110,10 +108,6 @@ export default function AccountScreen() {
     if (linked) Alert.alert('Google linked', 'You can now sign in with Google on any device, including Android.');
   }
 
-  function openLegal(page: keyof typeof LEGAL_URLS) {
-    void WebBrowser.openBrowserAsync(LEGAL_URLS[page]);
-  }
-
   const provider = isLinked && authUser ? linkedAuthProvider(authUser) : null;
   const providerIcon =
     provider === 'apple' ? 'logo-apple' : provider === 'google' ? 'logo-google' : 'mail-outline';
@@ -203,6 +197,7 @@ export default function AccountScreen() {
         <Card style={styles.section}>
           <ListRow
             inset
+            last={!isLinked}
             title="Data"
             hint={isLinked ? 'Sync, export, import, clear' : 'Export, import, clear this device'}
             onPress={() => router.push('/data')}
@@ -236,6 +231,7 @@ export default function AccountScreen() {
             ) : (
               <ListRow
                 inset
+                last
                 destructive
                 title="Delete account"
                 hint="Deletes this email's account and cloud backup"
@@ -245,19 +241,6 @@ export default function AccountScreen() {
               />
             )
           ) : null}
-          <ListRow
-            inset
-            title="Privacy Policy"
-            hint="How we handle your data"
-            onPress={() => openLegal('privacy')}
-          />
-          <ListRow
-            inset
-            last
-            title="Terms of Service"
-            hint="Using MuscleOS"
-            onPress={() => openLegal('terms')}
-          />
         </Card>
       </ScrollView>
 

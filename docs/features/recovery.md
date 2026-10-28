@@ -142,19 +142,21 @@ anywhere in the recovery UI.
 
 ## Body diagram
 
-`MuscleDiagram` wraps `react-native-body-highlighter` and renders **front and back views
-side by side** — always both, with no toggle. The figure is male by default and female when
+`MuscleDiagram` renders **front and back views side by side** — always both, with no toggle —
+through our own `BodyFigure` (`src/components/BodyFigure.tsx`). The artwork is ours to edit in
+`src/data/bodyFigures/`: path data copied from react-native-body-highlighter 3.1.4 (MIT, credited
+under Acknowledgements → Artwork), which the app no longer depends on. The figure is male by default and female when
 `profile.sex === 'female'`. It scales to the container width. There are **no tap interactions**.
 
 ### Muscle id → SVG region
 
-20 muscle ids map onto **17** diagram regions, so some ids share a region and cannot be
+20 muscle ids map onto **18** diagram regions, so the delts share a region and cannot be
 distinguished visually:
 
 | Diagram region | Muscle ids |
 |----------------|------------|
 | `deltoids` | `front_delts`, `side_delts`, `rear_delts` |
-| `upper-back` | `lats`, `rhomboids` |
+| `lats` / `upper-back` | `lats` / `rhomboids` |
 | `chest` | `chest` |
 | `neck` / `trapezius` | `neck` / `traps` |
 | `biceps` / `triceps` / `forearm` | `biceps` / `triceps` / `forearms` |
@@ -166,9 +168,12 @@ distinguished visually:
 The figure draws `deltoids` on both views, so the delts are split by view
 (`MUSCLE_DIAGRAM_VIEW`): front delts shade only the front figure's deltoids, rear delts only the
 back figure's, and side delts both. Each figure's deltoids take the least-recovered state of the
-heads on that side, so a pull day lights the rear of the shoulders and leaves the front unlit. Lats
-and rhomboids always shade together. Hip abductors are
-glute med/min, so they stay on `glutes` / `gluteal` — the diagram library has no separate
+heads on that side, so a pull day lights the rear of the shoulders and leaves the front unlit.
+
+Lats and rhomboids shade different parts of the back figure. `lats` is the large panel down each
+side of the back. Rhomboids light `upper-back`, the shoulder-blade pieces, because the figure has no
+region between the blades; that area is drawn as part of the traps. Hip abductors are
+glute med/min, so they stay on `glutes` / `gluteal` — the figure has no separate
 abductor region. Adductors (inner thigh) are their own region. Tibialis (front of the shin) is
 drawn on the front figure only, and the neck on both; neither borrows a neighbour, so a tibialis
 raise lights the shin rather than the calves and neck work lights the neck rather than the traps. The per-muscle list on the
@@ -195,10 +200,13 @@ The diagram has three modes (`regionStatesForMuscles()` → `regionStatesToBodyD
 
 The diagram shows no text labels.
 
-The untrained fill is passed as an explicit colour for every part the data leaves out
-(`withNeutralFill()`, all parts except the head and hair): the library's assets bake a dark
-`#3f3f3f` into each part, which would otherwise win over its `defaultFill` prop and draw a
-charcoal figure in light mode.
+`BodyFigure` styling, all from the theme:
+
+- Lit regions fade top to bottom from the palette colour at full opacity to 75%, matching the
+  template-card art (`MuscleZoomArt`).
+- Every unlit part takes `bodyDiagramFill`. Hands, feet, knees, ankles and the head are drawn at
+  55% opacity so the muscles read first; hair takes `bodyDiagramBorder`.
+- The silhouette is outlined in `bodyDiagramBorder`.
 
 ## Recovery tab
 
@@ -255,7 +263,7 @@ colour, and the rest of the body in the neutral untrained fill.
 | Fixed 36/48/72-hour buckets | Not personalized, not adaptive |
 | Ignores sleep, nutrition, age, sex, training age | `sex` affects only the diagram figure; `age` only adjusts strength standards |
 | Day-grain readiness copy | Deliberate — see [Readiness copy](#readiness-copy) |
-| Lats/rhomboids collapse on the diagram; delts split only by view (side delts show on both) | A limitation of the diagram library's regions |
+| Rhomboids shade the shoulder-blade pieces; delts split only by view (side delts show on both) | The figure has no rhomboid or per-head delt artwork |
 
 ## Tests
 
@@ -276,11 +284,10 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 - `justTrainedMuscleIds()` — latest `trainedAt`, ties included
 - `sameRecovery()` — equal records in order; added, removed or retrained records differ
 - `recoveryBuckets()` / `recoveryBucketsCopy()` — the 36/48/72 buckets and the exact explainer copy
-- Diagram regions — 20 ids onto 17 regions, delts and lats/rhomboids shared, adductors, tibialis
-  and neck separate;
+- Diagram regions — 20 ids onto 18 regions, delts shared, lats/rhomboids, adductors, tibialis
+  and neck separate, every region drawn by the figures (lats and upper back on both back views);
   `musclesOnView()` / `regionStatesByView()` keep front delts to the front figure and rear delts to the back;
-  `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral;
-  `withNeutralFill()` paints every part but head and hair, covering every muscle region
+  `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral
 - `recoveryStore` — load persists, unchanged reload skips the write, `ensureLoaded()` computes once
   and shares an in-flight first load, later reloads keep items (no skeleton), overlapping loads
   resolve to the latest, expiry drops muscles without a recompute, the exercises-store subscription
@@ -288,11 +295,16 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 - Recompute on delete (`sessionsStore.test.ts`), sync merge (`src/sync/merge.test.ts`) and finish
   (`activeWorkoutStore.test.ts`)
 
-Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/test/ui/recovery/recovery.test.tsx`):
+Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/components/BodyFigure.test.tsx`,
+`src/test/ui/recovery/recovery.test.tsx`):
+
+- `BodyFigure`: lit regions take their palette gradient and unlit muscles the neutral fill, lats and
+  shoulder blades light separately on both back figures, out-of-palette intensities stay neutral,
+  muted hands/feet/joints/head, hair and outline in the border colour, 200 × 400 at scale 1
 
 - `getRecoveryPalette` mapping and the documented hex values; front + back figures; male/female
   figure; three-state, two-state, all-clear and session (neutral rest) modes; deltoids lit per side
-  (rear delts on the back only); no "Targeted" label
+  (rear delts on the back only); lats and rhomboids light different regions; no "Targeted" label
 - Recovery tab: all-clear vs active subtitle, legend, three-state diagram, loading skeleton before
   the first load, In recovery rows in insertion order with day-grain readiness copy, re-focus drops
   expired muscles without a recompute, the explainer opens with the generated copy and closes

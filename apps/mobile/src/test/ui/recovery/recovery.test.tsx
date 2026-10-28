@@ -1,9 +1,9 @@
 import { type Href, router } from 'expo-router';
 import { act, fireEvent, screen } from 'expo-router/testing-library';
-import Body from 'react-native-body-highlighter';
 import type { WorkoutSession } from '@muscleos/types';
 import RecoveryScreen from '../../../../app/(tabs)/recovery';
 import { setSessions } from '@/storage/localStorage';
+import { BodyFigure } from '@/components/BodyFigure';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { recoveryBucketsCopy } from '@/utils/recovery';
@@ -42,9 +42,9 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-/** Highlighted regions → intensity. Parts painted with the neutral fill carry a colour instead. */
+/** Highlighted regions → intensity. */
 function bodyData() {
-  const [front] = screen.UNSAFE_getAllByType(Body);
+  const [front] = screen.UNSAFE_getAllByType(BodyFigure);
   return Object.fromEntries(
     (front.props.data as { slug: string; intensity?: number }[])
       .filter((d) => d.intensity != null)
@@ -57,7 +57,7 @@ test('all clear: subtitle and every muscle green when nothing is recovering', as
   expect(await screen.findByText('All clear — every muscle group is ready')).toBeTruthy();
   expect(screen.queryByText('In recovery')).toBeNull();
   expect(screen.queryByText('Just trained')).toBeNull();
-  expect(Object.keys(bodyData())).toHaveLength(17);
+  expect(Object.keys(bodyData())).toHaveLength(18);
 });
 
 test('active: subtitle, legend, three-state diagram, and no Targeted label', async () => {
@@ -117,7 +117,7 @@ test('shows the loading skeleton (no diagram) before the first load', async () =
   try {
     await renderRecovery([]);
     expect(screen.getByText('Recovery')).toBeTruthy();
-    expect(screen.UNSAFE_queryAllByType(Body)).toHaveLength(0);
+    expect(screen.UNSAFE_queryAllByType(BodyFigure)).toHaveLength(0);
   } finally {
     // Unmount first: restoring the action re-runs the focus effect, which would load the store
     // outside act and leak updates into the next test.
@@ -141,5 +141,5 @@ test('uses the female figure when the profile says female', async () => {
   useSettingsStore.setState({ profile: { sex: 'female' } });
   await renderRecovery([]);
   await screen.findByText('All clear — every muscle group is ready');
-  expect(screen.UNSAFE_getAllByType(Body)[0].props.gender).toBe('female');
+  expect(screen.UNSAFE_getAllByType(BodyFigure)[0].props.gender).toBe('female');
 });

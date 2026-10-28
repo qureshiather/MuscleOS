@@ -1,19 +1,16 @@
-import type { Slug } from 'react-native-body-highlighter';
+import type { FigureGender, FigureSide, MuscleRegion } from '@/data/bodyFigures';
 
-export type FigureSide = 'front' | 'back';
-export type FigureGender = 'male' | 'female';
 /** [minX, minY, maxX, maxY] in the figure's SVG user space. */
 type Bounds = readonly [number, number, number, number];
 /** [x, y, width, height], ready for an SVG viewBox. */
 export type ViewBox = readonly [number, number, number, number];
 
 /**
- * Bounding boxes of each trackable region in react-native-body-highlighter 3.1.4's figure paths
- * (left + right + common), measured once from the path data. Regenerate if the library's assets
- * change. The male front and back share one canvas (back is offset by 724); the female figure
+ * Bounding boxes of each trackable region in `BODY_FIGURES`, measured once from the path data.
+ * Re-measure if a figure's paths change. The male front and back share one canvas (back is offset by 724); the female figure
  * uses its own coordinates.
  */
-const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<Slug, Bounds>>>> = {
+export const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<MuscleRegion, Bounds>>>> = {
   male: {
     front: {
       chest: [251, 316, 476, 438],
@@ -34,7 +31,8 @@ const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<Slug
       neck: [1022, 217, 1145, 293],
       trapezius: [1002, 296, 1164, 473],
       deltoids: [914, 309, 1253, 398],
-      'upper-back': [955, 322, 1211, 585],
+      'upper-back': [955, 322, 1211, 418],
+      lats: [965, 401, 1201, 585],
       triceps: [898, 382, 1269, 535],
       'lower-back': [979, 486, 1185, 639],
       forearm: [839, 518, 1328, 688],
@@ -64,7 +62,8 @@ const REGION_BOUNDS: Record<FigureGender, Record<FigureSide, Partial<Record<Slug
       neck: [1084, 218, 1201, 284],
       trapezius: [1034, 278, 1251, 408],
       deltoids: [991, 283, 1294, 373],
-      'upper-back': [1028, 315, 1258, 541],
+      'upper-back': [1028, 315, 1258, 369],
+      lats: [1047, 378, 1239, 541],
       'lower-back': [1060, 507, 1225, 617],
       triceps: [976, 355, 1310, 492],
       forearm: [898, 486, 1387, 645],
@@ -81,7 +80,7 @@ const CROP_PADDING = 0.12;
 /** Smallest crop height in figure units (~a quarter of the body), so one small muscle isn't a blur. */
 const MIN_CROP_HEIGHT = 360;
 /** Crop used when nothing is lit: shoulders to waist, front. */
-const DEFAULT_REGIONS: Slug[] = ['chest', 'deltoids', 'abs'];
+const DEFAULT_REGIONS: MuscleRegion[] = ['chest', 'deltoids', 'abs'];
 
 function area([x0, y0, x1, y1]: Bounds): number {
   return (x1 - x0) * (y1 - y0);
@@ -90,7 +89,7 @@ function area([x0, y0, x1, y1]: Bounds): number {
 /**
  * The side that shows more of the lit regions, by summed bounding-box area. Ties go to the front.
  */
-export function pickFigureSide(regions: readonly Slug[], gender: FigureGender): FigureSide {
+export function pickFigureSide(regions: readonly MuscleRegion[], gender: FigureGender): FigureSide {
   const score = (side: FigureSide) =>
     regions.reduce((sum, slug) => {
       const b = REGION_BOUNDS[gender][side][slug];
@@ -105,7 +104,7 @@ export function pickFigureSide(regions: readonly Slug[], gender: FigureGender): 
  * heightened around its centre to match `aspect` (width / height) so it fills the art exactly.
  */
 export function cropToRegions(
-  regions: readonly Slug[],
+  regions: readonly MuscleRegion[],
   gender: FigureGender,
   aspect: number
 ): { side: FigureSide; viewBox: ViewBox } {

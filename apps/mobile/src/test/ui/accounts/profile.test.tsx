@@ -4,13 +4,14 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { renderApp, resetAppState, routeStub } from '../render';
 import { linkedUser, signInAs, signInAsGuest } from './helpers';
 
-/** docs/features/accounts-and-data.md#profile — the Profile tab's three cards. */
+/** docs/features/accounts-and-data.md#profile — the Profile tab's four cards. */
 
 const routes = {
   '(tabs)/profile': ProfileScreen,
   account: routeStub('account'),
   settings: routeStub('settings'),
   biodata: routeStub('biodata'),
+  about: routeStub('about'),
 };
 
 beforeEach(async () => {
@@ -46,6 +47,14 @@ test('the Settings row pushes /settings', async () => {
   expect(await screen.findByText('Appearance, units, sounds')).toBeTruthy();
   fireEvent.press(screen.getByTestId('profile-settings'));
   expect(await screen.findByText('route:settings')).toBeTruthy();
+});
+
+test('the About row pushes /about', async () => {
+  signInAsGuest();
+  renderApp(routes, '/profile');
+  expect(await screen.findByText('Version, legal, licenses')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('profile-about'));
+  expect(await screen.findByText('route:about')).toBeTruthy();
 });
 
 test('biodata hint says what it is for until something is saved', async () => {
