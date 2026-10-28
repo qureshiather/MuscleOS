@@ -104,9 +104,10 @@ sequence: [accounts-and-data.md](../features/accounts-and-data.md#navigation-and
 | Exercise progression | `/exercise-progression` | Estimated-1RM chart over time for one exercise | [history-analytics.md](../features/history-analytics.md#exercise-progression) |
 | Edit workout | `/edit-session?id=` | Fix a finished workout: weights, reps, sets and exercises | [history-analytics.md](../features/history-analytics.md#editing-a-session) |
 | Monthly calendar | `/history-monthly` | Month grid of training days | [history-analytics.md](../features/history-analytics.md#monthly-calendar) |
-| Account | `/account` | Sign-in, sync, data, deletion, legal | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
+| Account | `/account` | Sign-in, sync, data, deletion | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Settings | `/settings` | Appearance, units, sounds | [accounts-and-data.md](../features/accounts-and-data.md#settings) |
-| Acknowledgements | `/acknowledgements` | Open-source license notices (from Settings → About) | [accounts-and-data.md](../features/accounts-and-data.md#acknowledgements) |
+| About | `/about` | App version, Privacy Policy, Terms of Service, Acknowledgements | [accounts-and-data.md](../features/accounts-and-data.md#about) |
+| Acknowledgements | `/acknowledgements` | Open-source license and artwork notices (from About) | [accounts-and-data.md](../features/accounts-and-data.md#acknowledgements) |
 | Biodata | `/biodata` | Body weight, age and gender | [accounts-and-data.md](../features/accounts-and-data.md#profile) |
 | Data | `/data` | Sync, export, import, clear this device | [accounts-and-data.md](../features/accounts-and-data.md#data) |
 | Auth | `/auth`, `/auth-email`, `/auth-new-password` | Link an account via Apple, Google, or email. Recovery mail opens New password; Account → Change password opens the same screen. | [accounts-and-data.md](../features/accounts-and-data.md#authentication) |

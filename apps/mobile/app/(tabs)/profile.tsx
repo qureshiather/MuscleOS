@@ -109,6 +109,20 @@ export default function ProfileScreen() {
             onPress={() => router.push('/biodata')}
           />
         </Card>
+
+        <Card style={styles.section}>
+          <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>
+            About
+          </Text>
+          <ListRow
+            inset
+            last
+            title="Version, legal, licenses"
+            hint="Privacy Policy, Terms of Service, acknowledgements"
+            testID="profile-about"
+            onPress={() => router.push('/about')}
+          />
+        </Card>
       </ScrollView>
     </Screen>
   );

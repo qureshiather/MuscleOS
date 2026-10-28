@@ -52,13 +52,12 @@ describe('guest', () => {
     expect(await screen.findByText('route:auth')).toBeTruthy();
   });
 
-  test('legal links open the website', async () => {
+  test('no legal links: they live on About', async () => {
     signInAsGuest();
     renderApp(routes, '/account');
-    fireEvent.press(await screen.findByText('Privacy Policy'));
-    fireEvent.press(screen.getByText('Terms of Service'));
-    expect(openBrowserAsync).toHaveBeenCalledWith('https://muscleos.app/privacy');
-    expect(openBrowserAsync).toHaveBeenCalledWith('https://muscleos.app/terms');
+    expect(await screen.findByText('Data')).toBeTruthy();
+    expect(screen.queryByText('Privacy Policy')).toBeNull();
+    expect(screen.queryByText('Terms of Service')).toBeNull();
   });
 });
 

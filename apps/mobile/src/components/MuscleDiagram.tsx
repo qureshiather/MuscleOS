@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Body from 'react-native-body-highlighter';
-import type { Slug } from 'react-native-body-highlighter';
 import type { MuscleId } from '@muscleos/types';
+import { BodyFigure, FIGURE_BASE_WIDTH } from '@/components/BodyFigure';
+import type { MuscleRegion } from '@/data/bodyFigures';
 import { useTheme, getRecoveryPalette, type ThemeColors } from '@/theme/ThemeContext';
 import { useDeviceMetrics } from '@/theme/layout';
 import { spacing } from '@/theme/tokens';
@@ -12,13 +12,10 @@ import {
   musclesOnView,
   regionStatesByView,
   regionStatesToBodyData,
-  withNeutralFill,
   type BodyDataItem,
   type DiagramView,
 } from '@/utils/muscleDiagramRegions';
 
-/** Library figure size at `scale={1}`. */
-const FIGURE_BASE_WIDTH = 200;
 /** Tight enough that both views stay on one row on SE / Display Zoom. */
 const PAIR_GAP = 8;
 const PAIR_BASE_WIDTH = FIGURE_BASE_WIDTH * 2 + PAIR_GAP;
@@ -90,12 +87,12 @@ export function MuscleDiagram({
       )[view];
       return regionStatesToBodyData(states, useThreeStates);
     }
-    const slugSet = new Set<Slug>(musclesOnView(muscleIds, view).map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]));
+    const slugSet = new Set<MuscleRegion>(musclesOnView(muscleIds, view).map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]));
     return Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
   }
 
-  const frontData = withNeutralFill(dataFor('front'), colors.bodyDiagramFill);
-  const backData = withNeutralFill(dataFor('back'), colors.bodyDiagramFill);
+  const frontData = dataFor('front');
+  const backData = dataFor('back');
 
   const useGreen = highlightColor === 'green';
   // Each figure is 200pt wide at scale 1. Size the pair from the real row
@@ -115,24 +112,8 @@ export function MuscleDiagram({
       }}
     >
       <View style={styles.row}>
-        <Body
-          data={frontData}
-          gender={gender}
-          side="front"
-          scale={resolvedScale}
-          colors={colorPalette}
-          border={colors.bodyDiagramBorder}
-          defaultFill={colors.bodyDiagramFill}
-        />
-        <Body
-          data={backData}
-          gender={gender}
-          side="back"
-          scale={resolvedScale}
-          colors={colorPalette}
-          border={colors.bodyDiagramBorder}
-          defaultFill={colors.bodyDiagramFill}
-        />
+        <BodyFigure data={frontData} gender={gender} side="front" scale={resolvedScale} colors={colorPalette} />
+        <BodyFigure data={backData} gender={gender} side="back" scale={resolvedScale} colors={colorPalette} />
       </View>
     </View>
   );

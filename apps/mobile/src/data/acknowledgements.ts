@@ -1,14 +1,14 @@
 /**
  * Open-source notices shown on the Acknowledgements screen. MIT and the SIL OFL both require the
  * copyright notice and license to ship with the app. One entry per runtime dependency in
- * `apps/mobile/package.json` (enforced by acknowledgements.test.ts).
+ * `apps/mobile/package.json` (enforced by acknowledgements.test.ts), plus artwork we copied in.
  * Spec: docs/features/accounts-and-data.md#acknowledgements
  */
 
 export type LicenseId = 'MIT' | 'OFL-1.1';
 
 export type Acknowledgement = {
-  /** npm package (or font family) name. */
+  /** npm package, font family, or what the artwork is and where it came from. */
   name: string;
   license: LicenseId;
   copyright: string;
@@ -30,9 +30,18 @@ export const FONT_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   },
 ];
 
+/** Artwork copied into the app (not a dependency), under the MIT License. */
+export const ARTWORK_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
+  {
+    // Path data in src/data/bodyFigures/.
+    name: 'Body diagram figures, from react-native-body-highlighter',
+    license: 'MIT',
+    copyright: 'Copyright (c) 2022 ELABBASSI Hicham',
+  },
+];
+
 /** Runtime npm dependencies, all MIT. */
 export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
-  { name: 'react-native-body-highlighter', license: 'MIT', copyright: 'Copyright (c) 2022 ELABBASSI Hicham' },
   { name: '@expo-google-fonts/dm-mono', license: 'MIT', copyright: 'Copyright (c) 2020 Expo' },
   { name: '@expo-google-fonts/dm-sans', license: 'MIT', copyright: 'Copyright (c) 2020 Expo' },
   { name: '@expo/metro-runtime', license: 'MIT', copyright: EXPO },
@@ -52,6 +61,7 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   { name: '@supabase/supabase-js', license: 'MIT', copyright: 'Copyright (c) 2020 Supabase' },
   { name: 'expo', license: 'MIT', copyright: EXPO },
   { name: 'expo-apple-authentication', license: 'MIT', copyright: EXPO },
+  { name: 'expo-application', license: 'MIT', copyright: EXPO },
   { name: 'expo-asset', license: 'MIT', copyright: EXPO },
   { name: 'expo-audio', license: 'MIT', copyright: EXPO },
   { name: 'expo-constants', license: 'MIT', copyright: EXPO },

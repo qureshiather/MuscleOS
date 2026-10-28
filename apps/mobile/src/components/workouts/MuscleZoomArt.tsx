@@ -1,33 +1,19 @@
 import { memo, useMemo } from 'react';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import type { BodyPart, Slug } from 'react-native-body-highlighter';
-import { bodyFront } from 'react-native-body-highlighter/dist/assets/bodyFront';
-import { bodyBack } from 'react-native-body-highlighter/dist/assets/bodyBack';
-import { bodyFemaleFront } from 'react-native-body-highlighter/dist/assets/bodyFemaleFront';
-import { bodyFemaleBack } from 'react-native-body-highlighter/dist/assets/bodyFemaleBack';
+import { BODY_FIGURES, type FigureGender, type FigurePartId, type MuscleRegion } from '@/data/bodyFigures';
 import { useTheme } from '@/theme/ThemeContext';
 import { withAlpha } from '@/theme/palette';
-import { cropToRegions, type FigureGender, type FigureSide } from '@/utils/bodyCrop';
+import { cropToRegions } from '@/utils/bodyCrop';
 import type { DiagramView, RegionState, RegionStates } from '@/utils/muscleDiagramRegions';
 
-const FIGURES: Record<FigureGender, Record<FigureSide, BodyPart[]>> = {
-  male: { front: bodyFront, back: bodyBack },
-  female: { front: bodyFemaleFront, back: bodyFemaleBack },
-};
-
 /** Hair sits on top of the head path and reads as noise at this zoom. */
-const SKIPPED: ReadonlySet<Slug> = new Set<Slug>(['hair']);
-
-function pathsOf(part: BodyPart): string[] {
-  const p = part.path;
-  return [...(p?.left ?? []), ...(p?.right ?? []), ...(p?.common ?? [])];
-}
+const SKIPPED: ReadonlySet<FigurePartId> = new Set<FigurePartId>(['hair']);
 
 type MuscleZoomArtProps = {
   /** Lit regions per view: `deltoids` is the front delt on the front figure, the rear delt on the back. */
   regions: Record<DiagramView, RegionStates>;
   /** Regions to frame; the rest stay coloured but may fall outside the crop. Empty → all lit. */
-  focus: readonly Slug[];
+  focus: readonly MuscleRegion[];
   gender: FigureGender;
   width: number;
   height: number;
@@ -41,7 +27,7 @@ export const MuscleZoomArt = memo(function MuscleZoomArt({ regions, focus, gende
   const { colors, isDark } = useTheme();
   const { side, viewBox } = useMemo(
     () => cropToRegions(
-        focus.length > 0 ? focus : ([...new Set([...Object.keys(regions.front), ...Object.keys(regions.back)])] as Slug[]),
+        focus.length > 0 ? focus : ([...new Set([...Object.keys(regions.front), ...Object.keys(regions.back)])] as MuscleRegion[]),
         gender,
         width / height
       ),
@@ -65,11 +51,11 @@ export const MuscleZoomArt = memo(function MuscleZoomArt({ regions, focus, gende
           </LinearGradient>
         ))}
       </Defs>
-      {FIGURES[gender][side].map((part) => {
-        if (!part.slug || SKIPPED.has(part.slug)) return null;
-        const state = regions[side][part.slug];
+      {BODY_FIGURES[gender][side].parts.map((part) => {
+        if (SKIPPED.has(part.id)) return null;
+        const state = regions[side][part.id as MuscleRegion];
         const fill = state ? `url(#zoom-${state})` : unlit;
-        return pathsOf(part).map((d, i) => <Path key={`${part.slug}-${i}`} d={d} fill={fill} />);
+        return part.paths.map((d, i) => <Path key={`${part.id}-${i}`} d={d} fill={fill} />);
       })}
     </Svg>
   );

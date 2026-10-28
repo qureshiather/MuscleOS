@@ -1,5 +1,6 @@
 import { MUSCLE_GROUPS } from '@muscleos/types';
 import { describe, expect, it } from 'vitest';
+import { BODY_FIGURES } from '@/data/bodyFigures';
 import {
   focusRegions,
   MUSCLE_ID_TO_DIAGRAM_REGION,
@@ -7,21 +8,34 @@ import {
   regionStatesByView,
   regionStatesForMuscles,
   regionStatesToBodyData,
-  NEUTRAL_FILL_SLUGS,
-  withNeutralFill,
 } from './muscleDiagramRegions';
 
 describe('MUSCLE_ID_TO_DIAGRAM_REGION', () => {
-  it('maps all 20 muscle ids onto 17 regions', () => {
+  it('maps all 20 muscle ids onto 18 regions', () => {
     const ids = Object.keys(MUSCLE_GROUPS);
     expect(Object.keys(MUSCLE_ID_TO_DIAGRAM_REGION).sort()).toEqual([...ids].sort());
-    expect(new Set(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION)).size).toBe(17);
+    expect(new Set(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION)).size).toBe(18);
   });
 
-  it('shades all delts together, and lats with rhomboids', () => {
+  it('shades all delts together', () => {
     const r = MUSCLE_ID_TO_DIAGRAM_REGION;
     expect([r.front_delts, r.side_delts, r.rear_delts]).toEqual(['deltoids', 'deltoids', 'deltoids']);
-    expect([r.lats, r.rhomboids]).toEqual(['upper-back', 'upper-back']);
+  });
+
+  it('gives lats and rhomboids their own regions', () => {
+    expect(MUSCLE_ID_TO_DIAGRAM_REGION.lats).toBe('lats');
+    expect(MUSCLE_ID_TO_DIAGRAM_REGION.rhomboids).toBe('upper-back');
+  });
+
+  it('only uses regions the figures draw, with lats and upper back on both back views', () => {
+    const figures = [BODY_FIGURES.male, BODY_FIGURES.female].flatMap((g) => [g.front, g.back]);
+    const drawn = new Set(figures.flatMap((f) => f.parts.map((p) => p.id)));
+    for (const region of Object.values(MUSCLE_ID_TO_DIAGRAM_REGION)) expect(drawn).toContain(region);
+    for (const back of [BODY_FIGURES.male.back, BODY_FIGURES.female.back]) {
+      const ids = back.parts.map((p) => p.id);
+      expect(ids.filter((id) => id === 'lats')).toHaveLength(1);
+      expect(ids.filter((id) => id === 'upper-back')).toHaveLength(1);
+    }
   });
 
   it('keeps adductors as their own region and abductors on the glutes', () => {
@@ -49,7 +63,10 @@ describe('regionStatesForMuscles', () => {
     expect(regionStatesForMuscles(['front_delts', 'rear_delts'], new Set(['rear_delts']), new Set())).toEqual({
       deltoids: 'recovering',
     });
-    expect(regionStatesForMuscles(['lats', 'rhomboids'], new Set(), new Set())).toEqual({ 'upper-back': 'ready' });
+    expect(regionStatesForMuscles(['lats', 'rhomboids'], new Set(['lats']), new Set())).toEqual({
+      lats: 'recovering',
+      'upper-back': 'ready',
+    });
   });
 });
 
@@ -65,8 +82,8 @@ describe('musclesOnView', () => {
 describe('regionStatesByView', () => {
   it('colours each view\'s deltoids from its own delt heads', () => {
     const states = regionStatesByView(['front_delts', 'rear_delts', 'lats'], new Set(['rear_delts']), new Set());
-    expect(states.front).toEqual({ deltoids: 'ready', 'upper-back': 'ready' });
-    expect(states.back).toEqual({ deltoids: 'recovering', 'upper-back': 'ready' });
+    expect(states.front).toEqual({ deltoids: 'ready', lats: 'ready' });
+    expect(states.back).toEqual({ deltoids: 'recovering', lats: 'ready' });
   });
 
   it('leaves deltoids unlit on the front for a rear-delt-only workout', () => {
@@ -105,7 +122,7 @@ describe('focusRegions', () => {
   });
 
   it('keeps every region when none repeats, and is empty with no muscles', () => {
-    expect(focusRegions([['lats'], ['biceps']]).sort()).toEqual(['biceps', 'upper-back']);
+    expect(focusRegions([['lats'], ['biceps']]).sort()).toEqual(['biceps', 'lats']);
     expect(focusRegions([])).toEqual([]);
   });
 });
@@ -134,30 +151,11 @@ describe('regionStatesToBodyData', () => {
     expect(data).toEqual([{ slug: 'chest', intensity: 1 }]);
   });
 
-  it('covers all 17 regions when built from every muscle (Recovery tab)', () => {
+  it('covers all 18 regions when built from every muscle (Recovery tab)', () => {
     const all = Object.keys(MUSCLE_GROUPS) as (keyof typeof MUSCLE_GROUPS)[];
     const data = regionStatesToBodyData(regionStatesForMuscles(all, new Set(['lats']), new Set()), false);
-    expect(data).toHaveLength(17);
-    expect(data.find((d) => d.slug === 'upper-back')?.intensity).toBe(1);
-    expect(data.filter((d) => d.intensity === 2)).toHaveLength(16);
-  });
-});
-
-describe('withNeutralFill', () => {
-  it('paints every part the data leaves out, except head and hair', () => {
-    const out = withNeutralFill([{ slug: 'chest', intensity: 1 }], '#C8CCD8');
-    expect(out[0]).toEqual({ slug: 'chest', intensity: 1 });
-    const neutral = out.slice(1);
-    expect(neutral).toHaveLength(NEUTRAL_FILL_SLUGS.length - 1);
-    expect(neutral.every((d) => 'color' in d && d.color === '#C8CCD8')).toBe(true);
-    expect(neutral.map((d) => d.slug)).not.toContain('chest');
-    expect(NEUTRAL_FILL_SLUGS).not.toContain('head');
-    expect(NEUTRAL_FILL_SLUGS).not.toContain('hair');
-  });
-
-  it('covers every region a muscle maps to', () => {
-    for (const slug of new Set(Object.values(MUSCLE_ID_TO_DIAGRAM_REGION))) {
-      expect(NEUTRAL_FILL_SLUGS).toContain(slug);
-    }
+    expect(data).toHaveLength(18);
+    expect(data.find((d) => d.slug === 'lats')?.intensity).toBe(1);
+    expect(data.filter((d) => d.intensity === 2)).toHaveLength(17);
   });
 });

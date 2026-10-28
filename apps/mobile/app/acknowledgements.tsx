@@ -6,7 +6,12 @@ import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/tokens';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { type Acknowledgement, FONT_ACKNOWLEDGEMENTS, PACKAGE_ACKNOWLEDGEMENTS } from '@/data/acknowledgements';
+import {
+  type Acknowledgement,
+  ARTWORK_ACKNOWLEDGEMENTS,
+  FONT_ACKNOWLEDGEMENTS,
+  PACKAGE_ACKNOWLEDGEMENTS,
+} from '@/data/acknowledgements';
 import { MIT_LICENSE_TEXT, OFL_LICENSE_TEXT } from '@/data/licenseTexts';
 
 export default function AcknowledgementsScreen() {
@@ -40,6 +45,7 @@ export default function AcknowledgementsScreen() {
         </Text>
         {renderGroup('Libraries — MIT License', PACKAGE_ACKNOWLEDGEMENTS, MIT_LICENSE_TEXT)}
         {renderGroup('Fonts — SIL Open Font License 1.1', FONT_ACKNOWLEDGEMENTS, OFL_LICENSE_TEXT)}
+        {renderGroup('Artwork — MIT License', ARTWORK_ACKNOWLEDGEMENTS, MIT_LICENSE_TEXT)}
       </ScrollView>
     </Screen>
   );

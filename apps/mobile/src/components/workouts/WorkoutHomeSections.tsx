@@ -1,18 +1,17 @@
 import { useState, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { Slug } from 'react-native-body-highlighter';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
 import type { WorkoutTemplate } from '@muscleos/types';
-import type { FigureGender } from '@/utils/bodyCrop';
+import type { FigureGender, MuscleRegion } from '@/data/bodyFigures';
 import type { DiagramView, RegionStates } from '@/utils/muscleDiagramRegions';
 import { MuscleZoomArt, ZoomFade } from '@/components/workouts/MuscleZoomArt';
 
 export type TemplateArt = {
   regions: Record<DiagramView, RegionStates>;
-  focus: Slug[];
+  focus: MuscleRegion[];
 };
 export type TemplateRegions = (template: WorkoutTemplate) => TemplateArt;
 

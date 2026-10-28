@@ -109,18 +109,6 @@ export default function SettingsScreen() {
             />
           </View>
         </Card>
-
-        <Card style={styles.section}>
-          <Text style={[typography.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>About</Text>
-          <ListRow
-            inset
-            last
-            title="Acknowledgements"
-            hint="Open-source licenses"
-            testID="settings-acknowledgements"
-            onPress={() => router.push('/acknowledgements')}
-          />
-        </Card>
       </ScrollView>
       <RestTimersDialog
         exerciseName={editingRest ? 'Default rest' : null}
