@@ -225,3 +225,13 @@ test('a session card shares its workout image with its best sets and PRs', async
   expect(within(card).getByText('PR')).toBeTruthy();
   expect(within(card).getByText('1,680 kg')).toBeTruthy();
 });
+
+test('a workout the app closed after 3 h idle says so after its date', async () => {
+  await seedSessions([
+    { ...finishedSession('closed', at(9, 15), [ex('bench-press', [8, 70])], 'ppl-push'), autoClosed: true },
+    finishedSession('normal', at(9, 14), [ex('bench-press', [8, 60])], 'ppl-push'),
+  ]);
+  await renderHistory();
+  expect(await screen.findByText('Tue, Sep 15 · Closed after 3 h idle')).toBeTruthy();
+  expect(screen.getByText('Mon, Sep 14')).toBeTruthy();
+});

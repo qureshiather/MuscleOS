@@ -417,8 +417,6 @@ export const EXERCISES: SourceExercise[] = [
   { id: "zottman-curl", name: "Zottman Curl", muscles: ['biceps', 'forearms'], equipment: ['dumbbell'], instructions: "Hold dumbbells at your sides with palms forward\nCurl them up, then rotate your palms down at the top\nLower slowly with that overhand grip, then rotate back" },
 ];
 
-export const EXERCISE_MAP = new Map(CATALOG_SEED.map((e) => [e.id, e]));
-
 /** Legacy slug → canonical id (for old saved workouts that reference retired slugs) */
 export const EXERCISE_SLUG_ALIASES: Record<string, string> = {
   'bar-dip': 'tricep-dips',
@@ -479,8 +477,3 @@ export const EXERCISE_SLUG_ALIASES: Record<string, string> = {
   'smith-shoulder-press': 'seated-smith-machine-shoulder-press',
   'smith-machine-ohp': 'seated-smith-machine-shoulder-press',
 };
-
-export function getExercise(id: string) {
-  const resolved = EXERCISE_SLUG_ALIASES[id] ?? id;
-  return EXERCISE_MAP.get(resolved);
-}

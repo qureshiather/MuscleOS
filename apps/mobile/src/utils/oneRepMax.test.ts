@@ -94,6 +94,15 @@ describe('buildExercisePRs rules', () => {
     expect(prs).toEqual([]);
   });
 
+  it('counts warm-up sets toward the best e1RM', () => {
+    const warmUp: WorkoutSession = {
+      ...done('w', '2026-09-02T10:00:00.000Z', 'squat', 0, 0),
+      exercises: [{ exerciseId: 'squat', sets: [{ weightKg: 150, reps: 1, completed: true, isWarmUp: true }] }],
+    };
+    const prs = buildExercisePRs([done('a', '2026-09-01T10:00:00.000Z', 'squat', 100, 5), warmUp]);
+    expect(prs[0]?.bestSet?.weightKg).toBe(150);
+  });
+
   it('lists exercises by descending best e1RM', () => {
     const prs = buildExercisePRs([
       done('a', '2026-09-02T10:00:00.000Z', 'bench-press', 100, 1),

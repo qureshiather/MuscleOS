@@ -21,7 +21,7 @@ import { manualSyncResult, SYNC_FAILED_MESSAGE, SYNC_FAILED_TITLE } from '@/sync
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ListRow } from '@/components/ui/ListRow';
-import { syncNow } from '@/sync';
+import { onLocalDataCleared, syncNow } from '@/sync';
 import { useAuthStore } from '@/store/authStore';
 
 export default function DataScreen() {
@@ -128,6 +128,8 @@ export default function DataScreen() {
               // provider re-reads storage (Auto) on its own.
               await clearAllData();
               await reloadAllStores();
+              // Signed in: pull the cloud copy back now (a full pull), before any edit is pushed.
+              void onLocalDataCleared();
               Alert.alert('Done', 'All data has been cleared.');
             } catch (e) {
               if (__DEV__) console.warn('[data] clear failed', e);

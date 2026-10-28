@@ -241,5 +241,7 @@ describe('Clear all data (D15)', () => {
     // Device-only: nothing is offered to sync, so the account's cloud settings are untouched (H7).
     expect(sync.notifyAppSettingsSnapshot).not.toHaveBeenCalled();
     expect(sync.schedulePush).not.toHaveBeenCalled();
+    // …and the cloud copy is pulled back with a full pull right away.
+    expect(sync.onLocalDataCleared).toHaveBeenCalledTimes(1);
   });
 });

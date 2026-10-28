@@ -97,8 +97,9 @@ list entirely — there is no intermediate state.
 
 Recovery is a **derived cache**, always rebuilt from all sessions rather than incrementally
 updated. `recoveryStore.load()` reads sessions, runs `recoveryFromSessions`, and sets the result
-in memory, writing it to storage (`muscleos_recovery`) only when it differs from what's already
-loaded (`sameRecovery()`). Overlapping loads resolve to the latest one.
+in memory, writing it to storage (`muscleos_recovery`) only when it differs from the stored copy
+(`sameRecovery()`). Comparing with storage rather than memory means a copy a sync merge computed
+from a partial exercise map is still corrected. Overlapping loads resolve to the latest one.
 
 Recompute is driven by **whatever changes sessions or muscle mappings**, not by screen focus:
 
@@ -106,6 +107,7 @@ Recompute is driven by **whatever changes sessions or muscle mappings**, not by 
 |---------|-------|
 | Finishing a workout | `src/store/activeWorkoutStore.ts` |
 | Deleting a session | `src/store/sessionsStore.ts` (`deleteSession`) |
+| Saving an edit from History (Edit workout) | `src/store/sessionsStore.ts` (`saveSessionEdit`) |
 | Cloud sync merge | `src/sync/merge.ts` |
 | Data → Sync now / Clear data | `app/data.tsx` |
 | Data → Import | `src/storage/importData.ts` (recomputes and persists from the merged sessions), then `app/data.tsx` reloads the store |
@@ -190,12 +192,12 @@ Discrete states, not a percentage gradient. Palette from `getRecoveryPalette()`.
 | Ready | `recoveryReady` | `#3DD68C` | `#059669` |
 | Untrained fill | `bodyDiagramFill` | `#5A6070` | `#C8CCD8` |
 
-The diagram has three modes (`regionStatesForMuscles()` → `regionStatesToBodyData()`):
+The diagram has three modes:
 
 | Mode | Used by | Colouring |
 |------|---------|-----------|
-| Recovery, three states | Recovery tab (active) | Just trained / recovering / every other region Ready |
-| Recovery, two states | When no "just trained" subset is supplied | Recovering / every other region Ready |
+| Highlight | Recovery tab (all clear) | Every region in a gradient from `recoveryReady` to `muscleHighlight` |
+| Recovery | Recovery tab (active) | Just trained / recovering / every other region Ready (`regionStatesForMuscles()` → `regionStatesToBodyData()`) |
 | Session | Post-workout "Good work" | That session's muscles in the just-trained colour; **every other region keeps the neutral untrained fill**, not Ready |
 
 The diagram shows no text labels.
@@ -287,12 +289,14 @@ Vitest (`packages/types/src/recovery.test.ts`, `muscles.test.ts`, and under `app
 - Diagram regions — 20 ids onto 18 regions, delts shared, lats/rhomboids, adductors, tibialis
   and neck separate, every region drawn by the figures (lats and upper back on both back views);
   `musclesOnView()` / `regionStatesByView()` keep front delts to the front figure and rear delts to the back;
-  `regionStatesToBodyData()` three- and two-state intensities, absent regions left neutral
-- `recoveryStore` — load persists, unchanged reload skips the write, `ensureLoaded()` computes once
+  `regionStatesToBodyData()` intensities, absent regions left neutral
+- `recoveryStore` — load persists, unchanged reload skips the write, a stale stored copy is
+  rewritten even when memory already matches, `ensureLoaded()` computes once
   and shares an in-flight first load, later reloads keep items (no skeleton), overlapping loads
   resolve to the latest, expiry drops muscles without a recompute, the exercises-store subscription
   recomputes only once loaded
-- Recompute on delete (`sessionsStore.test.ts`), sync merge (`src/sync/merge.test.ts`) and finish
+- `recentlyWorkedMuscleIds()` uses the same bundled-catalog fallback as recovery
+- Recompute on delete and on saving an edit (`sessionsStore.test.ts`), sync merge (`src/sync/merge.test.ts`) and finish
   (`activeWorkoutStore.test.ts`)
 
 Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/components/BodyFigure.test.tsx`,
@@ -303,7 +307,8 @@ Jest UI (`src/components/MuscleDiagram.test.tsx`, `src/components/BodyFigure.tes
   muted hands/feet/joints/head, hair and outline in the border colour, 200 × 400 at scale 1
 
 - `getRecoveryPalette` mapping and the documented hex values; front + back figures; male/female
-  figure; three-state, two-state, all-clear and session (neutral rest) modes; deltoids lit per side
+  figure; three-state recovery (with or without a just-trained subset), all-clear and session
+  (neutral rest) modes; deltoids lit per side
   (rear delts on the back only); lats and rhomboids light different regions; no "Targeted" label
 - Recovery tab: all-clear vs active subtitle, legend, three-state diagram, loading skeleton before
   the first load, In recovery rows in insertion order with day-grain readiness copy, re-focus drops

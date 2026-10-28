@@ -9,6 +9,7 @@ import { renderRouter } from 'expo-router/testing-library';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider } from '@/theme/ThemeContext';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useTemplatesStore } from '@/store/templatesStore';
 
 function TestRootLayout() {
@@ -37,10 +38,11 @@ export function renderApp(routes: Routes, initialUrl = '/') {
 }
 
 /**
- * Clean storage and templates marked loaded — the state the app is in once boot has finished. The
+ * Clean storage, with templates and settings marked loaded — the state the app is in once boot has finished. The
  * start-from-params path waits on the templates flag, so tests about loading set it back explicitly.
  */
 export async function resetAppState(): Promise<void> {
   await AsyncStorage.clear();
   useTemplatesStore.setState({ isLoading: false });
+  useSettingsStore.setState({ isLoading: false });
 }

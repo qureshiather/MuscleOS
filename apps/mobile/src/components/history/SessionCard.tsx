@@ -10,6 +10,9 @@ import { formatSetGroups } from '@/utils/sessionStats';
 import { sessionCardSummary, volumeDeltaLabel } from '@/utils/historyCards';
 import type { WeightUnit } from '@/utils/weightUnits';
 
+/** Shown after the date on a workout the app closed after 3 h idle. */
+export const AUTO_CLOSED_LABEL = 'Closed after 3 h idle';
+
 function formatSessionDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString(undefined, {
     weekday: 'short',
@@ -75,6 +78,7 @@ export function SessionCard({
         <View style={styles.row}>
           <Text style={[typography.caption, { color: colors.textSecondary }]}>
             {session.completedAt ? formatSessionDate(session.completedAt) : ''}
+            {session.autoClosed ? ` · ${AUTO_CLOSED_LABEL}` : ''}
           </Text>
           <View style={styles.cardActions}>
             {onEdit ? (

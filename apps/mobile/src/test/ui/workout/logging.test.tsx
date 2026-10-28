@@ -300,6 +300,15 @@ describe('adding and removing sets', () => {
     expect(screen.queryByText('Delete this set from the exercise?')).toBeNull();
   });
 
+  test('swiping away a set closes the number pad instead of retargeting it to the next set', async () => {
+    await startPush(startUrl('ppl-push', ['bench-press']));
+    press('set-reps-0-2');
+    expect(screen.getByTestId('numeric-keypad')).toBeTruthy();
+    press('set-swipe-delete-0-0');
+    expect(setsOf(0)).toHaveLength(2);
+    expect(screen.queryByTestId('numeric-keypad')).toBeNull();
+  });
+
   test('the last set of an exercise cannot be removed', async () => {
     await startPush(startUrl('ppl-push', ['bench-press'], '&sets=1'));
     expect(setsOf(0)).toHaveLength(1);

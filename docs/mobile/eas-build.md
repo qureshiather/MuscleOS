@@ -39,6 +39,7 @@ Local `apps/mobile/.env` is **gitignored** and is **not** uploaded to EAS. Set t
 |----------|--------|
 | `EXPO_PUBLIC_SUPABASE_URL` | From Supabase project settings |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Anon/public key |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google **Web** client id (not the Android one). Without it, Google sign-in fails in the build |
 
 ### Set via dashboard
 
@@ -51,6 +52,7 @@ cd apps/mobile
 
 eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "YOUR_SUPABASE_URL" --visibility plain-text
 eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_ANON_KEY" --visibility secret
+eas env:create --environment preview --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --value "YOUR_WEB_CLIENT_ID" --visibility plain-text
 ```
 
 Pull EAS preview env into a local file (optional):
@@ -267,7 +269,7 @@ cd apps/mobile
 eas build --platform ios --profile production --auto-submit
 
 # Android: build the AAB on this machine (no EAS build credits; needs JDK 17 + Android SDK)
-eas build --platform android --profile production --local --output ./muscleos.aab
+eas build --platform android --profile production --local --output ~/Downloads/muscleos-1.0.0-<versionCode>.aab
 ```
 
 A local build still uses the remote upload keystore and the production env vars from EAS. Both

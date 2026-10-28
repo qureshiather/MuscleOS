@@ -113,4 +113,10 @@ describe('formatPreviewRest', () => {
     expect(formatPreviewRest({ restBetweenSetsSeconds: 0 })).toBe('No rest timer');
     expect(formatPreviewRest({ warmUpRestSeconds: 45 })).toBe('2:00 rest between sets · 0:45 after warm-ups');
   });
+
+  it("falls back to the user's Default rest, not a fixed 2:00", () => {
+    expect(formatPreviewRest(undefined, 90)).toBe('1:30 rest between sets');
+    expect(formatPreviewRest({ warmUpRestSeconds: 45 }, 180)).toBe('3:00 rest between sets · 0:45 after warm-ups');
+    expect(formatPreviewRest({ restBetweenSetsSeconds: 60 }, 180)).toBe('1:00 rest between sets');
+  });
 });

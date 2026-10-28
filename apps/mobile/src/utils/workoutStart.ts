@@ -12,11 +12,13 @@ export const EMPTY_WORKOUT_TEMPLATE_ID = '_empty';
  * unknown id.
  */
 export function startFromParamsDecision(args: {
+  /** The persisted active workout has been read back (`activeWorkoutStore.hydrated`). */
+  hydrated: boolean;
   hasSession: boolean;
   templatesLoaded: boolean;
   templateId: string;
 }): 'wait' | 'start' {
-  if (args.hasSession || !args.templateId || !args.templatesLoaded) return 'wait';
+  if (!args.hydrated || args.hasSession || !args.templateId || !args.templatesLoaded) return 'wait';
   return 'start';
 }
 

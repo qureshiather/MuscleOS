@@ -15,7 +15,8 @@ mobile app bundles no media and no list of which exercises have a demo.
 ## Website
 
 **`/`** (the home page) shows the first six `FEATURED_DEMOS` as a grid of looping demos, each
-linking to its exercise page, with a link to the full library.
+linking to its exercise page, with a link to the full library. Its copy says
+"{n} exercises, every one animated.", where n counts the exercises that have a demo.
 
 **`/exercises`** shows **Staple lifts** first (a grid of demos for a fixed set of core lifts,
 `FEATURED_DEMOS`), then **All exercises**: every
@@ -56,7 +57,8 @@ source through a path alias, so it never depends on that package's build output.
 
 The animation files (`*.mp4`, `*.webp` in the Blob store) are MuscleOS originals dedicated
 to the public domain under **CC0 1.0**: anyone may use them for anything, without credit.
-`LICENSE.txt` next to them in the store says so, and every demo page states it. The instruction copy,
+`LICENSE.txt` next to them in the store says so (it goes up only with a full upload, never with
+per-id ones), and every demo page states it. The instruction copy,
 name, logo, app and the rest of the site are not covered.
 
 ## App link
@@ -81,7 +83,7 @@ day. Download links use Blob's `?download=1`.
 Uploading needs the store credentials locally: `npx vercel env pull` in `apps/landing` writes
 `VERCEL_PUBLIC_EXERCISE_DEMO_BLOB_STORE_ID` and `VERCEL_OIDC_TOKEN` to `.env.local` (the store connection
 must include the Development environment). The free Hobby tier allows 2,000 writes a month; a full
-re-upload is about 1,600 (792 clips + posters), so upload only the exercises you re-rendered.
+re-upload is about 1,600 (794 clips + posters), so upload only the exercises you re-rendered.
 **Going over any Hobby Blob limit blocks the whole store, reads included, for 30 days**: every demo
 on the site breaks. The upload script therefore refuses a batch of more than 200 files unless it is
 run with `--allow-writes=<count>` (`scripts/blob-write-guard.mjs`).
@@ -92,7 +94,7 @@ Demos are rendered with headless Blender from code, not hand-animated:
 
 ```
 node apps/landing/scripts/build-exercise-animations.mjs            # every exercise with choreography
-node apps/landing/scripts/build-exercise-animations.mjs --missing  # only those without clips yet
+node apps/landing/scripts/build-exercise-animations.mjs --missing  # only those without clips in the local .exercise-demos/
 node apps/landing/scripts/build-exercise-animations.mjs squat ...  # just these
 node apps/landing/scripts/build-exercise-animations.mjs --check    # key-frame contact sheet of all
 node apps/landing/scripts/build-exercise-animations.mjs --manifest # only rewrite the id list
@@ -100,9 +102,11 @@ node apps/landing/scripts/build-exercise-animations.mjs --manifest # only rewrit
 
 Each run renders a 3 s loop (72 frames, 24 fps) per theme, encodes a 480 px H.264 MP4 (about
 10–40 KB) and a WebP poster at the far end of the rep into the gitignored
-`apps/landing/.exercise-demos/`, adds the ids to the website's list
-(`apps/landing/app/data/exerciseDemos.json`), then uploads the clips to Blob
-(`scripts/upload-exercise-demos.mjs`; skip with `--no-upload`).
+`apps/landing/.exercise-demos/`, uploads the clips to Blob (`scripts/upload-exercise-demos.mjs`),
+and only after the upload succeeds adds the ids to the website's list
+(`apps/landing/app/data/exerciseDemos.json`), so a failed or refused upload never lists a demo
+that isn't there. A failed render stops before both. `--no-upload` skips the upload and the list;
+after uploading with `upload-exercise-demos.mjs`, run `--manifest` to list the new ids.
 
 Everything an exercise doesn't define is shared, so a fix to any of it reaches every demo:
 
@@ -133,7 +137,9 @@ renders whatever is registered:
 Moves that shouldn't play backwards (Olympic lifts, jumps, alternating or walking moves) read loop
 time (`ctx.t`) and choreograph their own return instead of reversing the rep.
 
-**Look rules.** Colours mirror the app's Pulse palette. The body is the neutral diagram fill; the
+**Look rules.** Colours mirror the app's Pulse palette. The body is the neutral diagram fill in dark
+(`#5A6070`); on the light theme's white background it is a darker `#A9AFBE` than the app's
+`#C8CCD8`, so the figure keeps its contrast. The
 exercise's catalog muscles are drawn in `muscleHighlight` and brighten during the lifting phase.
 No other muscle is outlined, matching the app's muscle diagram highlight mode.
 
@@ -172,7 +178,7 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
 
 1. Edit `mannequin.py`, `scene.py`, `equipment.py` or `moves.py`. Body edits rebuild the cached mannequin automatically on the next run.
 2. `node scripts/build-exercise-animations.mjs --check` and review the contact sheet for **every** exercise. Shared changes routinely break exercises nobody touched.
-3. Re-render everything with `node scripts/build-exercise-animations.mjs` (about 2.5 hours, 6 parallel jobs: `JOBS=6`), watching the write budget. To render now and upload later, add `--no-upload`, then run `node scripts/upload-exercise-demos.mjs`.
+3. Re-render everything with `node scripts/build-exercise-animations.mjs` (about 2.5 hours, 6 parallel jobs: `JOBS=6`), watching the write budget. To render now and upload later, add `--no-upload`, then run `node scripts/upload-exercise-demos.mjs` and `node scripts/build-exercise-animations.mjs --manifest`.
 
 ### Add an exercise
 
@@ -211,5 +217,7 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
   exercise, none for customs or unpublished rows.
 - `apps/mobile/src/test/ui/exercises/exercisesTab.test.tsx`: the detail sheet row opens the
   website page in the in-app browser and is absent for a custom exercise.
+- Not covered by automated tests: that every published catalog exercise has a demo (the reverse is
+  tested; "Demo coming soon" covers a gap), and that the Python choreography ids match the catalog.
 - Not covered by automated tests: the rendered animations themselves. Review them with `--check`
   and by watching the clips.

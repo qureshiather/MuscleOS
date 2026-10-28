@@ -90,18 +90,12 @@ export function regionStatesByView(
 export type BodyDataItem = { slug: MuscleRegion; intensity: number };
 
 /**
- * Region states as `BodyFigure` data for the recovery palette (`getRecoveryPalette`).
- * Three states: just trained 1 (hot), recovering 2 (warm), ready 3 (ready green). Two states: just
- * trained and recovering both 1 (warm), ready 2. Regions absent from `states` aren't in the data, so
- * they keep the diagram's neutral untrained fill.
+ * Region states as `BodyFigure` data for the recovery palette (`getRecoveryPalette`): just trained
+ * 1 (hot), recovering 2 (warm), ready 3 (ready green). Regions absent from `states` aren't in the
+ * data, so they keep the diagram's neutral untrained fill.
  */
-export function regionStatesToBodyData(
-  states: RegionStates,
-  threeStates: boolean
-): BodyDataItem[] {
-  const intensity: Record<RegionState, number> = threeStates
-    ? { justTrained: 1, recovering: 2, ready: 3 }
-    : { justTrained: 1, recovering: 1, ready: 2 };
+export function regionStatesToBodyData(states: RegionStates): BodyDataItem[] {
+  const intensity: Record<RegionState, number> = { justTrained: 1, recovering: 2, ready: 3 };
   return (Object.entries(states) as [MuscleRegion, RegionState][]).map(([slug, state]) => ({
     slug,
     intensity: intensity[state],

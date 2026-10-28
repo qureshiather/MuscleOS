@@ -57,12 +57,12 @@ describe('normalizeExercise', () => {
     expect(normalizeExercise({ id: 'x' }).muscles).toEqual(['chest']);
   });
 
-  it('infers category in priority cable → machine → bodyweight → free_weight', () => {
+  it('infers category in priority cable/band → machine → bodyweight → free_weight', () => {
     const cat = (equipment: string[]) => normalizeExercise({ id: 'x', equipment }).category;
     expect(cat(['bodyweight', 'machine', 'cable'])).toBe('cable');
     expect(cat(['bodyweight', 'machine'])).toBe('machine');
     expect(cat(['dumbbell', 'bodyweight'])).toBe('bodyweight');
-    expect(cat(['band'])).toBe('free_weight');
+    expect(cat(['band'])).toBe('cable');
     expect(cat([])).toBe('free_weight');
   });
 

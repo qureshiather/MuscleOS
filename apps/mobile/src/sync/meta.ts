@@ -38,11 +38,20 @@ export async function resetSyncMeta(userId: string | null, pendingLocalUpload = 
 
 /**
  * What to do with the sync transport for the signed-in `currentUserId`:
- * - `adopt`: the meta predates owner tracking — keep the outbox and watermark, record the owner
+ * - `adopt`: the meta predates owner tracking (it has synced before) — keep the outbox and
+ *   watermark, record the owner
  * - `keep`: same account
+ * - `claim`: a device that has never synced (a first-launch guest signing in) — record the owner and
+ *   upload the device's data after a full pull, keeping anything already queued
  * - `reset`: a different account — its pending entries and watermark must not leak into this one
  */
-export function syncOwnerAction(meta: SyncMeta, currentUserId: string): 'adopt' | 'keep' | 'reset' {
-  if (meta.userId == null) return 'adopt';
+export function syncOwnerAction(
+  meta: SyncMeta,
+  currentUserId: string
+): 'adopt' | 'claim' | 'keep' | 'reset' {
+  if (meta.userId == null) {
+    const neverSynced = meta.lastPulledAt == null && meta.lastPushedAt == null && meta.pullCursor == null;
+    return neverSynced ? 'claim' : 'adopt';
+  }
   return meta.userId === currentUserId ? 'keep' : 'reset';
 }

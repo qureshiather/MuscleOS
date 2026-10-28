@@ -18,7 +18,8 @@ function isCategory(value: unknown): value is ExerciseCategory {
 }
 
 function inferCategory(equipment: Equipment[]): ExerciseCategory {
-  if (equipment.includes('cable')) return 'cable';
+  // Bands are Cable, as in the catalog generator (docs/features/exercise-library.md).
+  if (equipment.includes('cable') || equipment.includes('band')) return 'cable';
   if (equipment.includes('machine')) return 'machine';
   if (equipment.includes('bodyweight')) return 'bodyweight';
   return 'free_weight';

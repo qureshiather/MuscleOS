@@ -114,6 +114,27 @@ describe('catalog muscle tags', () => {
     expect(ids(squats.filter((e) => e.muscles.includes('calves')))).toEqual([]);
   });
 
+  it('adds adductors to wide-stance squats, Cossack squats and side lunges', () => {
+    const wide = named(/(sumo|wide[- ]stance).*squat|cossack|(side|lateral) lunge/i);
+    expect(wide.length).toBeGreaterThanOrEqual(3);
+    expect(ids(wide.filter((e) => !e.muscles.includes('adductors')))).toEqual([]);
+  });
+
+  it('tags hip abduction glutes (there is no abductor muscle)', () => {
+    const abduction = named(/hip abduct/i);
+    expect(abduction.length).toBeGreaterThanOrEqual(3);
+    expect(ids(abduction.filter((e) => !e.muscles.includes('glutes')))).toEqual([]);
+  });
+
+  it('tags external rotations rear delts and internal rotations front delts', () => {
+    const external = named(/external .*rotation/i);
+    const internal = named(/internal .*rotation/i);
+    expect(external.length).toBeGreaterThanOrEqual(3);
+    expect(internal.length).toBeGreaterThanOrEqual(3);
+    expect(ids(external.filter((e) => e.muscles[0] !== 'rear_delts'))).toEqual([]);
+    expect(ids(internal.filter((e) => e.muscles[0] !== 'front_delts'))).toEqual([]);
+  });
+
   it('leads straight-leg hinges with the hamstrings', () => {
     const hinges = named(/^(dumbbell )?romanian deadlift|stiff-leg|good morning/i);
     expect(hinges.length).toBeGreaterThanOrEqual(4);

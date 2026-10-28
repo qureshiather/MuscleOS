@@ -98,17 +98,32 @@ export function trayNotificationContent(
 }
 
 /**
- * What to do with the scheduled rest-over alert when the rest state or app state changes.
+ * What to do with the scheduled rest-over alert when the rest, app or workout-screen state changes.
+ * The in-app timer and sound only run while the workout screen is open (`workoutOpen`); once it's
+ * minimised the app is "away" from the workout even in the foreground.
  *
- * - Resting in the background → `schedule` it for the rest's end.
- * - Resting in the foreground → `cancel`: the in-app timer and sound handle it.
- * - No rest, in the foreground → `cancel` (also dismisses one already delivered).
- * - No rest, in the background → `keep`. The JS timer can keep running briefly after the app is
- *   backgrounded and ends the rest at the same moment the OS fires the alert; cancelling then
- *   would withdraw the alert just delivered, or drop it before it fires. Returning to the app
- *   clears it.
+ * - Resting with the workout screen open in the foreground → `cancel`: the in-app timer handles it.
+ * - Resting otherwise (background, or the workout minimised) → `schedule` it for the rest's end;
+ *   in the foreground it shows as a banner.
+ * - No rest, workout screen open in the foreground → `cancel` (also dismisses one delivered).
+ * - No rest otherwise → `keep`. The JS timer can end the rest at the moment the OS fires the alert
+ *   (and a delivered alert itself ends the rest); cancelling then would withdraw the alert just
+ *   delivered. Opening the workout clears it.
  */
-export function restAlertAction(resting: boolean, appActive: boolean): 'schedule' | 'cancel' | 'keep' {
-  if (resting) return appActive ? 'cancel' : 'schedule';
-  return appActive ? 'cancel' : 'keep';
+export function restAlertAction(
+  resting: boolean,
+  appActive: boolean,
+  workoutOpen = true
+): 'schedule' | 'cancel' | 'keep' {
+  const handledInApp = appActive && workoutOpen;
+  if (resting) return handledInApp ? 'cancel' : 'schedule';
+  return handledInApp ? 'cancel' : 'keep';
+}
+
+/** The iOS tray line: the clock time a rest ends (never goes stale, unlike a countdown). */
+export function formatRestEndClock(restEndTime: number): string {
+  return new Date(restEndTime).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }

@@ -608,6 +608,11 @@ describe('completeSession', () => {
     expect(done.completedAt).toBe('2026-01-01T11:00:00.000Z');
     expect(done.templateId).toBe('_empty');
     expect(done.exercises[0]?.sets[0]).not.toHaveProperty('weightPrefilled');
+    expect(done).not.toHaveProperty('autoClosed');
+  });
+
+  it('marks a session the stale close finished', () => {
+    expect(completeSession(base, '2026-01-01T11:00:00.000Z', undefined, true).autoClosed).toBe(true);
   });
 
   it('re-points the session at a template saved from it', () => {

@@ -191,6 +191,7 @@ describe('closing a stale workout on foreground', () => {
     const sessions = await storage.getSessions();
     expect(sessions).toHaveLength(1);
     expect(sessions[0].completedAt).toBe(new Date(T0 + 10 * MINUTE).toISOString());
+    expect(sessions[0].autoClosed).toBe(true);
     expect(useActiveWorkoutStore.getState().session).toBeNull();
   });
 
@@ -470,6 +471,19 @@ describe('set actions', () => {
     s.toggleSetComplete(0, 1); // rest now follows set 1
     s.toggleSetComplete(0, 0);
     expect(useActiveWorkoutStore.getState().restAfter).toEqual({ exIdx: 0, setIdx: 1 });
+  });
+
+  it('completing the next set mid-rest records the rest actually taken, then starts the new one', async () => {
+    const { useActiveWorkoutStore } = await started();
+    const s = useActiveWorkoutStore.getState();
+    s.setSetRecord(0, 0, { reps: 5, weightKg: 60 });
+    s.toggleSetComplete(0, 0);
+    vi.setSystemTime(T0 + 50_000);
+    s.setSetRecord(0, 1, { reps: 5, weightKg: 60 });
+    s.toggleSetComplete(0, 1);
+    const st = useActiveWorkoutStore.getState();
+    expect(st.restDurationsBetweenSets).toEqual({ '0-0': 50 });
+    expect(st.restAfter).toEqual({ exIdx: 0, setIdx: 1 });
   });
 
   it('skipRest records the elapsed time against the set and clears the timer', async () => {

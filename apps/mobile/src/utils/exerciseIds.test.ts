@@ -12,18 +12,21 @@ const custom = (id: string): Exercise => ({
 });
 
 describe('nextCustomExerciseId', () => {
-  it('starts at custom_1', () => {
-    expect(nextCustomExerciseId([])).toBe('custom_1');
+  const NOW = Date.UTC(2026, 9, 28);
+
+  it('is custom_<time>_<random>, so two devices never mint the same id from a counter', () => {
+    const id = nextCustomExerciseId([], NOW, () => 0.123456789);
+    expect(id).toBe(`custom_${NOW.toString(36)}_${(0.123456789).toString(36).slice(2, 8)}`);
+    expect(id).toMatch(/^custom_[0-9a-z]+_[0-9a-z]{6}$/);
+    // Two devices creating a custom in the same millisecond still differ by the random part.
+    expect(nextCustomExerciseId([], NOW, () => 0.5)).not.toBe(nextCustomExerciseId([], NOW, () => 0.25));
   });
 
-  it('uses the highest numeric suffix + 1 and never reuses a gap', () => {
-    expect(nextCustomExerciseId([custom('custom_1'), custom('custom_7'), custom('custom_3')])).toBe(
-      'custom_8'
-    );
-  });
-
-  it('ignores ids that are not custom_<n>', () => {
-    expect(nextCustomExerciseId([custom('custom_x'), custom('bench-press')])).toBe('custom_1');
+  it('never returns an id already taken by a live or retired custom', () => {
+    const rolls = [0.5, 0.5, 0.75];
+    const first = nextCustomExerciseId([], NOW, () => 0.5);
+    const id = nextCustomExerciseId([custom(first)], NOW, () => rolls.shift() ?? 0.9);
+    expect(id).not.toBe(first);
   });
 });
 

@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme/ThemeContext';
 import { fontFamily, typography } from '@/theme/typography';
 import { radius, spacing } from '@/theme/tokens';
-import type { BuiltInProgram } from '@/data/builtInTemplates';
+import type { BuiltInProgram } from '@muscleos/types';
 import { programMeta } from '@/utils/programs';
 
 type ProgramCardProps = {

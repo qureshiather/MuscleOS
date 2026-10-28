@@ -69,7 +69,7 @@ that guarantee. Instead, the app lets you **run a built-in template, change the 
 go, and save the result as a new custom template** — the original stays pristine.
 
 Built-in templates reach the Workouts tab only through **Your workouts**: your custom templates
-plus at most one built-in program you chose (none by default). Removing or switching a program
+plus at most one built-in program (Strong Lifts 5x5 on a fresh install; you can switch or remove it). Removing or switching a program
 never deletes it, so ids stay resolvable: a session logged two years ago still renders its
 exercise names after you've moved to another program.
 

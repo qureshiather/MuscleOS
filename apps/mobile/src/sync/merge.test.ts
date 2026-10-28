@@ -1,5 +1,5 @@
 import type { WorkoutSession, WorkoutTemplate } from '@muscleos/types';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getExerciseNotes,
   getExercisePrevious,
@@ -12,8 +12,9 @@ import {
   setSessions,
   setTemplates,
 } from '@/storage/localStorage';
-import { __resetAsyncStorage } from '@/test/mocks/asyncStorage';
-import { applyRemoteRecords, snapshotItems } from './merge';
+import AsyncStorage, { __resetAsyncStorage } from '@/test/mocks/asyncStorage';
+import { STORAGE_KEYS } from '@/storage/keys';
+import { applyRemoteRecords, applyRowDelta, keepNewerLocal, snapshotItems } from './merge';
 import { getOutbox, setOutbox } from './outbox';
 import type { RemoteSyncRecord, SyncEntityType } from './types';
 
@@ -63,6 +64,23 @@ describe('applyRemoteRecords', () => {
     expect((await getTemplates())[0]?.name).toBe('Mine');
     const [entry] = await getOutbox();
     expect(entry?.updatedAt > T2).toBe(true);
+  });
+
+  it('rebuilds "previous" when a session is deleted on another device', async () => {
+    await setSessions([session('s1', T1, 60), session('s2', T2, 100)]);
+    await setExercisePrevious({ 'bench-press': { weightKg: 100, reps: 5 } });
+    await applyRemoteRecords([remote('session', 's2', null, T3, T3)]);
+    expect(await getExercisePrevious()).toEqual({ 'bench-press': { weightKg: 60, reps: 5 } });
+  });
+
+  it('a stale local "previous" cannot bring back a key the delete removed', async () => {
+    await setSessions([session('s1', T2, 100)]);
+    await setExercisePrevious({ 'bench-press': { weightKg: 100, reps: 5 } });
+    await applyRemoteRecords([
+      remote('session', 's1', null, T3, T3),
+      remote('exercise_previous', 'default', {}, T3),
+    ]);
+    expect(await getExercisePrevious()).toEqual({});
   });
 
   it('is last-write-wins for a clean session, by completedAt', async () => {
@@ -190,5 +208,68 @@ describe('applyRemoteRecords and a concurrent enqueue (H2)', () => {
       enqueueOutbox({ entityType: 'session', entityId: 'new', op: 'upsert', payload: {}, updatedAt: T3 }),
     ]);
     expect((await getOutbox()).map((e) => `${e.entityType}:${e.entityId}`)).toEqual(['session:new']);
+  });
+});
+
+describe('a local write that lands while the merge runs', () => {
+  /** Run `write` right after the merge's first read of `key`, i.e. inside the merge's window. */
+  function writeDuringFirstRead(key: string, write: () => Promise<void>) {
+    const real = AsyncStorage.getItem.bind(AsyncStorage);
+    let done = false;
+    return vi.spyOn(AsyncStorage, 'getItem').mockImplementation(async (k: string) => {
+      const value = await real(k);
+      if (k === key && !done) {
+        done = true;
+        await write();
+      }
+      return value;
+    });
+  }
+
+  it('keeps a workout finished during the merge', async () => {
+    await setSessions([session('s1', T1)]);
+    const spy = writeDuringFirstRead(STORAGE_KEYS.sessions, () =>
+      setSessions([session('s1', T1), session('just-finished', T3)])
+    );
+    await applyRemoteRecords([remote('session', 'remote-s', session('remote-s', T2), T2)]);
+    spy.mockRestore();
+    expect((await getSessions()).map((s) => s.id).sort()).toEqual(['just-finished', 'remote-s', 's1']);
+  });
+
+  it('keeps a note saved during the merge over the remote one (it is queued and wins next sync)', async () => {
+    await setExerciseNotes({ bench: 'old' });
+    const spy = writeDuringFirstRead(STORAGE_KEYS.exerciseNotes, () => setExerciseNotes({ bench: 'typed just now' }));
+    await applyRemoteRecords([remote('exercise_note', 'default', { bench: 'remote' }, T2)]);
+    spy.mockRestore();
+    expect(await getExerciseNotes()).toEqual({ bench: 'typed just now' });
+  });
+
+  it('leaves tables the merge did not change unwritten', async () => {
+    await setTemplates([template('tpl_1', 'Mine')]);
+    const setItem = vi.spyOn(AsyncStorage, 'setItem');
+    await applyRemoteRecords([remote('session', 'remote-s', session('remote-s', T2), T2)]);
+    expect(setItem.mock.calls.some(([k]) => k === STORAGE_KEYS.templates)).toBe(false);
+    setItem.mockRestore();
+  });
+});
+
+describe('applyRowDelta', () => {
+  const row = (id: string, v = 1) => ({ id, v });
+  it('applies upserts and deletes onto the fresh table, keeping rows written since', () => {
+    const before = [row('a'), row('b')];
+    const after = new Map([['a', row('a', 2)], ['c', row('c')]]);
+    const fresh = [row('a'), row('b'), row('local')];
+    expect(applyRowDelta(before, after, fresh)).toEqual([row('a', 2), row('local'), row('c')]);
+  });
+
+  it('is null when the merge changed nothing', () => {
+    expect(applyRowDelta([row('a')], new Map([['a', row('a')]]), [row('a'), row('b')])).toBeNull();
+  });
+});
+
+describe('keepNewerLocal', () => {
+  it('takes the merge result unless storage changed since the merge read it', () => {
+    expect(keepNewerLocal({ n: 1 }, { n: 2 }, { n: 1 })).toEqual({ n: 2 });
+    expect(keepNewerLocal({ n: 1 }, { n: 2 }, { n: 3 })).toEqual({ n: 3 });
   });
 });

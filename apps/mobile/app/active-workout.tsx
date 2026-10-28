@@ -69,6 +69,7 @@ import {
   buildFinishSummary,
   cancelDialogMeta,
   finishFlowVariant,
+  isTemplateless,
   finishSaveOptions,
   formatSummarySet,
   summaryExerciseHasProgress,
@@ -565,6 +566,13 @@ export default function ActiveWorkoutScreen() {
   }>();
   const session = useActiveWorkoutStore((s) => s.session);
   const hydrated = useActiveWorkoutStore((s) => s.hydrated);
+  // While this screen is mounted its timer and sound announce a rest ending; once it's minimised
+  // the OS alert does (useWorkoutNotification).
+  useEffect(() => {
+    const { setWorkoutScreenOpen } = useActiveWorkoutStore.getState();
+    setWorkoutScreenOpen(true);
+    return () => setWorkoutScreenOpen(false);
+  }, []);
   const startWorkout = useActiveWorkoutStore((s) => s.startWorkout);
   const setSetRecord = useActiveWorkoutStore((s) => s.setSetRecord);
   const setExerciseRestBetweenSets = useActiveWorkoutStore((s) => s.setExerciseRestBetweenSets);
@@ -674,6 +682,10 @@ export default function ActiveWorkoutScreen() {
   const prevRestSecondsLeftRef = useRef<number | null>(null);
   /** Prevents re-starting a workout from URL params after finish/discard clears session. */
   const startedFromParamsRef = useRef(false);
+  // This screen has shown a workout. If it ends here without a finish (the 3 h stale close), the
+  // screen leaves instead of starting a new one from the route params or waiting forever.
+  const sawSessionRef = useRef(false);
+  if (session) sawSessionRef.current = true;
   const leavingWorkoutRef = useRef(false);
   const savingAsTemplateRef = useRef(false);
 
@@ -740,10 +752,11 @@ export default function ActiveWorkoutScreen() {
   // Notifications and deep links reach this screen directly. Wait for the persisted workout and
   // templates to load before starting; an already-running session is untouched.
   const startDecision =
-    startedFromParamsRef.current || leavingWorkoutRef.current
+    startedFromParamsRef.current || leavingWorkoutRef.current || sawSessionRef.current
       ? 'wait'
       : startFromParamsDecision({
-          hasSession: session != null || !hydrated,
+          hydrated,
+          hasSession: session != null,
           templatesLoaded,
           templateId: params.templateId ?? '',
         });
@@ -777,7 +790,8 @@ export default function ActiveWorkoutScreen() {
 
   // Redirect to tabs when no session and no params to start one — but not after a successful finish (Good work page),
   // and not before the persisted workout has been read back (deep link from the notification lands here first).
-  const shouldRedirectToTabs = hydrated && !session && !params.templateId && !finishedSummary;
+  const shouldRedirectToTabs =
+    hydrated && !session && (!params.templateId || sawSessionRef.current) && !finishedSummary;
   useEffect(() => {
     if (!shouldRedirectToTabs) return;
     const id = setTimeout(() => {
@@ -1120,7 +1134,7 @@ export default function ActiveWorkoutScreen() {
   }
 
   const isBuiltInWorkout = currentTemplate?.isBuiltIn === true;
-  const isNoTemplateWorkout = session.templateId === '_empty';
+  const isNoTemplateWorkout = isTemplateless(session.templateId, currentTemplate != null);
   const templateListChanged =
     currentTemplate != null &&
     computeTemplateStructureChanged(
@@ -1564,8 +1578,12 @@ export default function ActiveWorkoutScreen() {
                 const repsBorderColor = isRepsFocused ? colors.primary : 'transparent';
 
                 const canDeleteSet = se.sets.length > 1;
-                // removeSet also clears a countdown running for this set.
-                const deleteThisSet = () => removeSet(exIdx, setIdx);
+                // removeSet also clears a countdown running for this set. Indices shift on removal,
+                // so the number pad closes rather than editing whichever set slid into its place.
+                const deleteThisSet = () => {
+                  setFocusedCell(null);
+                  removeSet(exIdx, setIdx);
+                };
                 const showRestAfter = row.showRestAfter;
                 const restJoinsCompletedSets = row.restJoinsCompleted;
 
@@ -1830,6 +1848,7 @@ export default function ActiveWorkoutScreen() {
         onCancel={() => setRemoveExerciseTarget(null)}
         onConfirm={() => {
           if (removeExerciseTarget == null) return;
+          setFocusedCell(null);
           removeExercise(removeExerciseTarget.exIdx);
           setRemoveExerciseTarget(null);
         }}

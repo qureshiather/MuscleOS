@@ -156,6 +156,13 @@ describe('recentlyWorkedMuscleIds', () => {
   const done = (completedAt: string, exerciseId: string, completed = true) =>
     session({ completedAt, exercises: [{ exerciseId, sets: [{ completed, reps: 5 }] }] });
 
+  it('falls back to the bundled catalog like recovery does, so the two never disagree', () => {
+    const sessions = [done('2026-01-09T12:00:00.000Z', 'barbell-row')];
+    const ids = recentlyWorkedMuscleIds(sessions, now, () => undefined);
+    expect(ids.size).toBeGreaterThan(0);
+    expect([...ids].sort()).toEqual(recoveryFromSessions(sessions).map((r) => r.muscleId).sort());
+  });
+
   it('collects muscles from completed sessions in the last 7 days', () => {
     const ids = recentlyWorkedMuscleIds(
       [done('2026-01-04T12:00:00.000Z', 'bench'), done('2026-01-02T12:00:00.000Z', 'squat')],

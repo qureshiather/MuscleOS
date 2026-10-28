@@ -191,7 +191,7 @@ Non-obvious invariants the specs cover in detail. Check the relevant spec before
 
 - **Sessions are the source of truth** for recovery, PRs, and home stats. The "previous" value is a persisted, synced snapshot of the most recent qualifying session and must be rebuilt when a session is deleted.
 - **Weight is stored in kg everywhere**; pounds exist only as a display conversion at the UI edge.
-- **Built-in templates and catalog exercises are immutable** — hide or unpublish, never delete, so historical sessions keep resolving.
+- **Built-in templates and catalog exercises are immutable** — remove or switch the program, or unpublish the exercise; never delete either, so historical sessions keep resolving.
 - **Recovery is never synced** — it's derived, and is recomputed locally after a sync merge.
 - **Incomplete sets are persisted** with the session but excluded from every derived metric. One exception: saving an edit from History (Edit workout) keeps only the completed sets it showed. At Finish, a deleted set counts as a template change; a set left incomplete doesn't.
 - **Adding an exercise touches the seed, a migration, pinned counts and a demo**: follow the runbook in [exercise-library.md](docs/features/exercise-library.md#adding-a-catalog-exercise).

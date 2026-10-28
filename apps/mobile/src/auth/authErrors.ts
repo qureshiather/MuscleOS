@@ -86,3 +86,17 @@ export function friendlyAuthError(error: AuthErrorLike, context: AuthErrorContex
   }
   return FALLBACK[context];
 }
+
+/** Supabase sometimes names a missing account. That must not become a dialog. */
+export function isUnknownEmailError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = 'code' in error && typeof error.code === 'string' ? error.code : '';
+  const message =
+    'message' in error && typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  return (
+    code === 'user_not_found' ||
+    message.includes('user not found') ||
+    message.includes('email not found') ||
+    message.includes('user with this email')
+  );
+}

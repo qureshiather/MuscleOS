@@ -64,7 +64,7 @@ function musclesById() {
 const CHECK_FRAMES = [0, Math.round(FRAMES * 0.3), Math.round(FRAMES * 0.55), Math.round(FRAMES * 0.78)];
 const CHECK_OUT = join(PIPELINE, '.cache', 'check.png');
 
-/** Start, mid-rep and far-end stills for one exercise, tiled into a row. */
+/** Start, mid, far-end and return stills (`CHECK_FRAMES`) for one exercise, tiled into a row. */
 async function checkOne(id, muscles, rowsDir) {
   const frames = mkdtempSync(join(tmpdir(), `muscleos-check-${id}-`));
   try {
@@ -213,9 +213,14 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: JOBS }, worker));
-  writeManifests();
   if (failed) process.exit(1);
-  if (!process.argv.includes('--no-upload')) await uploadDemos(ids);
+  if (process.argv.includes('--no-upload')) {
+    console.log('Not uploaded: run upload-exercise-demos.mjs, then --manifest to list the new ids.');
+    return;
+  }
+  // List ids only once their clips are in Blob, so the site never links a demo that isn't there.
+  await uploadDemos(ids);
+  writeManifests();
 }
 
 main();

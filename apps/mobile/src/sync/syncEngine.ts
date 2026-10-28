@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { getOutbox, clearOutbox, setOutbox, enqueueOutboxMany, removeOutboxEntries, outboxEntryKey } from './outbox';
 import { getSyncMeta, resetSyncMeta, setSyncMeta, syncOwnerAction } from './meta';
+import { selectAllPages } from './pagedSelect';
 import { useSyncStore } from '@/store/syncStore';
 import {
   applyRemoteRecords,
@@ -103,6 +104,8 @@ export async function ensureSyncOwner(): Promise<void> {
   const action = syncOwnerAction(meta, userId);
   if (action === 'adopt') {
     await setSyncMeta({ userId });
+  } else if (action === 'claim') {
+    await setSyncMeta({ userId, pendingLocalUpload: true });
   } else if (action === 'reset') {
     await clearOutbox();
     await resetSyncMeta(userId, true);
@@ -164,12 +167,26 @@ type PullResult = { changed: boolean; remoteKeys: Set<string> };
 
 /** `since` is a server-clock bound (`server_updated_at`); null pulls everything. */
 async function selectSyncRecords(since: string | null) {
-  let query = supabase.from('sync_records').select('*');
-  if (since) query = query.gt('server_updated_at', since);
-  const result = await query.order('server_updated_at', { ascending: true });
+  const result = await selectAllPages<RemoteSyncRecord>((from, to) => {
+    let query = supabase.from('sync_records').select('*');
+    if (since) query = query.gt('server_updated_at', since);
+    return query
+      .order('server_updated_at', { ascending: true })
+      .order('entity_type', { ascending: true })
+      .order('entity_id', { ascending: true })
+      .range(from, to);
+  });
   if (result.error && isMissingServerClock(result.error)) {
-    // The MUS-91 migration isn't applied yet: fall back to a full pull, which can't miss rows.
-    return supabase.from('sync_records').select('*').order('updated_at', { ascending: true });
+    // The server-clock migration isn't applied yet: fall back to a full pull, which can't miss rows.
+    return selectAllPages<RemoteSyncRecord>((from, to) =>
+      supabase
+        .from('sync_records')
+        .select('*')
+        .order('updated_at', { ascending: true })
+        .order('entity_type', { ascending: true })
+        .order('entity_id', { ascending: true })
+        .range(from, to)
+    );
   }
   return result;
 }
@@ -292,6 +309,17 @@ export async function syncAfterWorkout(): Promise<void> {
   } catch {
     schedulePush(0);
   }
+}
+
+/**
+ * Clear all data (device only): the watermark survives the wipe, so force the next pull to be full
+ * and run it now. Remote snapshots (notes, previous, settings) then come back before a local edit
+ * can push a near-empty one over them; anything created since is uploaded like a guest's data.
+ */
+export async function onLocalDataCleared(): Promise<void> {
+  if (!isCloudSyncEnabled()) return;
+  await setSyncMeta({ pendingLocalUpload: true });
+  await syncNow();
 }
 
 /** A guest upgraded in place (same user id): upload everything on the device, then sync. */

@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { EMPTY_WORKOUT_TEMPLATE_ID, startFromParamsDecision, startPlanFromParams } from './workoutStart';
 
 describe('startFromParamsDecision', () => {
-  const base = { hasSession: false, templatesLoaded: true, templateId: 'ppl-push' };
+  const base = { hydrated: true, hasSession: false, templatesLoaded: true, templateId: 'ppl-push' };
 
   it('starts once templates have loaded and nothing is running', () => {
     expect(startFromParamsDecision(base)).toBe('start');
     expect(startFromParamsDecision({ ...base, templateId: EMPTY_WORKOUT_TEMPLATE_ID })).toBe('start');
     expect(startFromParamsDecision({ ...base, templateId: 'tpl_custom' })).toBe('start');
+  });
+
+  it('waits until the saved workout has been read back, so a running one is never replaced', () => {
+    expect(startFromParamsDecision({ ...base, hydrated: false })).toBe('wait');
   });
 
   it('waits while a workout is in progress, before templates load, or with no template id', () => {

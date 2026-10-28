@@ -20,7 +20,10 @@ import { DEFAULT_REST_SECONDS } from '@/utils/templateExercises';
 export type FinishFlowVariant = 'empty' | 'builtin-changed' | 'custom-changed' | 'unchanged';
 
 export interface FinishFlowInput {
-  /** Started from the empty / ad-hoc workout (`templateId === '_empty'`). */
+  /**
+   * No template to compare against: the empty / ad-hoc workout (`templateId === '_empty'`), or a
+   * template id that no longer resolves (deleted, or an unknown deep-link id). See `isTemplateless`.
+   */
   isEmpty: boolean;
   /** The originating template is a built-in program. */
   isBuiltIn: boolean;
@@ -83,6 +86,11 @@ export function templateStructureChanged(
       (ex.warmUpRestSeconds ?? 0) !== (planned.warmUpRestSeconds ?? 0)
     );
   });
+}
+
+/** Finish treats a workout like the empty one when its template id is `_empty` or doesn't resolve. */
+export function isTemplateless(templateId: string | undefined, templateFound: boolean): boolean {
+  return templateId === '_empty' || !templateFound;
 }
 
 /** Classify the finish flow into one of four mutually exclusive variants. */

@@ -93,6 +93,7 @@ Paste `supabase/migrations/*.sql` into the [Supabase SQL editor](https://supabas
 ```
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=   # Google Web client id; needed for Google sign-in
 ```
 
 **Supabase CLI only** (`supabase/.env` — never commit):

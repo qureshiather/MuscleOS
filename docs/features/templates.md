@@ -169,8 +169,10 @@ the card under the label (`MuscleZoomArt` in `src/components/workouts/`).
   (`cropToRegions()`). With no resolvable muscles it falls back to a front shoulders-to-waist crop.
 - **Figure:** the same male or female figure as the Recovery tab, from the profile's sex.
 
-**5. Your workouts.** Header **Your workouts** with a new-folder button and a **New** button, then
-the [Your workouts](#your-workouts) list.
+**4. Your workouts.** Header **Your workouts** with a new-folder button and a **New** button, then
+the [Your workouts](#your-workouts) list. Until both templates and settings (which hold the active
+program) have loaded, the list shows skeleton cards, so the empty state never flashes on a fresh
+install.
 
 ### Template cards
 
@@ -242,7 +244,9 @@ Top to bottom, below the header:
    | No | No | An empty state: **No workouts yet** — "Make a template to start working out." — with a **Build a template** button (→ `/create-template`), and the quiet **Browse programs** link below it. No program grid |
 
 2. **My templates** (only when you have any custom template or folder, hidden or empty ones
-   included). Contents in order: uncategorized templates → favourite (pinned) folders → normal
+   included). Contents in order: uncategorized templates (no folder, or a folder that no longer
+   exists — deleted on another device; the editor then shows **None** and saving drops the
+   dangling id) → favourite (pinned) folders → normal
    folders → an **Archived** group (archived folders, pinned or not) → a **Hidden (N)** group
    (every hidden custom template, in a folder or not). An empty folder still shows, with
    "No templates in this folder." With no custom templates or folders and a program chosen, a quiet
@@ -314,8 +318,10 @@ Flow:
    from this template. 0:00 means no timer."
 
    **Edit all rests** opens the same dialogue, also titled **Edit all rests** (button **Apply to
-   all**), prefilled with the rests every exercise shares, or your default and no warm-up rest when
-   they differ (`sharedRest()`). Applying sets that work and warm-up rest on every exercise
+   all**), prefilled per side (`sharedRest()`): the work rest every exercise shares, else your
+   default; the warm-up rest every exercise shares, else none. Its hint reads "Sets the same rest
+   on every exercise in this template. You can still change one afterwards. 0:00 means no timer."
+   Applying sets that work and warm-up rest on every exercise
    (`applyRestToAll()`); one exercise can still be changed afterwards.
 4. **Add exercises** — the shared "Add exercise" sheet ([exercise pickers](exercise-library.md#exercise-pickers)),
    search "Search exercises...", each row with its muscles; tapping adds and the sheet stays open
@@ -361,7 +367,8 @@ exercise with its two-digit index, name, muscle labels, the template's set presc
 (`3 sets` or `2 warm-ups · 5 sets`), **Previous** (`Previous: <weight> × <reps>` in the display
 unit, from the best weighted set in the most recent qualifying session; reps are dropped when
 unknown, and the line is **omitted** when there is no previous), and a rest badge with the
-exercise's rest from the template — `2:00 rest between sets` by default, `No rest timer` for 0:00,
+exercise's rest from the template — your Default rest when it has none (`2:00 rest between sets`
+at the stock default), `No rest timer` for 0:00,
 plus `· 0:45 after warm-ups` when warm-ups have a rest (`formatPrevious()` / `formatPreviewRest()`
 in `src/utils/workoutPreview.ts`).
 
@@ -469,7 +476,8 @@ Covered:
   their `folderId`; `folderDeletePlan` counts and deletes hidden templates, with the 0 / 1 / N
   prompt copy; `templateMenuActions` items and order, Unhide for hidden customs, no menu on
   program templates; `groupYourWorkouts` ordering (uncategorized → pinned → normal → archived →
-  hidden), all-hidden folders left out, empty folders kept, no built-in with no program, the chosen
+  hidden), a template in a deleted folder listed as uncategorized (`existingFolderId`), all-hidden
+  folders left out, empty folders kept, no built-in with no program, the chosen
   program's templates in order, unknown ids ignored; `yourWorkoutTemplates` adds only the chosen
   program
 - `src/store/templatesStore.test.ts` — on the AsyncStorage harness: load, legacy `defaultSets` and
@@ -481,18 +489,19 @@ Covered:
   `suggestHomeTemplates` (cap 2, customs suggested like built-ins, only Your workouts — no hidden
   template, no program you aren't following), and every
   `decideTemplateStart` branch
-- `src/utils/templateExercises.test.ts` (MUS-169 part) — `editorRestPatch` leaves a rest equal to
+- `src/utils/templateExercises.test.ts` — `editorRestPatch` leaves a rest equal to
   the default unset, `applyRestToAll`, `sharedRest` (shared rests or the default), and an unset rest
   labelled with the user's default
 - `src/utils/templateCard.test.ts` — main muscles once each (max 3), exercise count (singular),
-  an unknown exercise adds no muscle
+  an unknown exercise adds no muscle, `planSizeLabel` (exercises and working sets, singular/plural)
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
   payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
-- `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting, `formatPreviewRest` (the default rest,
-  template rest, No rest timer, warm-up rest), Previous in
+- `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting, `formatPreviewRest` (the stock and a custom
+  Default rest, template rest, No rest timer, warm-up rest), Previous in
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
   (link plan, template fallback, template wins after Edit), `canEditFromPreview`
-- `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, Suggested ≤ 2 and only from
+- `src/test/ui/templates/home.test.tsx` (Jest) — header and headline, no empty state before
+  settings load, Suggested ≤ 2 and only from
   the chosen program, no Recent row, customs in Suggested;
   a fresh install on Strong Lifts with both days suggested; with no program (no built-in listed
   or suggested, the empty state's Build a template → `/create-template`, Browse programs →

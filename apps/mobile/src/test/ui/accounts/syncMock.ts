@@ -11,6 +11,7 @@ export function syncModuleMock() {
     'syncNow',
     'syncAfterWorkout',
     'onAccountLinked',
+    'onLocalDataCleared',
     'resetSyncTransport',
     'notifySessionUpsert',
     'notifySessionDelete',

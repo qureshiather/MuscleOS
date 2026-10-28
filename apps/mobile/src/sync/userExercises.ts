@@ -12,6 +12,7 @@ import { commitOutboxEdits, getOutboxMap, outboxEntryKey } from './outbox';
 import { bumpUpdatedAtIfNeeded, decideEntityApply } from './mergePolicy';
 import { isMissingServerClock } from './pullWatermark';
 import type { OutboxEntry } from './types';
+import { selectAllPages } from './pagedSelect';
 
 export interface RemoteUserExercise {
   id: string;
@@ -59,18 +60,22 @@ export async function pushUserExercises(entries: OutboxEntry[]): Promise<void> {
 
 /** `since` is a server-clock bound (`server_updated_at`); null pulls everything. */
 export async function pullUserExercises(since: string | null): Promise<RemoteUserExercise[]> {
-  let query = supabase.from('user_exercises').select('*');
-  if (since) query = query.gt('server_updated_at', since);
-  let { data, error } = await query.order('server_updated_at', { ascending: true });
+  let { data, error } = await selectAllPages<RemoteUserExercise>((from, to) => {
+    let query = supabase.from('user_exercises').select('*');
+    if (since) query = query.gt('server_updated_at', since);
+    return query.order('server_updated_at', { ascending: true }).order('id', { ascending: true }).range(from, to);
+  });
   if (error && isMissingServerClock(error)) {
-    // The MUS-91 migration isn't applied yet: fall back to a full pull, which can't miss rows.
-    ({ data, error } = await supabase.from('user_exercises').select('*').order('updated_at', { ascending: true }));
+    // The server-clock migration isn't applied yet: fall back to a full pull, which can't miss rows.
+    ({ data, error } = await selectAllPages<RemoteUserExercise>((from, to) =>
+      supabase.from('user_exercises').select('*').order('updated_at', { ascending: true }).order('id', { ascending: true }).range(from, to)
+    ));
   }
   if (error) {
     if (__DEV__) console.warn('[sync] user_exercises pull failed:', error.message);
-    if (error.code === 'PGRST205' || error.message?.includes('user_exercises')) {
-      return [];
-    }
+    // Only a missing table means "no rows". Any other error must throw, or the shared pull cursor
+    // would advance past custom-exercise rows that were never fetched.
+    if (error.code === 'PGRST205') return [];
     throw new Error(error.message);
   }
   return (data ?? []) as RemoteUserExercise[];

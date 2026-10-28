@@ -182,8 +182,8 @@ export function applyRestToAll(
 }
 
 /**
- * What **Edit all rests** opens with: the rests every slot shares, or the default (and no warm-up
- * rest) when they differ.
+ * What **Edit all rests** opens with, per side: the work rest every slot shares (else the default)
+ * and the warm-up rest every slot shares (else none).
  */
 export function sharedRest(
   plan: readonly ResolvedTemplateExercise[],

@@ -84,7 +84,7 @@ app is fully usable. Anonymous users have `profile: null` and `isAnonymous: true
 |----------|-----------|----------------|
 | **Apple** | iOS only (button hidden on Android) | `expo-apple-authentication` + `linkIdentity`, falling back to `signInWithIdToken` when that Apple identity already belongs to another user. Production IPAs include `ios.usesAppleSignIn`. |
 | **Google** | iOS + Android | Native `@react-native-google-signin/google-signin` on both (id token): Play Services on Android, the GoogleSignIn SDK on iOS. Both use the same `linkIdentity` / `signInWithIdToken` fallback as Apple. Needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google Cloud **Web** OAuth client), an Android OAuth client (`app.muscleos` + SHA-1), and an iOS OAuth client (`com.muscle-os.app`) whose id is `extra.googleIosClientId` in `app.json` and whose reversed id is a URL scheme (plugin `iosUrlScheme`, and `ios/MuscleOS/Info.plist`). Supabase's Google provider lists the web and iOS client ids and skips the nonce check, because the iOS SDK puts its own nonce in the token. |
-| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Every email action (sign in, create account, reset) first checks the address shape with `isValidEmail()` and, if it fails, shows **Invalid email** — “Enter a valid email address.” — without calling Supabase: sign-in would otherwise answer an address like `sam@` with `invalid_credentials`, which reads as a wrong password. Failures on the email screen (wrong password, network, sign-up errors) show in a themed `ConfirmDialog` (`useSignIn({ alert })`), not the system alert. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead (`signUpOutcome()`): Supabase reports this as an “already registered” error when email confirmations are off, but with confirmations on it returns a placeholder user with no identities, no session and no email, which must not show “check your email”. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. Signed-in email users can also use **Change password** on the Account screen (the same screen with `mode=change`): it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. |
+| **Email** | All | `signUp` / `signInWithPassword`, minimum 6-character password. Every email action (sign in, create account, reset) first checks the address shape with `isValidEmail()` and, if it fails, shows **Invalid email** — “Enter a valid email address.” — without calling Supabase: sign-in would otherwise answer an address like `sam@` with `invalid_credentials`, which reads as a wrong password. Failures on the email screen (wrong password, network, sign-up errors) show in a themed `ConfirmDialog` (`useSignIn({ alert })`), not the system alert. Create account asks for the password twice and each field can be revealed. Create account with an address that already has an account signs into it with the entered password instead (`signUpOutcome()`): Supabase reports this as an “already registered” error when email confirmations are off, but with confirmations on it returns a placeholder user with no identities, no session and no email, which must not show “check your email”. Signup and password reset emails link to `https://muscleos.app/auth/confirm` with a `token_hash` (not `{{ .ConfirmationURL }}`), which opens `muscleos://auth-callback`. An expired link stays on that page. In the app, `/auth-callback` shows a spinner (“Opening your link…”) while the root layout's `EmailAuthLinks` verifies the link; `emailLinkDestination()` then opens **New password** for a recovery link and the tabs for a confirmed sign-in. A failed link alerts “Could not open link” with friendly copy and goes to the tabs. If nothing navigates within 15 s (a link without tokens, or one already handled), the route goes to the tabs itself. The “check your email” notice is a themed `ConfirmDialog`, including when sign-in is blocked because the address is not confirmed yet. Forgot password is on the email sign-in screen and says a link is sent only if the email exists. A missing address shows no dialog. A sent request shows a themed dialog that does not claim the address is registered. A recovery link opens **New password**, which also requires a matching pair. |
 
 On a **first device**, Apple and Google `linkIdentity` so the anonymous guest upgrades in place and
 keeps its id (and any workouts already logged). On a **new device**, that identity is already on the
@@ -199,7 +199,7 @@ The tab is four headed cards, in order: **Account**, **Settings**, **Biodata**, 
 
 `/account` is identity plus the account-owned destinations. Linked accounts show the provider, display name, and email, then a tap-to-sync row and Sign out. The sync row (`syncStatusLabel`) reads “Syncing…”, “Sync failed — tap to retry” (in the danger colour) when the last sync failed, “Last synced 5 min ago” after a success, or “Not synced yet — tap to sync”; tapping it runs `syncNow()`. Guests see “Sign in to back up your workouts and use them on any device.” and a Sign in CTA. The method picker says linking an account backs up your workouts so you can use them on any device. An account unlocks nothing else — every feature is free ([pricing.md](pricing.md)). Sign out does not wipe local workouts.
 
-Rows on the Account screen: Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only). Legal links live on [About](#about), not here or in Settings.
+Rows on the Account screen: Data (`/data`), Link Google (linked accounts without a Google identity), Change password (linked accounts with an email identity, via `hasPasswordSignIn`), Delete account (linked only). **Change password** opens the email screen with `mode=change`: it asks for the current password, re-verifies it with `signInWithPassword` (`updateUser` alone doesn't check it), then sets the new one. Legal links live on [About](#about), not here or in Settings.
 
 **Reaching an account from another platform.** Apple sign-in is iOS-only, and Apple's **Hide My Email** gives the account an `@privaterelay.appleid.com` address that nothing else shares, so Google or email sign-in on Android would create a second account. Apps can't turn Hide My Email off, so **Link Google** on Account calls `linkIdentity` on the signed-in user, which attaches Google whatever the account's email is. It never switches accounts: if that Google login or its email already belongs to another MuscleOS account, a dialog says to choose another Google account. When the email is a relay address and Google isn't linked yet, the identity block says to link Google before signing in on Android. Apple accounts can't add a password.
 
@@ -383,6 +383,14 @@ Local-first. Rules in `src/sync/mergePolicy.ts`, applied by `applyRemoteRecords(
      For settings, the pending local units, sounds, theme and Default rest win as a whole; biodata merges field
      by field (a local blank takes the remote value)
    - No pending changes, or an empty local map → the remote snapshot replaces local
+
+**Writes landing during a merge.** A merge can run while the app keeps writing (finishing a
+workout, saving a note). Right before writing, the merge re-reads every table and applies only its
+own changes: row tables (sessions, templates, folders, custom exercises) get just the rows the merge
+added, changed or deleted, so a row written in the meantime is kept. A map snapshot (notes,
+previous, settings) the app changed in the meantime is left as the app wrote it; that edit is in
+the outbox and reaches the server on the next push. When sessions changed, "previous" is rebuilt
+from the final sessions. Tables the merge didn't change aren't rewritten.
 6. Remote deletes (`deleted_at`) follow the same rules: applied unless the local row is pending. A
    remote delete of a snapshot resets it locally (empty notes / previous, default settings)
 7. `recovery` records are ignored, queued recovery pushes are dropped, and recovery is recomputed
@@ -489,7 +497,7 @@ the system's contrast scrim behind the navigation bar (`enforceNavigationBarCont
 `enforceStatusBarContrast` false), and `MainActivity` sets light or dark navigation bar buttons from
 the current night mode at launch and on every change (`applyNavigationBarAppearance`). Without
 this, a dark app on a phone in light mode with 3-button navigation showed dark buttons on a white
-strip (MUS-168). Both native changes come from the config plugin
+strip. Both native changes come from the config plugin
 `plugins/withNavigationBarFollowsAppTheme.js`, so a prebuild keeps them.
 
 ## Export
@@ -518,7 +526,10 @@ made by Export, then:
 1. **Parse** (`parseExportFile`, `src/storage/importPlan.ts`). Anything that isn't JSON with
    `sessions` and `templates` arrays says “Choose a file made with Export my data”. A `version` other
    than `1` says to update the app. Rows without a string `id` and blank notes are dropped, and
-   built-in templates are skipped because they ship with the app.
+   built-in templates are skipped because they ship with the app. A session with an unreadable
+   `startedAt` / `completedAt`, or without an `exercises` list whose entries each have an
+   `exerciseId` and a `sets` list, rejects the **whole file** the same way (recovery, PRs and
+   History would otherwise fail on it); nothing is imported.
 2. **Plan** (`planImport`). Import only **adds**: sessions, templates, folders and custom exercises
    whose id isn't on this device, and notes for exercises with no note here. Nothing local is changed
    or removed, so importing the same file twice is a no-op (“Nothing to import”).
@@ -568,13 +579,12 @@ Base image: Node 24.21.0, pnpm 9.14.2, Expo SDK 57. EAS profiles and building:
 - Email account **linking** (uses sign-up/sign-in, unlike Apple/Google)
 - HealthKit / Google Fit
 - Haptics setting
-- A rest-timer default in Settings
 
 ## Tests
 
 Covered:
 
-- `src/utils/weightUnits.test.ts` — kg/lb and cm/in conversion and formatting round-trips
+- `src/utils/weightUnits.test.ts` — kg/lb conversion and formatting round-trips
 - `src/storage/localStorage.profile.test.ts` — `normalizeProfile()` keeps weight, age and sex and
   drops the removed `heightCm` / `notNatty`, unknown keys, and malformed values, for both a stored
   profile and a synced `app_settings` payload
@@ -583,18 +593,27 @@ Covered:
   reset runs every step in order, keeps going when one throws, and ends as a local-only guest when
   anonymous sign-in fails.
 - `src/auth/authErrors.test.ts` — known Supabase errors map to plain copy; unknown backend or provider
-  messages never leak (no "supabase", never the raw text) in any flow; `isValidEmail` accepts ordinary addresses and rejects incomplete ones (`sam@`, no domain dot)
+  messages never leak (no "supabase", never the raw text) in any flow; `isValidEmail` accepts ordinary addresses and rejects incomplete ones (`sam@`, no domain dot);
+  `isUnknownEmailError` (a missing account by code or wording, nothing else)
+- `src/auth/completeEmailCallback.test.ts` — token hash → `verifyOtp`, code → exchange, implicit
+  tokens → `setSession`; recovery vs signed-in result, a Supabase error fails without signing in,
+  unrelated links ignored
+- `src/lib/supabaseFetch.test.ts` — a hung request aborts after the timeout as a `TypeError`,
+  responses pass through with the timer cleared, other failures rethrown
+- `src/store/reloadStores.test.ts` — exercises finish loading before the other data stores start
 - `src/auth/accountProvider.test.ts`, `attachAccount.test.ts`, `emailCallback.test.ts`,
   `edgeFunctionError.test.ts` — linked-provider resolution, already-linked identity vs in-place
   upgrade, signup to an existing address (error or empty-identities placeholder) signing in instead, confirm/recovery link parsing, and Edge Function error messages
 - `src/storage/importPlan.test.ts` — export parsing (bad JSON, wrong version, rows without ids,
+  a malformed session rejecting the whole file,
   built-ins skipped), add-only planning with local notes kept, re-import is empty, and the summary
 - `src/sync/mergePolicy.test.ts` — every `decideEntityApply` branch, the outbox clock bump, map and
   settings merges, and what counts as empty
 - `src/sync/merge.test.ts` — `applyRemoteRecords` against the storage harness: missing rows taken,
   dirty local kept with its clock bumped, session last-write-wins both ways, clean templates take
   remote, remote deletes, dirty vs clean map snapshots, remote recovery ignored and recomputed; an
-  enqueue during a merge survives; `snapshotItems` (account-link upload: clocks, empty maps skipped)
+  enqueue during a merge survives; a session finished or note saved during the merge survives,
+  unchanged tables aren't rewritten; `applyRowDelta` and `keepNewerLocal`; `snapshotItems` (account-link upload: clocks, empty maps skipped)
 - `src/sync/outbox.test.ts` — one entry per entity (replace by key), serialized mutations under
   concurrent enqueues, removing only the pushed entries, keeping entries re-queued since a read
 - `src/sync/pullWatermark.test.ts` — overlap start, watermark only moves forward and keeps the
@@ -604,7 +623,8 @@ Covered:
   push debounce; push partitions (recovery dropped, customs to `user_exercises`), tombstones, the
   missing-RPC fallback, failure keeps the outbox, an enqueue during a push survives; the server-clock
   pull watermark (late uploads, device clock skew, overlap re-reads skipped, late commits inside the
-  overlap, pre-MUS-91 metas, missing-column fallback) and the missing `user_exercises` table; `syncNow` pulls before pushing, records `lastSyncedAt`,
+  overlap, metas from before the server-clock watermark, missing-column fallback), the missing `user_exercises` table (any other `user_exercises` error
+  throws without moving the cursor); `syncNow` pulls before pushing, records `lastSyncedAt`,
   sets `lastError` without throwing, shares overlapping runs; `syncAfterWorkout`; changing accounts
   (old outbox dropped and never pushed, owner adopted for old metas, sign-out reset); signing into
   an existing account with guest data (two-way merge, remote snapshots win, brand-new account gets

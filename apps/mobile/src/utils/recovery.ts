@@ -112,7 +112,7 @@ export function recentlyWorkedMuscleIds(
     if (nowMs - new Date(session.completedAt).getTime() > windowMs) continue;
     for (const se of session.exercises) {
       if (!se.sets.some((s) => s.completed)) continue;
-      for (const muscleId of getExercise(se.exerciseId)?.muscles ?? []) out.add(muscleId);
+      for (const muscleId of musclesForExercise(se.exerciseId, getExercise)) out.add(muscleId);
     }
   }
   return out;
@@ -141,7 +141,7 @@ function listJoin(items: string[]): string {
 /**
  * The "Some recover faster" paragraph in the How recovery works explainer, generated from the
  * duration table so the copy can't drift from the model:
- * `Abs, obliques, … and forearms are ready after 36 hours; … after 48 hours; … after 72 hours.`
+ * `Neck, biceps, triceps, … and tibialis are ready after 36 hours; … after 48 hours; … after 72 hours.`
  */
 export function recoveryBucketsCopy(): string {
   const parts = recoveryBuckets().map(({ hours, muscleIds }, i) => {

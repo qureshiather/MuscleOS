@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '@muscleos/types';
-import { templateCardModel } from './templateCard';
+import { planSizeLabel, templateCardModel } from './templateCard';
 
 const exercises: Record<string, Pick<Exercise, 'name' | 'muscles'>> = {
   squat: { name: 'Barbell Squat', muscles: ['quads', 'glutes'] },
@@ -35,5 +35,13 @@ describe('templateCardModel', () => {
     const model = templateCardModel({ exerciseIds: ['gone'], exercises: [{ exerciseId: 'gone', sets: 1 }] }, get);
     expect(model.muscles).toEqual([]);
     expect(model.meta).toBe('1 exercise');
+  });
+});
+
+describe('planSizeLabel', () => {
+  it('counts exercises and working sets, singular and plural', () => {
+    expect(planSizeLabel([{ sets: 5 }, { sets: 5 }, { sets: 5 }])).toBe('3 exercises · 15 sets');
+    expect(planSizeLabel([{ sets: 1 }])).toBe('1 exercise · 1 set');
+    expect(planSizeLabel([])).toBe('0 exercises · 0 sets');
   });
 });

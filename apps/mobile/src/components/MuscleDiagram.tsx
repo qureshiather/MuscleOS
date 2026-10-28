@@ -39,9 +39,8 @@ function getHighlightGradient(colors: ThemeColors, mode: 'green' | 'orange'): [s
 
 /**
  * Front and back body figures. Three modes:
- * - **Highlight** (default): `muscleIds` in the highlight colour, the rest neutral.
- * - **Recovery** (`recoveringMuscleIds`): every region coloured recovering / ready, plus just
- *   trained when `justTrainedMuscleIds` is non-empty (three-state palette).
+ * - **Highlight** (default): `muscleIds` in the highlight gradient, the rest neutral.
+ * - **Recovery** (`recoveringMuscleIds`): every region coloured just trained / recovering / ready.
  * - **Session** (`sessionMuscleIds`): the post-workout view — those muscles in the just-trained
  *   colour and the rest of the body in the neutral untrained fill (not Ready).
  */
@@ -71,21 +70,20 @@ export function MuscleDiagram({
 
   const isSessionMode = sessionMuscleIds != null;
   const isRecoveryMode = !isSessionMode && recoveringMuscleIds != null;
-  const useThreeStates = isSessionMode || (isRecoveryMode && (justTrainedMuscleIds?.length ?? 0) > 0);
 
   // Per view: the figure draws `deltoids` on both, but front and rear delts belong to one side.
   function dataFor(view: DiagramView): BodyDataItem[] {
     if (isSessionMode) {
       const trained = new Set(sessionMuscleIds);
-      return regionStatesToBodyData(regionStatesByView(sessionMuscleIds, trained, trained)[view], true);
+      return regionStatesToBodyData(regionStatesByView(sessionMuscleIds, trained, trained)[view]);
     }
     if (isRecoveryMode) {
       const states = regionStatesByView(
         ALL_MUSCLE_IDS,
         new Set(recoveringMuscleIds),
-        new Set(useThreeStates ? justTrainedMuscleIds : [])
+        new Set(justTrainedMuscleIds)
       )[view];
-      return regionStatesToBodyData(states, useThreeStates);
+      return regionStatesToBodyData(states);
     }
     const slugSet = new Set<MuscleRegion>(musclesOnView(muscleIds, view).map((id) => MUSCLE_ID_TO_DIAGRAM_REGION[id]));
     return Array.from(slugSet).map((slug) => ({ slug, intensity: 1 }));
@@ -100,7 +98,7 @@ export function MuscleDiagram({
   const fallbackWidth = width - spacing.lg * 4;
   const resolvedScale = scaleToFit(rowWidth > 0 ? rowWidth : fallbackWidth, size);
   const colorPalette = isRecoveryMode || isSessionMode
-    ? getRecoveryPalette(colors, useThreeStates)
+    ? getRecoveryPalette(colors)
     : getHighlightGradient(colors, useGreen ? 'green' : 'orange');
 
   return (

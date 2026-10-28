@@ -6,6 +6,7 @@ export {
   syncNow,
   syncAfterWorkout,
   onAccountLinked,
+  onLocalDataCleared,
   resetSyncTransport,
 } from './syncEngine';
 export {

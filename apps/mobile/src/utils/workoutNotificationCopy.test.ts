@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSession } from '@muscleos/types';
 import {
+  formatRestEndClock,
   restAlertAction,
   WORKOUT_NOTIFICATION_TITLES,
   trayNotificationContent,
@@ -125,5 +126,22 @@ describe('restAlertAction', () => {
 
   it('keeps the alert when the rest ends in the background, so the delivered one is not withdrawn', () => {
     expect(restAlertAction(false, false)).toBe('keep');
+  });
+
+  it('with the workout minimised, the OS alert fires even in the foreground and is not withdrawn', () => {
+    expect(restAlertAction(true, true, false)).toBe('schedule');
+    expect(restAlertAction(false, true, false)).toBe('keep');
+    expect(restAlertAction(true, true, true)).toBe('cancel');
+  });
+});
+
+describe('formatRestEndClock', () => {
+  it('shows the wall-clock time the rest ends, hours and minutes only', () => {
+    const end = new Date(2026, 9, 28, 14, 5, 42).getTime();
+    expect(formatRestEndClock(end)).toBe(
+      new Date(end).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    );
+    expect(formatRestEndClock(end)).toMatch(/05/);
+    expect(formatRestEndClock(end)).not.toMatch(/42/);
   });
 });

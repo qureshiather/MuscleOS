@@ -26,6 +26,7 @@ import {
   isMissingUpsertRpc,
   localUploadEntries,
   onAccountLinked,
+  onLocalDataCleared,
   outboxToSyncRecords,
   partitionOutbox,
   pullNow,
@@ -183,7 +184,9 @@ describe('pure helpers', () => {
 
   it('syncOwnerAction adopts an untracked meta, keeps the same account, resets a different one', () => {
     const meta = parseSyncMeta(null);
-    expect(syncOwnerAction(meta, 'a')).toBe('adopt');
+    // A device that has never synced (fresh-install guest) uploads its data like an account switch.
+    expect(syncOwnerAction(meta, 'a')).toBe('claim');
+    expect(syncOwnerAction({ ...meta, lastPulledAt: T1 }, 'a')).toBe('adopt');
     expect(syncOwnerAction({ ...meta, userId: 'a' }, 'a')).toBe('keep');
     expect(syncOwnerAction({ ...meta, userId: 'a' }, 'b')).toBe('reset');
   });
@@ -415,10 +418,26 @@ describe('pullNow and the server-clock watermark (MUS-91)', () => {
     expect(fake.calls.select.filter((c) => c.table === 'sync_records').every((c) => c.since == null)).toBe(true);
   });
 
+  it('pages past the server’s 1,000-row cap, so no row is skipped', async () => {
+    signIn('user-a');
+    for (let i = 0; i < 1005; i++) fake.tables.sync_records.push(remoteRow('session', `s${i}`, session(`s${i}`)));
+    await pullNow();
+    expect(await getSessions()).toHaveLength(1005);
+    expect(fake.calls.select.filter((c) => c.table === 'sync_records')).toHaveLength(2);
+  });
+
   it('a missing user_exercises table is treated as no rows', async () => {
     signIn('user-a');
     fake.failures.select.user_exercises = { message: 'relation user_exercises does not exist', code: 'PGRST205' };
     await expect(pullNow()).resolves.toBe(false);
+  });
+
+  it('throws on any other user_exercises error, without advancing the pull cursor', async () => {
+    signIn('user-a');
+    const before = (await getSyncMeta()).pullCursor;
+    fake.failures.select.user_exercises = { message: 'permission denied for table user_exercises' };
+    await expect(pullNow()).rejects.toThrow('permission denied');
+    expect((await getSyncMeta()).pullCursor).toEqual(before);
   });
 
   it('throws on a sync_records error', async () => {
@@ -580,6 +599,37 @@ describe('signing into an existing account with guest data (D13)', () => {
     const pushed = fake.calls.rpc.flatMap((c) => c.args.records.map((r) => r.entity_id));
     expect(pushed).toContain('guest-s1');
     expect((await getSyncMeta()).pendingLocalUpload).toBe(false);
+  });
+});
+
+describe('a first-launch guest signing into an existing account (no sync owner yet)', () => {
+  it('uploads the guest’s workouts after the full pull', async () => {
+    await setSessions([session('guest-s1')]);
+    await AsyncStorage.removeItem(STORAGE_KEYS.syncMeta);
+    fake.tables.sync_records.push(remoteRow('session', 'acct-s1', session('acct-s1')));
+    signIn('user-a');
+    await syncNow();
+    const pushed = fake.calls.rpc.flatMap((c) => c.args.records.map((r) => `${r.entity_type}:${r.entity_id}`));
+    expect(pushed).toContain('session:guest-s1');
+    expect((await getSessions()).map((s) => s.id).sort()).toEqual(['acct-s1', 'guest-s1']);
+    expect((await getSyncMeta()).userId).toBe('user-a');
+  });
+});
+
+describe('onLocalDataCleared (Clear all data while signed in)', () => {
+  it('pulls the cloud snapshots back in full and pushes none of the cleared ones over them', async () => {
+    signIn('user-a');
+    fake.tables.sync_records.push(remoteRow('exercise_note', 'default', { bench: 'Account note' }));
+    await syncNow();
+    expect(await getExerciseNotes()).toEqual({ bench: 'Account note' });
+
+    // The wipe keeps sync meta (and its watermark), so an incremental pull would fetch nothing.
+    await setExerciseNotes({});
+    fake.calls.rpc.length = 0;
+    await onLocalDataCleared();
+    expect(await getExerciseNotes()).toEqual({ bench: 'Account note' });
+    const pushed = fake.calls.rpc.flatMap((c) => c.args.records.map((r) => `${r.entity_type}:${r.entity_id}`));
+    expect(pushed).not.toContain('exercise_note:default');
   });
 });
 

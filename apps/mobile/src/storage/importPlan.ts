@@ -33,6 +33,27 @@ function withIds<T>(value: unknown): T[] {
   return value.filter((row) => isRecord(row) && typeof row.id === 'string' && row.id.length > 0) as T[];
 }
 
+function isDate(value: unknown): boolean {
+  return typeof value === 'string' && !Number.isNaN(Date.parse(value));
+}
+
+/**
+ * A session every derived view can read: dates that parse and exercises with set lists. One bad
+ * session rejects the whole file — recovery, PRs and History would otherwise throw on it.
+ */
+function isValidSession(row: Record<string, unknown>): boolean {
+  if (!isDate(row.startedAt)) return false;
+  if (row.completedAt != null && !isDate(row.completedAt)) return false;
+  if (!Array.isArray(row.exercises)) return false;
+  return row.exercises.every(
+    (ex) =>
+      isRecord(ex) &&
+      typeof ex.exerciseId === 'string' &&
+      Array.isArray(ex.sets) &&
+      ex.sets.every((set) => isRecord(set))
+  );
+}
+
 function stringMap(value: unknown): Record<string, string> {
   if (!isRecord(value)) return {};
   const out: Record<string, string> = {};
@@ -53,12 +74,14 @@ export function parseExportFile(text: string): ParseImportResult {
     return { ok: false, reason: 'invalid' };
   }
   if (raw.version !== SUPPORTED_EXPORT_VERSION) return { ok: false, reason: 'unsupported_version' };
+  const sessions = withIds<Record<string, unknown>>(raw.sessions);
+  if (!sessions.every(isValidSession)) return { ok: false, reason: 'invalid' };
 
   return {
     ok: true,
     file: {
       exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null,
-      sessions: withIds<WorkoutSession>(raw.sessions),
+      sessions: sessions as unknown as WorkoutSession[],
       // Built-ins ship with the app; only the user's own templates are imported.
       templates: withIds<WorkoutTemplate>(raw.templates).filter((t) => !t.isBuiltIn),
       templateFolders: withIds<TemplateFolder>(raw.templateFolders),

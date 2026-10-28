@@ -42,8 +42,7 @@ describe('getRecoveryPalette', () => {
     ['dark', darkThemeColors],
     ['light', lightThemeColors],
   ] as const)('maps intensities to hot / warm / ready (%s)', (_name, colors) => {
-    expect(getRecoveryPalette(colors, true)).toEqual([colors.recoveryHot, colors.recoveryWarm, colors.recoveryReady]);
-    expect(getRecoveryPalette(colors, false)).toEqual([colors.recoveryWarm, colors.recoveryReady]);
+    expect(getRecoveryPalette(colors)).toEqual([colors.recoveryHot, colors.recoveryWarm, colors.recoveryReady]);
   });
 
   it('uses the documented hex values', () => {
@@ -109,7 +108,7 @@ describe('MuscleDiagram', () => {
       recoveringMuscleIds: ['chest', 'quads', 'front_delts'],
       justTrainedMuscleIds: ['chest'],
     });
-    expect(body.colors).toEqual(getRecoveryPalette(themeColors, true));
+    expect(body.colors).toEqual(getRecoveryPalette(themeColors));
     expect(bySlug.chest).toBe(1);
     expect(bySlug.quadriceps).toBe(2);
     expect(bySlug.deltoids).toBe(2);
@@ -117,14 +116,13 @@ describe('MuscleDiagram', () => {
     expect(highlighted).toHaveLength(18);
   });
 
-  it('two-state recovery when no just-trained subset is supplied', () => {
+  it('recovery without a just-trained subset still uses the three-state palette', () => {
     const { body, highlighted, bySlug } = renderDiagram({ recoveringMuscleIds: ['lats'] });
-    expect(body.colors).toEqual(getRecoveryPalette(themeColors, false));
-    expect(bySlug.lats).toBe(1);
-    expect(bySlug['upper-back']).toBe(2); // rhomboids: their own region, still ready
-    expect(bySlug.chest).toBe(2);
+    expect(body.colors).toEqual(getRecoveryPalette(themeColors));
+    expect(bySlug.lats).toBe(2);
+    expect(bySlug['upper-back']).toBe(3); // rhomboids: their own region, still ready
+    expect(bySlug.chest).toBe(3);
     expect(highlighted).toHaveLength(18);
-    expect(body.colors).toHaveLength(2);
   });
 
   it('all-clear: every region highlighted in the ready green', () => {

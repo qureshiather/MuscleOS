@@ -9,9 +9,6 @@ import {
   getActiveWorkout,
   setActiveWorkout,
 } from '@/storage/localStorage';
-import { setRecovery } from '@/storage/localStorage';
-import { recoveryFromSessions } from '@/utils/recovery';
-import { useExercisesStore } from '@/store/exercisesStore';
 import { useSessionsStore } from '@/store/sessionsStore';
 import { useRecoveryStore } from '@/store/recoveryStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -61,6 +58,12 @@ export interface ActiveWorkoutState {
   session: WorkoutSession | null;
   /** False until the persisted workout has been read back, so screens don't bounce early. */
   hydrated: boolean;
+  /**
+   * The workout screen is mounted, so its timer and sound handle a rest ending. When minimised,
+   * the rest-over alert comes from the OS instead (`restAlertAction`). Not persisted.
+   */
+  workoutScreenOpen: boolean;
+  setWorkoutScreenOpen: (open: boolean) => void;
   /** Rest timer: end timestamp (ms) so it stays correct when app is backgrounded */
   restEndTime: number | null;
   restTotalSeconds: number;
@@ -103,15 +106,14 @@ export interface ActiveWorkoutState {
     previous?: PreviousSnapshot
   ) => void;
   removeExercise: (exerciseIndex: number) => void;
-  moveExerciseUp: (exerciseIndex: number) => void;
-  moveExerciseDown: (exerciseIndex: number) => void;
   /** Drag-and-drop reorder; remaps rest timer indices. */
   reorderExercises: (fromIndex: number, toIndex: number) => void;
   /**
-   * `completedAt` defaults to now; the stale-workout close passes the last activity time.
-   * `templateId` attributes the session to a template just saved from it ("Save as template").
+   * `completedAt` defaults to now; the stale-workout close passes the last activity time and
+   * `autoClosed`. `templateId` attributes the session to a template just saved from it ("Save as
+   * template").
    */
-  finishWorkout: (completedAt?: string, templateId?: string) => Promise<void>;
+  finishWorkout: (completedAt?: string, templateId?: string, autoClosed?: boolean) => Promise<void>;
   discardWorkout: () => void;
   // Rest timer actions (in store so timer survives addSet/session updates)
   startRest: (exIdx: number, setIdx: number, totalSeconds?: number) => void;
@@ -119,7 +121,6 @@ export interface ActiveWorkoutState {
   skipRest: () => void;
   add30SecondsRest: () => void;
   subtract30SecondsRest: () => void;
-  resetRest: (totalSeconds?: number) => void;
   clearRestTimer: () => void;
   /** Record rest duration when timer completes or is skipped; merge into restDurationsBetweenSets */
   recordRestDuration: (exIdx: number, setIdx: number, seconds: number) => void;
@@ -133,6 +134,8 @@ export interface ActiveWorkoutState {
 export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
   session: null,
   hydrated: false,
+  workoutScreenOpen: false,
+  setWorkoutScreenOpen: (open) => set({ workoutScreenOpen: open }),
   restEndTime: null,
   restTotalSeconds: DEFAULT_REST_SECONDS,
   restAfter: null,
@@ -227,6 +230,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       return 'uncompleted';
     }
     if (!canCompleteSet(target)) return null;
+    // Starting the next set ends the running rest: record what was taken, as Skip does, before the
+    // new countdown replaces it.
+    if (get().restEndTime !== null && get().endRestIfDue() == null) get().skipRest();
     get().completeSet(exerciseIndex, setIndex);
     const restSeconds = restDurationAfterComplete(target, ex, useSettingsStore.getState().defaultRestSeconds);
     if (restSeconds != null) get().startRest(exerciseIndex, setIndex, restSeconds);
@@ -349,14 +355,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  moveExerciseUp: (exerciseIndex) => {
-    get().reorderExercises(exerciseIndex, exerciseIndex - 1);
-  },
-
-  moveExerciseDown: (exerciseIndex) => {
-    get().reorderExercises(exerciseIndex, exerciseIndex + 1);
-  },
-
   reorderExercises: (fromIndex, toIndex) => {
     const { session, restAfter, restDurationsBetweenSets } = get();
     if (!session) return;
@@ -377,10 +375,10 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     });
   },
 
-  finishWorkout: async (completedAt = new Date().toISOString(), templateId) => {
+  finishWorkout: async (completedAt = new Date().toISOString(), templateId, autoClosed) => {
     const { session } = get();
     if (!session) return;
-    const completed = completeSession(session, completedAt, templateId);
+    const completed = completeSession(session, completedAt, templateId, autoClosed);
     const sessions = await getSessions();
     const allSessions = [...sessions, completed];
     await setSessions(allSessions);
@@ -388,11 +386,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     // Update previous weight/reps per exercise (best completed set by weight, then reps)
     const prev = buildPreviousSnapshot(completed.exercises, await getExercisePrevious());
     await setExercisePrevious(prev);
-
-    const merged = recoveryFromSessions(allSessions, (id) =>
-      useExercisesStore.getState().getExercise(id)
-    );
-    await setRecovery(merged);
 
     set({
       session: null,
@@ -402,7 +395,8 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
       lastActivityAt: null,
     });
 
-    // Keep peer stores in sync so home/history/recovery update without waiting for focus
+    // Keep peer stores in sync so home/history/recovery update without waiting for focus. The
+    // recovery store recomputes from the saved sessions and persists the result.
     await Promise.all([
       useSessionsStore.getState().load(),
       useRecoveryStore.getState().load(),
@@ -464,13 +458,6 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set, get) => ({
     if (restEndTime === null) return;
     const next = adjustRunningRest({ endTime: restEndTime, total: restTotalSeconds }, -1, Date.now());
     set({ restTotalSeconds: next.total, restEndTime: next.endTime });
-  },
-
-  resetRest: (totalSeconds = DEFAULT_REST_SECONDS) => {
-    set({
-      restTotalSeconds: totalSeconds,
-      restEndTime: Date.now() + totalSeconds * 1000,
-    });
   },
 
   clearRestTimer: () => {
@@ -572,7 +559,7 @@ export function closeStaleWorkout(): Promise<void> {
     const store = useActiveWorkoutStore.getState();
     if (!store.hydrated || !store.session || store.lastActivityAt == null) return;
     const resolution = resolveStaleWorkout(store.session, store.lastActivityAt);
-    if (resolution?.kind === 'finish') await store.finishWorkout(resolution.completedAt);
+    if (resolution?.kind === 'finish') await store.finishWorkout(resolution.completedAt, undefined, true);
     else if (resolution?.kind === 'discard') store.discardWorkout();
   })().finally(() => {
     closingStale = null;
