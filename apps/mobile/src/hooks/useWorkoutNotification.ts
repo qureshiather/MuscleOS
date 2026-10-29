@@ -208,6 +208,8 @@ export function useWorkoutNotification() {
       const syncNative = async (appState: AppStateStatus) => {
         const granted = await requestPermission();
         if (!granted || disposed) return;
+        // Opening the workout (from the background or from another tab) clears a delivered alert.
+        if (appState === 'active' && workoutOpen) void dismissWorkoutLiveAlert();
         if (resting) void maybePromptForExactAlarms();
         await showWorkoutLiveNotification({
           restTitle: WORKOUT_NOTIFICATION_TITLES.resting,
@@ -228,9 +230,6 @@ export function useWorkoutNotification() {
 
       const nativeSub = AppState.addEventListener('change', (nextState) => {
         appStateRef.current = nextState;
-        if (nextState === 'active' && workoutOpen) {
-          void dismissWorkoutLiveAlert();
-        }
         void syncNative(nextState);
       });
 
