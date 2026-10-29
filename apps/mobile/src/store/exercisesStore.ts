@@ -34,6 +34,8 @@ export interface ExercisesStoreState {
 }
 
 let catalogPullInFlight: Promise<void> | null = null;
+/** Bumped when a refresh applies a delta, so a load that read the cache earlier can't undo it. */
+let catalogRefreshCount = 0;
 
 export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
   catalogExercises: CATALOG_SEED,
@@ -43,15 +45,18 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
 
   load: async () => {
     set({ isLoading: true });
+    const refreshesBefore = catalogRefreshCount;
     const [customExercises, retiredExercises, cache] = await Promise.all([
       getCustomExercises(),
       getRetiredCustomExercises(),
       getCatalogCache(),
     ]);
     const { catalog, write } = reconcileCatalogCache(cache, CATALOG_SEED, CATALOG_SEED_UPDATED_AT);
-    if (write) await setCatalogCache(write);
+    if (write && refreshesBefore === catalogRefreshCount) await setCatalogCache(write);
 
-    set({ catalogExercises: catalog, customExercises, retiredExercises, isLoading: false });
+    // A refresh that landed while this load awaited already holds the newer catalog.
+    const fresh = refreshesBefore === catalogRefreshCount;
+    set({ ...(fresh ? { catalogExercises: catalog } : {}), customExercises, retiredExercises, isLoading: false });
     void get().refreshCatalog();
   },
 
@@ -68,6 +73,7 @@ export const useExercisesStore = create<ExercisesStoreState>((set, get) => ({
         watermark: nextWatermark,
         seedAppliedAt: CATALOG_SEED_UPDATED_AT,
       });
+      catalogRefreshCount += 1;
       set({ catalogExercises: merged });
     })().finally(() => {
       catalogPullInFlight = null;

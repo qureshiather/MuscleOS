@@ -34,5 +34,7 @@ export interface WorkoutSession {
   completedAt?: string; // ISO, undefined if in progress
   /** ISO, set when a finished session is edited from History. The session's sync clock when present. */
   editedAt?: string;
+  /** Set when the app closed the workout after it sat idle for 3 h; History labels it. */
+  autoClosed?: true;
   exercises: SessionExercise[];
 }

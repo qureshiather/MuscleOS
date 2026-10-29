@@ -1,4 +1,4 @@
-import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
+import type { BuiltInProgram, WorkoutTemplate, TemplateFolder } from '@muscleos/types';
 
 /** Built-in folder groups. Not stored; used to organize built-in templates in the UI. */
 export const BUILT_IN_FOLDERS: TemplateFolder[] = [
@@ -157,19 +157,6 @@ export const BUILT_IN_TEMPLATES: WorkoutTemplate[] = [
 ];
 
 export const BUILT_IN_TEMPLATE_MAP = new Map(BUILT_IN_TEMPLATES.map((t) => [t.id, t]));
-
-/**
- * A built-in program: one shipped folder of templates plus the facts the Programs screen shows.
- * At most one program is in Your workouts at a time (`activeProgramId` in app settings).
- */
-export interface BuiltInProgram {
-  /** The built-in folder id (`builtin_ppl`). */
-  id: string;
-  name: string;
-  summary: string;
-  daysPerWeek: string;
-  level: 'Beginner' | 'Intermediate';
-}
 
 /** Programs in the order the Programs screen lists them. */
 export const BUILT_IN_PROGRAMS: BuiltInProgram[] = [

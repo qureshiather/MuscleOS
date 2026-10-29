@@ -7,15 +7,21 @@ export function isCustomExerciseId(id: string): boolean {
 }
 
 /**
- * Custom exercise ids are `custom_<n>`, n = highest numeric suffix + 1 (gaps aren't reused). Pass
- * retired customs too: an id past sessions still reference must never go to a new exercise.
+ * A new custom exercise id: `custom_<time>_<random>` (base 36). Customs sync between devices and
+ * accounts, so a per-device counter (`custom_<n>`, still valid for older customs) could hand one
+ * device's id to another device's exercise. Pass retired customs too: an id past sessions still
+ * reference must never go to a new exercise.
  */
-export function nextCustomExerciseId(custom: Exercise[]): string {
-  const max = custom.reduce((acc, e) => {
-    const m = e.id.match(/^custom_(\d+)$/);
-    return m ? Math.max(acc, Number.parseInt(m[1], 10)) : acc;
-  }, 0);
-  return `custom_${max + 1}`;
+export function nextCustomExerciseId(
+  custom: readonly Pick<Exercise, 'id'>[],
+  now: number = Date.now(),
+  random: () => number = Math.random
+): string {
+  const taken = new Set(custom.map((e) => e.id));
+  for (;;) {
+    const id = `custom_${now.toString(36)}_${random().toString(36).slice(2, 8).padEnd(6, '0')}`;
+    if (!taken.has(id)) return id;
+  }
 }
 
 /**

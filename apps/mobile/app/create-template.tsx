@@ -33,6 +33,7 @@ import { muscleLabel } from '@muscleos/types';
 import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
 import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
 import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
+import { existingFolderId } from '@/store/templatesLogic';
 
 export default function CreateTemplateScreen() {
   const { colors, isDark } = useTheme();
@@ -61,7 +62,8 @@ export default function CreateTemplateScreen() {
     if (existingTemplate) {
       setName(existingTemplate.name);
       setSelected(resolveTemplateExercises(existingTemplate));
-      setFolderId(existingTemplate.folderId);
+      // A folder deleted elsewhere reads as None, and saving drops the dangling id.
+      setFolderId(existingFolderId(existingTemplate.folderId, useTemplatesStore.getState().folders));
     }
   }, [existingTemplate?.id]);
 

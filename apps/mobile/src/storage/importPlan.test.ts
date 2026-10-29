@@ -9,14 +9,21 @@ const emptyLocal: LocalData = {
   exerciseNotes: {},
 };
 
+/** A readable session row: tests list only ids; the shape every import must have is filled in. */
+const sessionRow = (row: unknown) =>
+  row && typeof row === 'object' && 'id' in row
+    ? { startedAt: '2026-09-01T10:00:00.000Z', exercises: [], ...row }
+    : row;
+
 function exportJson(overrides: Record<string, unknown> = {}): string {
+  const { sessions = [], ...rest } = overrides;
   return JSON.stringify({
     version: 1,
     exportedAt: '2026-09-30T10:00:00.000Z',
     templates: [],
-    sessions: [],
     recovery: [],
-    ...overrides,
+    ...rest,
+    sessions: Array.isArray(sessions) ? sessions.map(sessionRow) : sessions,
   });
 }
 
@@ -39,6 +46,19 @@ describe('parseExportFile', () => {
     expect(result.file.templateFolders.map((f) => f.id)).toEqual(['f1']);
     expect(result.file.customExercises.map((e) => e.id)).toEqual(['c1']);
     expect(result.file.exerciseNotes).toEqual({ bench: 'Seat 4' });
+  });
+
+  it('rejects the whole file when any session is malformed (bad date, missing exercises or sets)', () => {
+    const bad = [
+      { id: 's1', startedAt: 'yesterday' },
+      { id: 's1', completedAt: 'not a date' },
+      { id: 's1', exercises: null },
+      { id: 's1', exercises: [{ exerciseId: 'bench' }] },
+      { id: 's1', exercises: [{ sets: [] }] },
+    ];
+    for (const row of bad) {
+      expect(parseExportFile(exportJson({ sessions: [{ id: 'ok' }, row] }))).toEqual({ ok: false, reason: 'invalid' });
+    }
   });
 
   it('drops rows without an id', () => {

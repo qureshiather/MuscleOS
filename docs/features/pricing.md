@@ -29,7 +29,8 @@ Everything, for everyone:
 ## Built-in templates are still immutable
 
 This was never a commercial rule. Built-in templates are shipped code shared by every user and
-referenced by stable ids, so nobody can rename, edit, move or delete one (hide it instead). You can
+referenced by stable ids, so nobody can rename, edit, move or delete one; a program leaves Your workouts when you remove or
+switch it. You can
 change a built-in *workout* while it runs and save the result as a new custom template. See
 [product/overview.md](../product/overview.md#the-central-assumption-built-in-vs-custom).
 

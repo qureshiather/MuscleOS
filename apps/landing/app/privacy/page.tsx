@@ -38,7 +38,8 @@ export default function PrivacyPage() {
           <li>
             <strong>A guest identifier.</strong> On first launch the app signs you in as an anonymous guest with
             Supabase. This creates a random user ID with no name or email attached. If you later sign in
-            with Apple or Google, it is used to keep the workouts you already logged. Guest workouts are not uploaded.
+            with Apple, Google, or email, it is used to keep the workouts you already logged. Guest workouts are
+            not uploaded.
           </li>
           <li>
             <strong>Account information, if you link an account.</strong> Email address (or Apple Hide My Email
@@ -87,11 +88,15 @@ export default function PrivacyPage() {
           <li>
             <strong>Google</strong> — Sign in with Google.
           </li>
+          <li>
+            <strong>Resend</strong> — delivers sign-in and account emails, so it receives your email address.
+          </li>
+          <li>
+            <strong>Vercel</strong> — hosts this website and the exercise demo videos, so it receives standard
+            request data such as your IP address when you visit.
+          </li>
         </ul>
-        <p>
-          Those companies process data under their own privacy policies. We do not receive or store your full
-          payment card number.
-        </p>
+        <p>Those companies process data under their own privacy policies.</p>
       </section>
 
       <section>
@@ -111,7 +116,8 @@ export default function PrivacyPage() {
         <ul className="mb-3">
           <li>
             <strong>Export.</strong> Profile → Account → Data → Export my data writes a JSON file you can share. It is a
-            portability copy of your history, not a full backup, and the app has no import.
+            portability copy of your history, not a full backup: it leaves out settings and biodata. Profile →
+            Account → Data → Import data adds the workouts, templates, and custom exercises from such a file.
           </li>
           <li>
             <strong>Clear this device.</strong> Profile → Account → Data → Clear all data removes your saved workouts,

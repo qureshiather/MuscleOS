@@ -32,7 +32,8 @@ export async function uploadDemos(ids = [], argv = process.argv) {
   const files = readdirSync(LOCAL_DIR).filter((f) => {
     if (!CONTENT_TYPES[extname(f)]) return false;
     if (!ids.length) return true;
-    return f === 'LICENSE.txt' || ids.some((id) => f.startsWith(`${id}-dark.`) || f.startsWith(`${id}-light.`));
+    // A per-id upload is only that exercise's 4 files; LICENSE.txt goes up with a full upload.
+    return ids.some((id) => f.startsWith(`${id}-dark.`) || f.startsWith(`${id}-light.`));
   });
   const refused = writeGuardError(files.length, allowedWrites(argv));
   if (refused) throw new Error(refused);

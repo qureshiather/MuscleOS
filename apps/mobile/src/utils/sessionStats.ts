@@ -71,6 +71,7 @@ export function formatVolume(volumeKg: number, unit: WeightUnit): string {
  */
 export function formatCompactVolume(volumeKg: number, unit: WeightUnit): string {
   const value = unit === 'lb' ? kgToDisplay(volumeKg, 'lb') : volumeKg;
-  if (value < 10_000) return formatVolume(volumeKg, unit);
+  // Compare the rounded value, so 9,999.6 reads `10k`, not `10,000`.
+  if (Math.round(value) < 10_000) return formatVolume(volumeKg, unit);
   return `${(Math.round(value / 100) / 10).toLocaleString('en-US')}k ${unit}`;
 }

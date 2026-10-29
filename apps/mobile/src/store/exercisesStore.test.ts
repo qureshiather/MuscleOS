@@ -152,6 +152,37 @@ describe('refreshCatalog', () => {
     expect(await AsyncStorage.getItem(STORAGE_KEYS.catalogWatermark)).toBe(SEED_AT);
   });
 
+  it('a load that read the cache before a refresh landed does not undo it', async () => {
+    const { useExercisesStore, AsyncStorage, STORAGE_KEYS } = await load();
+    await useExercisesStore.getState().load();
+
+    // Stall the next load's catalog read until the refresh has finished.
+    let releaseRead: () => void = () => {};
+    const realGetItem = AsyncStorage.getItem.bind(AsyncStorage);
+    let stalled = false;
+    const spy = vi.spyOn(AsyncStorage, 'getItem').mockImplementation(async (key: string) => {
+      const value = await realGetItem(key);
+      if (key !== STORAGE_KEYS.catalogExercises || stalled) return value;
+      stalled = true;
+      await new Promise<void>((resolve) => {
+        releaseRead = resolve;
+      });
+      return value;
+    });
+    const reloading = useExercisesStore.getState().load();
+    await vi.waitFor(() => expect(stalled).toBe(true));
+    spy.mockRestore();
+
+    pull.fetchCatalogDelta.mockResolvedValueOnce({
+      exercises: [exercise('bench-press', { name: 'Renamed' })],
+      watermark: '2026-10-27T00:00:00.000Z',
+    });
+    await useExercisesStore.getState().refreshCatalog();
+    releaseRead();
+    await reloading;
+    expect(useExercisesStore.getState().getExercise('bench-press')?.name).toBe('Renamed');
+  });
+
   it('shares one in-flight pull between concurrent callers', async () => {
     const { useExercisesStore } = await load();
     let release: () => void = () => {};
@@ -194,7 +225,7 @@ describe('getAllExercises', () => {
 });
 
 describe('custom exercise CRUD', () => {
-  it('adds with the next custom_<n> id, normalized, persisted and notified', async () => {
+  it('adds with a new custom_<time>_<random> id, normalized, persisted and notified', async () => {
     const { useExercisesStore, AsyncStorage, STORAGE_KEYS, sync } = await load();
     useExercisesStore.setState({ customExercises: [exercise('custom_1'), exercise('custom_4')] });
 
@@ -204,13 +235,10 @@ describe('custom exercise CRUD', () => {
       equipment: ['band', 'bogus' as never],
       category: 'cable',
     });
-    expect(created).toMatchObject({
-      id: 'custom_5',
-      equipment: ['band'],
-      isPublished: true,
-    });
+    expect(created).toMatchObject({ equipment: ['band'], isPublished: true });
+    expect(created.id).toMatch(/^custom_[0-9a-z]+_[0-9a-z]{6}$/);
     const stored = JSON.parse((await AsyncStorage.getItem(STORAGE_KEYS.customExercises)) ?? '[]');
-    expect(stored.map((e: Exercise) => e.id)).toEqual(['custom_1', 'custom_4', 'custom_5']);
+    expect(stored.map((e: Exercise) => e.id)).toEqual(['custom_1', 'custom_4', created.id]);
     expect(sync.notifyCustomExerciseUpsert).toHaveBeenCalledWith(created);
   });
 
@@ -276,14 +304,19 @@ describe('custom exercise CRUD', () => {
 
   it('never reuses a deleted custom id, so a new exercise cannot inherit its history', async () => {
     const { useExercisesStore } = await load();
-    useExercisesStore.setState({ customExercises: [exercise('custom_1'), exercise('custom_2')] });
-    await useExercisesStore.getState().removeExercise('custom_2');
-    const created = await useExercisesStore.getState().addExercise({
-      name: 'X',
-      muscles: ['chest'],
-      equipment: [],
-      category: 'machine',
-    });
-    expect(created.id).toBe('custom_3');
+    // Pin time and randomness so the next id would collide with the deleted one if retired ids
+    // weren't checked.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.UTC(2026, 9, 28));
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const add = () =>
+      useExercisesStore.getState().addExercise({ name: 'X', muscles: ['chest'], equipment: [], category: 'machine' });
+    const first = await add();
+    await useExercisesStore.getState().removeExercise(first.id);
+    random.mockReturnValueOnce(0.5).mockReturnValue(0.75);
+    const created = await add();
+    expect(created.id).not.toBe(first.id);
+    random.mockRestore();
+    vi.useRealTimers();
   });
 });

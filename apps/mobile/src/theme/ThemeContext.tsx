@@ -77,10 +77,7 @@ export function useTheme() {
   return ctx;
 }
 
-/** Recovery heat-map palette for MuscleDiagram (intensity index → color). */
-export function getRecoveryPalette(colors: ThemeColors, threeStates: boolean): string[] {
-  if (threeStates) {
-    return [colors.recoveryHot, colors.recoveryWarm, colors.recoveryReady];
-  }
-  return [colors.recoveryWarm, colors.recoveryReady];
+/** Recovery heat-map palette for MuscleDiagram (intensity index → color): hot, warm, ready. */
+export function getRecoveryPalette(colors: ThemeColors): string[] {
+  return [colors.recoveryHot, colors.recoveryWarm, colors.recoveryReady];
 }

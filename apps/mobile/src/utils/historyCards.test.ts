@@ -48,6 +48,12 @@ describe('buildSessionPRs', () => {
     expect(prs.size).toBe(0);
   });
 
+  it('counts warm-up sets toward a PR', () => {
+    const warmUp: SessionExercise = { exerciseId: 'row', sets: [{ reps: 8, weightKg: 80, completed: true, isWarmUp: true }] };
+    const prs = buildSessionPRs([session('a', at(9, 13), [ex('row', [8, 70])]), session('b', at(9, 20), [warmUp])]);
+    expect(prs.get('b')?.has('row')).toBe(true);
+  });
+
   it('compares e1RM, so fewer reps at more weight can still be a PR', () => {
     const prs = buildSessionPRs([
       session('a', at(9, 13), [ex('squat', [5, 100])]),

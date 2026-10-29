@@ -6,24 +6,15 @@ import { withTimeout } from '@/lib/withTimeout';
 import { setAppleAuthorizationCode } from '@/auth/appleAuthCode';
 import { identityAlreadyLinked, linkConflict, signUpOutcome } from '@/auth/attachAccount';
 import { getGoogleTokens, googleWebClientId } from '@/auth/googleSignIn';
-import { AUTH_UNAVAILABLE_MESSAGE, type AuthErrorContext, friendlyAuthError } from '@/auth/authErrors';
+import {
+  AUTH_UNAVAILABLE_MESSAGE,
+  type AuthErrorContext,
+  friendlyAuthError,
+  isUnknownEmailError,
+} from '@/auth/authErrors';
 import { EMAIL_AUTH_REDIRECT } from '@/auth/emailCallback';
 
 const AUTH_REQUEST_TIMEOUT_MS = 15_000;
-
-/** Supabase sometimes names a missing account. That must not become a dialog. */
-function isUnknownEmailError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const code = 'code' in error && typeof error.code === 'string' ? error.code : '';
-  const message =
-    'message' in error && typeof error.message === 'string' ? error.message.toLowerCase() : '';
-  return (
-    code === 'user_not_found' ||
-    message.includes('user not found') ||
-    message.includes('email not found') ||
-    message.includes('user with this email')
-  );
-}
 
 /** Guest session is required to upgrade-in-place with linkIdentity. */
 async function ensureAuthSession(): Promise<boolean> {

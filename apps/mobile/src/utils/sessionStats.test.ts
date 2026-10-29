@@ -118,6 +118,8 @@ describe('formatCompactVolume', () => {
     expect(formatCompactVolume(8240.4, 'kg')).toBe('8,240 kg');
     expect(formatCompactVolume(12_140, 'kg')).toBe('12.1k kg');
     expect(formatCompactVolume(10_000, 'kg')).toBe('10k kg');
+    expect(formatCompactVolume(9_999.6, 'kg')).toBe('10k kg');
+    expect(formatCompactVolume(9_999.4, 'kg')).toBe('9,999 kg');
     expect(formatCompactVolume(10_000, 'lb')).toBe('22k lb');
   });
 });

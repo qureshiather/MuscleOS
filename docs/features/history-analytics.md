@@ -3,9 +3,10 @@
 Everything derived from finished sessions: the history list, the monthly calendar, personal
 records, and progression charts.
 
-**Nothing here is cached.** Every metric — volume, PRs, estimated 1RM, streaks — is recomputed
-from the session list on read. That's why deleting a session correctly and immediately reverses
-its effect everywhere, and why there is no cache to invalidate.
+**The metrics here aren't cached.** Volume, PRs, estimated 1RM and streaks are recomputed from
+the session list on read, so deleting a session immediately reverses its effect on them. The one
+persisted derivative is the "previous" map, which a delete rebuilds explicitly
+([deleting](#deleting-a-session)).
 
 | | |
 |--|--|
@@ -65,7 +66,7 @@ Collapsed, a card shows:
 
 | Element | Detail |
 |---------|--------|
-| Date | Short weekday, short month, day: `Sun, Sep 27` |
+| Date | Short weekday, short month, day: `Sun, Sep 27`; followed by `· Closed after 3 h idle` when the app closed the workout ([stale workouts](workout-logging.md#stale-workouts)) |
 | Edit button | Opens **Edit workout** to fix its sets (see [Editing a session](#editing-a-session)) |
 | Trash button | Deletes the session after confirmation (see [Deleting a session](#deleting-a-session)) |
 | Template name | Resolved from `templateId`; ad-hoc sessions (`_empty`) are named by the local day they started — `Oct 20 workout`, then `Oct 20 workout 2` for the next ad-hoc session that day (`adHocSessionName()`, also the in-progress workout title); falls back to "Workout" when the template no longer exists (`templateDisplayName()`, also used by the calendar and the post-workout screen) |
@@ -115,7 +116,7 @@ The header has two shortcuts: a trophy to Personal Records and a calendar to the
 
 A workout can be shared as an **image** — something to post or send that also shows off the app.
 **Share** sits next to Done on the post-workout **Good work** screen
-([workout-logging](workout-logging.md#finishing)), and a share icon sits beside the trash button
+([workout-logging](workout-logging.md#finish-flow)), and a share icon sits beside the trash button
 on every session card. Both open the same preview (`ShareWorkoutSheet`) with **Close** and
 **Share**; Share captures the card (`react-native-view-shot`) and opens the OS share sheet
 (`expo-sharing`) with a PNG. A failed capture shows *"Couldn't create the image. Try again."*
@@ -323,7 +324,7 @@ card's chip just uses the adjusted level and target.
 
 Opened from a [Progress strip](#progress-strip) card, an exercise row in an expanded
 [session card](#session-cards), a lift on the post-workout **Good work** summary
-([workout-logging](workout-logging.md#finishing)), a Personal Records card, or **View history** in
+([workout-logging](workout-logging.md#finish-flow)), a Personal Records card, or **View history** in
 the [exercise detail sheet](exercise-library.md) (shown only when the exercise has history). Plots
 **each workout's best estimated 1RM** over time as a line chart (`react-native-svg`, no chart
 library), oldest to newest.
@@ -350,8 +351,8 @@ id; an unknown id shows *"No progression data for this exercise."*
 
 ## Volume
 
-Volume is computed only on the History tab (session cards, week headers, and the volume change),
-always via `sessionVolumeKg()`:
+Volume is shown on the History tab (session cards, week headers, and the volume change) and on the
+share card built after a workout (`shareCard.ts`), always via `sessionVolumeKg()`:
 
 ```ts
 for (const se of session.exercises)
@@ -392,6 +393,7 @@ the same file but belongs to [recovery.md](recovery.md#readiness-copy).
 | Warm-up sets count toward volume and PRs | Like every derived metric; see [overview](../product/overview.md#cross-cutting-assumptions) |
 | Local calendar days for history and calendar bucketing | Same as the rest of the app |
 | ISO date strings sort correctly for ordering | Relies on UTC ISO from `toISOString()` |
+| `completedAt` identifies a session in charts | The progression line and highlights group sets by `completedAt`; two sessions with the same timestamp (only possible via import) merge into one point |
 | Unbounded history list | No pagination; assumes hobbyist-scale history |
 
 ## Tests
@@ -400,7 +402,7 @@ Vitest (`apps/mobile/src/…`):
 
 - `utils/oneRepMax.test.ts` — Epley at 1 and 5 reps, zero/negative cases, no high-rep ceiling, no
   rounding; `formatE1RM` one decimal in kg and lb; `buildExercisePRs` qualifying sets, best set
-  (85×5 over 90×1), descending order, tie → newest, alias merge, history newest first
+  (85×5 over 90×1), warm-ups count, descending order, tie → newest, alias merge, history newest first
 - `utils/chartAxis.test.ts` — `valueAxis` hugs the data on round steps (the 107.7–117.2 lb case →
   105–120), flat-series band, empty fallback; `formatTick` drops float noise
 - `utils/personalRecords.test.ts` — `progressionPoints` oldest-first with capped ratios;
@@ -413,7 +415,7 @@ Vitest (`apps/mobile/src/…`):
   spark bar per session over the last 8 scaled low → high, 30-day gain / 0 / null) and `formatProgressGain`
 - `utils/calendar.test.ts` — Monday-first headers, leading/trailing blanks, month lengths incl.
   leap February, four-row month, local-midnight day keys, marked days, sessions on a day
-- `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, ignored sets, alias
+- `utils/historyCards.test.ts` — card PRs (strictly greater, baseline, ties, warm-ups count, ignored sets, alias
   canonicalisation); volume change vs the same template; Monday-start weeks and labels;
   `templateDisplayName`; `adHocSessionName` (same-day numbering); `isCardExpanded`; `sessionCardSummary` (counts, singulars, PR label,
   stats line dropping zero volume and sub-minute duration, pounds); `volumeDeltaLabel` hidden at
@@ -422,6 +424,7 @@ Vitest (`apps/mobile/src/…`):
   reps and singular, incomplete sets ignored) and `shareCardModel` (title, date, stats with
   missing duration / zero volume dropped, PR flags, 6-lift cap with `+N more`)
 - `utils/sessionStats.test.ts` — volume, duration (incl. null under a minute), set lines, volume labels
+  (the compact week label rounds before switching to `k`)
 - `utils/relativeTime.test.ts` — every `formatRelative` branch (home stats are tested under
   [templates](templates.md#tests))
 - `data/strengthStandards.test.ts` — band selection, next-level target, sex tables, unsupported
@@ -430,10 +433,10 @@ Vitest (`apps/mobile/src/…`):
 - `data/ageCoefficients.test.ts` — none under 14, Foster 14–22, 1 for 23–40, McCulloch 41–80,
   USAPL 81–90 then held, monotonic, whole years
 - `store/sessionsStore.test.ts` — `completedSessions()` filter and order; `deleteSession` storage
-  removal, recovery recompute, previous-map rebuild, sync notifications, unknown id no-op
+  removal, recovery recompute, previous-map rebuild, sync notifications, unknown id no-op;
+  `saveSessionEdit` saves in place, rebuilds previous, recomputes recovery, notifies sync; a deleted
+  original saves nothing
 - `store/activeWorkoutLogic.test.ts` — `rebuildPreviousSnapshot`
-- `store/sessionsStore.test.ts` — `saveSessionEdit` saves in place, rebuilds previous, notifies
-  sync; a deleted original saves nothing
 - `utils/sessionEdit.test.ts` — draft keeps completed sets only, set update without suggestion
   flags, delete (and the exercise with its last set), add set copying the last, add exercise with
   an empty set (never a duplicate), replace keeping sets (never into a duplicate), remove
@@ -443,7 +446,8 @@ Vitest (`apps/mobile/src/…`):
 
 Jest UI (`apps/mobile/src/test/ui/history/`):
 
-- `history.test.tsx` — week headers and summaries, card names (incl. a dated ad-hoc workout), date, stats
+- `history.test.tsx` — week headers and summaries, card names (incl. a dated ad-hoc workout), date (and the
+  auto-closed label), stats
   line and volume change, newest expanded + toggling, PR badges/counts,
   alias PRs, header shortcuts to Personal Records and the calendar, delete flow (cancel,
   confirm, storage, recovery, sync), empty-state copy, pull to refresh from empty (guest reload,

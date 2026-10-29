@@ -1,6 +1,6 @@
 /**
  * In-memory stand-in for the slice of the Supabase client that sync uses: `rpc`, and
- * `from(table).select().gt().order()` / `.upsert()`. Rows live in `tables`; failures are injected
+ * `from(table).select().gt().order().range()` / `.upsert()`. Rows live in `tables`; failures are injected
  * through `failures`. Tests swap it in with `vi.mock('@/lib/supabase', ...)`.
  */
 type Row = Record<string, unknown>;
@@ -60,6 +60,27 @@ export function createFakeSupabase() {
     from(table: string) {
       let since: string | null = null;
       let sinceColumn: string | null = null;
+      let orderColumn: string | null = null;
+      let range: [number, number] | null = null;
+      const run = () => {
+        const col = orderColumn ?? 'updated_at';
+        calls.select.push({ table, since, column: sinceColumn ?? col });
+        const error = failures.select[table];
+        if (error) return { data: null, error };
+        const usesServerClock = col === 'server_updated_at' || sinceColumn === 'server_updated_at';
+        if (usesServerClock && !server.hasServerClock) {
+          return {
+            data: null,
+            error: { code: '42703', message: `column ${table}.server_updated_at does not exist` },
+          };
+        }
+        const rows = (tables[table] ?? []).filter(
+          (r) => since == null || Date.parse(String(r[sinceColumn ?? 'updated_at'])) > Date.parse(since)
+        );
+        rows.sort((a, b) => Date.parse(String(a[col])) - Date.parse(String(b[col])));
+        const page = range ? rows.slice(range[0], range[1] + 1) : rows;
+        return { data: page.map((r) => ({ ...r })), error: null };
+      };
       const builder = {
         select(_cols: string) {
           return builder;
@@ -69,22 +90,21 @@ export function createFakeSupabase() {
           sinceColumn = col;
           return builder;
         },
-        async order(col: string, _opts?: unknown) {
-          calls.select.push({ table, since, column: sinceColumn ?? col });
-          const error = failures.select[table];
-          if (error) return { data: null, error };
-          const usesServerClock = col === 'server_updated_at' || sinceColumn === 'server_updated_at';
-          if (usesServerClock && !server.hasServerClock) {
-            return {
-              data: null,
-              error: { code: '42703', message: `column ${table}.server_updated_at does not exist` },
-            };
-          }
-          const rows = (tables[table] ?? []).filter(
-            (r) => since == null || Date.parse(String(r[sinceColumn ?? 'updated_at'])) > Date.parse(since)
-          );
-          rows.sort((a, b) => Date.parse(String(a[col])) - Date.parse(String(b[col])));
-          return { data: rows.map((r) => ({ ...r })), error: null };
+        /** The first `order` is the sort key; later ones are tie-breakers (stable here). */
+        order(col: string, _opts?: unknown) {
+          orderColumn ??= col;
+          return builder;
+        },
+        range(from: number, to: number) {
+          range = [from, to];
+          return builder;
+        },
+        // biome-ignore lint/suspicious/noThenProperty: mirrors PostgREST's awaitable query builder
+        then<R1, R2>(
+          onFulfilled?: (value: ReturnType<typeof run>) => R1 | PromiseLike<R1>,
+          onRejected?: (reason: unknown) => R2 | PromiseLike<R2>
+        ) {
+          return Promise.resolve().then(run).then(onFulfilled, onRejected);
         },
         async upsert(rows: Row[], _opts?: unknown) {
           calls.upsert.push({ table, rows });

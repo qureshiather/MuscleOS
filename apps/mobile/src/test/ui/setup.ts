@@ -13,7 +13,7 @@ jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
 require('react-native-gesture-handler/jestSetup');
 
-// Workout share image (MUS-133): capture returns a temp file, the OS share sheet is a no-op.
+// Workout share image: capture returns a temp file, the OS share sheet is a no-op.
 jest.mock('react-native-view-shot', () => ({
   captureRef: jest.fn(async () => 'file:///tmp/share.png'),
 }));

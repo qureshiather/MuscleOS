@@ -326,12 +326,14 @@ export function stripPrefillFlags(session: WorkoutSession): WorkoutSession {
 export function completeSession(
   session: WorkoutSession,
   completedAt: string,
-  templateId?: string
+  templateId?: string,
+  autoClosed = false
 ): WorkoutSession {
   return {
     ...stripPrefillFlags(session),
     completedAt,
     ...(templateId != null && { templateId }),
+    ...(autoClosed && { autoClosed: true as const }),
   };
 }
 

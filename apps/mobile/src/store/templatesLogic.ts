@@ -1,10 +1,5 @@
-import type { WorkoutTemplate, TemplateFolder } from '@muscleos/types';
-import {
-  BUILT_IN_TEMPLATES,
-  builtInProgram,
-  programTemplates,
-  type BuiltInProgram,
-} from '@/data/builtInTemplates';
+import type { BuiltInProgram, WorkoutTemplate, TemplateFolder } from '@muscleos/types';
+import { BUILT_IN_TEMPLATES, builtInProgram, programTemplates } from '@/data/builtInTemplates';
 
 /**
  * Pure reducers for the templates store (docs/features/templates.md). Built-in templates are
@@ -140,12 +135,14 @@ export function groupYourWorkouts(args: {
     templates: custom.filter((t) => t.folderId === folder.id),
   });
   const shown = folders.filter((f) => !onlyHidden(f.id));
+  const known = (t: WorkoutTemplate) => existingFolderId(t.folderId, folders) != null;
   const program = builtInProgram(args.activeProgramId);
 
   return {
     program: program ? { program, templates: programTemplates(program.id) } : null,
     custom: {
-      uncategorized: custom.filter((t) => !t.folderId),
+      // A folder deleted on another device can leave a template pointing at nothing: list it here.
+      uncategorized: custom.filter((t) => !known(t)),
       pinnedFolders: shown.filter((f) => !f.archived && f.favorite).map(group),
       normalFolders: shown.filter((f) => !f.archived && !f.favorite).map(group),
       archivedFolders: shown.filter((f) => f.archived).map(group),
@@ -153,6 +150,14 @@ export function groupYourWorkouts(args: {
       visibleCount: custom.length,
     },
   };
+}
+
+/** `folderId` if that folder still exists, else undefined (the template counts as uncategorized). */
+export function existingFolderId(
+  folderId: string | undefined,
+  folders: readonly Pick<TemplateFolder, 'id'>[]
+): string | undefined {
+  return folderId && folders.some((f) => f.id === folderId) ? folderId : undefined;
 }
 
 /** Every template in Your workouts — the program's, then visible custom ones. Suggested picks from these. */

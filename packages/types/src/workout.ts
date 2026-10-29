@@ -51,3 +51,16 @@ export interface PlannedWorkout {
   /** Optional: override exercise list for this instance */
   exerciseIds?: string[];
 }
+
+/**
+ * A built-in program: one shipped folder of templates plus the facts the Programs screen shows.
+ * At most one program is in Your workouts at a time (`activeProgramId` in app settings).
+ */
+export interface BuiltInProgram {
+  /** The built-in folder id (`builtin_ppl`). */
+  id: string;
+  name: string;
+  summary: string;
+  daysPerWeek: string;
+  level: 'Beginner' | 'Intermediate';
+}

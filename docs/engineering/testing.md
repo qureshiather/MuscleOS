@@ -17,9 +17,13 @@ pnpm --filter mobile test:ui       # Jest only
 ```
 
 CI (`.github/workflows/ci.yml`) runs `pnpm check` on every pull request and push to `main`, so both
-runners gate merges.
+runners gate merges. The mobile `typecheck` first regenerates expo-router's typed routes
+(`pnpm --filter mobile typegen`, i.e. `expo customize tsconfig.json`; the output in `.expo/types` is
+gitignored), so route strings are type-checked on a clean CI checkout and never against stale local
+types. Besides the mobile app's two runners below, `apps/landing` and
+`packages/types` run their own Vitest suites under `pnpm test`.
 
-## Two runners
+## Mobile: two runners
 
 | Runner | Picks up | For |
 |--------|----------|-----|
@@ -49,7 +53,8 @@ state.
 
 - `src/test/ui/setup.ts` (`setupFilesAfterEnv`) — global stand-ins for native modules the renderer
   can't load: AsyncStorage (official mock), Reanimated and react-native-worklets, gesture handler, safe-area context,
-  expo-notifications, expo-audio — and the [console guard](#conventions).
+  expo-notifications, expo-audio, react-native-view-shot (capture returns a temp file) and
+  expo-sharing (the share sheet is a no-op) — and the [console guard](#conventions).
 - `jest.config.js` resolves two packages the way Metro does: `react-native-draggable-flatlist` from
   its TS source (the prebuilt build triggers React's "outdated JSX transform" warning) and
   `punycode` to the npm package expo's URL polyfill depends on (not Node's deprecated core module).
@@ -61,8 +66,8 @@ state.
     layout's side effects. Pass a deep-link URL to test cold-start entry.
   - `routeStub(name)` stands in for routes a test navigates to but doesn't render; assert
     navigation with `getPathname()` / `getSearchParams()`.
-  - `resetAppState()` clears storage and marks templates loaded (starting from route params waits
-    on templates).
+  - `resetAppState()` clears storage and marks templates and settings loaded (starting from route
+    params waits on templates; the Workouts tab also waits on settings).
 - Area helpers in `src/test/ui/<area>/helpers.tsx` seed stores for that area.
 - `src/test/ui/harness.test.tsx` checks the harness itself: a real screen renders through the
   router inside the app's providers.
@@ -86,6 +91,12 @@ Things the current setup can't reach; each spec's **Tests** section has the deta
 - Native integrations: Apple/Google sign-in SDKs, sound playback,
   notification scheduling, drag-to-reorder and swipe physics.
 - The root layout's boot sequence runs only in the app; its pieces are tested individually.
+- `ThemeProvider` following the device scheme in Auto, and the Android navigation-bar colours
+  ([accounts-and-data](../features/accounts-and-data.md#tests)).
+- The delete-account recovery recompute call site in `account.tsx`
+  ([recovery](../features/recovery.md#tests)).
+- The catalog generator script itself; its outputs are checked
+  ([exercise-library](../features/exercise-library.md#tests)).
 - Rendered exercise demos (Blender output) aren't asserted on; review them with
   `build-exercise-animations.mjs --check` and by watching the clips.
 

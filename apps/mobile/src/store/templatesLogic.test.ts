@@ -5,6 +5,7 @@ import {
   allTemplates,
   deleteFolderCascade,
   folderDeletePlan,
+  existingFolderId,
   groupYourWorkouts,
   isTemplateHidden,
   templateMenuActions,
@@ -151,6 +152,14 @@ describe('groupYourWorkouts', () => {
   ];
   const group = (activeProgramId: string | null = null) =>
     groupYourWorkouts({ userTemplates: mine, folders, activeProgramId });
+
+  it('lists a template whose folder no longer exists (deleted on another device) as uncategorized', () => {
+    const orphan = custom({ id: 'orphan', folderId: 'deleted-elsewhere' });
+    const { custom: c } = groupYourWorkouts({ userTemplates: [...mine, orphan], folders, activeProgramId: null });
+    expect(c.uncategorized.map((t) => t.id)).toEqual(['loose', 'orphan']);
+    expect(existingFolderId('deleted-elsewhere', folders)).toBeUndefined();
+    expect(existingFolderId('normal', folders)).toBe('normal');
+  });
 
   it('custom: uncategorized, then pinned, normal, archived folders; all-hidden folders left out', () => {
     const { custom: c } = group();

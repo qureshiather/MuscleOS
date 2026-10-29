@@ -74,6 +74,7 @@ describe('homeHeadline', () => {
   });
 
   it('counts the week when they are not on a streak', () => {
+    expect(homeHeadline(stats({ sessionsThisWeek: 1, weekStreak: 1 }))).toBe('One this week.');
     expect(homeHeadline(stats({ sessionsThisWeek: 2, weekStreak: 1 }))).toBe('Two this week.');
     expect(homeHeadline(stats({ sessionsThisWeek: 4, weekStreak: 1 }))).toBe('4 this week.');
   });

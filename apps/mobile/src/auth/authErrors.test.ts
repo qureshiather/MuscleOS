@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendlyAuthError, isValidEmail } from './authErrors';
+import { friendlyAuthError, isUnknownEmailError, isValidEmail } from './authErrors';
 
 describe('friendlyAuthError', () => {
   it('maps known Supabase errors to plain copy', () => {
@@ -64,5 +64,21 @@ describe('isValidEmail', () => {
     for (const email of ['', 'samim', 'samim@', '@example.com', 'samim@example', 'samim@example.', 'sam im@example.com', 'a@b@c.com', 'a@.com']) {
       expect(isValidEmail(email)).toBe(false);
     }
+  });
+});
+
+describe('isUnknownEmailError', () => {
+  it('recognises a missing account by code or by any of Supabase’s wordings', () => {
+    expect(isUnknownEmailError({ code: 'user_not_found' })).toBe(true);
+    expect(isUnknownEmailError({ message: 'User not found' })).toBe(true);
+    expect(isUnknownEmailError({ message: 'Email not found' })).toBe(true);
+    expect(isUnknownEmailError({ message: 'A user with this email address has not been registered' })).toBe(true);
+  });
+
+  it('leaves every other error (and non-errors) alone', () => {
+    expect(isUnknownEmailError({ code: 'over_email_send_rate_limit', message: 'Too many requests' })).toBe(false);
+    expect(isUnknownEmailError(new Error('Network request failed'))).toBe(false);
+    expect(isUnknownEmailError(null)).toBe(false);
+    expect(isUnknownEmailError('user not found')).toBe(false);
   });
 });

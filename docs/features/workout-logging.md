@@ -99,10 +99,13 @@ After boot hydration and whenever the app returns to the foreground, a workout i
 
 | Stale workout has… | Result |
 |--------------------|--------|
-| At least one completed set | Finished with `completedAt = lastActivityAt`, so history duration, recovery, and "trained today" reflect when the lifting happened, not when the app was next opened |
+| At least one completed set | Finished with `completedAt = lastActivityAt`, so history duration, recovery, and "trained today" reflect when the lifting happened, not when the app was next opened. The session is marked `autoClosed`, and its History card says `Closed after 3 h idle` |
 | No completed sets | Discarded |
 
 There's no cap on total duration — a workout still being edited stays open however long it runs.
+
+If the workout screen is open when the workout is closed this way, it returns to the Workouts tab
+(it never starts a new workout from its route params, even when it was opened from a template).
 
 While a session exists, a **Resume workout** pill replaces part of the tab bar showing elapsed
 time. Its **X** discards the workout **with no confirmation**. Inside the workout, the
@@ -194,7 +197,7 @@ scrolled up so the pad never hides the row being edited.
     set. Done is disabled until reps > 0.
   - **Time** is only the rest-duration boxes on **Update rest timers**. −/+ is hidden. Digits shift into `m:ss` from the right (the first digit replaces the current
     time); a seconds value above 59 or a total past 15:00 is ignored, and 0:00 is allowed.
-    **Next** moves from Work set to Warm up; **Done** hides the pad.
+    **Next** moves between Work set and Warm up; **Done** hides the pad.
 - **Backspace** is in the right-hand column, above Next/Done — the same place delete lives on a
   normal keyboard. The chevron key hides the pad.
 
@@ -217,7 +220,8 @@ key does (`applyKeypadKey` for set cells, `applyRestTimeKey` for the time boxes)
 - **+ ADD SET** appends a set; the button label shows the current rest preset. The control is a full-width footer of the set table, separated from the last row by the same divider as the set rows, and shares the table’s edges.
 - **Swipe left** deletes a set immediately. **Long-press a set number** asks first, with the
   themed confirm dialog ("Remove set — Delete this set from the exercise?", **Cancel** /
-  **Remove**). Deleting a set cancels a countdown running for it. Minimum **1 set** per exercise
+  **Remove**). Deleting a set cancels a countdown running for it and closes an open number pad
+  (so the pad never edits whichever set slid into its place); removing an exercise does too. Minimum **1 set** per exercise
   (neither gesture is offered on the last one); no maximum.
 - **Add warm-up** inserts a warm-up set at position 0.
 
@@ -240,7 +244,9 @@ Default rest at the moment the set is completed; explicit 0 means no timer). A w
 The timer is derived from an absolute `restEndTime`, so it stays correct across backgrounding
 and app restarts. **Skip rest** records the time actually rested (total minus the whole seconds
 left) and clears the timer; recorded durations are kept per set and shown on the rest row after it.
-When a countdown reaches zero its **full duration** is recorded and the timer clears. A manual
+When a countdown reaches zero its **full duration** is recorded and the timer clears. Completing
+another set while a rest is still running ends that rest the same way as Skip (the time actually
+rested is recorded) before the new countdown starts. A manual
 rest (header picker) is not tied to a set, so nothing is recorded for it.
 
 The header dialogue's ±30 (`adjustRunningRest`) moves the end time and the total by the same
@@ -279,7 +285,7 @@ mode.
 | Sound | Trigger |
 |-------|---------|
 | `restTick` | Rest countdown at 3, 2, 1 seconds — once per second, only while counting down |
-| `restEnd` | Rest reaches zero while the app is in the foreground (noticed within 1500 ms of the end) |
+| `restEnd` | Rest reaches zero while the workout screen is open in the foreground (noticed within 1500 ms of the end) |
 | `setComplete` | A set is marked complete |
 | `workoutComplete` | Workout finished |
 
@@ -313,18 +319,22 @@ active workout (`data.screen: 'active-workout'`).
 | Rest-over alert (both paths) | `Rest over` | `Time for <exercise>`, or `Time to finish your workout` |
 
 The rest-over alert's sound follows `workoutSoundsEnabled`; with sounds off it still arrives,
-silently. In the foreground the OS alert is suppressed (cancelled / `alertEnabled: false`) and the
-in-app timer and sound handle it.
+silently. With the workout screen open in the foreground the OS alert is suppressed (cancelled /
+`alertEnabled: false`) and the in-app timer and sound handle it. With the workout **minimised**
+(another tab or screen in front; `workoutScreenOpen` in the store is false) nothing in-app is
+watching the timer, so the OS alert is scheduled even in the foreground and shows as a banner;
+its delivery records the rest and clears the timer, as in the background.
 
 When rest completes while the app is backgrounded, the OS notification fires and the handler
 records the rest duration and clears the timer on return, so the two paths don't double up. The
 in-app sound is suppressed in that case.
 
-What happens to the scheduled alert is `restAlertAction()`: resting in the background schedules
-it; in the foreground it's cancelled (and a delivered one dismissed). When the rest ends while
+What happens to the scheduled alert is `restAlertAction()`: resting in the background, or with the
+workout minimised, schedules it; with the workout open in the foreground it's cancelled (and a
+delivered one dismissed). When the rest ends while
 the app is still backgrounded — JS can keep running briefly and end the rest at the same moment
 the OS fires — the alert is **kept**: cancelling then would withdraw the alert just delivered, or
-drop it before it fires. Returning to the app clears it.
+drop it before it fires. The same holds while minimised. Opening the workout clears it.
 
 **Exact alarms (Android 13+).** On the first rest timer of a launch, if exact alarms aren't
 permitted, the app explains why before any system screen, once ever, in the themed
@@ -373,7 +383,7 @@ timers**; `templateStructureChanged()`):
 
 | Started from | Options |
 |--------------|---------|
-| Empty workout | Save as template · Save values only · Discard workout |
+| Empty workout, or a template that no longer exists (deleted, or an unknown id) | Save as template · Save values only · Discard workout |
 | Built-in, list, set structure or rests changed | Save values only · Save as new template · Discard workout |
 | Custom, list, set structure or rests changed | Save values only · Overwrite this template · Save as new template · Discard workout |
 | Unchanged (built-in or custom) | Save values · Discard workout |
@@ -484,13 +494,13 @@ the real router.
   themed dialog before any system screen, only Open settings opens it, once per launch and once
   ever, never when allowed or without the native module
 - `src/store/activeWorkoutStore.test.ts` — `lastActivityAt` stamping and the stale close after
-  hydration and on foreground (overlapping closes save once); one workout at a time; 1-set
+  hydration and on foreground (marked `autoClosed`; overlapping closes save once); one workout at a time; 1-set
   minimum; finish saving the whole session; a completed set resting for the user's Default rest
   when its exercise sets none; the **debounced persist** (writes after 400 ms,
   coalesces a burst, nothing before hydration) and the immediate **background** write; start
   prefill applied once and never re-applied, keeping edits made while it loads; hydrate recording
   an expired rest; `toggleSetComplete` (reps gate, work/warm-up rest, un-complete cancels only its
-  own countdown, carried weight not taken back); `skipRest`, `endRestIfDue`, ±30; `addWarmUpSet`,
+  own countdown, carried weight not taken back, completing mid-rest records the rest taken); `skipRest`, `endRestIfDue`, ±30; `addWarmUpSet`,
   `addSet`, `removeSet` / `removeExercise` / `replaceExercise` clearing an active rest; duplicate
   add/replace guards; template rests copied at start
 - `src/utils/keypadInput.test.ts`, `src/utils/keypadInput.keys.test.ts` — entry maths, and
@@ -504,11 +514,13 @@ the real router.
   `setRowView` (upcoming across exercises, rest row presence and countdown, green join) and
   `previousLabel` (`weight × reps` with no unit, unit kept without reps)
 - `src/utils/workoutFinish.test.ts` — change detection (a deleted set counts, an incomplete one
-  doesn't), the finish variant and option matrix,
+  doesn't), the finish variant and option matrix, `isTemplateless` (a missing template finishes
+  like an empty workout),
   `cancelDialogMeta`, `buildFinishSummary`, `formatSummarySet`, `summaryExerciseHasProgress`
 - `src/utils/workoutNotificationCopy.test.ts` — body selection (Next / Continue to / Finish, with
-  wrap-around), alert copy, titles, `trayNotificationContent` (`Rest until <clock> • …` vs
-  `Rest m:ss • …`), and `restAlertAction` (schedule / cancel / keep after a background rest end)
+  wrap-around), alert copy, titles, `restAlertAction` with the workout minimised, `trayNotificationContent` (`Rest until <clock> • …` vs
+  `Rest m:ss • …`), `formatRestEndClock` (hours and minutes of the end time), and `restAlertAction`
+  (schedule / cancel / keep after a background rest end)
 - `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and `pickerFooter`
 - `src/utils/formatClock.test.ts` — the shared `m:ss` formatter
 - `src/storage/localStorage.activeWorkout.test.ts` — persist/resume round-trip and guards
@@ -524,7 +536,7 @@ the real router.
   disabled without reps, current/upcoming/completed labels across exercises and the done card,
   the header rest dialog (±30, Skip, recorded rest), the rest row opening the manual picker, a
   countdown ending, + ADD SET, add warm-up, long-press delete with the themed confirm, swipe
-  delete, the 1-set minimum, and the exercise info sheet (instructions, pad hidden, no
+  delete (closing an open number pad), the 1-set minimum, and the exercise info sheet (instructions, pad hidden, no
   Edit/Delete, note saved from the dialog, the card's note opening it)
 - `finish.test.tsx` — Finish disabled until a set is completed, the option matrix (unchanged
   built-in / changed built-in incl. set count / empty / changed and unchanged custom), the
@@ -538,7 +550,8 @@ the real router.
   and without matches, "No matching exercises", routing to `/create-exercise` (Create row and
   header + New, blank or prefilled)
 - `deepLinks.test.tsx` — starting from route params for a built-in (own plan, or the link's),
-  `_empty`, an unknown id, and a custom template once templates load; a running workout untouched;
+  `_empty`, an unknown id, and a custom template once templates load; nothing starts before the saved
+  workout is read back; leaving for the tabs after a stale close; a running workout untouched;
   Add Exercise on a built-in workout opening the picker with no alert; the preview for a custom
   template, Start passing the plan on, and the in-progress redirect
 - `resume.test.tsx` — the resume pill (hidden / elapsed / opens the workout / X discards with no

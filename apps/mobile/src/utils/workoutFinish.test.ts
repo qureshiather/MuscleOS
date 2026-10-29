@@ -9,6 +9,7 @@ import {
   summaryExerciseHasProgress,
   finishFlowVariant,
   finishSaveOptions,
+  isTemplateless,
   templateListChanged,
   templateStructureChanged,
   type FinishActionId,
@@ -133,6 +134,14 @@ describe('finishFlowVariant', () => {
   it('distinguishes a changed built-in from a changed custom template', () => {
     expect(finishFlowVariant({ isEmpty: false, isBuiltIn: true, listChanged: true })).toBe('builtin-changed');
     expect(finishFlowVariant({ isEmpty: false, isBuiltIn: false, listChanged: true })).toBe('custom-changed');
+  });
+});
+
+describe('isTemplateless', () => {
+  it('the empty workout and a template id that no longer resolves both finish like an empty workout', () => {
+    expect(isTemplateless('_empty', false)).toBe(true);
+    expect(isTemplateless('custom_deleted', false)).toBe(true);
+    expect(isTemplateless('builtin_sl_a', true)).toBe(false);
   });
 });
 

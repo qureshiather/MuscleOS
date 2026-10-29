@@ -105,7 +105,7 @@ describe('create-exercise form', () => {
     expect(screen.queryByText('Equipment')).toBeNull();
   });
 
-  it('saves a trimmed custom as custom_<highest+1> and goes back', async () => {
+  it('saves a trimmed custom under a new custom_ id and goes back', async () => {
     const { getPathname } = await openForm('/create-exercise');
     fireEvent.changeText(await screen.findByPlaceholderText('e.g. Cable row'), '  Seated Cable Row ');
     fireEvent.press(screen.getByText('Cable'));
@@ -116,8 +116,8 @@ describe('create-exercise form', () => {
     fireEvent.press(screen.getByText('Save exercise'));
 
     await waitFor(() => expect(savedCustoms()).toHaveLength(2));
+    expect(savedCustoms()[1].id).toMatch(/^custom_[0-9a-z]+_[0-9a-z]{6}$/);
     expect(savedCustoms()[1]).toMatchObject({
-      id: 'custom_4',
       name: 'Seated Cable Row',
       category: 'cable',
       muscles: ['lats', 'rhomboids'],
@@ -177,7 +177,7 @@ describe('created from the active-workout picker', () => {
       params: { name: 'Sled', origin: 'active-workout', workoutMode: 'add' },
     });
     await fillAndSave();
-    expect(addExercise).toHaveBeenCalledWith('custom_4');
+    expect(addExercise).toHaveBeenCalledWith(savedCustoms()[1].id);
   });
 
   it('swaps it in for the exercise being replaced', async () => {
@@ -188,6 +188,6 @@ describe('created from the active-workout picker', () => {
       params: { origin: 'active-workout', workoutMode: 'replace', workoutExIdx: '2' },
     });
     await fillAndSave();
-    expect(replaceExercise).toHaveBeenCalledWith(2, 'custom_4');
+    expect(replaceExercise).toHaveBeenCalledWith(2, savedCustoms()[1].id);
   });
 });

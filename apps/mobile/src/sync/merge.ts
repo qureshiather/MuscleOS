@@ -35,6 +35,7 @@ import {
 } from './mergePolicy';
 import type { OutboxEntry, RemoteSyncRecord, SyncEntityType } from './types';
 import { normalizeExercise } from '@/utils/exerciseNormalize';
+import { rebuildPreviousSnapshot } from '@/store/activeWorkoutLogic';
 import { recoveryFromSessions } from '@/utils/recovery';
 import { sessionSyncClock } from '@/utils/sessionClock';
 
@@ -58,6 +59,46 @@ function touchDirtyOutbox(
     updatedAt,
     ...(payload !== undefined ? { payload } : {}),
   });
+}
+
+function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Apply this merge's row changes (`before` → `after`, by id) onto `fresh`, the table as it is in
+ * storage now. Rows the merge didn't touch keep their fresh value, so a local write that landed
+ * during the merge isn't overwritten. Returns null when the merge changed nothing in this table.
+ */
+export function applyRowDelta<T extends { id: string }>(
+  before: readonly T[],
+  after: ReadonlyMap<string, T>,
+  fresh: readonly T[]
+): T[] | null {
+  const beforeById = new Map(before.map((row) => [row.id, row]));
+  const upserts = new Map<string, T>();
+  for (const [id, row] of after) {
+    const old = beforeById.get(id);
+    if (!old || !sameJson(old, row)) upserts.set(id, row);
+  }
+  const deletes = new Set([...beforeById.keys()].filter((id) => !after.has(id)));
+  if (upserts.size === 0 && deletes.size === 0) return null;
+
+  const next: T[] = [];
+  for (const row of fresh) {
+    if (deletes.has(row.id)) continue;
+    next.push(upserts.get(row.id) ?? row);
+    upserts.delete(row.id);
+  }
+  return [...next, ...upserts.values()];
+}
+
+/**
+ * A per-account snapshot (notes, previous, settings): the merge's result, unless storage changed
+ * since the merge read it — then the newer local edit stays (it's queued, and wins next sync).
+ */
+export function keepNewerLocal<T>(read: T, merged: T, fresh: T): T {
+  return sameJson(fresh, read) ? merged : fresh;
 }
 
 /** Apply remote sync records onto local state. Returns true if any records were applied. */
@@ -97,6 +138,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
   let notesData = exerciseNotes;
   let settingsData = appSettings;
   let changed = false;
+  let sessionsChanged = false;
 
   for (const record of records) {
     const remoteUpdatedAt = record.updated_at;
@@ -114,7 +156,10 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
             remoteUpdatedAt,
           });
           if (decision === 'take_remote') {
-            if (sessionMap.delete(record.entity_id)) changed = true;
+            if (sessionMap.delete(record.entity_id)) {
+              changed = true;
+              sessionsChanged = true;
+            }
           } else if (pending) {
             touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt);
           }
@@ -204,6 +249,7 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
         if (decision === 'take_remote') {
           sessionMap.set(record.entity_id, remote);
           changed = true;
+          sessionsChanged = true;
         } else if (pending) {
           touchDirtyOutbox(outboxMap, pending, remoteUpdatedAt, local ?? pending.payload);
         }
@@ -340,19 +386,44 @@ export async function applyRemoteRecords(records: RemoteSyncRecord[]): Promise<b
     }
   }
 
-  const recoveryData = recoveryFromSessions(Array.from(sessionMap.values()), (id) =>
-    exerciseMap.get(id)
+  // The reads above happened before any awaiting; a workout finished or a note saved since then is
+  // already in storage. Re-read now and apply only what this merge changed, so those writes survive.
+  const [freshSessions, freshTemplates, freshFolders, freshCustoms, freshPrevious, freshNotes, freshSettings] =
+    await Promise.all([
+      getSessions(),
+      getTemplates(),
+      getTemplateFolders(),
+      getCustomExercises(),
+      getExercisePrevious(),
+      getExerciseNotes(),
+      getAppSettings(),
+    ]);
+  const nextSessions = applyRowDelta(sessions, sessionMap, freshSessions);
+  const nextTemplates = applyRowDelta(templates, templateMap, freshTemplates);
+  const nextFolders = applyRowDelta(folders, folderMap, freshFolders);
+  const nextCustoms = applyRowDelta(customExercises, exerciseMap, freshCustoms);
+
+  // "Previous" is derived from sessions: when any session arrived or was deleted, rebuild it so a
+  // session deleted on another device can't leave its values (or bring a removed key back).
+  const previousNext = sessionsChanged
+    ? rebuildPreviousSnapshot(nextSessions ?? freshSessions)
+    : keepNewerLocal(exercisePrevious, previousData, freshPrevious);
+  const notesNext = keepNewerLocal(exerciseNotes, notesData, freshNotes);
+  const settingsNext = keepNewerLocal(appSettings, settingsData, freshSettings);
+
+  const recoveryData = recoveryFromSessions(nextSessions ?? freshSessions, (id) =>
+    (nextCustoms ?? freshCustoms).find((e) => e.id === id)
   );
 
   await Promise.all([
-    setSessions(Array.from(sessionMap.values())),
-    setTemplates(Array.from(templateMap.values())),
-    setTemplateFolders(Array.from(folderMap.values())),
-    setCustomExercises(Array.from(exerciseMap.values())),
+    nextSessions && setSessions(nextSessions),
+    nextTemplates && setTemplates(nextTemplates),
+    nextFolders && setTemplateFolders(nextFolders),
+    nextCustoms && setCustomExercises(nextCustoms),
     setRecovery(recoveryData),
-    setExercisePrevious(previousData),
-    setExerciseNotes(notesData),
-    setAppSettings(settingsData),
+    !sameJson(previousNext, freshPrevious) && setExercisePrevious(previousNext),
+    !sameJson(notesNext, freshNotes) && setExerciseNotes(notesNext),
+    !sameJson(settingsNext, freshSettings) && setAppSettings(settingsNext),
     commitOutboxEdits(outboxBefore, Array.from(outboxMap.values())),
   ]);
 

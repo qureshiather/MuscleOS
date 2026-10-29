@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { MuscleRecovery } from '@muscleos/types';
-import { getSessions, setRecovery } from '@/storage/localStorage';
+import { getRecovery, getSessions, setRecovery } from '@/storage/localStorage';
 import { activeRecoveryAt, recoveryFromSessions, sameRecovery } from '@/utils/recovery';
 import { useExercisesStore } from '@/store/exercisesStore';
 
@@ -32,12 +32,11 @@ export const useRecoveryStore = create<RecoveryState>((set, get) => ({
       const sessions = await getSessions();
       if (generation !== loadGeneration) return;
       const items = recoveryFromSessions(sessions, (id) => useExercisesStore.getState().getExercise(id));
-      if (get().hasLoaded && sameRecovery(get().items, items)) {
-        set({ isLoading: false });
-        return;
-      }
-      set({ items, isLoading: false, hasLoaded: true });
-      await setRecovery(items);
+      if (get().hasLoaded && sameRecovery(get().items, items)) set({ isLoading: false });
+      else set({ items, isLoading: false, hasLoaded: true });
+      // Compare with storage, not memory: a merge may have written a copy computed from a partial
+      // exercise map even when the in-memory items already match.
+      if (!sameRecovery(await getRecovery(), items)) await setRecovery(items);
     })();
     inFlight = run;
     const clear = () => {

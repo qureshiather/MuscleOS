@@ -118,7 +118,8 @@ really loads — at most 7, never stabilisers. Conventions, enforced by `exercis
 ### Pipeline
 
 ```
-src/data/exercises.ts          hand-maintained source: ids, names, muscles, equipment, instructions
+src/data/exercises.ts          hand-maintained source: ids, names, muscles, equipment, instructions,
+                               and aliases (EXERCISE_SLUG_ALIASES)
         │  generate-exercise-catalog.mjs
         ├──► src/data/catalogSeed.ts               bundled seed, instructions included
         ├──► apps/landing/app/data/exerciseCatalog.json   published rows for the website's exercise pages
@@ -180,7 +181,8 @@ The delta pull queries `catalog_exercises` for rows with `updated_at >` the stor
 (oldest first), merges them by id (later row wins; new ids append), and advances the watermark to
 the highest `updated_at` received (`advanceWatermark()`). On an error, when Supabase isn't
 configured, or when nothing is newer, nothing is written and the watermark stays. Concurrent
-refreshes share one in-flight pull. Catalog sync is pull-only and runs for **all users including
+refreshes share one in-flight pull, and a `load()` that read the cache before a refresh landed
+keeps the refreshed catalog rather than the stale one it read. Catalog sync is pull-only and runs for **all users including
 anonymous ones** — it's shared content, not user data.
 
 Refresh triggers: app launch, app foreground, and any sync that reloads the stores (including
@@ -193,7 +195,9 @@ two-year-old session still resolves its exercise names.
 
 ### Legacy id resolution
 
-37 catalog rows carry `aliases`, mapping old slugs to the canonical id. `getExercise(id)`
+37 catalog rows carry `aliases`, mapping old slugs to the canonical id. Aliases are written by hand
+in `EXERCISE_SLUG_ALIASES` (`src/data/exercises.ts`), which the generator reads; the server's
+`catalog_exercises.aliases` column is not generated, so a new alias also needs its own migration. `getExercise(id)`
 (`resolveExerciseById()`) resolves aliases against the catalog before looking up, so renamed
 exercises don't orphan session data. No alias may equal a real catalog id.
 
@@ -204,7 +208,8 @@ A runbook for adding a row to the shared catalog. Paths are from the repo root.
 1. **Check it isn't already there under another name.** Search `exercises.ts` by movement, not just the name
    you were given: "military press", "OHP" and "overhead press" are easy to mix up. Only add a
    row if the movement is genuinely different, as Military Press (strict, heels together) is from
-   Push Press (leg drive). Otherwise improve the existing row's name or add an alias.
+   Push Press (leg drive). Otherwise improve the existing row's name or add an alias (in
+   `EXERCISE_SLUG_ALIASES`, plus a migration updating that row's `aliases` on the server).
 2. **Add the row to `apps/mobile/src/data/exercises.ts`** in name order:
    - `id`: lowercase kebab-case, permanent (it lives in every session that logs it), and not
      equal to any existing id or alias.
@@ -224,7 +229,7 @@ A runbook for adding a row to the shared catalog. Paths are from the repo root.
    row's copy in that shape, and it casts `category` and `tracking_type` to their enums, which an
    `insert … select` needs. Apply it to the live project
    ([setup.md](../supabase/setup.md#1-run-migrations-supabase-cli)) when the change merges.
-5. **Update the counts** in [The catalog](#the-catalog), the [screen map](../product/overview.md#screen-map) and the tests that pin them
+5. **Update the counts** in [The catalog](#the-catalog) and the tests that pin them
    (`catalogSeed.test.ts`, `exercisesStore.test.ts`). `exercisesStore.test.ts` also pins the seed
    date (`SEED_AT`), and its watermark fixtures must stay later than it.
 6. **Make the demo** by following [exercise-demos.md → Add an exercise](exercise-demos.md#add-an-exercise). Until
@@ -284,10 +289,13 @@ there is a name, a Type and at least one muscle. Under the disabled button a hin
 missing, e.g. `Add a name, a type and a muscle to save.` (`missingFieldsHint()`). Blank
 instructions are saved as none, so editing them to empty clears them.
 
-Ids are assigned as `custom_<n>` where n is the highest suffix + 1 across live **and retired**
-customs (`nextCustomExerciseId()` in `src/utils/exerciseIds.ts`). Gaps are never filled and a
-deleted custom's number is never reused: sessions, PRs and the previous map key on the id, so a
-reused id would hand the old exercise's history to the new one.
+Ids are assigned as `custom_<time>_<random>` (base 36, `nextCustomExerciseId()` in
+`src/utils/exerciseIds.ts`), never one already used by a live **or retired** custom. Customs sync
+between devices and merge into an account when a guest signs in, so an id must be unique across
+devices, not just on this one: a per-device counter would let two devices mint the same id, and
+sessions, PRs and the previous map key on the id, so one exercise would inherit the other's
+history. Customs created by older builds keep their `custom_<n>` ids; every custom is recognised by
+the `custom_` prefix alone.
 
 **Editing** is only possible for `custom_*` ids; catalog exercises cannot be edited.
 `/create-exercise?id=<id>` edits only when the id is a custom that exists
@@ -302,8 +310,9 @@ exercise straight into the live workout: appended in add mode, or swapped in for
 ### Normalization
 
 `normalizeExercise()` runs on add, update, and on read from storage, making the store tolerant of
-corrupt or older rows: invalid equipment values are stripped, a missing category is inferred from
-equipment (cable → machine → bodyweight → free_weight), a missing name falls back to the id,
+corrupt or older rows: invalid equipment values are stripped, a missing or unknown category is
+inferred from equipment (cable or band → machine → bodyweight → free_weight, matching the
+generator's band → Cable rule), a missing name falls back to the id,
 unknown muscle ids are stripped (like equipment), and if no valid muscle is left the row falls
 back to `['chest']` so it always has at least one. Blank instructions are dropped and present ones
 trimmed. Fields the app doesn't model (such as the server's `tracking_type`) are dropped. The name
@@ -458,7 +467,9 @@ Covered (Vitest):
   one equipment per row, Type follows equipment (with the listed exceptions), and equipment
   agrees with the equipment named in the exercise (Barbell/Dumbbell/Cable/Smith Machine…);
   the [muscle-tag conventions](#muscle-tags) (shin work tags tibialis, neck work neck, every row
-  rhomboids, no calves on squats, hamstrings lead straight-leg hinges, at most 7 tags)
+  rhomboids, no calves on squats, adductors on wide-stance squats / Cossacks / side lunges,
+  hamstrings lead straight-leg hinges, glutes on hip abduction, external rotations lead with rear
+  delts and internal with front delts, at most 7 tags)
 - `src/sync/catalogMerge.test.ts` — seed overlay (seed fields and instructions win, cached
   instructions kept when the seed has none, cache-only ids kept); `reconcileCatalogCache` (empty
   cache, missing `seedAppliedAt`, newer seed, current cache untouched, watermark never moves back);
@@ -468,7 +479,7 @@ Covered (Vitest):
 - `src/store/exercisesStore.test.ts` — load on the AsyncStorage harness: seed applied when the
   cache is empty / lacks `seedAppliedAt` / is older, current cache used as-is, refresh from the
   stored watermark, state set without waiting on the network; refresh merge + persist + watermark,
-  empty delta writes nothing, single in-flight pull; `getAllExercises` hides unpublished rows and
+  empty delta writes nothing, single in-flight pull, a concurrent load doesn't undo a refresh; `getAllExercises` hides unpublished rows and
   lists catalog then customs; custom add / update / remove (ids, normalization, instructions
   cleared, catalog ids not updatable, sync notifications, note deleted with the custom); a removed
   custom is retired (still resolvable, never listed, persisted) and its id never reused
@@ -481,7 +492,7 @@ Covered (Vitest):
   whole-string fuzzy, fuzzy limits by length, field bonuses, the 350 metadata cap, tie-break by
   name, empty query passthrough, abductor/adductor stems, cross-field name + metadata matches
   (420), the five whole-word abbreviations
-- `src/utils/exerciseNormalize.test.ts` — category inference order, invalid equipment and muscles
+- `src/utils/exerciseNormalize.test.ts` — category inference order (band → Cable), invalid equipment and muscles
   stripped, `['chest']` fallback only when nothing valid is left, name → id fallback,
   instructions trimmed/dropped, snake_case mapping with `tracking_type` and media columns dropped
 - `src/utils/exerciseLibraryFilter.test.ts` — Muscle groups (single Chest), Type / Muscle / query
@@ -497,7 +508,7 @@ Covered (Vitest):
 - `src/utils/noteDraft.test.ts` — `noteSaveState` unsaved / saved / empty, trimming
 - `src/utils/exerciseTitleCase.test.ts` — title-case helper including every lowercase word;
   every catalog name matches it
-- `src/utils/exerciseIds.test.ts` — custom id numbering; retired customs resolve after live ones; alias resolution, unpublished rows still
+- `src/utils/exerciseIds.test.ts` — custom id format (time + random, never a taken id); retired customs resolve after live ones; alias resolution, unpublished rows still
   resolving, unknown ids; catalog invariants
 - `packages/types/src/exercise.test.ts` — category enum completeness, equipment labels,
   `instructionSteps` (one step per line, blank lines and typed list markers dropped, a paragraph
@@ -510,11 +521,11 @@ Covered (Jest UI, `src/test/ui/exercises/`):
   (plural/singular), search, Type and Muscle chips (AND with the query, tapping an active chip
   clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" opening the
   prefilled form, + button, detail sheet content, notes (edited in the dialog: Save disabled until
-  changed, Save / backdrop save, Cancel discards, trim, delete on empty), instructions as a numbered list, View history shown only with logged sets and opening
+  changed, Save / backdrop save, Cancel discards, trim, delete on empty), instructions as a numbered list, the "See how it's done" link (catalog rows only), View history shown only with logged sets and opening
   progression, Edit opening the prefilled form, Delete with confirm and cancel, list
   updates after a delete
 - `createExercise.test.tsx` — validation and the missing-fields hint, the Shoulders shortcut
-  (all delts, partial `2/3`, clear), equipment chips per Type, save → `custom_<n>` and back, a
+  (all delts, partial `2/3`, clear), equipment chips per Type, save → a new `custom_` id and back, a
   catalog id opens an empty create form (no clone), editing in place (opens on Specific muscles
   for a partial area) and clearing instructions, auto-add / swap when created from the
   active-workout picker

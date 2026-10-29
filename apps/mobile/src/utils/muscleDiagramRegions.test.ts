@@ -131,31 +131,23 @@ describe('regionStatesToBodyData', () => {
   const states = { chest: 'justTrained', deltoids: 'recovering', quadriceps: 'ready' } as const;
 
   it('maps three states to palette indexes hot 1, warm 2, ready 3', () => {
-    expect(regionStatesToBodyData(states, true)).toEqual([
+    expect(regionStatesToBodyData(states)).toEqual([
       { slug: 'chest', intensity: 1 },
       { slug: 'deltoids', intensity: 2 },
       { slug: 'quadriceps', intensity: 3 },
     ]);
   });
 
-  it('maps two states to warm 1 (recovering or just trained) and ready 2', () => {
-    expect(regionStatesToBodyData(states, false)).toEqual([
-      { slug: 'chest', intensity: 1 },
-      { slug: 'deltoids', intensity: 1 },
-      { slug: 'quadriceps', intensity: 2 },
-    ]);
-  });
-
   it('leaves regions without a state out, so they keep the neutral fill', () => {
-    const data = regionStatesToBodyData(regionStatesForMuscles(['chest'], new Set(['chest']), new Set(['chest'])), true);
+    const data = regionStatesToBodyData(regionStatesForMuscles(['chest'], new Set(['chest']), new Set(['chest'])));
     expect(data).toEqual([{ slug: 'chest', intensity: 1 }]);
   });
 
   it('covers all 18 regions when built from every muscle (Recovery tab)', () => {
     const all = Object.keys(MUSCLE_GROUPS) as (keyof typeof MUSCLE_GROUPS)[];
-    const data = regionStatesToBodyData(regionStatesForMuscles(all, new Set(['lats']), new Set()), false);
+    const data = regionStatesToBodyData(regionStatesForMuscles(all, new Set(['lats']), new Set(['lats'])));
     expect(data).toHaveLength(18);
     expect(data.find((d) => d.slug === 'lats')?.intensity).toBe(1);
-    expect(data.filter((d) => d.intensity === 2)).toHaveLength(17);
+    expect(data.filter((d) => d.intensity === 3)).toHaveLength(17);
   });
 });

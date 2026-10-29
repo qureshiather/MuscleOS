@@ -77,6 +77,16 @@ describe('recoveryStore', () => {
     expect(setItem.mock.calls.filter(([k]) => k === STORAGE_KEYS.recovery)).toHaveLength(0);
   });
 
+  it('rewrites a stale stored copy even when the in-memory items already match', async () => {
+    const { storage, useRecoveryStore } = await load();
+    await storage.setSessions([finished('a', T0 - HOUR, 'barbell-row')]);
+    await useRecoveryStore.getState().load();
+    const items = useRecoveryStore.getState().items;
+    await storage.setRecovery([]);
+    await useRecoveryStore.getState().load();
+    expect(await storage.getRecovery()).toEqual(items);
+  });
+
   it('activeRecovery() drops muscles whose window has passed, without a recompute', async () => {
     const { storage, useRecoveryStore } = await load();
     // Bench press: triceps 36 h, front delts 48 h, chest 72 h.

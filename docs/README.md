@@ -21,6 +21,7 @@ and the product assumptions baked in.
 | [features/workout-logging.md](features/workout-logging.md) | Active workout, set logging, rest timers, notifications, finish flow |
 | [features/recovery.md](features/recovery.md) | Muscle recovery model, timings, body diagram |
 | [features/exercise-library.md](features/exercise-library.md) | Exercise catalog, custom exercises, search, notes |
+| [features/exercise-demos.md](features/exercise-demos.md) | Animated exercise demos: rendering, hosting, website and app links |
 | [features/history-analytics.md](features/history-analytics.md) | History, monthly calendar, PRs, 1RM, strength standards, progression |
 | [features/pricing.md](features/pricing.md) | Free forever: no tiers or purchases; Coaching as the future paid offering |
 | [features/accounts-and-data.md](features/accounts-and-data.md) | Auth, profile, settings, storage, cloud sync, export |

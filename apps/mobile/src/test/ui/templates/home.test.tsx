@@ -287,6 +287,16 @@ describe('sections', () => {
 });
 
 describe('Your workouts states', () => {
+  it('waits for settings too: no empty state flashes before the active program loads', async () => {
+    useSettingsStore.setState({ isLoading: true });
+    renderHome();
+    await waitFor(() => expect(useTemplatesStore.getState().isLoading).toBe(false));
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
+    act(() => useSettingsStore.setState({ activeProgramId: 'builtin_sl', isLoading: false }));
+    expect(await screen.findByTestId('your-workouts-program')).toBeTruthy();
+    expect(screen.queryByTestId('your-workouts-empty')).toBeNull();
+  });
+
   it('no program and no templates: the empty state and Browse programs, no program or My templates', async () => {
     renderHome();
     await ready();

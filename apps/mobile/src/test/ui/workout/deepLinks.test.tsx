@@ -96,6 +96,29 @@ describe('/active-workout start from params', () => {
     expect(r.getPathname()).toBe('/active-workout');
   });
 
+  test('waits for the saved workout to load, then leaves a running one untouched', async () => {
+    useActiveWorkoutStore.setState({ session: null, hydrated: false });
+    renderActive('/active-workout?templateId=ppl-push');
+    await flush();
+    expect(session()).toBeNull();
+    const running = createEmptySession('ppl-legs', [{ exerciseId: 'squat', sets: 3, warmUpSets: 0 }]);
+    act(() => useActiveWorkoutStore.setState({ session: running, hydrated: true }));
+    await flush();
+    expect(session()?.id).toBe(running.id);
+  });
+
+  test('when the workout ends without a finish (the 3 h stale close), the screen leaves instead of hanging on Loading', async () => {
+    const r = renderActive('/active-workout?templateId=ppl-push');
+    await waitFor(() => expect(session()).not.toBeNull());
+    // The stale close runs from the store (on foreground), not from this screen.
+    act(() => useActiveWorkoutStore.getState().discardWorkout());
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+    await waitFor(() => expect(r.getPathname()).toBe('/'));
+    expect(session()).toBeNull();
+  });
+
   test('a workout already in progress is untouched', async () => {
     const running = createEmptySession('ppl-push', [{ exerciseId: 'bench-press', sets: 3, warmUpSets: 0 }]);
     useActiveWorkoutStore.setState({ session: running, hydrated: true });

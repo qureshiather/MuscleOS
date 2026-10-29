@@ -83,7 +83,10 @@ export default function WorkoutsScreen() {
   const setTemplateHidden = useTemplatesStore((s) => s.setTemplateHidden);
   const isTemplateHidden = useTemplatesStore((s) => s.isTemplateHidden);
   const activeProgramId = useSettingsStore((s) => s.activeProgramId);
-  const isLoading = useTemplatesStore((s) => s.isLoading);
+  // The active program lives in settings, so wait for both before choosing the empty state.
+  const templatesLoading = useTemplatesStore((s) => s.isLoading);
+  const settingsLoading = useSettingsStore((s) => s.isLoading);
+  const isLoading = templatesLoading || settingsLoading;
   const loadSessions = useSessionsStore((s) => s.load);
   const sessions = useSessionsStore((s) => s.sessions);
   const ensureRecoveryLoaded = useRecoveryStore((s) => s.ensureLoaded);

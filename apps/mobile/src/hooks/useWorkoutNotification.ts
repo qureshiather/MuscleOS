@@ -13,6 +13,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { maybePromptForExactAlarms } from '@/utils/exactAlarmPermission';
 import {
   WORKOUT_NOTIFICATION_TITLES,
+  formatRestEndClock,
   restAlertAction,
   trayNotificationContent,
   workoutNotificationCopy,
@@ -42,13 +43,6 @@ const useNativeLiveNotification = isWorkoutLiveNotificationAvailable;
  * the clock time rest ends instead — it never goes stale and costs one write.
  */
 const canTickTrayCountdown = Platform.OS === 'android';
-
-function formatRestEndClock(restEndTime: number): string {
-  return new Date(restEndTime).toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 function getWorkoutNotificationCopy(session: WorkoutSession, restAfter: RestAfter | null) {
   const getExercise = useExercisesStore.getState().getExercise;
@@ -183,6 +177,7 @@ export function useWorkoutNotification() {
   const restAfter = useActiveWorkoutStore((s) => s.restAfter);
   const restTotalSeconds = useActiveWorkoutStore((s) => s.restTotalSeconds);
   const workoutSoundsEnabled = useSettingsStore((s) => s.workoutSoundsEnabled);
+  const workoutOpen = useActiveWorkoutStore((s) => s.workoutScreenOpen);
   const remainingSetsSignature =
     session?.exercises.map((se) => se.sets.filter((s) => !s.completed).length).join(',') ?? '';
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -222,8 +217,9 @@ export function useWorkoutNotification() {
           restEndTime: resting ? restEndTime : null,
           alertTitle: WORKOUT_NOTIFICATION_TITLES.restOver,
           alertBody: copy.alertBody,
-          // In the foreground the in-app sound handles it, so skip the OS alert.
-          alertEnabled: appState !== 'active',
+          // With the workout open in the foreground the in-app sound handles it; minimised, the OS
+          // alert announces the rest ending.
+          alertEnabled: appState !== 'active' || !workoutOpen,
           alertSound: workoutSoundsEnabled,
         });
       };
@@ -232,7 +228,7 @@ export function useWorkoutNotification() {
 
       const nativeSub = AppState.addEventListener('change', (nextState) => {
         appStateRef.current = nextState;
-        if (nextState === 'active') {
+        if (nextState === 'active' && workoutOpen) {
           void dismissWorkoutLiveAlert();
         }
         void syncNative(nextState);
@@ -268,8 +264,8 @@ export function useWorkoutNotification() {
 
     async function syncRestCompleteSchedule(appState: AppStateStatus) {
       const resting = restEndTime != null && restEndTime > Date.now();
-      // Foreground: in-app timer + sounds. Background: OS fires the alert.
-      const action = restAlertAction(resting, appState === 'active');
+      // Workout open in the foreground: in-app timer + sounds. Otherwise the OS fires the alert.
+      const action = restAlertAction(resting, appState === 'active', workoutOpen);
       if (action === 'keep') return;
       if (action === 'cancel') {
         await cancelRestCompleteNotification();
@@ -302,7 +298,7 @@ export function useWorkoutNotification() {
 
       if (nextState === 'active') {
         clearRefreshInterval();
-        void cancelRestCompleteNotification();
+        void syncRestCompleteSchedule(nextState);
         void refresh(!canTickTrayCountdown);
         startForegroundRefresh();
         return;
@@ -329,5 +325,6 @@ export function useWorkoutNotification() {
     remainingSetsSignature,
     restTotalSeconds,
     workoutSoundsEnabled,
+    workoutOpen,
   ]);
 }

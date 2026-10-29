@@ -1,5 +1,5 @@
-import type { Exercise, MuscleId, WorkoutTemplate } from '@muscleos/types';
-import { builtInProgram, programTemplates, type BuiltInProgram } from '@/data/builtInTemplates';
+import type { BuiltInProgram, Exercise, MuscleId, WorkoutTemplate } from '@muscleos/types';
+import { builtInProgram, programTemplates } from '@/data/builtInTemplates';
 import { resolveTemplateExercises } from '@/utils/templateExercises';
 
 /**
