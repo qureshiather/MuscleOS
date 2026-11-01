@@ -10,7 +10,7 @@ import {
   LayoutAnimation,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { fontScaleCap } from '@/theme/layout';

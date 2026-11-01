@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/theme/ThemeContext';
 import { useActiveWorkoutStore } from '@/store/activeWorkoutStore';
 import { TabBarWithResumePill } from '@/components/TabBarWithResumePill';

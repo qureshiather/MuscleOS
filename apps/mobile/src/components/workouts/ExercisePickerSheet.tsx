@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { formatMuscleLabels } from '@muscleos/types';
 import { SheetFrame } from '@/components/layout';
 import { PickerHeaderActions } from '@/components/PickerHeaderActions';

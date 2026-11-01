@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { type NavigationAction, usePreventRemove } from 'expo-router/react-navigation';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { WorkoutSession } from '@muscleos/types';
 import { Screen } from '@/components/layout';
 import { Card } from '@/components/ui/Card';

@@ -82,6 +82,11 @@ state.
 `src/components/`; colours come from `useTheme().colors`
 ([theming](../features/accounts-and-data.md#theming)).
 
+`src/theme/noBarrelFontImports.test.ts` fails on an import of `@expo/vector-icons` or an
+`@expo-google-fonts/*` package from its root, which bundles every icon font or font weight into
+the app (~5 MB). Import the family (`@expo/vector-icons/Ionicons`) or weight
+(`@expo-google-fonts/dm-sans/500Medium`).
+
 ## Known gaps
 
 Things the current setup can't reach; each spec's **Tests** section has the detail.
