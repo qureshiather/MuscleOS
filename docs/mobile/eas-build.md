@@ -269,7 +269,7 @@ cd apps/mobile
 eas build --platform ios --profile production --auto-submit
 
 # Android: build the AAB on this machine (no EAS build credits; needs JDK 17 + Android SDK)
-eas build --platform android --profile production --local --output ~/Downloads/muscleos-1.0.0-<versionCode>.aab
+eas build --platform android --profile production --local --output ~/Downloads/muscleos-<version>-<versionCode>.aab
 ```
 
 A local build still uses the remote upload keystore and the production env vars from EAS. Both
