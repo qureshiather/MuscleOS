@@ -548,7 +548,7 @@ Not imported: profile, recovery (recomputed), settings and biodata (not exported
 
 ## Build and release
 
-App name MuscleOS, version 1.0.0, portrait only, scheme `muscleos`. iOS bundle id
+App name MuscleOS, version 1.0.1, portrait only, scheme `muscleos`. iOS bundle id
 `com.muscle-os.app` and Android application id `app.muscleos` — they differ on purpose
 (`com.muscleos.app` was already taken on Google Play by another developer); see
 [mobile/eas-build.md](../mobile/eas-build.md). The Android Kotlin namespace stays `com.muscleos.app`;
