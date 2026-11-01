@@ -1,5 +1,5 @@
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { radius, spacing, touch } from '@/theme/tokens';

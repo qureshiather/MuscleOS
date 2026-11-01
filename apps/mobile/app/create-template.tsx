@@ -12,7 +12,7 @@ import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import type { MuscleId } from '@muscleos/types';
 import { formatMuscleLabels } from '@muscleos/types';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';

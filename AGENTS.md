@@ -158,7 +158,7 @@ apps/mobile/
 
 ### 8. Icons
 
-- `@expo/vector-icons` (Ionicons) — e.g. `Ionicons name="barbell-outline"`.
+- `@expo/vector-icons` (Ionicons) — e.g. `Ionicons name="barbell-outline"`. Import it as `import Ionicons from '@expo/vector-icons/Ionicons'`, never from the package root, which bundles every icon font (~4 MB); fonts likewise come from per-weight paths (`@expo-google-fonts/dm-sans/500Medium`). `src/theme/noBarrelFontImports.test.ts` enforces both.
 
 ### 9. Components
 

@@ -55,7 +55,7 @@ import { buildSessionPRs, templateDisplayName } from '@/utils/historyCards';
 import { type ShareCardModel, shareCardModel } from '@/utils/shareCard';
 import { ShareWorkoutSheet } from '@/components/share/ShareWorkoutSheet';
 import { useSessionsStore } from '@/store/sessionsStore';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { equipmentLabel, type MuscleId, type SessionExercise } from '@muscleos/types';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';

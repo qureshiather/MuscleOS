@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/theme/ThemeContext';
 import { Screen } from '@/components/layout';
 import { fontScaleCap, useClampedFontScale, useContentWidth, useScreenGutter } from '@/theme/layout';

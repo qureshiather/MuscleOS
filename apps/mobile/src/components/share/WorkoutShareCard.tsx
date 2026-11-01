@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { MuscleId } from '@muscleos/types';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { DarkThemeScope, useTheme } from '@/theme/ThemeContext';

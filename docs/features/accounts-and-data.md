@@ -652,6 +652,7 @@ Covered:
 - `src/theme/palette.test.ts` — semantic tokens and `blendOver` in both modes;
   `src/theme/nativeColorScheme.test.ts` — Dark and Light pin the OS scheme, Auto releases it;
   `src/theme/noHardcodedColors.test.ts` — no colour literals in screens or components;
+  `src/theme/noBarrelFontImports.test.ts` — icons and fonts imported per family or weight;
   `src/theme/tabBarLayout.test.ts` — tab bar sizing;
   `src/theme/denseRowLayout.test.ts` — set table columns grow with text and fit the screen width;
   `src/theme/sheetLayout.test.ts` — a modal's scroll region gives up its floor before the actions overflow
