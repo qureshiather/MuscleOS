@@ -1,8 +1,9 @@
 # Exercise demos
 
 Short looping animations of an exercise, with the muscles it works highlighted, published on the
-website's exercise pages, which the app links to. The clips live on **muscleos.app only**; the
-mobile app bundles no media and no list of which exercises have a demo.
+website's exercise pages and played inline in the app. The clips live in the Blob store only; the
+mobile app bundles no media and no list of which exercises have a demo — it streams the clip by
+id.
 
 | Area | Code |
 |------|------|
@@ -10,7 +11,7 @@ mobile app bundles no media and no list of which exercises have a demo.
 | Website data and search | `apps/landing/app/data/exercises.ts`, `exerciseText.ts` |
 | Demo player | `apps/landing/app/components/ExerciseDemo.tsx` |
 | Rendering pipeline | `apps/landing/scripts/build-exercise-animations.mjs`, `apps/landing/scripts/exercise-animations/` |
-| App link | `apps/mobile/src/utils/exerciseDemo.ts`, `src/components/ExerciseDetailSheet.tsx` |
+| App player and link | `apps/mobile/src/utils/exerciseDemo.ts`, `src/components/ExerciseDemo.tsx`, `src/components/ExerciseDetailSheet.tsx`, `src/components/workouts/ExercisePickerSheet.tsx` |
 
 ## Website
 
@@ -61,16 +62,37 @@ to the public domain under **CC0 1.0**: anyone may use them for anything, withou
 per-id ones), and every demo page states it. The instruction copy,
 name, logo, app and the rest of the site are not covered.
 
-## App link
+## App player
 
-The exercise detail sheet shows **See how it's done** directly under the body diagram for every
-published catalog exercise (`exercisePageUrl`). It opens `https://muscleos.app/exercises/<id>` in
-the in-app browser over the sheet, so it is offered everywhere the sheet is, mid-workout included.
-Custom exercises and unpublished catalog rows have no page and show no row.
+The app plays an exercise's demo inline at the top of its details — the
+[detail sheet](exercise-library.md#exercises-tab) (Exercises tab, mid-workout, template editor)
+and the [exercise picker's](exercise-library.md#exercise-pickers) detail view — so you don't have
+to open the website. `ExerciseDemo` (`expo-video`) loops the clip muted, with no controls, mixed
+with any audio already playing (music keeps going), in a square on the card colour of the app's
+theme, using the clip rendered for that theme (`exerciseDemoVideoUrl()`: `<id>-dark.mp4` /
+`<id>-light.mp4`). The demo takes the place of the exercise's body figures, which show only when
+there is no demo. With Reduce Motion on, nothing autoplays: the clip stays paused behind a play
+button.
 
-Because every published exercise has a page, the app needs no list of which demos exist: a new
-demo appears behind the existing link as soon as the website deploys. Until an exercise has one,
-its page shows "Demo coming soon" with the same how-to as the app.
+**Caching.** A clip is downloaded once into the app's cache folder (`exercise-demos/<id>-<theme>.mp4`)
+and played from there (`cachedDemoUri()` in `src/utils/demoCache.ts`), so opening an exercise again
+makes no request. A cached clip is reused for 30 days (`DEMO_CACHE_MAX_AGE_MS`), then fetched again
+so a re-rendered demo (uploaded over the same URL) reaches the app; if that refresh fails the old
+copy keeps playing. Two players asking for the same clip share one download. A spinner shows while
+a clip downloads. The OS may clear the cache folder when storage runs low.
+
+**Posters.** The [exercise picker](exercise-library.md#exercise-pickers)'s grid shows each
+exercise's still poster (`exerciseDemoPosterUrl()`, `<id>-<theme>.webp`, a few KB) rather than a
+playing clip per card; the clip plays once you open the exercise. Posters load through React
+Native's image cache, which honours Blob's one-day `max-age` and revalidates by ETag after that.
+A poster that can't load shows the body figures.
+
+Every published catalog exercise gets a player; the app keeps no list of demos. A clip that can't
+be fetched (offline with no cached copy, or an exercise published before its demo was rendered)
+shows the body figures instead. Custom exercises and unpublished rows have no demo.
+`DEMO_BASE_URL` in `exerciseDemo.ts` must match the website's `exerciseDemoStore.json` (tested),
+and every published exercise in the bundled seed must have a rendered demo (tested), so a new
+catalog exercise ships with its demo.
 
 ## Hosting
 
@@ -213,11 +235,18 @@ A runbook for changing, adding or re-rendering demos. Commands run from `apps/la
   two instruction steps per row, and the one-line instructions summary for the meta description.
 - `apps/landing/scripts/blob-write-guard.test.mjs`: batches over 200 files need `--allow-writes`
   covering them; flag parsing.
-- `apps/mobile/src/utils/exerciseDemo.test.ts`: a page link for every published catalog
-  exercise, none for customs or unpublished rows.
-- `apps/mobile/src/test/ui/exercises/exercisesTab.test.tsx`: the detail sheet row opens the
-  website page in the in-app browser and is absent for a custom exercise.
-- Not covered by automated tests: that every published catalog exercise has a demo (the reverse is
-  tested; "Demo coming soon" covers a gap), and that the Python choreography ids match the catalog.
+- `apps/mobile/src/utils/exerciseDemo.test.ts`: themed clip and poster URLs for every published catalog
+  exercise, none for customs or unpublished rows; the app's Blob folder matches the website's;
+  every published exercise in the bundled seed has a rendered demo; the cache file name and the
+  30-day freshness rule.
+- `apps/mobile/src/test/ui/workout/picker.test.tsx`: the picker's cards show the poster (figures
+  for customs) and its detail view shows the demo.
+- `apps/mobile/src/test/ui/exercises/exercisesTab.test.tsx`: the detail sheet plays the demo in
+  place of the body figures, shows the figures for a custom exercise and when the clip can't be
+  fetched, and has no "See how it's done" link.
+- Not covered by automated tests: that exercises published later by a server delta have a demo
+  (the player hides itself; "Demo coming soon" covers the website), that the Python choreography
+  ids match the catalog, the inline playback and the file cache themselves (`expo-video` and
+  `cachedDemoUri` are mocked in Jest).
 - Not covered by automated tests: the rendered animations themselves. Review them with `--check`
   and by watching the clips.

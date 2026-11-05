@@ -13,7 +13,8 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import type { MuscleId } from '@muscleos/types';
 import { formatMuscleLabels } from '@muscleos/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { ExerciseMuscleFigures } from '@/components/ExerciseMuscleFigures';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -80,6 +81,8 @@ export default function CreateTemplateScreen() {
   /** **Edit all rests** dialog. */
   const [restForAll, setRestForAll] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  /** Exercise whose details are open (tap a card). */
+  const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -92,7 +95,6 @@ export default function CreateTemplateScreen() {
       ...prev,
       { exerciseId: id, sets: DEFAULT_SETS_PER_EXERCISE, warmUpSets: 0 },
     ]);
-    setPickerSearch('');
   }
 
   function removeExerciseId(id: string) {
@@ -259,6 +261,20 @@ export default function CreateTemplateScreen() {
               </>
             )}
 
+            {templateMuscleIds.length > 0 && (
+              <Card style={styles.musclesSection} testID="template-muscles-used">
+                <ExerciseMuscleFigures muscles={templateMuscleIds} width={56} gap={4} even />
+                <View style={styles.musclesText}>
+                  <Text style={[typography.caption, styles.sectionLabel, { color: colors.textMuted }]}>
+                    Muscles used
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                    {formatMuscleLabels(templateMuscleIds)}
+                  </Text>
+                </View>
+              </Card>
+            )}
+
             <View style={styles.exercisesHeader}>
               <View style={styles.exercisesHeaderText}>
                 <Text style={[typography.label, { color: colors.textSecondary }]}>Exercises</Text>
@@ -283,7 +299,7 @@ export default function CreateTemplateScreen() {
             </View>
             {canReorder ? (
               <Text style={[typography.caption, styles.reorderHint, { color: colors.textMuted }]}>
-                Hold and drag to rearrange
+                Hold and drag to rearrange · tap for details
               </Text>
             ) : null}
             {selectedIds.length === 0 ? (
@@ -322,18 +338,6 @@ export default function CreateTemplateScreen() {
               <Text style={[typography.button, { color: colors.primary }]}>Add exercises</Text>
             </Pressable>
 
-            {templateMuscleIds.length > 0 && (
-              <Card style={styles.musclesSection}>
-                <Text style={[typography.caption, styles.sectionLabel, { color: colors.textMuted }]}>
-                  Muscles used
-                </Text>
-                <MuscleDiagram muscleIds={templateMuscleIds} size={0.85} />
-                <Text style={[typography.caption, styles.muscleNames, { color: colors.textSecondary }]}>
-                  {formatMuscleLabels(templateMuscleIds)}
-                </Text>
-              </Card>
-            )}
-
             <PrimaryButton
               label={
                 saving
@@ -363,8 +367,12 @@ export default function CreateTemplateScreen() {
                 ]}
               >
                 <Pressable
+                  onPress={() => setInfoExerciseId(item.exerciseId)}
                   onLongPress={canReorder ? drag : undefined}
                   delayLongPress={120}
+                  accessibilityRole="button"
+                  accessibilityHint={canReorder ? 'Shows its muscles. Hold to drag.' : 'Shows its muscles'}
+                  testID={`template-exercise-open-${item.exerciseId}`}
                   style={styles.cardHeader}
                 >
                   {canReorder ? (
@@ -472,11 +480,17 @@ export default function CreateTemplateScreen() {
           search={pickerSearch}
           onSearchChange={setPickerSearch}
           onPick={addExerciseId}
+          onUnpick={removeExerciseId}
           onCreate={() => createExercise(pickerSearch.trim())}
-          showMuscles
+          coverage={{ muscleIds: templateMuscleIds, exerciseCount: selected.length }}
           onClose={closePicker}
         />
       ) : null}
+
+      <ExerciseDetailSheet
+        exercise={infoExerciseId ? (getExercise(infoExerciseId) ?? null) : null}
+        onClose={() => setInfoExerciseId(null)}
+      />
     </Screen>
     </GestureHandlerRootView>
   );
@@ -680,14 +694,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   musclesSection: {
-    marginBottom: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
+  musclesText: { flex: 1, minWidth: 0, gap: spacing.xs },
   sectionLabel: {
     fontFamily: typography.label.fontFamily,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginBottom: spacing.md,
   },
-  muscleNames: { marginTop: spacing.sm, textAlign: 'center' },
 });

@@ -210,19 +210,21 @@ export default function WorkoutPreviewScreen() {
                       {previousLine}
                     </Text>
                   ) : null}
-                  <View
-                    style={[
-                      styles.restBadge,
-                      {
-                        backgroundColor: colors.primarySurface,
-                        borderColor: colors.primaryBorder,
-                      },
-                    ]}
-                  >
-                    <Ionicons name="timer-outline" size={12} color={colors.primary} />
-                    <Text style={[styles.restBadgeText, { color: colors.primary }]}>
-                      {formatPreviewRest(plan[index], defaultRestSeconds)}
-                    </Text>
+                  <View style={styles.restBadges}>
+                    {formatPreviewRest(plan[index], defaultRestSeconds).map((line, i) => (
+                      <View
+                        key={line}
+                        style={[
+                          styles.restBadge,
+                          { backgroundColor: colors.primarySurface, borderColor: colors.primaryBorder },
+                        ]}
+                      >
+                        <Ionicons name={i === 0 ? 'timer-outline' : 'flame-outline'} size={12} color={colors.primary} />
+                        <Text style={[styles.restBadgeText, { color: colors.primary }]} numberOfLines={1}>
+                          {line}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 </View>
               </View>
@@ -292,12 +294,11 @@ const styles = StyleSheet.create({
   exerciseIndex: { width: 28, marginRight: spacing.md, marginTop: 2 },
   exerciseMain: { flex: 1 },
   previous: { marginTop: spacing.sm - 2, fontFamily: typography.data.fontFamily },
+  restBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2, marginTop: spacing.sm },
   restBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     gap: 4,
-    marginTop: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 999,

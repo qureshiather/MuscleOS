@@ -136,7 +136,7 @@ test('replace swaps the exercise and keeps its sets', async () => {
   expect(await screen.findByText('Replace exercise')).toBeTruthy();
   expect(screen.queryByTestId('picker-new-exercise')).toBeNull();
   fireEvent.changeText(screen.getByTestId('picker-search'), 'front squat');
-  press('picker-row-front-squat');
+  press('picker-add-front-squat');
   press('edit-session-save');
   await waitFor(async () => expect((await getSessions())[0].exercises[0].exerciseId).toBe('front-squat'));
   expect((await getSessions())[0].exercises[0].sets.map((s) => s.weightKg)).toEqual([800, 100]);
@@ -146,7 +146,7 @@ test('remove exercise asks first; add exercise needs reps before Save', async ()
   await openEditor();
   press('edit-add-exercise');
   fireEvent.changeText(await screen.findByTestId('picker-search'), 'deadlift');
-  press('picker-row-deadlift');
+  press('picker-add-deadlift');
   expect(screen.getByText('Every set needs reps.')).toBeTruthy();
   press('edit-reps-1-0');
   press('keypad-key-5');

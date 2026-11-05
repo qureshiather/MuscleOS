@@ -6,8 +6,6 @@ import { useSessionsStore } from '@/store/sessionsStore';
 import { resetAppState } from '../render';
 import { exercise, renderExercises, seedExercises } from './helpers';
 
-jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }));
-const { openBrowserAsync } = jest.requireMock('expo-web-browser') as { openBrowserAsync: jest.Mock };
 
 jest.mock('@/sync', () => ({
   notifyCustomExerciseUpsert: jest.fn(),
@@ -177,7 +175,9 @@ describe('detail sheet', () => {
     expect(screen.getByText('Press it back up')).toBeTruthy();
     expect(screen.getByText('1.')).toBeTruthy();
     expect(screen.getByText('2.')).toBeTruthy();
-    expect(screen.getByText('Chest, Triceps')).toBeTruthy();
+    // The first-listed muscle is the main one; the rest are what it also works.
+    expect(screen.getByTestId('exercise-detail-main-muscle')).toHaveTextContent('Main: Chest');
+    expect(screen.getByText('Also works: Triceps')).toBeTruthy();
     // Bench Press and Back Squat rows, plus the sheet.
     expect(screen.getAllByText('Free Weight · Barbell').length).toBe(3);
     expect(screen.getByText('Your notes')).toBeTruthy();
@@ -220,16 +220,27 @@ describe('detail sheet', () => {
     expect(screen.getByText('lever 5')).toBeTruthy();
   });
 
-  it('links catalog exercises to their website page, customs to nothing', async () => {
+  it('plays the demo for catalog exercises in place of the body figures; customs show the figures', async () => {
     renderExercises();
     fireEvent.press(await screen.findByText('Pec Deck'));
-    fireEvent.press(await screen.findByTestId('exercise-detail-demo'));
-    expect(openBrowserAsync).toHaveBeenCalledWith('https://muscleos.app/exercises/pec-deck');
+    expect(await screen.findByLabelText('Animated demo of Pec Deck')).toBeTruthy();
+    expect(screen.queryByLabelText('male-body-front')).toBeNull();
+    expect(screen.queryByText('See how it’s done')).toBeNull();
     fireEvent.press(screen.getByText('Close'));
 
     fireEvent.press(await screen.findByText('Landmine Press'));
     await screen.findByText('Your notes');
-    expect(screen.queryByTestId('exercise-detail-demo')).toBeNull();
+    expect(screen.queryByTestId('exercise-demo')).toBeNull();
+    expect(screen.getByLabelText('male-body-front')).toBeTruthy();
+  });
+
+  it('falls back to the body figures when the clip can’t be fetched', async () => {
+    const { cachedDemoUri } = jest.requireMock('@/utils/demoCache') as { cachedDemoUri: jest.Mock };
+    cachedDemoUri.mockRejectedValueOnce(new Error('offline'));
+    renderExercises();
+    fireEvent.press(await screen.findByText('Pec Deck'));
+    expect(await screen.findByLabelText('male-body-front')).toBeTruthy();
+    expect(screen.queryByTestId('exercise-demo')).toBeNull();
   });
 
   it('links to the exercise history only once it has logged sets', async () => {

@@ -20,17 +20,18 @@ export function formatRestDuration(totalSeconds: number): string {
 }
 
 /**
- * The card's rest badge: the slot's work-set rest (the user's default when the template doesn't
- * set one), plus the warm-up rest when there is one. `0:00` means no timer.
+ * The card's rest badges: the slot's work-set rest (the user's default when the template doesn't
+ * set one), then the warm-up rest when there is one — each its own badge, so the pair wraps
+ * cleanly on a narrow card. `0:00` means no timer.
  */
 export function formatPreviewRest(
   ex: Pick<ResolvedTemplateExercise, 'restBetweenSetsSeconds' | 'warmUpRestSeconds'> | undefined,
   defaultRest: number = DEFAULT_REST_SECONDS
-): string {
+): string[] {
   const work = ex?.restBetweenSetsSeconds ?? defaultRest;
   const warmUp = ex?.warmUpRestSeconds ?? 0;
   const workLine = work > 0 ? `${formatRestDuration(work)} rest between sets` : 'No rest timer';
-  return warmUp > 0 ? `${workLine} · ${formatRestDuration(warmUp)} after warm-ups` : workLine;
+  return warmUp > 0 ? [workLine, `${formatRestDuration(warmUp)} after warm-ups`] : [workLine];
 }
 
 /**

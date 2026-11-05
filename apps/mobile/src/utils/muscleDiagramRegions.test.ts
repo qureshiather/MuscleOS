@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BODY_FIGURES } from '@/data/bodyFigures';
 import {
   focusRegions,
+  mainAndAlsoBodyData,
   MUSCLE_ID_TO_DIAGRAM_REGION,
   musclesOnView,
   regionStatesByView,
@@ -149,5 +150,30 @@ describe('regionStatesToBodyData', () => {
     expect(data).toHaveLength(18);
     expect(data.find((d) => d.slug === 'lats')?.intensity).toBe(1);
     expect(data.filter((d) => d.intensity === 3)).toHaveLength(17);
+  });
+});
+
+describe('mainAndAlsoBodyData', () => {
+  it('lights the first-listed muscle at 1 and the rest at 2', () => {
+    expect(mainAndAlsoBodyData(['chest', 'triceps'], 'front')).toEqual([
+      { slug: 'chest', intensity: 1 },
+      { slug: 'triceps', intensity: 2 },
+    ]);
+  });
+
+  it('keeps a region shared with the main muscle as main', () => {
+    expect(mainAndAlsoBodyData(['side_delts', 'front_delts'], 'front')).toEqual([{ slug: 'deltoids', intensity: 1 }]);
+  });
+
+  it('pins front and rear delts to their own view', () => {
+    expect(mainAndAlsoBodyData(['rear_delts', 'rhomboids'], 'front')).toEqual([{ slug: 'upper-back', intensity: 2 }]);
+    expect(mainAndAlsoBodyData(['lats', 'rear_delts'], 'back')).toEqual([
+      { slug: 'lats', intensity: 1 },
+      { slug: 'deltoids', intensity: 2 },
+    ]);
+  });
+
+  it('is empty with no muscles', () => {
+    expect(mainAndAlsoBodyData([], 'front')).toEqual([]);
   });
 });

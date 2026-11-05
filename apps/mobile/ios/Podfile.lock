@@ -122,6 +122,8 @@ PODS:
     - ExpoModulesCore
     - ExpoModulesWorklets
     - React-RCTFabric
+  - ExpoVideo (57.0.5):
+    - ExpoModulesCore
   - ExpoWebBrowser (57.0.3):
     - ExpoModulesCore
   - FBLazyVector (0.86.3)
@@ -2441,6 +2443,7 @@ DEPENDENCIES:
   - "ExpoSplashScreen (from `../../../node_modules/.pnpm/expo-splash-screen@57.0.10_expo@57.0.28_typescript@7.0.2/node_modules/expo-splash-screen/ios`)"
   - "ExpoSymbols (from `../../../node_modules/.pnpm/expo-symbols@57.0.3_expo-font@57.0.4_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@rea_l7tsi3hh647jjsrupyzadk7zji/node_modules/expo-symbols/ios`)"
   - "ExpoUI (from `../../../node_modules/.pnpm/@expo+ui@57.0.23_@babel+core@7.29.0_@types+react-dom@19.2.3_@types+react@19.2.14__@types+reac_xobihr4k36ppb3ddyo7wvk5rbe/node_modules/@expo/ui/ios`)"
+  - "ExpoVideo (from `../../../node_modules/.pnpm/expo-video@57.0.5_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jest-pres_4qeau2rrgim56tmqde4idjywoe/node_modules/expo-video/ios/ExpoVideo.podspec`)"
   - "ExpoWebBrowser (from `../../../node_modules/.pnpm/expo-web-browser@57.0.3_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jes_yiulp2x3goawjeb6ty5ovmbday/node_modules/expo-web-browser/ios`)"
   - "FBLazyVector (from `../../../node_modules/.pnpm/react-native@0.86.3_@babel+core@7.29.0_@react-native+jest-preset@0.86.3_@babel+core@7.29.0_re_5jjm5xef5nzczhsrtcvlnhwga4/node_modules/react-native/Libraries/FBLazyVector`)"
   - "hermes-engine (from `../../../node_modules/.pnpm/react-native@0.86.3_@babel+core@7.29.0_@react-native+jest-preset@0.86.3_@babel+core@7.29.0_re_5jjm5xef5nzczhsrtcvlnhwga4/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)"
@@ -2594,6 +2597,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-symbols@57.0.3_expo-font@57.0.4_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@rea_l7tsi3hh647jjsrupyzadk7zji/node_modules/expo-symbols/ios"
   ExpoUI:
     :path: "../../../node_modules/.pnpm/@expo+ui@57.0.23_@babel+core@7.29.0_@types+react-dom@19.2.3_@types+react@19.2.14__@types+reac_xobihr4k36ppb3ddyo7wvk5rbe/node_modules/@expo/ui/ios"
+  ExpoVideo:
+    :podspec: "../../../node_modules/.pnpm/expo-video@57.0.5_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jest-pres_4qeau2rrgim56tmqde4idjywoe/node_modules/expo-video/ios/ExpoVideo.podspec"
   ExpoWebBrowser:
     :path: "../../../node_modules/.pnpm/expo-web-browser@57.0.3_expo@57.0.28_react-native@0.86.3_@babel+core@7.29.0_@react-native+jes_yiulp2x3goawjeb6ty5ovmbday/node_modules/expo-web-browser/ios"
   FBLazyVector:
@@ -2786,7 +2791,7 @@ SPEC CHECKSUMS:
   ExpoKeepAwake: 72af0b3be3615e59bc819d26061ff4e06b155ee0
   ExpoLinking: d6e69c2972e62a9c439e021d0ece176d301d0574
   ExpoLogBox: 80957303325cd4439137765c90a87d7f22aaf2ff
-  ExpoModulesCore: fe774d7882587bd67f248e7f05b309b040f6b3d2
+  ExpoModulesCore: 2aaa4a6e5a8220af357684da82d7e6839826adeb
   ExpoModulesJSI: b767422763350d2b248fb218f71bbb286fd2ee77
   ExpoModulesWorklets: 1fb83b3dfe735f8c940ce8a69ca2904f164e888b
   ExpoModulesWorkletsAdapter: 441a3f1e634c4a354f9db7a4d31b77954945776b
@@ -2797,6 +2802,7 @@ SPEC CHECKSUMS:
   ExpoSplashScreen: 856060f5724dc4fca4d69a2d18a161e3baa37019
   ExpoSymbols: 37a3a6e5847edb08b83a5ee04d3b46525e205f00
   ExpoUI: 5279039354f0c6fbae840b61153f78f9224cd1be
+  ExpoVideo: 31d5dc617d913808aeba05c3ab900712637b0e47
   ExpoWebBrowser: a4d7c382116fbe33c1ec7f60293f02b7e97042e4
   FBLazyVector: 2138c6c2ab66c31bf5754dc18097fbc498a49c7f
   GoogleSignIn: e449a40a92e9f2eea56e98b5214d13725dc5a00a

@@ -39,7 +39,7 @@ async function open(params = '') {
 async function addExercise(name: string) {
   fireEvent.press(screen.getByText('Add exercises'));
   fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), name);
-  fireEvent.press(await screen.findByText(name));
+  fireEvent.press(await screen.findByLabelText(`Add ${name}`));
   fireEvent.press(screen.getByText('Done'));
 }
 
@@ -87,7 +87,7 @@ describe('create', () => {
     expect(screen.getByLabelText('3 Sets')).toBeTruthy();
     expect(screen.getByLabelText('0 Warm-ups')).toBeTruthy();
     // One exercise: no reorder hint.
-    expect(screen.queryByText('Hold and drag to rearrange')).toBeNull();
+    expect(screen.queryByText('Hold and drag to rearrange · tap for details')).toBeNull();
     // Muscles used appears once exercises resolve.
     expect(screen.getByText('Muscles used')).toBeTruthy();
 
@@ -149,7 +149,7 @@ describe('create', () => {
     fireEvent.press(screen.getByText('Folder A'));
     await addExercise('Bench Press');
     await addExercise('Barbell Squat');
-    expect(screen.getByText('Hold and drag to rearrange')).toBeTruthy();
+    expect(screen.getByText('Hold and drag to rearrange · tap for details')).toBeTruthy();
     fireEvent.press(screen.getAllByLabelText('Increase Sets')[1]);
     fireEvent.press(screen.getAllByLabelText('Increase Warm-ups')[1]);
     fireEvent.press(screen.getByText('Save template'));
@@ -163,6 +163,52 @@ describe('create', () => {
       exerciseIds: ['bench-press', 'squat'],
       exercises: [{ exerciseId: 'bench-press' }, { exerciseId: 'squat', sets: 4, warmUpSets: 1 }],
     });
+  });
+});
+
+describe('add exercise picker (MUS-181)', () => {
+  it('stays open after +, shows the added row with a check and a count on Done, and the check undoes it', async () => {
+    await open();
+    await screen.findByText('New template');
+    fireEvent.press(screen.getByText('Add exercises'));
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'Bench Press');
+    fireEvent.press(await screen.findByLabelText('Add Bench Press'));
+    // Still open, the row stays listed as added.
+    expect(screen.getByTestId('picker-search')).toBeTruthy();
+    expect(screen.getByLabelText('Added Bench Press, tap to remove')).toBeTruthy();
+    expect(screen.getByLabelText('Done, 1 added')).toBeTruthy();
+    expect(screen.getByTestId('picker-coverage')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Added Bench Press, tap to remove'));
+    expect(screen.queryByTestId('picker-done-count')).toBeNull();
+    fireEvent.press(screen.getByText('Done'));
+    expect(screen.getByText('No exercises yet')).toBeTruthy();
+  });
+
+  it('New muscles only hides exercises whose main muscle the template already trains', async () => {
+    await open();
+    await screen.findByText('New template');
+    await addExercise('Bench Press');
+    fireEvent.press(screen.getByText('Add exercises'));
+    fireEvent.changeText(screen.getByPlaceholderText('Search exercises...'), 'incline bench');
+    expect(screen.getByTestId('picker-row-incline-bench')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('picker-filter-new-muscles'));
+    expect(screen.queryByTestId('picker-row-incline-bench')).toBeNull();
+  });
+
+  it('tapping an exercise card opens its details', async () => {
+    await open();
+    await screen.findByText('New template');
+    await addExercise('Bench Press');
+    fireEvent.press(screen.getByTestId('template-exercise-open-bench-press'));
+    expect(await screen.findByTestId('exercise-detail-main-muscle')).toBeTruthy();
+    fireEvent.press(screen.getByText('Close'));
+  });
+
+  it('shows Muscles used above the exercises', async () => {
+    await open();
+    await screen.findByText('New template');
+    await addExercise('Bench Press');
+    expect(screen.getByTestId('template-muscles-used')).toBeTruthy();
   });
 });
 

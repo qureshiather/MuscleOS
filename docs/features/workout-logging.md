@@ -365,6 +365,9 @@ built-in template. Saving the changed session as a new template is how a built-i
 The exercise picker (`pickerResults`) searches the full catalog plus your customs, **leaving out
 every exercise already in the workout** — in both Add and Replace mode — so a workout never holds
 the same exercise twice (the store's `addExercise` / `replaceExercise` refuse a duplicate too).
+Rows open the exercise's details on tap and add (or swap in) from their **+** button, with
+muscle, type and equipment filters ([exercise pickers](exercise-library.md#exercise-pickers));
+a pick here closes the picker.
 Whenever the search box has text the picker also offers **Create "<query>"**, so a missing movement can be added even when the search has partial matches. The header's **+ New** (beside Done) opens the same form at any time, blank when the search is empty.
 When a search with text finds nothing, "No matching exercises" shows above the Create row; an
 empty search shows neither. It routes to `/create-exercise` pre-filled with
@@ -521,7 +524,7 @@ the real router.
   wrap-around), alert copy, titles, `restAlertAction` with the workout minimised, `trayNotificationContent` (`Rest until <clock> • …` vs
   `Rest m:ss • …`), `formatRestEndClock` (hours and minutes of the end time), and `restAlertAction`
   (schedule / cancel / keep after a background rest end)
-- `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and `pickerFooter`
+- `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion and filters, `pickerFooter`
 - `src/utils/formatClock.test.ts` — the shared `m:ss` formatter
 - `src/storage/localStorage.activeWorkout.test.ts` — persist/resume round-trip and guards
 - `src/utils/workoutStart.test.ts` — `startFromParamsDecision` (waits for hydration, templates and a
@@ -546,7 +549,9 @@ the real router.
   handing a 1080×1920 PNG to the share sheet), Save as template attributing the session to the new template,
   and the cancel dialog (no fact line vs `m:ss · N sets`, Keep,
   Discard)
-- `picker.test.tsx` — exclusion of exercises already in the workout, adding a row, Create row with
+- `picker.test.tsx` — exclusion of exercises already in the workout, posters on catalog cards and
+  figures on customs, + adding and closing, a card tap opening details (Back, Add from the details), filters and Clear filters, no coverage strip
+  or New muscles only, Create row with
   and without matches, "No matching exercises", routing to `/create-exercise` (Create row and
   header + New, blank or prefilled)
 - `deepLinks.test.tsx` — starting from route params for a built-in (own plan, or the link's),

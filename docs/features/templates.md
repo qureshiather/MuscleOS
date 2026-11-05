@@ -303,11 +303,16 @@ Flow:
 
 1. **Template name** — required text input, placeholder "e.g. Push A".
 2. **Folder** — chips (**None** plus each folder), shown only if folders exist.
-3. **Exercises** — a header with the plan's size in mono (`3 exercises · 15 sets`,
+3. **Muscles used** — a card with front and back figures of every muscle the selected exercises
+   list, and their names, shown once at least one muscle resolves. It sits above the exercises so
+   you see what the template trains while you build it.
+4. **Exercises** — a header with the plan's size in mono (`3 exercises · 15 sets`,
    `planSizeLabel()`) and, once there is an exercise, an **Edit all rests** button. Below it, one card
    per exercise ("No exercises yet" when empty), styled like the workout screen's cards (border, and
-   a soft shadow in light mode). With more than one, the hint "Hold and drag to rearrange" shows and
-   a long-press on a card's header (with its handle) drag-reorders. Each card's header has the
+   a soft shadow in light mode). With more than one, the hint "Hold and drag to rearrange · tap for
+   details" shows and a long-press on a card's header (with its handle) drag-reorders. Tapping a
+   card's header opens the exercise's [detail sheet](exercise-library.md#exercises-tab) (no
+   Edit/Delete or history link). Each card's header has the
    exercise name, a pill for its first-listed muscle, and a remove button; below a hairline,
    **Sets** (default 3, min 1) and **Warm-ups** (default 0, min 0) steppers with no maximum, and a
    **Rest** button. Those counts become the blank rows created when the workout starts — warm-ups
@@ -323,13 +328,14 @@ Flow:
    on every exercise in this template. You can still change one afterwards. 0:00 means no timer."
    Applying sets that work and warm-up rest on every exercise
    (`applyRestToAll()`); one exercise can still be changed afterwards.
-4. **Add exercises** — the shared "Add exercise" sheet ([exercise pickers](exercise-library.md#exercise-pickers)),
-   search "Search exercises...", each row with its muscles; tapping adds and the sheet stays open
-   (**Done** closes it). Exercises already in the template are left out of the list. Whenever the
-   search has text it offers **Create "<query>"**, which routes to `/create-exercise`; a search
-   with no match reads "No matching exercises". New exercises start at 3 working sets and 0 warm-ups.
-5. **Muscles used** — body diagram and labels derived from the selected exercises, shown once at
-   least one muscle resolves.
+5. **Add exercises** — the shared full-screen "Add exercise" picker
+   ([exercise pickers](exercise-library.md#exercise-pickers)), search "Search exercises...", with
+   the **Template so far** strip and the **New muscles only** filter. A row's **+** adds and the
+   picker stays open (**Done** closes it, counting what was added); the added row turns into a
+   check that takes it back out. Tapping a row opens its details first. Exercises already in the
+   template when the picker opened are left out of the list. Whenever the search has text it offers
+   **Create "<query>"**, which routes to `/create-exercise`; a search with no match reads "No
+   matching exercises". New exercises start at 3 working sets and 0 warm-ups.
 6. **Save** — creates `tpl_<timestamp>_<random>` with `isBuiltIn: false`, or updates the template
    in place, then goes back (`buildTemplateSave()` in `src/utils/templateDraft.ts`).
 
@@ -366,10 +372,11 @@ template. Built-ins (and unresolved ids) have no Edit button. Under the title, a
 exercise with its two-digit index, name, muscle labels, the template's set prescription
 (`3 sets` or `2 warm-ups · 5 sets`), **Previous** (`Previous: <weight> × <reps>` in the display
 unit, from the best weighted set in the most recent qualifying session; reps are dropped when
-unknown, and the line is **omitted** when there is no previous), and a rest badge with the
-exercise's rest from the template — your Default rest when it has none (`2:00 rest between sets`
-at the stock default), `No rest timer` for 0:00,
-plus `· 0:45 after warm-ups` when warm-ups have a rest (`formatPrevious()` / `formatPreviewRest()`
+unknown, and the line is **omitted** when there is no previous), and rest badges with the
+exercise's rest from the template — a timer badge with your Default rest when it has none
+(`2:00 rest between sets` at the stock default) or `No rest timer` for 0:00, plus a second badge
+`0:45 after warm-ups` when warm-ups have a rest. The badges sit side by side and wrap to a second
+line as whole badges on a narrow card (`formatPrevious()` / `formatPreviewRest()`
 in `src/utils/workoutPreview.ts`).
 
 Guards on entry: missing template id or exercises → "Missing workout details"; an in-progress
@@ -527,7 +534,7 @@ Covered:
   fresh install starts on Strong Lifts; a removed program is stored as `none` and stays removed)
   defaults to none, round-trips, rejects blank/unknown ids, survives an older build's payload, and a
   pending local choice (none included) wins the merge
-- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, header + New routing to the exercise builder, Create
+- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, the picker staying open with the added row checked, Done's count and the check undoing the add, the Template so far strip, New muscles only, a card tap opening the detail sheet, Muscles used above the exercises, header + New routing to the exercise builder, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
   folder and plan, the plan size line, Rest button (2:00 default, set with the time pad, saved on
   the slot; Off prefilled on edit), Edit all rests (an unset rest shows the user's default, applied
