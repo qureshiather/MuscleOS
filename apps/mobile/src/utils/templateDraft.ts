@@ -70,3 +70,25 @@ export function buildTemplateSave(args: {
     },
   };
 }
+
+export type TemplateDraft = {
+  name: string;
+  plan: readonly ResolvedTemplateExercise[];
+  folderId: string | undefined;
+};
+
+/** A new template's starting form: no name, no exercises, no folder. */
+export const EMPTY_TEMPLATE_DRAFT: TemplateDraft = { name: '', plan: [], folderId: undefined };
+
+/**
+ * Whether leaving the editor would lose work, so closing asks first. Compares what Save would write
+ * (trimmed name, the serialized plan, the folder) against the form as it opened — so editing a value
+ * and putting it back counts as unchanged.
+ */
+export function templateDraftChanged(initial: TemplateDraft, current: TemplateDraft): boolean {
+  return (
+    initial.name.trim() !== current.name.trim() ||
+    (initial.folderId ?? null) !== (current.folderId ?? null) ||
+    JSON.stringify(serializeTemplateExercises(initial.plan)) !== JSON.stringify(serializeTemplateExercises(current.plan))
+  );
+}
