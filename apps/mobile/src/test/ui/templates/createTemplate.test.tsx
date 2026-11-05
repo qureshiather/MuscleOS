@@ -339,6 +339,78 @@ describe('edit', () => {
   });
 });
 
+describe('closing with unsaved changes (MUS-184)', () => {
+  const existing = customTemplate({
+    id: 'tpl_e',
+    name: 'Legs',
+    exerciseIds: ['squat'],
+    exercises: [{ exerciseId: 'squat', sets: 5 }],
+  });
+  const close = () => fireEvent.press(screen.getByLabelText('Close'));
+
+  it('X on an untouched new template closes without asking', async () => {
+    await open();
+    await screen.findByText('New template');
+    close();
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    expect(screen.queryByText('Discard changes?')).toBeNull();
+  });
+
+  it('X after adding exercises asks; Keep editing stays, Discard leaves and saves nothing', async () => {
+    await open();
+    await screen.findByText('New template');
+    await addExercise('Bench Press');
+    close();
+    expect(await screen.findByText('Discard changes?')).toBeTruthy();
+    expect(screen.getByText("This template won't be saved.")).toBeTruthy();
+    fireEvent.press(screen.getByTestId('template-keep-editing'));
+    expect(screen.queryByText('Discard changes?')).toBeNull();
+    expect(screen.getByText('New template')).toBeTruthy();
+    close();
+    fireEvent.press(await screen.findByTestId('template-discard'));
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    expect(await storedTemplates()).toEqual([]);
+  });
+
+  it('a back gesture with unsaved changes asks too', async () => {
+    await open();
+    await screen.findByText('New template');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. Push A'), 'Push A');
+    act(() => router.back());
+    expect(await screen.findByText('Discard changes?')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('template-discard'));
+    expect(await screen.findByText('route:home')).toBeTruthy();
+  });
+
+  it('editing a template: no prompt when nothing changed, a prompt after a change', async () => {
+    await seed({ templates: [existing] });
+    await open('?templateId=tpl_e');
+    await screen.findByDisplayValue('Legs');
+    close();
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    expect(screen.queryByText('Discard changes?')).toBeNull();
+
+    act(() => router.push('/create-template?templateId=tpl_e' as Href));
+    fireEvent.changeText(await screen.findByDisplayValue('Legs'), 'Leg day');
+    close();
+    expect(await screen.findByText('The template stays as it was.')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('template-discard'));
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    expect((await storedTemplates())[0].name).toBe('Legs');
+  });
+
+  it('saving closes without asking', async () => {
+    await open();
+    await screen.findByText('New template');
+    fireEvent.changeText(screen.getByPlaceholderText('e.g. Push A'), 'Push A');
+    await addExercise('Bench Press');
+    fireEvent.press(screen.getByText('Save template'));
+    expect(await screen.findByText('route:home')).toBeTruthy();
+    expect(screen.queryByText('Discard changes?')).toBeNull();
+    expect(await storedTemplates()).toHaveLength(1);
+  });
+});
+
 describe('save resilience', () => {
   it('a second tap while saving does not create a duplicate', async () => {
     await open();

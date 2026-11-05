@@ -28,6 +28,8 @@ export function ScreenHeader({
       {backIcon !== 'none' && onBack ? (
         <Pressable
           onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel={backIcon === 'close' ? 'Close' : 'Back'}
           style={({ pressed }) => [styles.sideBtn, { opacity: pressed ? 0.7 : 1 }]}
           hitSlop={touch.hitSlop}
         >

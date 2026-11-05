@@ -7,7 +7,8 @@ import { Screen } from '@/components/layout';
 import { typography } from '@/theme/typography';
 import { radius, spacing, touch } from '@/theme/tokens';
 import { fontScaleCap, useBottomSpace } from '@/theme/layout';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useNavigation, useRouter, useLocalSearchParams } from 'expo-router';
+import { type NavigationAction, usePreventRemove } from 'expo-router/react-navigation';
 import { useTemplatesStore } from '@/store/templatesStore';
 import { useExercisesStore } from '@/store/exercisesStore';
 import type { MuscleId } from '@muscleos/types';
@@ -17,6 +18,7 @@ import { ExerciseMuscleFigures } from '@/components/ExerciseMuscleFigures';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import type { ThemeColors } from '@/theme/palette';
 import {
@@ -33,7 +35,13 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { muscleLabel } from '@muscleos/types';
 import { RestTimersDialog } from '@/components/workouts/RestTimersDialog';
 import { ExercisePickerSheet } from '@/components/workouts/ExercisePickerSheet';
-import { buildTemplateSave, validateTemplateDraft } from '@/utils/templateDraft';
+import {
+  EMPTY_TEMPLATE_DRAFT,
+  buildTemplateSave,
+  templateDraftChanged,
+  validateTemplateDraft,
+  type TemplateDraft,
+} from '@/utils/templateDraft';
 import { existingFolderId } from '@/store/templatesLogic';
 
 export default function CreateTemplateScreen() {
@@ -85,6 +93,45 @@ export default function CreateTemplateScreen() {
   const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
+  const navigation = useNavigation();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** Set once leaving is decided (saved, discarded): lifts the back guard, then navigates. */
+  const [leaving, setLeaving] = useState<{ action?: NavigationAction } | null>(null);
+  /** The back / swipe-back that the guard held while asking. */
+  const heldAction = useRef<NavigationAction | undefined>(undefined);
+
+  /** The form as it opened, to tell whether closing would lose work. */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: like the form fill above, taken once per template
+  const initialDraft: TemplateDraft = useMemo(
+    () =>
+      existingTemplate
+        ? {
+            name: existingTemplate.name,
+            plan: resolveTemplateExercises(existingTemplate),
+            folderId: existingFolderId(existingTemplate.folderId, useTemplatesStore.getState().folders),
+          }
+        : EMPTY_TEMPLATE_DRAFT,
+    [existingTemplate?.id]
+  );
+  const changed = templateDraftChanged(initialDraft, { name, plan: selected, folderId });
+
+  // Android back and swipe-back ask too, not just X.
+  usePreventRemove(changed && leaving == null, ({ data }) => {
+    heldAction.current = data.action;
+    setConfirmDiscard(true);
+  });
+
+  useEffect(() => {
+    if (!leaving) return;
+    if (leaving.action) navigation.dispatch(leaving.action);
+    else router.back();
+  }, [leaving, navigation, router]);
+
+  function handleClose() {
+    heldAction.current = undefined;
+    if (changed) setConfirmDiscard(true);
+    else router.back();
+  }
 
   const selectedIds = selected.map((ex) => ex.exerciseId);
 
@@ -144,7 +191,7 @@ export default function CreateTemplateScreen() {
     try {
       if (save.kind === 'update') await updateTemplate(save.id, save.patch);
       else await addTemplate(save.template);
-      router.back();
+      setLeaving({});
     } catch {
       savingRef.current = false;
       setSaving(false);
@@ -181,7 +228,7 @@ export default function CreateTemplateScreen() {
     <Screen kind="chrome">
       <ScreenHeader
         title={isEditMode ? 'Edit template' : 'New template'}
-        onBack={() => router.back()}
+        onBack={handleClose}
         backIcon="close"
       />
       <DraggableFlatList
@@ -490,6 +537,21 @@ export default function CreateTemplateScreen() {
       <ExerciseDetailSheet
         exercise={infoExerciseId ? (getExercise(infoExerciseId) ?? null) : null}
         onClose={() => setInfoExerciseId(null)}
+      />
+      <ConfirmDialog
+        visible={confirmDiscard}
+        title="Discard changes?"
+        message={isEditMode ? 'The template stays as it was.' : "This template won't be saved."}
+        cancelLabel="Keep editing"
+        confirmLabel="Discard"
+        destructive
+        onCancel={() => setConfirmDiscard(false)}
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          setLeaving({ action: heldAction.current });
+        }}
+        cancelTestID="template-keep-editing"
+        confirmTestID="template-discard"
       />
     </Screen>
     </GestureHandlerRootView>

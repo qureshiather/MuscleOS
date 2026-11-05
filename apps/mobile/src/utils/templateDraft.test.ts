@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutTemplate } from '@muscleos/types';
 import {
+  EMPTY_TEMPLATE_DRAFT,
   TEMPLATE_EXERCISES_REQUIRED,
   TEMPLATE_NAME_REQUIRED,
   buildTemplateSave,
   newTemplateId,
+  templateDraftChanged,
   validateTemplateDraft,
 } from './templateDraft';
 
@@ -107,5 +109,33 @@ describe('buildTemplateSave', () => {
   it('a built-in can never be the edit target', () => {
     const builtIn = { ...existing, id: 'ppl-push', isBuiltIn: true };
     expect(buildTemplateSave({ ...base, existing: builtIn, isEditMode: true }).kind).toBe('not-found');
+  });
+});
+
+describe('templateDraftChanged', () => {
+  const saved = { name: 'Push A', plan, folderId: 'f1' };
+
+  it('a new template is unchanged until something is entered', () => {
+    expect(templateDraftChanged(EMPTY_TEMPLATE_DRAFT, EMPTY_TEMPLATE_DRAFT)).toBe(false);
+    expect(templateDraftChanged(EMPTY_TEMPLATE_DRAFT, { ...EMPTY_TEMPLATE_DRAFT, name: '   ' })).toBe(false);
+    expect(templateDraftChanged(EMPTY_TEMPLATE_DRAFT, { ...EMPTY_TEMPLATE_DRAFT, name: 'Push' })).toBe(true);
+    expect(templateDraftChanged(EMPTY_TEMPLATE_DRAFT, { ...EMPTY_TEMPLATE_DRAFT, plan: [plan[0]] })).toBe(true);
+    expect(templateDraftChanged(EMPTY_TEMPLATE_DRAFT, { ...EMPTY_TEMPLATE_DRAFT, folderId: 'f1' })).toBe(true);
+  });
+
+  it('an opened template is unchanged until its name, exercises, sets, rest or folder change', () => {
+    expect(templateDraftChanged(saved, { ...saved, plan: plan.map((p) => ({ ...p })) })).toBe(false);
+    expect(templateDraftChanged(saved, { ...saved, name: 'Push A ' })).toBe(false);
+    expect(templateDraftChanged(saved, { ...saved, name: 'Push B' })).toBe(true);
+    expect(templateDraftChanged(saved, { ...saved, folderId: undefined })).toBe(true);
+    expect(templateDraftChanged(saved, { ...saved, plan: [plan[1], plan[0]] })).toBe(true);
+    expect(templateDraftChanged(saved, { ...saved, plan: [{ ...plan[0], sets: 4 }, plan[1]] })).toBe(true);
+    expect(templateDraftChanged(saved, { ...saved, plan: [{ ...plan[0], restBetweenSetsSeconds: 90 }, plan[1]] })).toBe(true);
+  });
+
+  it('undoing an edit counts as unchanged', () => {
+    const edited = { ...saved, plan: [...plan, { exerciseId: 'deadlift', sets: 3, warmUpSets: 0 }] };
+    expect(templateDraftChanged(saved, edited)).toBe(true);
+    expect(templateDraftChanged(saved, { ...edited, plan: edited.plan.slice(0, 2) })).toBe(false);
   });
 });

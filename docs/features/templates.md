@@ -339,6 +339,14 @@ Flow:
 6. **Save** — creates `tpl_<timestamp>_<random>` with `isBuiltIn: false`, or updates the template
    in place, then goes back (`buildTemplateSave()` in `src/utils/templateDraft.ts`).
 
+**Closing.** The header's **X** closes the editor. With unsaved changes it asks first:
+**Discard changes?**, with the message *"This template won't be saved."* (new) or *"The template
+stays as it was."* (edit), and the buttons **Keep editing** / **Discard**. The Android back button
+and the iOS swipe-back ask too. "Unsaved" means what Save would write differs from the form as it
+opened: the trimmed name, the exercises with their order, sets, warm-ups and rests, and the folder
+(`templateDraftChanged()`). So an untouched form, or one whose edits were all undone, closes
+straight away, and Save never asks.
+
 ### Validation
 
 `validateTemplateDraft()`; errors appear on Save and clear when the name is edited.
@@ -502,7 +510,8 @@ Covered:
 - `src/utils/templateCard.test.ts` — main muscles once each (max 3), exercise count (singular),
   an unknown exercise adds no muscle, `planSizeLabel` (exercises and working sets, singular/plural)
 - `src/utils/templateDraft.test.ts` — validation copy, no name/exercise caps, create id format and
-  payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids
+  payload, edit patch, **None clears the folder**, not-found for unknown and built-in ids;
+  `templateDraftChanged` (empty new form, whitespace name, each field that counts, undone edits)
 - `src/utils/workoutPreview.test.ts` — `m:ss` rest formatting, `formatPreviewRest` (the stock and a custom
   Default rest, template rest, No rest timer, warm-up rest), Previous in
   kg/lb, reps dropped when unknown, omitted when absent, `previewEntryState`, `previewPlan`
@@ -534,7 +543,9 @@ Covered:
   fresh install starts on Strong Lifts; a removed program is stored as `none` and stays removed)
   defaults to none, round-trips, rejects blank/unknown ids, survives an older build's payload, and a
   pending local choice (none included) wins the merge
-- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, the picker staying open with the added row checked, Done's count and the check undoing the add, the Template so far strip, New muscles only, a card tap opening the detail sheet, Muscles used above the exercises, header + New routing to the exercise builder, Create
+- `src/test/ui/templates/createTemplate.test.tsx` (Jest) — X with no changes closing straight away,
+  X or a back gesture with unsaved changes asking (Keep editing stays, Discard saves nothing, the
+  edit-mode message), Save closing without asking; form copy, validation messages, add at 3 / 0 with the picker hiding added exercises, the picker staying open with the added row checked, Done's count and the check undoing the add, the Template so far strip, New muscles only, a card tap opening the detail sheet, Muscles used above the exercises, header + New routing to the exercise builder, Create
   "<query>", stepper minimums and no maximum, remove, reorder hint, save creating `tpl_*` with
   folder and plan, the plan size line, Rest button (2:00 default, set with the time pad, saved on
   the slot; Off prefilled on edit), Edit all rests (an unset rest shows the user's default, applied
