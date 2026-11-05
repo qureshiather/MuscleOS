@@ -82,14 +82,15 @@ describe('search and filters', () => {
     await waitFor(() => expect(names()).toEqual(['Bench Press', 'Landmine Press']));
   });
 
-  it('summarises collapsed filters as "<Type> · <Muscle>"', async () => {
+  it('summarises collapsed filters by the ones that are on, and nothing when none are', async () => {
     renderExercises();
-    expect(await screen.findByText('All · All')).toBeTruthy();
+    await screen.findByText('Filters');
+    expect(screen.queryByText('All · All')).toBeNull();
     await openFilters();
-    fireEvent.press(screen.getByTestId('type-chip-cable'));
-    fireEvent.press(screen.getByTestId('muscle-chip-back'));
+    fireEvent.press(screen.getByTestId('source-mine'));
+    fireEvent.press(screen.getByTestId('type-chip-free_weight'));
     fireEvent.press(screen.getByText('Filters'));
-    expect(await screen.findByText('Cable · Back')).toBeTruthy();
+    expect(await screen.findByText('My exercises · Free Weight')).toBeTruthy();
   });
 
   it('filters by Type, and tapping the active chip clears it', async () => {
@@ -134,6 +135,61 @@ describe('search and filters', () => {
     expect(await screen.findByText('Create “press”')).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText(SEARCH), 'push');
     await waitFor(() => expect(names()).toEqual(['Push-Up']));
+  });
+});
+
+describe('My exercises (MUS-178)', () => {
+  it('My exercises shows only your custom exercises, with the count on the chip', async () => {
+    renderExercises();
+    await openFilters();
+    fireEvent.press(screen.getByText('My exercises (1)'));
+    expect(names()).toEqual(['Landmine Press']);
+    expect(screen.getByText('1 exercise')).toBeTruthy();
+    // Tapping the active chip clears it, like the other filters.
+    fireEvent.press(screen.getByTestId('source-mine'));
+    expect(names()).toContain('Bench Press');
+  });
+
+  it('the trash button deletes after the confirm; Cancel keeps it', async () => {
+    renderExercises();
+    await openFilters();
+    fireEvent.press(screen.getByTestId('source-mine'));
+    fireEvent.press(screen.getByLabelText('Delete Landmine Press'));
+    expect(
+      await screen.findByText('Remove Landmine Press from your account? Past workouts keep the name if you logged it.')
+    ).toBeTruthy();
+    fireEvent.press(screen.getByTestId('delete-exercise-cancel'));
+    expect(useExercisesStore.getState().customExercises).toHaveLength(1);
+    fireEvent.press(screen.getByLabelText('Delete Landmine Press'));
+    fireEvent.press(await screen.findByTestId('delete-exercise-confirm'));
+    await waitFor(() => expect(useExercisesStore.getState().customExercises).toEqual([]));
+    expect(await screen.findByText('No exercises of your own yet')).toBeTruthy();
+    expect(screen.getByText('My exercises (0)')).toBeTruthy();
+  });
+
+  it('with none, it offers to create one', async () => {
+    seedExercises([]);
+    const { getPathname } = renderExercises();
+    await openFilters();
+    fireEvent.press(screen.getByText('My exercises (0)'));
+    expect(screen.getByText('No exercises of your own yet')).toBeTruthy();
+    fireEvent.press(screen.getByText('Create exercise'));
+    await waitFor(() => expect(getPathname()).toBe('/create-exercise'));
+  });
+
+  it('All is selected by default; Catalog leaves out your exercises', async () => {
+    renderExercises();
+    await openFilters();
+    expect(screen.getByTestId('source-all').props.accessibilityState).toEqual({ selected: true });
+    fireEvent.press(screen.getByTestId('source-catalog'));
+    expect(names()).toEqual(['Bench Press', 'Back Squat', 'Lat Pulldown', 'Pec Deck', 'Push-Up']);
+    expect(screen.queryByLabelText('Delete Bench Press')).toBeNull();
+  });
+
+  it('All has no trash buttons', async () => {
+    renderExercises();
+    await screen.findByText('Landmine Press');
+    expect(screen.queryByLabelText('Delete Landmine Press')).toBeNull();
   });
 });
 

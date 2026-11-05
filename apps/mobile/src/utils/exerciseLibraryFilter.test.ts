@@ -106,15 +106,38 @@ describe('filterLibraryExercises', () => {
     ).toEqual(['lat-pulldown']);
     expect(filterLibraryExercises(all, { query: 'squat', type: 'cable', muscle: null })).toEqual([]);
   });
+  it('Mine keeps only custom exercises and Catalog only catalog ones, ANDed with the rest', () => {
+    const mine: Exercise = { ...squat, id: 'custom_m1', name: 'Box Squat' };
+    const mine2: Exercise = { ...pulldown, id: 'custom_m2', name: 'Band Pulldown' };
+    const withMine = [...all, mine, mine2];
+    expect(ids(filterLibraryExercises(withMine, { query: '', source: 'mine', type: null, muscle: null }))).toEqual([
+      'custom_m1',
+      'custom_m2',
+    ]);
+    expect(ids(filterLibraryExercises(withMine, { query: 'squat', source: 'mine', type: null, muscle: null }))).toEqual([
+      'custom_m1',
+    ]);
+    expect(ids(filterLibraryExercises(withMine, { query: '', source: 'mine', type: 'cable', muscle: null }))).toEqual([
+      'custom_m2',
+    ]);
+    expect(filterLibraryExercises(all, { query: '', source: 'mine', type: null, muscle: null })).toEqual([]);
+    expect(filterLibraryExercises(withMine, { query: '', source: 'all', type: null, muscle: null })).toHaveLength(6);
+    expect(ids(filterLibraryExercises(withMine, { query: 'squat', source: 'catalog', type: null, muscle: null }))).toEqual([
+      'squat',
+    ]);
+    expect(filterLibraryExercises(withMine, { query: '', source: 'catalog', type: null, muscle: null })).toHaveLength(4);
+  });
 });
 
 describe('libraryFilterSummary', () => {
-  it('summarises as "<Type> · <Muscle>"', () => {
-    expect(libraryFilterSummary(null, null)).toBe('All · All');
-    expect(libraryFilterSummary('free_weight', null)).toBe('Free Weight · All');
-    expect(libraryFilterSummary('cable', 'back')).toBe('Cable · Back');
-    expect(libraryFilterSummary(null, 'rear_delts')).toBe('All · Rear Delts');
-    expect(libraryFilterSummary('bodyweight', 'chest')).toBe('Bodyweight · Chest');
+  it('lists only the filters that are on, and nothing when none are', () => {
+    expect(libraryFilterSummary('all', null, null)).toBeNull();
+    expect(libraryFilterSummary('all', 'free_weight', null)).toBe('Free Weight');
+    expect(libraryFilterSummary('all', 'cable', 'back')).toBe('Cable · Back');
+    expect(libraryFilterSummary('all', null, 'rear_delts')).toBe('Rear Delts');
+    expect(libraryFilterSummary('mine', null, null)).toBe('My exercises');
+    expect(libraryFilterSummary('catalog', 'cable', null)).toBe('Catalog · Cable');
+    expect(libraryFilterSummary('mine', 'bodyweight', 'chest')).toBe('My exercises · Bodyweight · Chest');
   });
 
   it('labels muscles from the group or the muscle name', () => {

@@ -21,12 +21,15 @@ import { useExercisesStore } from '@/store/exercisesStore';
 import { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, formatMuscleLabels } from '@muscleos/types';
 import type { Exercise, ExerciseCategory } from '@muscleos/types';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import {
   LARGE_MUSCLE_GROUPS,
   filterLibraryExercises,
   libraryExercises,
   exerciseTypeLine,
   libraryFilterSummary,
+  type LibrarySource,
 } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
 
@@ -37,7 +40,11 @@ export default function ExercisesScreen() {
   // re-render the list.
   const catalogExercises = useExercisesStore((s) => s.catalogExercises);
   const customExercises = useExercisesStore((s) => s.customExercises);
+  const removeExercise = useExercisesStore((s) => s.removeExercise);
   const [search, setSearch] = useState('');
+  const [source, setSource] = useState<LibrarySource>('all');
+  /** Custom exercise waiting on the delete confirm. */
+  const [deleting, setDeleting] = useState<Exercise | null>(null);
   const [typeFilter, setTypeFilter] = useState<ExerciseCategory | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Exercise | null>(null);
@@ -53,11 +60,11 @@ export default function ExercisesScreen() {
     setFiltersExpanded((v) => !v);
   };
 
-  const filterSummary = libraryFilterSummary(typeFilter, muscleFilter);
+  const filterSummary = libraryFilterSummary(source, typeFilter, muscleFilter);
 
   const filtered = useMemo(
-    () => filterLibraryExercises(allExercises, { query: search, type: typeFilter, muscle: muscleFilter }),
-    [allExercises, search, typeFilter, muscleFilter]
+    () => filterLibraryExercises(allExercises, { query: search, source, type: typeFilter, muscle: muscleFilter }),
+    [allExercises, search, source, typeFilter, muscleFilter]
   );
 
   return (
@@ -114,11 +121,9 @@ export default function ExercisesScreen() {
           onPress={toggleFilters}
         >
           <Text style={[styles.filterToggleTitle, { color: colors.text }]}>Filters</Text>
-          {!filtersExpanded && (
-            <Text style={[styles.filterSummaryInline, { color: colors.textMuted }]} numberOfLines={1}>
-              {filterSummary}
-            </Text>
-          )}
+          <Text style={[styles.filterSummaryInline, { color: colors.primary }]} numberOfLines={1}>
+            {!filtersExpanded && filterSummary ? filterSummary : ''}
+          </Text>
           <Ionicons
             name={filtersExpanded ? 'chevron-up' : 'chevron-down'}
             size={20}
@@ -127,6 +132,40 @@ export default function ExercisesScreen() {
         </Pressable>
         {filtersExpanded && (
           <View style={styles.filterExpandedContent}>
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+                Show
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+                contentContainerStyle={styles.chipsContent}
+              >
+                {(
+                  [
+                    ['all', 'All'],
+                    ['catalog', 'Catalog'],
+                    ['mine', `My exercises (${customExercises.length})`],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Pressable
+                    key={key}
+                    testID={`source-${key}`}
+                    accessibilityState={{ selected: source === key }}
+                    style={[styles.chip, { backgroundColor: source === key ? colors.primary : colors.surface }]}
+                    onPress={() => setSource(source === key ? 'all' : key)}
+                  >
+                    <Text
+                      style={[styles.chipText, { color: source === key ? colors.primaryOn : colors.textSecondary }]}
+                      numberOfLines={1}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
                 Type
@@ -277,6 +316,15 @@ export default function ExercisesScreen() {
                 Save it as your own exercise.
               </Text>
             </Pressable>
+          ) : source === 'mine' && customExercises.length === 0 ? (
+            <View style={[styles.emptyMine, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              <Ionicons name="barbell-outline" size={28} color={colors.textMuted} />
+              <Text style={[styles.emptyCreateTitle, { color: colors.text }]}>No exercises of your own yet</Text>
+              <Text style={[styles.emptyMineHint, { color: colors.textMuted }]}>
+                Make one for a movement that isn't in the library. It shows up here to edit or delete.
+              </Text>
+              <PrimaryButton label="Create exercise" onPress={() => router.push('/create-exercise')} />
+            </View>
           ) : (
             <Text style={[styles.emptyCreateHint, { color: colors.textMuted }]}>No exercises match these filters.</Text>
           )
@@ -297,12 +345,24 @@ export default function ExercisesScreen() {
           >
             <View style={styles.cardTitleRow}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
-              {isCustomExerciseId(item.id) && (
+              {isCustomExerciseId(item.id) && source === 'all' && (
                 <View style={[styles.customBadge, { backgroundColor: colors.border }]}>
                   <Text style={[styles.customBadgeText, { color: colors.textSecondary }]}>
                     Custom
                   </Text>
                 </View>
+              )}
+              {isCustomExerciseId(item.id) && source === 'mine' && (
+                <Pressable
+                  onPress={() => setDeleting(item)}
+                  hitSlop={10}
+                  testID={`delete-exercise-${item.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${item.name}`}
+                  style={({ pressed }) => [styles.deleteBtn, { opacity: pressed ? 0.6 : 1 }]}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                </Pressable>
               )}
             </View>
             <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
@@ -315,6 +375,21 @@ export default function ExercisesScreen() {
         )}
       />
       <ExerciseDetailSheet exercise={selected} onClose={() => setSelected(null)} canManage />
+      <ConfirmDialog
+        visible={deleting !== null}
+        title="Delete exercise"
+        message={`Remove ${deleting?.name ?? ''} from your account? Past workouts keep the name if you logged it.`}
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        destructive="confirm"
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (deleting) void removeExercise(deleting.id);
+          setDeleting(null);
+        }}
+        cancelTestID="delete-exercise-cancel"
+        confirmTestID="delete-exercise-confirm"
+      />
     </Screen>
   );
 }
@@ -346,6 +421,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: typography.body.fontFamily,
   },
+  deleteBtn: { padding: 2 },
+  emptyMine: {
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emptyMineHint: { ...typography.caption, textAlign: 'center', marginBottom: spacing.sm },
   filterWrapper: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
   filterToggleRow: {
     flexDirection: 'row',

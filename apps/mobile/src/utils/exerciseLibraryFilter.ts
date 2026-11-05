@@ -1,5 +1,6 @@
 import type { Exercise, ExerciseCategory, MuscleId } from '@muscleos/types';
 import { EXERCISE_CATEGORY_LABELS, equipmentLabel, muscleLabel } from '@muscleos/types';
+import { isCustomExerciseId } from '@/utils/exerciseIds';
 import { searchExercises } from '@/utils/exerciseSearch';
 import { muscleArea } from '@/utils/muscleAreas';
 
@@ -19,8 +20,13 @@ export function libraryExercises(catalog: Exercise[], custom: Exercise[]): Exerc
   return [...catalog.filter((e) => e.isPublished !== false), ...custom];
 }
 
+/** **All** exercises, the MuscleOS **catalog** only, or **mine**: only the custom exercises you created. */
+export type LibrarySource = 'all' | 'catalog' | 'mine';
+
 export interface LibraryFilters {
   query: string;
+  /** Omitted = all. */
+  source?: LibrarySource;
   /** null = All */
   type: ExerciseCategory | null;
   /** A LARGE_MUSCLE_GROUPS key, a MuscleId, or null = All */
@@ -34,9 +40,15 @@ function matchesMuscle(exercise: Exercise, muscle: string | null): boolean {
   return exercise.muscles.includes(muscle as MuscleId);
 }
 
-/** Search, then AND the Type and Muscle filters. With no query the input order is kept. */
+/** Search, then AND the source, Type and Muscle filters. With no query the input order is kept. */
 export function filterLibraryExercises(all: Exercise[], filters: LibraryFilters): Exercise[] {
-  return searchExercises(all, filters.query).filter(
+  const pool =
+    filters.source === 'mine'
+      ? all.filter((e) => isCustomExerciseId(e.id))
+      : filters.source === 'catalog'
+        ? all.filter((e) => !isCustomExerciseId(e.id))
+        : all;
+  return searchExercises(pool, filters.query).filter(
     (e) => (!filters.type || e.category === filters.type) && matchesMuscle(e, filters.muscle)
   );
 }
@@ -46,10 +58,21 @@ export function muscleFilterLabel(muscle: string | null): string {
   return LARGE_MUSCLE_GROUPS[muscle]?.label ?? muscleLabel(muscle as MuscleId);
 }
 
-/** Collapsed filter panel summary: `<Type> · <Muscle>`, e.g. `All · All`, `Cable · Back`. */
-export function libraryFilterSummary(type: ExerciseCategory | null, muscle: string | null): string {
-  const typeLabel = type === null ? 'All' : EXERCISE_CATEGORY_LABELS[type];
-  return `${typeLabel} · ${muscleFilterLabel(muscle)}`;
+/**
+ * Collapsed filter panel summary: only the filters that are on, e.g. `My exercises · Cable · Back`,
+ * or null when none are (the panel then shows no summary rather than `All · All`).
+ */
+export function libraryFilterSummary(
+  source: LibrarySource,
+  type: ExerciseCategory | null,
+  muscle: string | null
+): string | null {
+  const parts = [
+    source === 'mine' ? 'My exercises' : source === 'catalog' ? 'Catalog' : null,
+    type === null ? null : EXERCISE_CATEGORY_LABELS[type],
+    muscle === null ? null : muscleFilterLabel(muscle),
+  ].filter((p): p is string => p !== null);
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 /**
