@@ -387,9 +387,17 @@ search if you happen to type the slug.
 Header shows `<count> movements` (published catalog plus customs) and a
 **+** button to create one.
 
-**Filters** are in a collapsible panel (collapsed by default); when collapsed it summarises as
-`<Type> · <Muscle>` (`All · All` with no filter). Tapping an active chip clears that filter.
+**Filters** are in a collapsible panel (collapsed by default). Collapsed, it names only the filters
+that are on, in the primary colour (`My exercises · Cable · Back`), and shows nothing when none are
+(`libraryFilterSummary()`). Tapping an active chip clears that filter.
 
+- **Show** — **All** (the default), **Catalog** (only MuscleOS's exercises, `source: 'catalog'`) or
+  **My exercises (N)**: only your custom exercises (`source: 'mine'`), N being how many you have. In My exercises each row drops the Custom badge for a trash button that
+  deletes the exercise after the [usual confirm](#deleting-a-custom-exercise) (themed dialog:
+  **Delete exercise** — *"Remove {name} from your account? Past workouts keep the name if you
+  logged it."* — Cancel / Delete). With no custom exercises it reads **No exercises of your own
+  yet** — "Make one for a movement that isn't in the library. It shows up here to edit or delete."
+  — with a **Create exercise** button (→ `/create-exercise`).
 - **Type** — All plus the 4 categories
 - **Muscle** — All, 3 coarse groups (Legs, Back, Shoulders — the same muscles as those
   [body areas](#custom-exercises)), or any of the 20 individual muscles.
@@ -541,7 +549,7 @@ Covered (Vitest):
 - `src/utils/muscleDiagramRegions.test.ts` (`mainAndAlsoBodyData`) — main at 1, others at 2, a
   region shared with the main muscle stays main, delts pinned to their view
 - `src/utils/exerciseLibraryFilter.test.ts` — Muscle groups (single Chest), Type / Muscle / query
-  AND, order kept with no query, the `<Type> · <Muscle>` summary, and the type line (equipment
+  AND, Mine keeping only customs and Catalog only catalog rows (ANDed with the rest), order kept with no query, the collapsed summary (only active filters, none → nothing), and the type line (equipment
   matching the category isn't repeated)
 - `src/utils/customExerciseForm.test.ts` — edit target only for existing customs; validation
   (trimmed name, Type, ≥1 muscle, no max length, blank instructions → none); equipment options
@@ -562,7 +570,8 @@ Covered (Vitest):
 
 Covered (Jest UI, `src/test/ui/exercises/`):
 
-- `exercisesTab.test.tsx` — header count, list order, Custom badge and meta lines, count line
+- `exercisesTab.test.tsx` — Show (All selected by default, Catalog without customs), My exercises (only customs, the count on the chip, tapping it again clears it, trash → confirm →
+  delete, Cancel keeps it, the empty state's Create exercise, no trash on All), header count, list order, Custom badge and meta lines, count line
   (plural/singular), search, Type and Muscle chips (AND with the query, tapping an active chip
   clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" opening the
   prefilled form, + button, detail sheet content (`Main:` / `Also works:` lines), notes (edited in the dialog: Save disabled until
