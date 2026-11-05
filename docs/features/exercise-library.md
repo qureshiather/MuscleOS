@@ -412,12 +412,11 @@ the same line.
 it as a custom ("Save it as your own exercise."); tapping it opens the create form with the name
 prefilled. With no query, the list reads "No exercises match these filters."
 
-**Detail sheet** (tap a row here, or an exercise title in the [active workout](workout-logging.md#mid-workout-edits), which omits Edit/Delete and the history link): name, body diagram, a **See how it's done** row for catalog exercises (their [website page](exercise-demos.md#app-link)), muscle labels, type and equipment, a **View history** row, Edit/Delete
+**Detail sheet** (tap a row here, an exercise title in the [active workout](workout-logging.md#mid-workout-edits), or an exercise card in the [template editor](templates.md#creating-and-editing) — the last two omit Edit/Delete and the history link): name, the looping [animated demo](exercise-demos.md#app-player) for catalog exercises — or, when there is none (customs) or it can't be fetched, front and back figures with the main muscle brighter than the others ([exercise pickers](#exercise-pickers)) — the muscles as `Main: <muscle>` and `Also works: <muscles>`, type and equipment, a **View history** row, Edit/Delete
 for customs, instructions when present (a numbered list of steps; a single line or paragraph
 shows as plain text, and typed `1.`, `-` or `•` markers are dropped), and **Your notes** — a free-text note ("Seat height,
 lever settings…") keyed by exercise id and synced to your account. Content below the title scrolls when it exceeds the sheet max height.
 
-- **See how it's done** opens `https://muscleos.app/exercises/<id>` (an animated demo where one exists) in the in-app browser. It is shown in every context, mid-workout included, because the browser opens over the sheet.
 - **View history** opens the exercise's [progression screen](history-analytics.md#exercise-progression) (the same one Personal Records opens). It is shown only when the exercise has at least one qualifying set in a completed session (`exerciseHasHistory`, aliases included), so it never lands on the empty state. Following it closes the sheet.
 - The sheet shows the note read-only (**Add a note** when there is none). Tapping it swaps the sheet for the **Exercise note** dialog (`ExerciseNoteEditor`) — in the same modal, since stacking a second one froze iOS. The active workout's **Edit note** and its card's note line open the same dialog.
 - The dialog is pinned to the top of the screen with the keyboard open, so the keyboard never covers the text box on either platform. Long notes scroll inside the field.
@@ -427,12 +426,52 @@ There are **no favourites** on this tab. The PR screen is reached from History; 
 
 ## Exercise pickers
 
-One sheet, `ExercisePickerSheet` (`src/components/workouts/`), over `pickerResults()`
-(`src/utils/exercisePicker.ts`), serves the template builder (add, staying open to add several,
-with each exercise's muscles under its name) and the add and replace flows of the active workout
-and [Edit workout](history-analytics.md#editing-a-session). It searches the catalog plus customs
+One full-screen picker, `ExercisePickerSheet` (`src/components/workouts/`), over `pickerResults()`
+(`src/utils/exercisePicker.ts`), serves the template builder (add, staying open to add several)
+and the add and replace flows of the active workout and
+[Edit workout](history-analytics.md#editing-a-session). It searches the catalog plus customs
 and leaves out exercises already selected, and owns the keyboard handling (the list shrinks above
 the keyboard).
+
+**Main muscle.** Exercises have no primary-muscle field; the **first-listed muscle is the main
+one** and the rest are what it also works (`exerciseMuscleSplit()`). Body figures draw the main
+muscle in the highlight colour and the others in a weaker tint of it (`ExerciseMuscleFigures`,
+`mainAndAlsoBodyData()`; delts split by view as on the [Recovery diagram](recovery.md)).
+
+**Grid.** Results are a two-column grid of cards. Each card shows the exercise's demo
+[poster](exercise-demos.md#app-player) as a square image (the front/back figures for customs, or
+when the poster can't load), the name, the main muscle and the [type line](#exercises-tab).
+Tapping a card opens its details; the round button over the image's top-right corner acts at
+once: **+** adds (a swap icon in Replace mode).
+
+**Filters**, which AND together and with the search (`pickerResults()` options):
+
+- **Muscle** chips: All plus the six [body areas](#custom-exercises) (Chest, Shoulders, Back, Arms,
+  Core, Legs). An area matches any exercise that lists one of its muscles, not just the main one.
+  Tapping the active area clears it.
+- **Type: All ▾** and **Equipment: Any ▾** open a row of options in place of the muscle chips
+  (Type: All plus the four categories; Equipment: Any plus Barbell, Dumbbell, Kettlebell, EZ Bar,
+  Cable, Machine, Band, Bodyweight — `PICKER_EQUIPMENT`, `Other` left out). Picking one closes it.
+- **New muscles only** (template builder only): exercises whose main muscle the template doesn't
+  train yet.
+
+Below the chips a count line reads `<n> exercises` (`1 exercise`), with **Clear filters** while any
+filter is set. A search with text that finds nothing reads "No matching exercises"; filters with
+no search that match nothing read "No exercises match these filters" (`pickerFooter()`).
+Filters reset each time the picker opens.
+
+**Detail view.** Tapping a card swaps the grid for the exercise's details in the same modal
+(stacking a second modal froze iOS): **Back**, the name and type line, a card with the looping
+[animated demo](exercise-demos.md#app-player) (or, with no demo, the front and back figures) and
+**Main** and **Also works** pills, the how-to steps, and a footer button — **Add exercise**
+(Replace: **Swap in this exercise**), or **Added · tap to remove** for one added this visit in the
+template builder. Adding from here returns to the list (or closes the picker where a pick closes it).
+
+**Template builder only.** Above the search, a **Template so far** strip shows the template's
+muscles on a small figure, its exercise count and the muscle names; it updates as you add and
+hides while the keyboard is up. The picker stays open after a pick: the added card stays listed
+with a green outline, its button becomes a check (tap to take the exercise back out), the search is kept, and **Done**
+shows how many were added this visit.
 
 The template builder and active workout sheets carry **+ New** beside **Done**
 (`PickerHeaderActions`) and, whenever the search has text, a **Create "<query>"** row; Edit
@@ -495,6 +534,12 @@ Covered (Vitest):
 - `src/utils/exerciseNormalize.test.ts` — category inference order (band → Cable), invalid equipment and muscles
   stripped, `['chest']` fallback only when nothing valid is left, name → id fallback,
   instructions trimmed/dropped, snake_case mapping with `tracking_type` and media columns dropped
+- `src/utils/exercisePicker.test.ts` — `pickerResults` exclusion, keeping exercises added this
+  visit, muscle-area (any listed muscle) / Type / Equipment / New muscles only filters ANDed with
+  the search; `exerciseMuscleSplit` (first-listed is main); `activePickerFilterCount`;
+  `pickerFooter` empty messages and the Create name
+- `src/utils/muscleDiagramRegions.test.ts` (`mainAndAlsoBodyData`) — main at 1, others at 2, a
+  region shared with the main muscle stays main, delts pinned to their view
 - `src/utils/exerciseLibraryFilter.test.ts` — Muscle groups (single Chest), Type / Muscle / query
   AND, order kept with no query, the `<Type> · <Muscle>` summary, and the type line (equipment
   matching the category isn't repeated)
@@ -520,8 +565,8 @@ Covered (Jest UI, `src/test/ui/exercises/`):
 - `exercisesTab.test.tsx` — header count, list order, Custom badge and meta lines, count line
   (plural/singular), search, Type and Muscle chips (AND with the query, tapping an active chip
   clears it, collapsed summary, single Chest chip), empty-state copy, Create "<query>" opening the
-  prefilled form, + button, detail sheet content, notes (edited in the dialog: Save disabled until
-  changed, Save / backdrop save, Cancel discards, trim, delete on empty), instructions as a numbered list, the "See how it's done" link (catalog rows only), View history shown only with logged sets and opening
+  prefilled form, + button, detail sheet content (`Main:` / `Also works:` lines), notes (edited in the dialog: Save disabled until
+  changed, Save / backdrop save, Cancel discards, trim, delete on empty), instructions as a numbered list, the demo in place of the figures (figures for customs and when the clip can't be fetched; no "See how it's done" link), View history shown only with logged sets and opening
   progression, Edit opening the prefilled form, Delete with confirm and cancel, list
   updates after a delete
 - `createExercise.test.tsx` — validation and the missing-fields hint, the Shoulders shortcut

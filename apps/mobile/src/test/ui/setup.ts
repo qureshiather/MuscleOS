@@ -47,6 +47,24 @@ jest.mock('expo-audio', () => ({
   setAudioModeAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock('@/utils/demoCache', () => ({
+  cachedDemoUri: jest.fn(async (url: string) => `file:///cache/exercise-demos/${url.slice(url.lastIndexOf('/') + 1)}`),
+}));
+
+jest.mock('expo-video', () => {
+  const { View } = require('react-native');
+  return {
+    useVideoPlayer: () => ({
+      status: 'readyToPlay',
+      playing: false,
+      play: jest.fn(),
+      pause: jest.fn(),
+      addListener: () => ({ remove: jest.fn() }),
+    }),
+    VideoView: View,
+  };
+});
+
 // Fail a test on unexpected console.error/warn (act warnings, app logging, deprecations). Tests
 // that deliberately trigger logging spy on the console themselves.
 installConsoleGuard(afterEach, [

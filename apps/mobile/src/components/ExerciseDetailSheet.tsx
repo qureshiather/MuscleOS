@@ -7,12 +7,12 @@ import {
   Modal,
   ScrollView,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { formatMuscleLabels, instructionSteps } from '@muscleos/types';
+import { formatMuscleLabels, instructionSteps, muscleLabel } from '@muscleos/types';
 import type { Exercise } from '@muscleos/types';
 import { useTheme } from '@/theme/ThemeContext';
 import { SheetFrame } from '@/components/layout';
@@ -24,21 +24,21 @@ import { useExerciseNotesStore } from '@/store/exerciseNotesStore';
 import { completedNewestFirst, useSessionsStore } from '@/store/sessionsStore';
 import { exerciseHasHistory } from '@/utils/personalRecords';
 import { ExerciseNoteEditor, NOTE_HINT } from '@/components/ExerciseNoteEditor';
-import { MuscleDiagram } from '@/components/MuscleDiagram';
+import { ExerciseDemo } from '@/components/ExerciseDemo';
+import { ExerciseMuscleFigures } from '@/components/ExerciseMuscleFigures';
+import { exerciseMuscleSplit } from '@/utils/exercisePicker';
 import { exerciseTypeLine } from '@/utils/exerciseLibraryFilter';
 import { isCustomExerciseId } from '@/utils/exerciseIds';
-import { exercisePageUrl } from '@/utils/exerciseDemo';
 
 /** Approximate detail-sheet header (title + Close + padding + hairline). */
 const DETAIL_HEADER_HEIGHT = 64;
 
 /**
- * Exercise detail sheet: diagram, muscles, type, instructions and the user's note. The note shows
- * read-only here; tapping it swaps the sheet for the note dialog (same Modal — stacking a second
- * Modal froze iOS), which keeps the field above the keyboard. `canManage` adds Edit/Delete for customs and a link to the exercise's
- * history — off where leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
- * Catalog exercises link to their page on the website (an animated demo where one exists); that
- * opens in the in-app browser over the sheet, so it's offered everywhere, mid-workout included.
+ * Exercise detail sheet: the looping demo (or the body figures where there's none), muscles, type,
+ * instructions and the user's note. The note shows read-only here; tapping it swaps the sheet for
+ * the note dialog (same Modal — stacking a second Modal froze iOS), which keeps the field above the
+ * keyboard. `canManage` adds Edit/Delete for customs and a link to the exercise's history — off where
+ * leaving the screen or removing the exercise would be wrong (e.g. mid-workout).
  */
 export function ExerciseDetailSheet({
   exercise,
@@ -53,6 +53,7 @@ export function ExerciseDetailSheet({
   const router = useRouter();
   const sheetMaxHeight = useModalMaxHeight();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const sheetBottomPad = useBottomSpace(spacing.xl);
   const detailScrollMaxHeight = Math.max(160, sheetMaxHeight - sheetBottomPad - DETAIL_HEADER_HEIGHT);
   const removeExercise = useExercisesStore((s) => s.removeExercise);
@@ -62,7 +63,6 @@ export function ExerciseDetailSheet({
   const getExercise = useExercisesStore((s) => s.getExercise);
   const [editingNote, setEditingNote] = useState(false);
   const exerciseId = exercise?.id;
-  const pageUrl = exercise ? exercisePageUrl(exercise) : undefined;
   const hasHistory = useMemo(
     () =>
       canManage &&
@@ -76,6 +76,7 @@ export function ExerciseDetailSheet({
   }, [exerciseId]);
 
   const steps = instructionSteps(exercise?.instructions);
+  const { main, also } = exerciseMuscleSplit(exercise?.muscles ?? []);
 
   const close = () => {
     setEditingNote(false);
@@ -143,28 +144,28 @@ export function ExerciseDetailSheet({
                 nestedScrollEnabled
                 showsVerticalScrollIndicator
               >
-                <MuscleDiagram muscleIds={exercise.muscles} size={0.9} />
-                {pageUrl ? (
-                  <Pressable
-                    onPress={() => void WebBrowser.openBrowserAsync(pageUrl)}
-                    testID="exercise-detail-demo"
-                    accessibilityRole="link"
-                    accessibilityLabel={`See how to do ${exercise.name}`}
-                    accessibilityHint="Opens the exercise's page on muscleos.app"
-                    style={({ pressed }) => [
-                      styles.historyRow,
-                      { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-                    ]}
-                  >
-                    <Ionicons name="play-circle-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.historyText, { color: colors.primary }]}>See how it&apos;s done</Text>
-                    <Ionicons name="open-outline" size={16} color={colors.textMuted} />
-                  </Pressable>
-                ) : null}
+                <ExerciseDemo
+                  exercise={exercise}
+                  size={Math.min(width - (spacing.lg + 4) * 2, 300)}
+                  fallback={
+                    <View style={styles.figures}>
+                      <ExerciseMuscleFigures muscles={exercise.muscles} width={110} gap={spacing.xl} />
+                    </View>
+                  }
+                />
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Muscles</Text>
-                <Text style={[styles.bodyText, { color: colors.text }]}>
-                  {formatMuscleLabels(exercise.muscles)}
-                </Text>
+                {main ? (
+                  <Text style={[styles.bodyText, { color: colors.text }]} testID="exercise-detail-main-muscle">
+                    <Text style={{ color: colors.textSecondary }}>Main: </Text>
+                    {muscleLabel(main)}
+                  </Text>
+                ) : null}
+                {also.length > 0 ? (
+                  <Text style={[styles.bodyText, { color: colors.text }]}>
+                    <Text style={{ color: colors.textSecondary }}>Also works: </Text>
+                    {formatMuscleLabels(also)}
+                  </Text>
+                ) : null}
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Type</Text>
                 <Text style={[styles.bodyText, { color: colors.text }]}>{exerciseTypeLine(exercise)}</Text>
                 {hasHistory ? (
@@ -289,6 +290,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   bodyText: { ...typography.body },
+  figures: { alignItems: 'center' },
   stepRow: { flexDirection: 'row', marginBottom: spacing.xs },
   stepNumber: { width: 24 },
   stepText: { flex: 1 },

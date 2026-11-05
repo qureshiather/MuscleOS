@@ -75,6 +75,7 @@ export const PACKAGE_ACKNOWLEDGEMENTS: readonly Acknowledgement[] = [
   { name: 'expo-sharing', license: 'MIT', copyright: EXPO },
   { name: 'expo-splash-screen', license: 'MIT', copyright: EXPO },
   { name: 'expo-status-bar', license: 'MIT', copyright: EXPO },
+  { name: 'expo-video', license: 'MIT', copyright: EXPO },
   { name: 'expo-web-browser', license: 'MIT', copyright: EXPO },
   { name: 'react', license: 'MIT', copyright: 'Copyright (c) Meta Platforms, Inc. and affiliates.' },
   { name: 'react-native', license: 'MIT', copyright: 'Copyright (c) Meta Platforms, Inc. and affiliates.' },

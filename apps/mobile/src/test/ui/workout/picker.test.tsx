@@ -45,13 +45,66 @@ test('leaves out exercises already in the workout', async () => {
   expect(screen.getByTestId('picker-row-incline-bench')).toBeTruthy();
 });
 
-test('tapping a row adds the exercise with 3 sets and closes the picker', async () => {
+test('cards show the demo poster, and the body figures for a custom exercise', async () => {
+  await openPicker();
+  const { useExercisesStore } = require('@/store/exercisesStore');
+  act(() =>
+    useExercisesStore.setState({
+      customExercises: [
+        { id: 'custom_1', name: 'Incline Landmine Press', muscles: ['chest'], equipment: [], category: 'free_weight' },
+      ],
+    })
+  );
+  fireEvent.press(screen.getByTestId('add-exercise'));
+  search('incline');
+  expect(screen.getByTestId('picker-poster-incline-bench').props.source).toEqual({
+    uri: expect.stringMatching(/\/incline-bench-(dark|light)\.webp$/),
+  });
+  expect(screen.getByTestId('picker-row-custom_1')).toBeTruthy();
+  expect(screen.queryByTestId('picker-poster-custom_1')).toBeNull();
+});
+
+test('+ on a row adds the exercise with 3 sets and closes the picker', async () => {
   await openPickerWith([]);
   search('incline bench');
-  fireEvent.press(screen.getByTestId('picker-row-incline-bench'));
+  fireEvent.press(screen.getByTestId('picker-add-incline-bench'));
   expect(session()?.exercises.map((e) => e.exerciseId)).toEqual(['incline-bench']);
   expect(session()?.exercises[0].sets).toHaveLength(3);
   expect(screen.queryByTestId('picker-search')).toBeNull();
+});
+
+test('tapping a row opens its details without adding; Add exercise there adds it', async () => {
+  await openPickerWith([]);
+  search('incline bench');
+  fireEvent.press(screen.getByTestId('picker-row-incline-bench'));
+  expect(screen.getByText('Main')).toBeTruthy();
+  // The animated demo plays inline for catalog exercises, in place of the body figures.
+  expect(await screen.findByLabelText('Animated demo of Incline Bench Press')).toBeTruthy();
+  expect(session()?.exercises).toEqual([]);
+  fireEvent.press(screen.getByTestId('picker-detail-back'));
+  expect(screen.getByTestId('picker-search')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('picker-row-incline-bench'));
+  fireEvent.press(screen.getByTestId('picker-detail-add'));
+  expect(session()?.exercises.map((e) => e.exerciseId)).toEqual(['incline-bench']);
+});
+
+test('muscle, type and equipment filters narrow the list and Clear filters resets them', async () => {
+  await openPickerWith([]);
+  const count = () => screen.getByTestId('picker-count').props.children as string;
+  const all = count();
+  fireEvent.press(screen.getByTestId('picker-area-legs'));
+  expect(screen.queryByTestId('picker-row-bench-press')).toBeNull();
+  fireEvent.press(screen.getByTestId('picker-filter-equipment'));
+  fireEvent.press(screen.getByTestId('picker-equipment-barbell'));
+  expect(count()).not.toBe(all);
+  fireEvent.press(screen.getByTestId('picker-clear-filters'));
+  expect(count()).toBe(all);
+});
+
+test('the workout picker has no coverage strip or New muscles only filter', async () => {
+  await openPickerWith([]);
+  expect(screen.queryByTestId('picker-coverage')).toBeNull();
+  expect(screen.queryByTestId('picker-filter-new-muscles')).toBeNull();
 });
 
 test('a search with matches still offers Create "<query>"', async () => {

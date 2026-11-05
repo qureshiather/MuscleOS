@@ -117,3 +117,19 @@ export function focusRegions(exerciseMuscles: readonly (readonly MuscleId[])[]):
   const repeated = [...counts].filter(([, n]) => n >= 2).map(([slug]) => slug);
   return repeated.length > 0 ? repeated : [...counts.keys()];
 }
+
+/**
+ * One exercise on one body figure: its main (first-listed) muscle's region at intensity 1 and every
+ * other muscle's region at 2, so the main muscle reads brighter. A region shared with the main
+ * muscle (the delts) stays main.
+ */
+export function mainAndAlsoBodyData(muscleIds: readonly MuscleId[], view: DiagramView): BodyDataItem[] {
+  const main = muscleIds[0];
+  const intensity = new Map<MuscleRegion, number>();
+  for (const id of musclesOnView(muscleIds, view)) {
+    const slug = MUSCLE_ID_TO_DIAGRAM_REGION[id];
+    const level = id === main ? 1 : 2;
+    intensity.set(slug, Math.min(intensity.get(slug) ?? level, level));
+  }
+  return [...intensity].map(([slug, n]) => ({ slug, intensity: n }));
+}
