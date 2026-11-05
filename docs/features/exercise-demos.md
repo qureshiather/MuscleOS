@@ -81,8 +81,9 @@ so a re-rendered demo (uploaded over the same URL) reaches the app; if that refr
 copy keeps playing. Two players asking for the same clip share one download. A spinner shows while
 a clip downloads. The OS may clear the cache folder when storage runs low.
 
-**Posters.** The [exercise picker](exercise-library.md#exercise-pickers)'s grid shows each
-exercise's still poster (`exerciseDemoPosterUrl()`, `<id>-<theme>.webp`, a few KB) rather than a
+**Posters.** The [exercise picker](exercise-library.md#exercise-pickers)'s grid and the
+[workout preview](templates.md#workout-preview)'s exercise cards show each exercise's still poster
+(`ExerciseThumb`) (`exerciseDemoPosterUrl()`, `<id>-<theme>.webp`, a few KB) rather than a
 playing clip per card; the clip plays once you open the exercise. Posters load through React
 Native's image cache, which honours Blob's one-day `max-age` and revalidates by ETag after that.
 A poster that can't load shows the body figures.

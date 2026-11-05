@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from 'react';
-import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -14,6 +14,7 @@ import {
 } from '@muscleos/types';
 import { ExerciseDemo } from '@/components/ExerciseDemo';
 import { ExerciseMuscleFigures } from '@/components/ExerciseMuscleFigures';
+import { ExerciseThumb } from '@/components/ExerciseThumb';
 import { PickerHeaderActions } from '@/components/PickerHeaderActions';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useExercisesStore } from '@/store/exercisesStore';
@@ -22,7 +23,6 @@ import type { ThemeColors } from '@/theme/palette';
 import { typography } from '@/theme/typography';
 import { radius, spacing, touch } from '@/theme/tokens';
 import { useKeyboardOverlap } from '@/theme/layout';
-import { exerciseDemoPosterUrl } from '@/utils/exerciseDemo';
 import { exerciseTypeLine } from '@/utils/exerciseLibraryFilter';
 import {
   activePickerFilterCount,
@@ -361,10 +361,8 @@ const PickerCard = memo(function PickerCard({
   onPick: (id: string) => void;
   onUnpick: (id: string) => void;
 }) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { main } = exerciseMuscleSplit(exercise.muscles);
-  const posterUrl = exerciseDemoPosterUrl(exercise, isDark ? 'dark' : 'light');
-  const [posterFailed, setPosterFailed] = useState(false);
   return (
     <View
       style={[styles.card, { width, backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -377,19 +375,7 @@ const PickerCard = memo(function PickerCard({
         accessibilityLabel={exercise.name}
         accessibilityHint="Shows its muscles and how to do it"
       >
-        <View style={[styles.cardImage, { height: width }]}>
-          {posterUrl && !posterFailed ? (
-            <Image
-              source={{ uri: posterUrl }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-              onError={() => setPosterFailed(true)}
-              testID={`picker-poster-${exercise.id}`}
-            />
-          ) : (
-            <ExerciseMuscleFigures muscles={exercise.muscles} width={Math.floor(width * 0.36)} gap={spacing.xs} />
-          )}
-        </View>
+        <ExerciseThumb exercise={exercise} size={width} />
         <View style={styles.cardLabel}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={2}>
             {exercise.name}
@@ -655,7 +641,6 @@ const styles = StyleSheet.create({
   gridRow: { gap: GRID_GAP },
   card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardAdded: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.lg, borderWidth: 2 },
-  cardImage: { alignItems: 'center', justifyContent: 'center' },
   cardLabel: { paddingHorizontal: spacing.sm + 2, paddingTop: spacing.sm, paddingBottom: spacing.sm + 2, gap: 2 },
   cardName: { fontSize: 15, fontWeight: '500', lineHeight: 19 },
   typeLine: { ...typography.caption, fontFamily: typography.data.fontFamily, fontSize: 11 },
