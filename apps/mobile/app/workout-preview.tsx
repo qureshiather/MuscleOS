@@ -21,6 +21,8 @@ import {
   previewEntryState,
   previewPlan,
 } from '@/utils/workoutPreview';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
+import { ExerciseThumb } from '@/components/ExerciseThumb';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { Card } from '@/components/ui/Card';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -46,6 +48,8 @@ export default function WorkoutPreviewScreen() {
   const defaultRestSeconds = useSettingsStore((s) => s.defaultRestSeconds);
   // Set once Edit is opened: from then on the preview follows the saved template, not the link.
   const [followTemplate, setFollowTemplate] = useState(false);
+  /** Exercise whose details are open (tap an exercise). */
+  const [infoExerciseId, setInfoExerciseId] = useState<string | null>(null);
   const [previousMap, setPreviousMap] = useState<Record<string, { weightKg: number; reps?: number }>>({});
 
   const templateId = params.templateId ?? '';
@@ -191,10 +195,24 @@ export default function WorkoutPreviewScreen() {
             exercise ? formatMuscleLabels(exercise.muscles) : '—';
           return (
             <Card key={exerciseId} elevated style={styles.exerciseCard}>
-              <View style={styles.exerciseRow}>
-                <Text style={[typography.data, styles.exerciseIndex, { color: colors.textMuted }]}>
-                  {String(index + 1).padStart(2, '0')}
-                </Text>
+              <Pressable
+                style={({ pressed }) => [styles.exerciseRow, { opacity: pressed ? 0.7 : 1 }]}
+                onPress={exercise ? () => setInfoExerciseId(exerciseId) : undefined}
+                disabled={!exercise}
+                accessibilityRole="button"
+                accessibilityHint="Shows how to do it and the muscles it works"
+                testID={`preview-exercise-${exerciseId}`}
+              >
+                <View style={styles.exerciseLead}>
+                  {exercise ? (
+                    <View style={[styles.thumb, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <ExerciseThumb exercise={exercise} size={THUMB_SIZE} />
+                    </View>
+                  ) : null}
+                  <Text style={[typography.data, styles.exerciseIndex, { color: colors.textMuted }]}>
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                </View>
                 <View style={styles.exerciseMain}>
                   <Text style={[typography.bodyMedium, { color: colors.text }]}>
                     {exercise?.name ?? exerciseId}
@@ -227,7 +245,10 @@ export default function WorkoutPreviewScreen() {
                     ))}
                   </View>
                 </View>
-              </View>
+                {exercise ? (
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} style={styles.exerciseChevron} />
+                ) : null}
+              </Pressable>
             </Card>
           );
         })}
@@ -236,9 +257,16 @@ export default function WorkoutPreviewScreen() {
       <ScreenFooter>
         <PrimaryButton label="Start workout" onPress={handleStart} />
       </ScreenFooter>
+      <ExerciseDetailSheet
+        exercise={infoExerciseId ? getExercise(infoExerciseId) ?? null : null}
+        onClose={() => setInfoExerciseId(null)}
+      />
     </Screen>
   );
 }
+
+/** The exercise's still (demo poster, or its body figures) on each preview row. */
+const THUMB_SIZE = 64;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -290,8 +318,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm + 2,
     padding: spacing.md + 2,
   },
-  exerciseRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  exerciseIndex: { width: 28, marginRight: spacing.md, marginTop: 2 },
+  exerciseRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  exerciseLead: { alignItems: 'center', gap: spacing.xs },
+  thumb: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  exerciseIndex: { fontSize: 11 },
+  exerciseChevron: { alignSelf: 'center' },
   exerciseMain: { flex: 1 },
   previous: { marginTop: spacing.sm - 2, fontFamily: typography.data.fontFamily },
   restBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2, marginTop: spacing.sm },

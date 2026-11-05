@@ -377,7 +377,8 @@ button and, for your own templates only, an **Edit** button (`canEditFromPreview
 template. Built-ins (and unresolved ids) have no Edit button. Under the title, a built-in template shows
 **Part of {program} ›**, linking to `/program?id=` (`programForTemplate()` in
 `src/utils/programs.ts`), whether or not that program is in Your workouts. Below: a **Muscles used** diagram, `<N> exercises · review, then start`, and one card per
-exercise with its two-digit index, name, muscle labels, the template's set prescription
+exercise with a small still of the movement (its demo [poster](exercise-demos.md#app-player), or the
+body figures for a custom exercise; `ExerciseThumb`) above its two-digit index, then its name, muscle labels, the template's set prescription
 (`3 sets` or `2 warm-ups · 5 sets`), **Previous** (`Previous: <weight> × <reps>` in the display
 unit, from the best weighted set in the most recent qualifying session; reps are dropped when
 unknown, and the line is **omitted** when there is no previous), and rest badges with the
@@ -386,6 +387,10 @@ exercise's rest from the template — a timer badge with your Default rest when 
 `0:45 after warm-ups` when warm-ups have a rest. The badges sit side by side and wrap to a second
 line as whole badges on a narrow card (`formatPrevious()` / `formatPreviewRest()`
 in `src/utils/workoutPreview.ts`).
+
+Tapping an exercise card opens its [detail sheet](exercise-library.md#exercises-tab): the looping
+animated demo, its muscles, type and how-to steps (no Edit/Delete or history link). An exercise id
+that doesn't resolve shows its id and can't be tapped.
 
 Guards on entry: missing template id or exercises → "Missing workout details"; an in-progress
 session → redirect to `/active-workout` (`previewEntryState()`). The previewed plan is the one the
@@ -551,7 +556,8 @@ Covered:
   the slot; Off prefilled on edit), Edit all rests (an unset rest shows the user's default, applied
   to every exercise, a rest equal to the default saved as unset), edit prefill and save, None clearing the folder, Template not found for unknown
   and built-in ids, double-tap saving once
-- `src/test/ui/templates/workoutPreview.test.tsx` (Jest) — missing params, in-progress redirect,
+- `src/test/ui/templates/workoutPreview.test.tsx` (Jest) — each exercise's poster, tapping an
+  exercise opening its detail sheet with the demo, missing params, in-progress redirect,
   the Part of {program} link for program templates (none for customs),
   title / count line / cards, set prescription copy, 2:00 rest badge, Previous formatting and
   omission, lb conversion, footer and header Start params, no Edit for built-ins or unknown ids,

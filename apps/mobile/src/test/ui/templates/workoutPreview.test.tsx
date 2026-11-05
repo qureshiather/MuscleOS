@@ -142,6 +142,27 @@ it('the header Start button does the same', async () => {
   });
 });
 
+describe('exercise details (MUS-185)', () => {
+  it('each exercise shows its demo poster', async () => {
+    renderAtNow(routes, SL_A);
+    expect(await screen.findByText('Barbell Squat')).toBeTruthy();
+    expect(screen.getByTestId('exercise-poster-squat').props.source).toEqual({
+      uri: expect.stringMatching(/\/squat-(dark|light)\.webp$/),
+    });
+    expect(screen.getByTestId('exercise-poster-barbell-row')).toBeTruthy();
+  });
+
+  it('tapping an exercise opens its details with the animated demo, without starting', async () => {
+    renderAtNow(routes, SL_A);
+    fireEvent.press(await screen.findByTestId('preview-exercise-bench-press'));
+    expect(await screen.findByLabelText('Animated demo of Bench Press')).toBeTruthy();
+    expect(screen.getByTestId('exercise-detail-main-muscle')).toBeTruthy();
+    expect(pathname()).toBe('/workout-preview');
+    fireEvent.press(screen.getByText('Close'));
+    expect(screen.queryByLabelText('Animated demo of Bench Press')).toBeNull();
+  });
+});
+
 describe('program link', () => {
   it('a program template links to its program', async () => {
     renderAtNow(routes, SL_A);

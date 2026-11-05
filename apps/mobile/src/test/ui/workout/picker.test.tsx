@@ -57,11 +57,11 @@ test('cards show the demo poster, and the body figures for a custom exercise', a
   );
   fireEvent.press(screen.getByTestId('add-exercise'));
   search('incline');
-  expect(screen.getByTestId('picker-poster-incline-bench').props.source).toEqual({
+  expect(screen.getByTestId('exercise-poster-incline-bench').props.source).toEqual({
     uri: expect.stringMatching(/\/incline-bench-(dark|light)\.webp$/),
   });
   expect(screen.getByTestId('picker-row-custom_1')).toBeTruthy();
-  expect(screen.queryByTestId('picker-poster-custom_1')).toBeNull();
+  expect(screen.queryByTestId('exercise-poster-custom_1')).toBeNull();
 });
 
 test('+ on a row adds the exercise with 3 sets and closes the picker', async () => {
