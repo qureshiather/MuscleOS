@@ -34,6 +34,7 @@ and the product assumptions baked in.
 | [supabase/setup.md](supabase/setup.md) | Supabase schema, exercise catalog, sync tables, local setup |
 | [operations/live-services.md](operations/live-services.md) | Day-to-day management of Supabase, Resend, Google, and Apple |
 | [mobile/eas-build.md](mobile/eas-build.md) | EAS build profiles, env vars, store submission |
+| [mobile/store-screenshots.md](mobile/store-screenshots.md) | Regenerating the App Store and Google Play screenshots |
 
 ---
 

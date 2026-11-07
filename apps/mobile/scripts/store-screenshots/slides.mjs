@@ -1,0 +1,57 @@
+/** One entry per store screenshot, in listing order. `shot` is the raw capture's file name. */
+export const SLIDES = [
+  {
+    id: 'log',
+    shot: 'active-workout',
+    layout: 'top',
+    logo: true,
+    title: 'Log every set <em>in seconds</em>',
+    sub: 'Last time’s numbers are always in view',
+    callout: { icon: 'timer-outline', title: 'Your rest timer starts itself', sub: 'The moment you tick off a set' },
+  },
+  {
+    id: 'recovery',
+    shot: 'recovery',
+    layout: 'bottom',
+    title: 'Know what’s <em>ready to train</em>',
+    sub: 'See which muscles are recovering, and when each one is back',
+  },
+  {
+    id: 'progress',
+    shot: 'progression',
+    layout: 'top',
+    title: 'Watch your strength <em>climb</em>',
+    sub: 'Estimated 1RM charted for every lift',
+    callout: { icon: 'trending-up', title: 'Personal records', sub: 'Tracked automatically' },
+  },
+  {
+    id: 'history',
+    shot: 'history',
+    layout: 'bottom',
+    title: 'Every session, <em>on record</em>',
+    sub: 'Volume, progress and every set, week by week',
+  },
+  {
+    id: 'programs',
+    shot: 'program',
+    layout: 'top',
+    title: 'Run a <em>proven program</em>',
+    sub: 'Push Pull Legs, Upper Lower, PHUL, Strong Lifts 5×5, or build your own',
+    size: 112,
+  },
+  {
+    id: 'exercises',
+    shot: 'exercise-detail',
+    layout: 'bottom',
+    title: 'Nearly <em>400 exercises</em>',
+    sub: 'Animated demos, muscle maps and instructions',
+  },
+  {
+    id: 'everything',
+    shot: 'workouts',
+    layout: 'top',
+    title: 'Every feature, <em>for everyone</em>',
+    sub: 'No account needed. Works offline.',
+    callout: { icon: 'lock-open-outline', title: 'Nothing locked', sub: 'Your whole log, on your phone' },
+  },
+];
